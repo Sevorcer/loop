@@ -73,7 +73,13 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
       ? `https://www.google.com/maps/embed/v1/view?key=${mapsApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
       : null;
 
-  const arrivalAddress = rawAddress;
+  const arrivalAddress =
+    [property.address, property.city]
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join(", ") ||
+    location?.formattedAddress ||
+    rawAddress;
 
   const stories = recentJobStories(property.lastVisit);
 

@@ -44,18 +44,19 @@ export function MapViewCard({
   const hasAerial = aerialSrc !== null;
   const hasViewToggle = hasStreetImage && hasAerial;
 
-  const activeResolvedView: MapView | null =
-    activeView === "street"
-      ? hasStreetImage
-        ? "street"
-        : hasAerial
-          ? "aerial"
-          : null
-      : hasAerial
-        ? "aerial"
-        : hasStreetImage
-          ? "street"
-          : null;
+  let activeResolvedView: MapView | null = null;
+
+  if (activeView === "street") {
+    if (hasStreetImage) {
+      activeResolvedView = "street";
+    } else if (hasAerial) {
+      activeResolvedView = "aerial";
+    }
+  } else if (hasAerial) {
+    activeResolvedView = "aerial";
+  } else if (hasStreetImage) {
+    activeResolvedView = "street";
+  }
 
   const activeSrc =
     activeResolvedView === "street" ? streetImageSrc : aerialSrc;
