@@ -1,0 +1,1 @@
+export { CompanyBrainScreen } from './CompanyBrainScreen'

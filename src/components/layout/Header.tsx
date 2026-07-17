@@ -1,28 +1,52 @@
 import { Bell, Search, User } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
 export default function Header() {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-900">
+    <header className="bg-surface border-default flex h-16 items-center justify-between border-b px-6">
+
+      {/* Left Side */}
+      <div className="space-y-1">
+        <h1 className="text-primary text-xl font-semibold tracking-tight">
           Dashboard
-        </h2>
+        </h1>
+
+        <p className="text-muted text-sm">
+          Welcome back. Here's what's happening today.
+        </p>
       </div>
 
-      <div className="flex items-center gap-4">
-        <button className="rounded-lg p-2 hover:bg-slate-100">
-          <Search size={20} />
-        </button>
+      {/* Right Side */}
+      <div className="flex items-center gap-2">
 
-        <button className="rounded-lg p-2 hover:bg-slate-100">
-          <Bell size={20} />
-        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Search"
+        >
+          <Search size={18} />
+        </Button>
 
-        <button className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-100">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Notifications"
+        >
+          <Bell size={18} />
+        </Button>
+
+        <Button
+          variant="secondary"
+          className="gap-2"
+        >
           <User size={18} />
-          <span className="text-sm font-medium">Collin</span>
-        </button>
+
+          <span>Collin</span>
+        </Button>
+
       </div>
+
     </header>
   );
 }
