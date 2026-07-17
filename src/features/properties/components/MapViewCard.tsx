@@ -110,7 +110,7 @@ export function MapViewCard({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Street-side
+                {viewLabels.street}
               </button>
               <button
                 type="button"

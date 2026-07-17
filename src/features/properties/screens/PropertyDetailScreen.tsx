@@ -73,11 +73,11 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
       ? `https://www.google.com/maps/embed/v1/view?key=${mapsApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
       : null;
 
-  const hasCanonicalAddress = [property.address, property.city].some((value) =>
+  const hasAnyPropertyAddressField = [property.address, property.city].some((value) =>
     Boolean(value?.trim())
   );
 
-  const arrivalAddress = hasCanonicalAddress
+  const arrivalAddress = hasAnyPropertyAddressField
     ? rawAddress
     : location?.formattedAddress || rawAddress;
 
