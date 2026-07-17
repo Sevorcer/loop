@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Property } from "../types/property";
 import { MapViewCard } from "../components/MapViewCard";
+import { formatPropertyAddress } from "../utils/formatPropertyAddress";
 
 interface PropertyDetailScreenProps {
   property: Property;
@@ -49,7 +50,7 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
 
   const { location } = property;
 
-  const rawAddress = `${property.address}, ${property.city}`;
+  const rawAddress = formatPropertyAddress(property);
 
   const navigationUrl = location
     ? `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`

@@ -24,6 +24,6 @@ export interface Property {
   lastVisit: string;
   createdAt: string;
 
-  /** Enriched location data populated automatically during create/update. */
+  /** Enriched location data derived from the saved address during create/update. */
   location?: PropertyLocation;
 }

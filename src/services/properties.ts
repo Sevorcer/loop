@@ -17,6 +17,7 @@ import type {
   PropertyStatus,
   PropertyType,
 } from "@/features/properties/types/property";
+import { formatPropertyAddress } from "@/features/properties/utils/formatPropertyAddress";
 import { geocodeAddress } from "./geocoding";
 
 // ---------------------------------------------------------------------------
@@ -71,7 +72,7 @@ async function resolveLocation(
   address: string,
   city: string
 ): Promise<{ location: PropertyLocation | undefined; geocoded: boolean }> {
-  const fullAddress = `${address}, ${city}`;
+  const fullAddress = formatPropertyAddress({ address, city });
   const result = await geocodeAddress(fullAddress);
 
   if (!result.success) {

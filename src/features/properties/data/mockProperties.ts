@@ -1,11 +1,37 @@
-import type { Property } from "../types/property";
+import type { Property, PropertyLocation } from "../types/property";
+import { formatPropertyAddress } from "../utils/formatPropertyAddress";
+
+type MockPropertySeed = Omit<Property, "location"> & {
+  coordinates?: Pick<PropertyLocation, "latitude" | "longitude">;
+};
+
+/**
+ * Mock data follows the same invariant as persisted data:
+ * address/city are canonical, and any location metadata is derived from them.
+ */
+function createMockProperty({
+  coordinates,
+  ...property
+}: MockPropertySeed): Property {
+  if (!coordinates) {
+    return property;
+  }
+
+  return {
+    ...property,
+    location: {
+      ...coordinates,
+      formattedAddress: formatPropertyAddress(property),
+    },
+  };
+}
 
 export const mockProperties: Property[] = [
-  {
+  createMockProperty({
     id: "1",
     name: "Smith Residence",
     customer: "John Smith",
-    address: "245 Maple Ave",
+    address: "600 4th Ave",
     city: "Seattle",
     type: "Residential",
     status: "Active",
@@ -13,18 +39,16 @@ export const mockProperties: Property[] = [
     openJobs: 1,
     lastVisit: "2026-06-28",
     createdAt: "2025-09-12",
-    location: {
+    coordinates: {
       latitude: 47.6062,
       longitude: -122.3321,
-      formattedAddress: "245 Maple Ave, Seattle, WA 98101, USA",
-      placeId: "mock-place-id-1",
     },
-  },
-  {
+  }),
+  createMockProperty({
     id: "2",
     name: "Johnson Residence",
     customer: "Sarah Johnson",
-    address: "123 Pine St",
+    address: "500 108th Ave NE",
     city: "Bellevue",
     type: "Residential",
     status: "Active",
@@ -32,75 +56,67 @@ export const mockProperties: Property[] = [
     openJobs: 3,
     lastVisit: "2026-07-02",
     createdAt: "2025-11-01",
-    location: {
+    coordinates: {
       latitude: 47.6101,
       longitude: -122.2015,
-      formattedAddress: "1187 Lakeview Dr, Bellevue, WA 98004, USA",
-      placeId: "mock-place-id-2",
     },
-  },
-  {
+  }),
+  createMockProperty({
     id: "3",
     name: "Evergreen Dental",
     customer: "Evergreen Dental Group",
-    address: "890 Cedar Blvd",
-    city: "Tacoma",
+    address: "1447 N 200th St",
+    city: "Shoreline",
     type: "Commercial",
     status: "Pending",
     primarySystem: "Lennox RTU",
     openJobs: 2,
     lastVisit: "2026-05-18",
     createdAt: "2026-01-15",
-    location: {
+    coordinates: {
       latitude: 47.7557,
       longitude: -122.3416,
-      formattedAddress: "455 Pine St, Shoreline, WA 98133, USA",
-      placeId: "mock-place-id-3",
     },
-  },
-  {
+  }),
+  createMockProperty({
     id: "4",
     name: "Lakeview Apartments",
     customer: "Lakeview Property Management",
-    address: "560 Lake Dr",
-    city: "Redmond",
+    address: "7300 NE 175th St",
+    city: "Kenmore",
     type: "Commercial",
     status: "Active",
     primarySystem: "Mitsubishi Ducted",
     openJobs: 0,
     lastVisit: "2026-06-12",
     createdAt: "2025-10-20",
-    location: {
+    coordinates: {
       latitude: 47.7601,
       longitude: -122.2054,
-      formattedAddress: "822 Cedar Ct, Bothell, WA 98011, USA",
-      placeId: "mock-place-id-4",
     },
-  },
-  {
+  }),
+  createMockProperty({
     id: "5",
     name: "Brown Residence",
     customer: "Michael Brown",
-    address: "77 Elm Ct",
-    city: "Kirkland",
+    address: "8825 Rainier Ave S",
+    city: "Seattle",
     type: "Residential",
     status: "Inactive",
     primarySystem: "Carrier Infinity",
     openJobs: 0,
     lastVisit: "2025-12-04",
     createdAt: "2024-08-16",
-    location: {
+    coordinates: {
       latitude: 47.5189,
       longitude: -122.2995,
-      formattedAddress: "9200 8th Ave S, Seattle, WA 98108, USA",
-      placeId: "mock-place-id-5",
     },
-  },
-  {
+  }),
+  createMockProperty({
     id: "6",
     name: "Riverstone Condos",
     customer: "Riverstone HOA",
-    address: "510 River Rd",
+    address: "1 Microsoft Way",
     city: "Redmond",
     type: "Multi-Family",
     status: "Active",
@@ -108,11 +124,9 @@ export const mockProperties: Property[] = [
     openJobs: 4,
     lastVisit: "2026-07-08",
     createdAt: "2026-02-03",
-    location: {
+    coordinates: {
       latitude: 47.674,
       longitude: -122.1215,
-      formattedAddress: "510 River Rd, Redmond, WA 98052, USA",
-      placeId: "mock-place-id-6",
     },
-  },
+  }),
 ];
