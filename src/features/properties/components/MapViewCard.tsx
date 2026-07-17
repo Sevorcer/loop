@@ -9,6 +9,31 @@ import { cn } from "@/lib/utils";
 
 type MapView = "street" | "aerial";
 
+const viewLabels: Record<MapView, string> = {
+  street: "Street-side image",
+  aerial: "Aerial view",
+};
+
+function resolveActiveView(
+  activeView: MapView,
+  hasStreetImage: boolean,
+  hasAerial: boolean
+): MapView | null {
+  if (activeView === "street") {
+    if (hasStreetImage) {
+      return "street";
+    }
+
+    return hasAerial ? "aerial" : null;
+  }
+
+  if (hasAerial) {
+    return "aerial";
+  }
+
+  return hasStreetImage ? "street" : null;
+}
+
 interface MapViewCardProps {
   /** Pre-built static street-side image URL, or null if unavailable. */
   streetImageSrc: string | null;
@@ -44,29 +69,18 @@ export function MapViewCard({
   const hasAerial = aerialSrc !== null;
   const hasViewToggle = hasStreetImage && hasAerial;
 
-  let activeResolvedView: MapView | null = null;
-
-  if (activeView === "street") {
-    if (hasStreetImage) {
-      activeResolvedView = "street";
-    } else if (hasAerial) {
-      activeResolvedView = "aerial";
-    }
-  } else if (hasAerial) {
-    activeResolvedView = "aerial";
-  } else if (hasStreetImage) {
-    activeResolvedView = "street";
-  }
+  const activeResolvedView = resolveActiveView(
+    activeView,
+    hasStreetImage,
+    hasAerial
+  );
 
   const activeSrc =
     activeResolvedView === "street" ? streetImageSrc : aerialSrc;
 
-  const activeLabel =
-    activeResolvedView === "street"
-      ? "Street-side image"
-      : activeResolvedView === "aerial"
-        ? "Aerial view"
-        : "Property imagery";
+  const activeLabel = activeResolvedView
+    ? viewLabels[activeResolvedView]
+    : "Property imagery";
 
   return (
     <Card className="overflow-hidden">
@@ -138,6 +152,8 @@ export function MapViewCard({
                 fill
                 sizes="(min-width: 1280px) 896px, 100vw"
                 className="object-cover"
+                // Google serves this imagery directly from its own CDN, so
+                // bypassing Next.js optimization avoids redundant processing.
                 unoptimized
               />
             </div>

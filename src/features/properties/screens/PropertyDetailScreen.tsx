@@ -75,7 +75,7 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
 
   const arrivalAddress =
     [property.address, property.city]
-      .map((value) => value.trim())
+      .map((value) => value?.trim() ?? "")
       .filter(Boolean)
       .join(", ") ||
     location?.formattedAddress ||
