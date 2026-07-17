@@ -197,7 +197,7 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
                 <h3 className="text-lg font-semibold">Street View unavailable</h3>
 
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                  Set <code className="font-mono">NEXT_PUBLIC_GOOGLE_MAPS_EMBED_API_KEY</code> to
+                  Set <code className="font-mono">GOOGLE_MAPS_EMBED_API_KEY</code> to
                   enable interactive Street View.
                 </p>
 
