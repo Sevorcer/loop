@@ -56,21 +56,24 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
     ? `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`;
 
-  // API key is read server-side here so it never reaches the browser bundle.
-  // The resulting embed URLs are safe to pass as plain string props.
-  const embedApiKey = process.env.GOOGLE_MAPS_EMBED_API_KEY;
+  // Read the Google Maps key server-side so it never reaches the browser
+  // bundle as executable code. Support the existing embed-specific name for
+  // backward compatibility while allowing a general-purpose key name for the
+  // mixed static-image + embed experience.
+  const mapsApiKey =
+    process.env.GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_MAPS_EMBED_API_KEY;
 
-  const streetViewSrc =
-    embedApiKey && location
-      ? `https://www.google.com/maps/embed/v1/streetview?key=${embedApiKey}&location=${location.latitude},${location.longitude}&heading=210&pitch=0&fov=90`
+  const streetImageSrc =
+    mapsApiKey && location
+      ? `https://maps.googleapis.com/maps/api/streetview?size=1200x720&location=${location.latitude},${location.longitude}&heading=210&pitch=0&fov=90&source=outdoor&key=${mapsApiKey}`
       : null;
 
   const aerialSrc =
-    embedApiKey && location
-      ? `https://www.google.com/maps/embed/v1/view?key=${embedApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
+    mapsApiKey && location
+      ? `https://www.google.com/maps/embed/v1/view?key=${mapsApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
       : null;
 
-  const arrivalAddress = location?.formattedAddress ?? rawAddress;
+  const arrivalAddress = rawAddress;
 
   const stories = recentJobStories(property.lastVisit);
 
@@ -157,9 +160,9 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
         </div>
       </div>
 
-      {/* Map card — Street View primary, Aerial secondary */}
+      {/* Map card — static street-side image primary, aerial secondary */}
       <MapViewCard
-        streetViewSrc={streetViewSrc}
+        streetImageSrc={streetImageSrc}
         aerialSrc={aerialSrc}
         navigationUrl={navigationUrl}
         arrivalAddress={arrivalAddress}
