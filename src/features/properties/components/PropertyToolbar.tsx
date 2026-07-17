@@ -2,33 +2,85 @@
 
 import { Search } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+type PropertyToolbarProps = {
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  statusFilter: string;
+  onStatusChange: (value: string) => void;
+  typeFilter: string;
+  onTypeChange: (value: string) => void;
+  cityFilter: string;
+  onCityChange: (value: string) => void;
+  cityOptions: string[];
+  onClearFilters: () => void;
+};
 
-export function PropertyToolbar() {
+const statusOptions = ["all", "Active", "Pending", "Inactive"];
+const typeOptions = ["all", "Residential", "Multi-Family", "Commercial"];
+
+export function PropertyToolbar({
+  searchValue,
+  onSearchChange,
+  statusFilter,
+  onStatusChange,
+  typeFilter,
+  onTypeChange,
+  cityFilter,
+  onCityChange,
+  cityOptions,
+}: PropertyToolbarProps) {
   return (
     <div className="flex flex-col gap-4 border-b pb-4 md:flex-row md:items-center md:justify-between">
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full md:max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
         <input
           type="text"
-          placeholder="Search properties..."
+          value={searchValue}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search properties, customers, address, city, or system..."
           className="h-10 w-full rounded-md border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary"
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline">
-          Status
-        </Button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <select
+          value={statusFilter}
+          onChange={(event) => onStatusChange(event.target.value)}
+          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+        >
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status === "all" ? "All statuses" : status}
+            </option>
+          ))}
+        </select>
 
-        <Button variant="outline">
-          City
-        </Button>
+        <select
+          value={typeFilter}
+          onChange={(event) => onTypeChange(event.target.value)}
+          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+        >
+          {typeOptions.map((type) => (
+            <option key={type} value={type}>
+              {type === "all" ? "All types" : type}
+            </option>
+          ))}
+        </select>
 
-        <Button variant="outline">
-          Type
-        </Button>
+        <select
+          value={cityFilter}
+          onChange={(event) => onCityChange(event.target.value)}
+          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+        >
+          <option value="all">All cities</option>
+
+          {cityOptions.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
