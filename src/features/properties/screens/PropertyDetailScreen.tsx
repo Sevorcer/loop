@@ -3,14 +3,13 @@ import {
   ClipboardList,
   Heart,
   MapPin,
-  Navigation,
   Wrench,
 } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import type { Property } from "../types/property";
+import { MapViewCard } from "../components/MapViewCard";
 
 interface PropertyDetailScreenProps {
   property: Property;
@@ -54,11 +53,18 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
     ? `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}`)}`;
 
+  // API key is read server-side here so it never reaches the browser bundle.
+  // The resulting embed URLs are safe to pass as plain string props.
   const embedApiKey = process.env.GOOGLE_MAPS_EMBED_API_KEY;
 
   const streetViewSrc =
     embedApiKey && location
       ? `https://www.google.com/maps/embed/v1/streetview?key=${embedApiKey}&location=${location.latitude},${location.longitude}&heading=210&pitch=0&fov=90`
+      : null;
+
+  const aerialSrc =
+    embedApiKey && location
+      ? `https://www.google.com/maps/embed/v1/view?key=${embedApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
       : null;
 
   const arrivalAddress =
@@ -149,74 +155,14 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
         </div>
       </div>
 
-      {/* Street View */}
-      <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle>Street View</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Interactive curbside view before arrival. Pan and explore the surrounding street.
-            </p>
-          </div>
-
-          <a
-            href={navigationUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
-              "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            <Navigation className="h-4 w-4" />
-            Navigate
-          </a>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {streetViewSrc ? (
-            <iframe
-              title={`Street view of ${property.name}`}
-              src={streetViewSrc}
-              className="h-72 w-full rounded-xl border"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
-          ) : (
-            <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-muted/30 via-muted/10 to-background">
-              <div className="absolute inset-0 opacity-30">
-                <div className="h-full w-full bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:32px_32px]" />
-              </div>
-
-              <div className="relative flex h-72 flex-col items-center justify-center px-6 text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border bg-background/60">
-                  <MapPin className="h-6 w-6 text-primary" />
-                </div>
-
-                <h3 className="text-lg font-semibold">Street View unavailable</h3>
-
-                <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                  Set <code className="font-mono">GOOGLE_MAPS_EMBED_API_KEY</code> to
-                  enable interactive Street View.
-                </p>
-
-                <div className="mt-6 rounded-full border bg-background/60 px-4 py-2 text-sm text-muted-foreground">
-                  {arrivalAddress}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-start gap-3 rounded-xl border bg-muted/10 p-4">
-            <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="font-medium">Arrival Address</p>
-              <p className="text-sm text-muted-foreground">{arrivalAddress}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Map card — Street View primary, Aerial secondary */}
+      <MapViewCard
+        streetViewSrc={streetViewSrc}
+        aerialSrc={aerialSrc}
+        navigationUrl={navigationUrl}
+        arrivalAddress={arrivalAddress}
+        propertyName={property.name}
+      />
 
       {/* Content grid */}
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">

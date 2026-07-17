@@ -44,7 +44,10 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
   let response: Response;
 
   try {
-    response = await fetch(url.toString(), { cache: "force-cache" });
+    // Use no-store so every geocoding call fetches fresh data.
+    // Geocoding is triggered by address changes — stale cached results could
+    // silently return wrong coordinates for a newly entered address.
+    response = await fetch(url.toString(), { cache: "no-store" });
   } catch (err) {
     return {
       success: false,
