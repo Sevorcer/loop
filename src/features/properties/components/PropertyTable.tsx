@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { DataTable } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
 import { mockProperties } from "../data/mockProperties";
+import type { Property } from "../types/property";
 import { propertyColumns } from "./PropertyColumns";
 import { PropertyToolbar } from "./PropertyToolbar";
 
 const ALL_FILTER_VALUE = "all";
 
 export function PropertyTable() {
+  const router = useRouter();
+
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [typeFilter, setTypeFilter] = useState(ALL_FILTER_VALUE);
@@ -66,6 +70,10 @@ export function PropertyTable() {
     setStatusFilter(ALL_FILTER_VALUE);
     setTypeFilter(ALL_FILTER_VALUE);
     setCityFilter(ALL_FILTER_VALUE);
+  }
+
+  function handleRowClick(property: Property) {
+    router.push(`/properties/${property.id}`);
   }
 
   if (isLoading) {
@@ -163,7 +171,11 @@ export function PropertyTable() {
         ) : null}
       </div>
 
-      <DataTable columns={propertyColumns} data={filteredProperties} />
+      <DataTable
+        columns={propertyColumns}
+        data={filteredProperties}
+        onRowClick={handleRowClick}
+      />
     </div>
   );
 }

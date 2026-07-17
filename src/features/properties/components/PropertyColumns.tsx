@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 
 import type { Property } from "../types/property";
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString();
+}
+
 export const propertyColumns: ColumnDef<Property>[] = [
   {
     accessorKey: "name",
@@ -29,25 +33,29 @@ export const propertyColumns: ColumnDef<Property>[] = [
 
         <div>
           <div className="font-medium">{row.original.name}</div>
-
           <div className="text-xs text-muted-foreground">
-            {row.original.city}
+            {row.original.customer}
           </div>
         </div>
       </div>
     ),
   },
-
   {
-    accessorKey: "customer",
-    header: "Customer",
+    accessorKey: "address",
+    header: "Address",
+    cell: ({ row }) => (
+      <div>
+        <div>{row.original.address}</div>
+        <div className="text-xs text-muted-foreground">
+          {row.original.city}
+        </div>
+      </div>
+    ),
   },
-
   {
-    accessorKey: "city",
-    header: "City",
+    accessorKey: "type",
+    header: "Type",
   },
-
   {
     accessorKey: "status",
     header: "Status",
@@ -58,40 +66,55 @@ export const propertyColumns: ColumnDef<Property>[] = [
         status === "Active"
           ? "success"
           : status === "Pending"
-          ? "warning"
-          : "neutral";
+            ? "warning"
+            : "neutral";
 
-      return (
-        <StatusBadge variant={variant}>
-          {status}
-        </StatusBadge>
-      );
+      return <StatusBadge variant={variant}>{status}</StatusBadge>;
     },
   },
-
   {
-    accessorKey: "createdAt",
+    accessorKey: "primarySystem",
+    header: "Primary System",
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">
+        {row.original.primarySystem}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "openJobs",
     header: ({ column }) => (
       <Button
         variant="ghost"
         className="-ml-3"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Created
+        Open Jobs
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => {
-      const date = new Date(row.original.createdAt);
-
-      return (
-        <span className="text-sm text-muted-foreground">
-          {date.toLocaleDateString()}
-        </span>
-      );
-    },
+    cell: ({ row }) => (
+      <span className="font-medium">{row.original.openJobs}</span>
+    ),
   },
-
+  {
+    accessorKey: "lastVisit",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Last Visit
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">
+        {formatDate(row.original.lastVisit)}
+      </span>
+    ),
+  },
   {
     id: "actions",
     enableHiding: false,

@@ -9,6 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type Row,
   type SortingState,
 } from "@tanstack/react-table";
 
@@ -18,11 +19,13 @@ import { Card, CardContent } from "@/components/ui/card";
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData>({
   columns,
   data,
+  onRowClick,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -57,6 +60,11 @@ export function DataTable<TData>({
           pagination.pageIndex * pagination.pageSize + pageRows.length,
           totalRows
         );
+
+  function handleRowClick(row: Row<TData>) {
+    if (!onRowClick) return;
+    onRowClick(row.original);
+  }
 
   return (
     <Card>
@@ -97,7 +105,8 @@ export function DataTable<TData>({
                 pageRows.map((row) => (
                   <tr
                     key={row.id}
-                    className="hover-surface transition-atlas"
+                    className={onRowClick ? "hover-surface transition-atlas cursor-pointer" : "hover-surface transition-atlas"}
+                    onClick={() => handleRowClick(row)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <td
