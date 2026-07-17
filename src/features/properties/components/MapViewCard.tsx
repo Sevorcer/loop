@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { MapPin, Navigation } from "lucide-react";
 
@@ -8,30 +9,56 @@ import { cn } from "@/lib/utils";
 
 type MapView = "street" | "aerial";
 
+/** Labels shared by the active-view copy and the missing-imagery fallback UI. */
+const viewLabels: Record<MapView, string> = {
+  street: "Street-side image",
+  aerial: "Aerial view",
+};
+
+function resolveActiveView(
+  activeView: MapView,
+  hasStreetImage: boolean,
+  hasAerial: boolean
+): MapView | null {
+  if (activeView === "street") {
+    if (hasStreetImage) {
+      return "street";
+    }
+
+    return hasAerial ? "aerial" : null;
+  }
+
+  if (hasAerial) {
+    return "aerial";
+  }
+
+  return hasStreetImage ? "street" : null;
+}
+
 interface MapViewCardProps {
-  /** Pre-built Maps Embed API streetview src, or null if unavailable. */
-  streetViewSrc: string | null;
+  /** Pre-built static street-side image URL, or null if unavailable. */
+  streetImageSrc: string | null;
   /** Pre-built Maps Embed API satellite view src, or null if unavailable. */
   aerialSrc: string | null;
   /** Google Maps navigation URL for the Navigate button. */
   navigationUrl: string;
   /** Human-readable arrival address shown in the address row. */
   arrivalAddress: string;
-  /** Property name used for iframe accessibility title. */
+  /** Property name used for image alt text and iframe accessibility title. */
   propertyName: string;
 }
 
 /**
  * Two-view map card for the property detail page.
  *
- * Street View is the default — gives techs curbside context before arrival.
- * Aerial is the secondary — gives a roof/lot overview.
+ * The default view is a stable street-side property image with no interactive
+ * pano UI, while aerial remains available for roof/lot context.
  *
- * All embed URLs are computed server-side and passed in as props so that
- * API keys never reach the browser JavaScript bundle.
+ * All visual URLs are computed server-side and passed in as props so that API
+ * keys never reach the browser JavaScript bundle.
  */
 export function MapViewCard({
-  streetViewSrc,
+  streetImageSrc,
   aerialSrc,
   navigationUrl,
   arrivalAddress,
@@ -39,16 +66,22 @@ export function MapViewCard({
 }: MapViewCardProps) {
   const [activeView, setActiveView] = useState<MapView>("street");
 
-  const hasStreetView = streetViewSrc !== null;
+  const hasStreetImage = streetImageSrc !== null;
   const hasAerial = aerialSrc !== null;
-  const hasAnyEmbed = hasStreetView || hasAerial;
+  const hasViewToggle = hasStreetImage && hasAerial;
 
-  // If the selected view has no src, fall back to whichever view is available
-  // rather than showing a blank placeholder when the other view could render.
+  const activeResolvedView = resolveActiveView(
+    activeView,
+    hasStreetImage,
+    hasAerial
+  );
+
   const activeSrc =
-    activeView === "street"
-      ? (streetViewSrc ?? aerialSrc)
-      : (aerialSrc ?? streetViewSrc);
+    activeResolvedView === "street" ? streetImageSrc : aerialSrc;
+
+  const activeLabel = activeResolvedView
+    ? viewLabels[activeResolvedView]
+    : "Property imagery";
 
   return (
     <Card className="overflow-hidden">
@@ -57,13 +90,15 @@ export function MapViewCard({
           <div>
             <CardTitle>Property View</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              {activeView === "street"
-                ? "Interactive curbside view — pan and explore the street."
-                : "Satellite overview — roof, lot, and surroundings."}
+              {activeResolvedView === "street"
+                ? "Static street-side image for a stable arrival view."
+                : activeResolvedView === "aerial"
+                  ? "Satellite overview — roof, lot, and surroundings."
+                  : "Map imagery becomes available once Google Maps is configured."}
             </p>
           </div>
 
-          {hasAnyEmbed && (
+          {hasViewToggle && (
             <div className="flex items-center rounded-lg border bg-muted/40 p-1">
               <button
                 type="button"
@@ -75,7 +110,7 @@ export function MapViewCard({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Street
+                {viewLabels.street}
               </button>
               <button
                 type="button"
@@ -109,15 +144,34 @@ export function MapViewCard({
 
       <CardContent className="space-y-4">
         {activeSrc ? (
-          <iframe
-            key={activeSrc}
-            title={`${activeView === "street" ? "Street view" : "Aerial view"} of ${propertyName}`}
-            src={activeSrc}
-            className="h-72 w-full rounded-xl border"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            allowFullScreen
-          />
+          activeResolvedView === "street" ? (
+            <div className="relative h-72 w-full overflow-hidden rounded-xl border">
+              <Image
+                key={activeSrc}
+                src={activeSrc}
+                alt={`Street-side image of ${propertyName}`}
+                fill
+                sizes="(min-width: 1280px) 896px, 100vw"
+                className="object-cover"
+                // Google serves this imagery directly from its own CDN, so
+                // bypassing Next.js optimization avoids redundant processing.
+                // That trades away format conversion and responsive variants,
+                // which is acceptable here because the source imagery is
+                // already optimized upstream.
+                unoptimized
+              />
+            </div>
+          ) : (
+            <iframe
+              key={activeSrc}
+              title={`Aerial view of ${propertyName}`}
+              src={activeSrc}
+              className="h-72 w-full rounded-xl border"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          )
         ) : (
           <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-muted/30 via-muted/10 to-background">
             <div className="absolute inset-0 opacity-30">
@@ -130,13 +184,14 @@ export function MapViewCard({
               </div>
 
               <h3 className="text-lg font-semibold">
-                {activeView === "street" ? "Street View" : "Aerial View"} unavailable
+                {activeLabel} unavailable
               </h3>
 
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                 Set{" "}
+                <code className="font-mono">GOOGLE_MAPS_API_KEY</code> or{" "}
                 <code className="font-mono">GOOGLE_MAPS_EMBED_API_KEY</code>{" "}
-                to enable map views.
+                to enable property imagery.
               </p>
 
               <div className="mt-6 rounded-full border bg-background/60 px-4 py-2 text-sm text-muted-foreground">
