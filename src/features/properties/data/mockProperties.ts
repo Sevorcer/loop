@@ -13,6 +13,12 @@ export const mockProperties: Property[] = [
     openJobs: 1,
     lastVisit: "2026-06-28",
     createdAt: "2025-09-12",
+    location: {
+      latitude: 47.6062,
+      longitude: -122.3321,
+      formattedAddress: "245 Maple Ave, Seattle, WA 98101, USA",
+      placeId: "mock-place-id-1",
+    },
   },
   {
     id: "2",
@@ -26,6 +32,12 @@ export const mockProperties: Property[] = [
     openJobs: 3,
     lastVisit: "2026-07-02",
     createdAt: "2025-11-01",
+    location: {
+      latitude: 47.6101,
+      longitude: -122.2015,
+      formattedAddress: "1187 Lakeview Dr, Bellevue, WA 98004, USA",
+      placeId: "mock-place-id-2",
+    },
   },
   {
     id: "3",
@@ -39,6 +51,12 @@ export const mockProperties: Property[] = [
     openJobs: 2,
     lastVisit: "2026-05-18",
     createdAt: "2026-01-15",
+    location: {
+      latitude: 47.7557,
+      longitude: -122.3416,
+      formattedAddress: "455 Pine St, Shoreline, WA 98133, USA",
+      placeId: "mock-place-id-3",
+    },
   },
   {
     id: "4",
@@ -52,6 +70,12 @@ export const mockProperties: Property[] = [
     openJobs: 0,
     lastVisit: "2026-06-12",
     createdAt: "2025-10-20",
+    location: {
+      latitude: 47.7601,
+      longitude: -122.2054,
+      formattedAddress: "822 Cedar Ct, Bothell, WA 98011, USA",
+      placeId: "mock-place-id-4",
+    },
   },
   {
     id: "5",
@@ -65,6 +89,12 @@ export const mockProperties: Property[] = [
     openJobs: 0,
     lastVisit: "2025-12-04",
     createdAt: "2024-08-16",
+    location: {
+      latitude: 47.5189,
+      longitude: -122.2995,
+      formattedAddress: "9200 8th Ave S, Seattle, WA 98108, USA",
+      placeId: "mock-place-id-5",
+    },
   },
   {
     id: "6",
@@ -78,5 +108,11 @@ export const mockProperties: Property[] = [
     openJobs: 4,
     lastVisit: "2026-07-08",
     createdAt: "2026-02-03",
+    location: {
+      latitude: 47.6740,
+      longitude: -122.1215,
+      formattedAddress: "510 River Rd, Redmond, WA 98052, USA",
+      placeId: "mock-place-id-6",
+    },
   },
 ];
