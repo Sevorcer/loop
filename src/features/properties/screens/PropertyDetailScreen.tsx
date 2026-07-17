@@ -49,9 +49,11 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
 
   const { location } = property;
 
+  const rawAddress = `${property.address}, ${property.city}`;
+
   const navigationUrl = location
     ? `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}`)}`;
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`;
 
   // API key is read server-side here so it never reaches the browser bundle.
   // The resulting embed URLs are safe to pass as plain string props.
@@ -67,8 +69,7 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
       ? `https://www.google.com/maps/embed/v1/view?key=${embedApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
       : null;
 
-  const arrivalAddress =
-    location?.formattedAddress ?? `${property.address}, ${property.city}`;
+  const arrivalAddress = location?.formattedAddress ?? rawAddress;
 
   const stories = recentJobStories(property.lastVisit);
 
@@ -90,7 +91,7 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
 
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
-                  <span>{property.address}, {property.city}</span>
+                  <span>{rawAddress}</span>
                 </div>
               </div>
             </div>

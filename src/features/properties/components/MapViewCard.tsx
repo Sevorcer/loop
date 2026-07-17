@@ -43,8 +43,12 @@ export function MapViewCard({
   const hasAerial = aerialSrc !== null;
   const hasAnyEmbed = hasStreetView || hasAerial;
 
+  // If the selected view has no src, fall back to whichever view is available
+  // rather than showing a blank placeholder when the other view could render.
   const activeSrc =
-    activeView === "street" ? streetViewSrc : aerialSrc;
+    activeView === "street"
+      ? (streetViewSrc ?? aerialSrc)
+      : (aerialSrc ?? streetViewSrc);
 
   return (
     <Card className="overflow-hidden">
