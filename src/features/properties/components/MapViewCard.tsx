@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 type MapView = "street" | "aerial";
 
+/** Labels shared by the active-view copy and the missing-imagery fallback UI. */
 const viewLabels: Record<MapView, string> = {
   street: "Street-side image",
   aerial: "Aerial view",
@@ -154,6 +155,9 @@ export function MapViewCard({
                 className="object-cover"
                 // Google serves this imagery directly from its own CDN, so
                 // bypassing Next.js optimization avoids redundant processing.
+                // That trades away format conversion and responsive variants,
+                // which is acceptable here because the source imagery is
+                // already optimized upstream.
                 unoptimized
               />
             </div>
