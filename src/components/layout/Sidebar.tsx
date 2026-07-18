@@ -2,167 +2,61 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
 import {
-  Brain,
+  LayoutDashboard,
   Building2,
   Briefcase,
   CalendarDays,
-  LayoutDashboard,
+  Brain,
   Settings,
+  BellRing,
 } from "lucide-react";
 
-import { ROUTES } from "@/lib/routes";
-
-const sections = [
-  {
-    title: "MAIN",
-    items: [
-      {
-        label: "Dashboard",
-        href: ROUTES.DASHBOARD,
-        icon: LayoutDashboard,
-      },
-      {
-        label: "Properties",
-        href: ROUTES.PROPERTIES,
-        icon: Building2,
-      },
-      {
-        label: "Jobs",
-        href: ROUTES.JOBS,
-        icon: Briefcase,
-      },
-      {
-        label: "Daily Plans",
-        href: ROUTES.DAILY_PLANS,
-        icon: CalendarDays,
-      },
-    ],
-  },
-  {
-    title: "INTELLIGENCE",
-    items: [
-      {
-        label: "Company Brain",
-        href: ROUTES.COMPANY_BRAIN,
-        icon: Brain,
-      },
-    ],
-  },
-  {
-    title: "SYSTEM",
-    items: [
-      {
-        label: "Settings",
-        href: ROUTES.SETTINGS,
-        icon: Settings,
-      },
-    ],
-  },
+const navigation = [
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Properties", href: "/properties", icon: Building2 },
+  { name: "Customers", href: "/customers", icon: Building2 },
+  { name: "Vehicle Alerts", href: "/vehicle-alerts", icon: BellRing },
+  { name: "Jobs", href: "/jobs", icon: Briefcase },
+  { name: "Daily Plans", href: "/daily-plans", icon: CalendarDays },
+  { name: "Company Brain", href: "/company-brain", icon: Brain },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="bg-surface border-default flex w-64 flex-col border-r">
-
-      {/* Logo */}
-
-      <div className="border-default border-b px-6 py-8">
-
-        <h1 className="text-primary text-2xl font-bold tracking-tight">
-          LOOP
-        </h1>
-
-        <p className="text-muted mt-2 text-sm leading-relaxed">
-          Operating System
-          <br />
-          for Field Operations
-        </p>
-
+    <aside className="w-64 border-r border-slate-200 bg-white">
+      <div className="border-b border-slate-200 p-6">
+        <h1 className="text-2xl font-bold text-slate-900">LOOP</h1>
+        <p className="text-sm text-slate-500">Field Operations Platform</p>
       </div>
 
-      {/* Navigation */}
+      <nav className="p-4">
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
 
-      <nav className="flex-1 px-4 py-6">
-
-        {sections.map((section) => (
-
-          <div
-            key={section.title}
-            className="mb-8"
-          >
-
-            <p className="text-muted mb-3 px-3 text-xs font-semibold tracking-[0.18em]">
-              {section.title}
-            </p>
-
-            <div className="space-y-1">
-
-              {section.items.map((item) => {
-
-                const Icon = item.icon;
-
-                const active = pathname === item.href;
-
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className={[
-                      "group",
-                      "relative",
-                      "flex",
-                      "items-center",
-                      "gap-3",
-                      "rounded-atlas-lg",
-                      "px-4",
-                      "py-3",
-                      "transition-atlas",
-                      active
-                        ? "bg-surface-elevated text-primary"
-                        : "text-muted hover-surface-elevated hover:text-primary",
-                    ].join(" ")}
-                  >
-
-                    {active && (
-                      <span className="bg-[var(--primary)] absolute left-0 top-2 bottom-2 w-1 rounded-r-full" />
-                    )}
-
-                    <Icon
-                      size={18}
-                      strokeWidth={2}
-                    />
-
-                    <span className="font-medium">
-                      {item.label}
-                    </span>
-
-                  </Link>
-                );
-
-              })}
-
-            </div>
-
-          </div>
-
-        ))}
-
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={[
+                "mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition",
+                isActive
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+              ].join(" ")}
+            >
+              <Icon size={18} />
+              <span>{item.name}</span>
+            </Link>
+          );
+        })}
       </nav>
-
-      {/* Footer */}
-
-      <div className="border-default border-t px-6 py-5">
-
-        <p className="text-muted text-xs">
-          ATLAS UI v1
-        </p>
-
-      </div>
-
     </aside>
   );
 }

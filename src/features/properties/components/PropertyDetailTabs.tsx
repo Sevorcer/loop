@@ -1,0 +1,606 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  Building2,
+  ClipboardList,
+  FileText,
+  HardHat,
+  ImageIcon,
+  ShieldCheck,
+  Users,
+  Wrench,
+} from "lucide-react";
+
+import {
+  AtlasTabs,
+  AtlasTimeline,
+  EmptyState,
+  StatusBadge,
+} from "@/components/atlas";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { mockPropertyDetails } from "../data/mockPropertyDetails";
+import type { Property } from "../types/property";
+import type {
+  PropertyDetails,
+  PropertyDocumentItem,
+  PropertyPhotoItem,
+  PropertyTimelineEvent,
+} from "../types/propertyDetails";
+
+type PropertyDetailTabKey =
+  | "overview"
+  | "equipment"
+  | "jobs"
+  | "timeline"
+  | "documents"
+  | "photos"
+  | "contacts"
+  | "warranty"
+  | "notes";
+
+type PropertyDetailTab = {
+  key: PropertyDetailTabKey;
+  label: string;
+};
+
+const tabs: PropertyDetailTab[] = [
+  { key: "overview", label: "Overview" },
+  { key: "equipment", label: "Equipment" },
+  { key: "jobs", label: "Jobs" },
+  { key: "timeline", label: "Timeline" },
+  { key: "documents", label: "Documents" },
+  { key: "photos", label: "Photos" },
+  { key: "contacts", label: "Contacts" },
+  { key: "warranty", label: "Warranty" },
+  { key: "notes", label: "Notes" },
+];
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString();
+}
+
+function getTimelineIcon(icon: PropertyTimelineEvent["icon"]) {
+  if (icon === "property") return Building2;
+  if (icon === "install") return HardHat;
+  return ClipboardList;
+}
+
+function getPropertyDetails(property: Property): PropertyDetails {
+  const existingDetails = mockPropertyDetails.find(
+    (entry) => entry.propertyId === property.id
+  );
+
+  if (existingDetails) {
+    return existingDetails;
+  }
+
+  return {
+    propertyId: property.id,
+    beforeYouGoItems: [
+      "Confirm arrival access details before dispatch.",
+      "Review latest property notes before leaving the shop.",
+      "Verify required equipment and materials before arrival.",
+    ],
+    homeIntelligenceItems: [
+      "Property detail profile is active and ready for future field notes.",
+      "No additional operational intelligence has been recorded yet.",
+    ],
+    equipment: property.primarySystem
+      ? [
+          {
+            id: `${property.id}-equipment-primary`,
+            name: property.primarySystem,
+            kind: "Primary system",
+            status:
+              property.status === "Inactive" ? "Needs review" : "Operational",
+            serial: "Pending",
+            installDate: property.createdAt,
+          },
+        ]
+      : [],
+    jobs: [],
+    timeline: [
+      {
+        id: `${property.id}-timeline-created`,
+        title: "Property created in LOOP",
+        date: property.createdAt,
+        description:
+          "Property profile added and made available for scheduling.",
+        icon: "property",
+      },
+      {
+        id: `${property.id}-timeline-last-visit`,
+        title: "Last recorded property visit",
+        date: property.lastVisit,
+        description:
+          "Latest property activity recorded for historical visibility.",
+        icon: "service",
+      },
+    ],
+    contacts: [
+      {
+        id: `${property.id}-contact-primary`,
+        name: property.customer,
+        role: "Primary Customer",
+        phone: "Not recorded",
+        preference: "Not recorded",
+      },
+    ],
+    warranty: [
+      {
+        id: `${property.id}-warranty-registration`,
+        title: "Registration",
+        description:
+          "Warranty registration details have not been recorded yet.",
+      },
+    ],
+    notes: ["No operational notes have been recorded yet."],
+    documents: [],
+    photos: [],
+  };
+}
+
+function getDocumentVariant(status: PropertyDocumentItem["status"]) {
+  if (status === "Ready") return "success" as const;
+  if (status === "Pending Review") return "warning" as const;
+  return "neutral" as const;
+}
+
+function getPhotoVariant(status: PropertyPhotoItem["status"]) {
+  if (status === "Complete") return "success" as const;
+  if (status === "Required") return "warning" as const;
+  return "neutral" as const;
+}
+
+function OverviewSection({
+  recentItems,
+  beforeYouGoItems,
+  homeIntelligenceItems,
+}: {
+  recentItems: { date: string; title: string }[];
+  beforeYouGoItems: string[];
+  homeIntelligenceItems: string[];
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Job Stories</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {recentItems.map((story) => (
+              <div
+                key={`${story.date}-${story.title}`}
+                className="flex items-start justify-between gap-4 border-b pb-4 last:border-b-0 last:pb-0"
+              >
+                <div className="space-y-1">
+                  <p className="font-medium">{story.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatDate(story.date)}
+                  </p>
+                </div>
+
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Before You Go</CardTitle>
+          </CardHeader>
+
+          <CardContent className="pt-0">
+            <ul className="space-y-4 text-sm text-muted-foreground">
+              {beforeYouGoItems.map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Home Intelligence</CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              {homeIntelligenceItems.map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function EquipmentSection({ details }: { details: PropertyDetails }) {
+  if (details.equipment.length === 0) {
+    return (
+      <EmptyState
+        title="No equipment recorded yet"
+        description="Equipment records will appear here once systems and controls are documented for this property."
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {details.equipment.map((item) => (
+        <Card key={item.id}>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>{item.name}</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {item.kind}
+                </p>
+              </div>
+
+              <Wrench className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Status</span>
+              <StatusBadge
+                variant={
+                  item.status === "Operational" || item.status === "Online"
+                    ? "success"
+                    : "warning"
+                }
+              >
+                {item.status}
+              </StatusBadge>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Serial</span>
+              <span className="font-medium">{item.serial}</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Installed</span>
+              <span className="font-medium">{formatDate(item.installDate)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function JobsSection({ details }: { details: PropertyDetails }) {
+  if (details.jobs.length === 0) {
+    return (
+      <EmptyState
+        title="No related jobs yet"
+        description="Scheduled service, install, and warranty work for this property will appear here."
+      />
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Related Jobs</CardTitle>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {details.jobs.map((job) => (
+          <div key={job.id} className="rounded-xl border bg-muted/20 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-medium">{job.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
+              </div>
+
+              <StatusBadge
+                variant={job.status === "Completed" ? "success" : "warning"}
+              >
+                {job.status}
+              </StatusBadge>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+              <div>
+                <p className="text-xs uppercase tracking-wide">Scheduled For</p>
+                <p className="mt-1 font-medium text-foreground">
+                  {formatDate(job.scheduledFor)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-wide">Assigned Crew</p>
+                <p className="mt-1 font-medium text-foreground">{job.crew}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TimelineSection({ details }: { details: PropertyDetails }) {
+  const timelineItems = useMemo(
+    () =>
+      details.timeline.map((event) => ({
+        id: event.id,
+        title: event.title,
+        date: formatDate(event.date),
+        description: event.description,
+        icon: getTimelineIcon(event.icon),
+      })),
+    [details.timeline]
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Property Timeline</CardTitle>
+      </CardHeader>
+
+      <CardContent>
+        <AtlasTimeline items={timelineItems} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function DocumentsSection({ details }: { details: PropertyDetails }) {
+  if (details.documents.length === 0) {
+    return (
+      <EmptyState
+        title="No documents available yet"
+        description="Property documents will appear here once permits, manuals, startup packets, or warranty files are uploaded."
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {details.documents.map((document) => (
+        <Card key={document.id}>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>{document.title}</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {document.category}
+                </p>
+              </div>
+
+              <FileText className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Status</span>
+              <StatusBadge variant={getDocumentVariant(document.status)}>
+                {document.status}
+              </StatusBadge>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Uploaded</span>
+              <span className="font-medium">
+                {formatDate(document.uploadedAt)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function PhotosSection({ details }: { details: PropertyDetails }) {
+  if (details.photos.length === 0) {
+    return (
+      <EmptyState
+        title="No photos uploaded yet"
+        description="Required install photos, QC images, and completion photos will appear here for this property."
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      {details.photos.map((photo) => (
+        <Card key={photo.id}>
+          <CardContent className="p-0">
+            <div className="flex aspect-[4/3] items-center justify-center rounded-t-xl bg-muted/40">
+              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+            </div>
+
+            <div className="space-y-3 p-4">
+              <div>
+                <p className="font-medium">{photo.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {photo.category}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <StatusBadge variant={getPhotoVariant(photo.status)}>
+                  {photo.status}
+                </StatusBadge>
+              </div>
+
+              <div className="text-sm">
+                <span className="text-muted-foreground">Captured: </span>
+                <span className="font-medium">
+                  {formatDate(photo.capturedAt)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function ContactsSection({ details }: { details: PropertyDetails }) {
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {details.contacts.map((contact) => (
+        <Card key={contact.id}>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>{contact.name}</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {contact.role}
+                </p>
+              </div>
+
+              <Users className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Phone</span>
+              <span className="font-medium">{contact.phone}</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Arrival Preference</span>
+              <span className="font-medium">{contact.preference}</span>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function WarrantySection({ details }: { details: PropertyDetails }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Warranty Coverage</CardTitle>
+      </CardHeader>
+
+      <CardContent className="grid gap-4 lg:grid-cols-3">
+        {details.warranty.map((item) => (
+          <div key={item.id} className="rounded-xl border bg-muted/20 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <p className="font-medium">{item.title}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">{item.description}</p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function NotesSection({ details }: { details: PropertyDetails }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Operational Notes</CardTitle>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {details.notes.map((note, index) => (
+          <div
+            key={`${index}-${note}`}
+            className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground"
+          >
+            {note}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function PropertyDetailTabs({ property }: { property: Property }) {
+  const [activeTab, setActiveTab] =
+    useState<PropertyDetailTabKey>("overview");
+
+  const details = useMemo(() => getPropertyDetails(property), [property]);
+
+  const recentItems = useMemo(() => {
+    return details.jobs.length > 0
+      ? details.jobs.map((job) => ({
+          date: job.scheduledFor,
+          title: job.title,
+        }))
+      : [
+          {
+            date: property.lastVisit,
+            title: "Latest recorded property activity",
+          },
+        ];
+  }, [details.jobs, property.lastVisit]);
+
+  return (
+    <div className="space-y-6">
+      <AtlasTabs
+        items={tabs}
+        value={activeTab}
+        onChange={setActiveTab}
+        sticky
+      />
+
+      {activeTab === "overview" ? (
+        <OverviewSection
+          recentItems={recentItems}
+          beforeYouGoItems={details.beforeYouGoItems}
+          homeIntelligenceItems={details.homeIntelligenceItems}
+        />
+      ) : null}
+
+      {activeTab === "equipment" ? (
+        <EquipmentSection details={details} />
+      ) : null}
+
+      {activeTab === "jobs" ? <JobsSection details={details} /> : null}
+
+      {activeTab === "timeline" ? (
+        <TimelineSection details={details} />
+      ) : null}
+
+      {activeTab === "documents" ? (
+        <DocumentsSection details={details} />
+      ) : null}
+
+      {activeTab === "photos" ? <PhotosSection details={details} /> : null}
+
+      {activeTab === "contacts" ? (
+        <ContactsSection details={details} />
+      ) : null}
+
+      {activeTab === "warranty" ? (
+        <WarrantySection details={details} />
+      ) : null}
+
+      {activeTab === "notes" ? <NotesSection details={details} /> : null}
+    </div>
+  );
+}
