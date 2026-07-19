@@ -31,6 +31,13 @@ const eventTypeIcon: Record<OperationalEventType, React.ReactNode> = {
   crew_delayed: <AlertTriangle className="h-3.5 w-3.5 text-yellow-300" />,
   blocker_resolved: <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />,
   job_completed: <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />,
+  // Inventory domain events — observed by Live Operations
+  materials_reserved: <Package className="h-3.5 w-3.5 text-blue-300" />,
+  parts_picked: <Package className="h-3.5 w-3.5 text-blue-300" />,
+  truck_loaded: <Truck className="h-3.5 w-3.5 text-emerald-300" />,
+  missing_equipment: <AlertTriangle className="h-3.5 w-3.5 text-red-300" />,
+  backorder_created: <AlertTriangle className="h-3.5 w-3.5 text-yellow-300" />,
+  emergency_part_delivered: <Package className="h-3.5 w-3.5 text-emerald-300" />,
 };
 
 const severityDot: Record<OperationalEvent["severity"], string> = {
