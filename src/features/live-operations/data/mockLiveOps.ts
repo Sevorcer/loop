@@ -93,6 +93,16 @@ const workOrderSeeds: InitialWorkOrderSeed[] = [
     assignedCrewName: "Unassigned",
     estimatedHours: 4.5,
   },
+  {
+    id: "job-015",
+    jobNumber: "WO-1015",
+    customer: "Clearwater Office Park",
+    address: "4800 Clearwater Pkwy, Building C",
+    description: "Packaged rooftop conversion",
+    assignedCrewId: "crew-taylor-reed",
+    assignedCrewName: "Taylor Reed",
+    estimatedHours: 8,
+  },
 ];
 
 // ------------------------------------------------------------------
@@ -351,6 +361,58 @@ const events: OperationalEvent[] = [
       "Call Tacoma permit office",
       "Defer job to next available day",
       "Request emergency permit review",
+    ],
+  },
+
+  // ---- 6:55 ---- Install Truck 4 fully loaded for JOB-1001 (inventory event) ----
+  {
+    id: "evt-016",
+    type: "truck_loaded",
+    timestamp: "2026-07-19T06:55:00Z",
+    timeLabel: "6:55 AM",
+    sourceType: "work_order",
+    sourceId: "job-001",
+    severity: "info",
+    title: "Truck Loaded — WO-1001",
+    description: "Install Truck 4 fully loaded for Smith Residence. All 8 material plan items picked and loaded. Crew ready to roll.",
+    relatedWorkOrderId: "job-001",
+    relatedCrewId: "crew-marcus-rivera",
+  },
+
+  // ---- 7:15 ---- MHK2 thermostat backordered for JOB-1009 (inventory event) ----
+  {
+    id: "evt-017",
+    type: "backorder_created",
+    timestamp: "2026-07-19T07:15:00Z",
+    timeLabel: "7:15 AM",
+    sourceType: "work_order",
+    sourceId: "job-009",
+    severity: "warning",
+    title: "Backorder — MHK2 Thermostat",
+    description: "Mitsubishi MHK2 thermostat adapter for Johnson Residence is backordered. Expected arrival 2026-07-22. Install can proceed; thermostat installation deferred.",
+    relatedWorkOrderId: "job-009",
+    actionRecommendation: "Notify customer that thermostat will be installed at a follow-up visit.",
+    requiresDecision: false,
+  },
+
+  // ---- 7:30 ---- Clearwater rooftop unit blocked (inventory event) ----
+  {
+    id: "evt-018",
+    type: "missing_equipment",
+    timestamp: "2026-07-19T07:30:00Z",
+    timeLabel: "7:30 AM",
+    sourceType: "work_order",
+    sourceId: "job-015",
+    severity: "critical",
+    title: "Equipment Unavailable — WO-1015",
+    description: "Carrier 48,000 BTU packaged rooftop unit for Clearwater Building C is backordered until 2026-07-28. Job cannot be dispatched without the primary equipment.",
+    relatedWorkOrderId: "job-015",
+    actionRecommendation: "Contact Clearwater to reschedule. Notify Taylor Reed not to dispatch.",
+    requiresDecision: true,
+    decisionOptions: [
+      "Reschedule job to 2026-07-28",
+      "Source rooftop unit from alternate supplier",
+      "Contact customer to explain delay",
     ],
   },
 ];

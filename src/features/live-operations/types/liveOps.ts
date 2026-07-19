@@ -23,7 +23,14 @@ export type OperationalEventType =
   | "eta_slip"
   | "crew_delayed"
   | "blocker_resolved"
-  | "job_completed";
+  | "job_completed"
+  // Inventory domain events — observed by Live Operations, owned by Inventory
+  | "materials_reserved"
+  | "parts_picked"
+  | "truck_loaded"
+  | "missing_equipment"
+  | "backorder_created"
+  | "emergency_part_delivered";
 
 export type EventSeverity = "info" | "warning" | "critical";
 

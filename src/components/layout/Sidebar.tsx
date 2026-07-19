@@ -11,6 +11,7 @@ import {
   Cpu,
   CalendarDays,
   Radio,
+  Package,
   Brain,
   Settings,
   BellRing,
@@ -31,6 +32,7 @@ const navigation = [
   },
   { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
   { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
+  { name: "Inventory", href: ROUTES.INVENTORY, icon: Package },
   { name: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: Brain },
   { name: "Settings", href: ROUTES.SETTINGS, icon: Settings },
 ];
