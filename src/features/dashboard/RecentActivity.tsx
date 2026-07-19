@@ -34,7 +34,7 @@ const activities = [
 
 export function RecentActivity() {
   return (
-    <Card>
+    <Card className="hover-lift">
       <CardHeader>
         <div className="space-y-3">
           <CardTitle>Recent Activity</CardTitle>

@@ -1,5 +1,6 @@
 export { DashboardScreen } from './DashboardScreen'
 export { DashboardHeader } from './DashboardHeader'
+export { NeedsAttention } from './NeedsAttention'
 export { MetricsGrid } from './MetricsGrid'
 export { QuickActions } from './QuickActions'
 export { RecentActivity } from './RecentActivity'
