@@ -19,7 +19,7 @@ interface MetricProps {
 
 function MetricPill({ label, value, icon, detail }: MetricProps) {
   return (
-    <div className="flex min-h-[126px] flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+    <div className="flex min-h-32 flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
           {label}

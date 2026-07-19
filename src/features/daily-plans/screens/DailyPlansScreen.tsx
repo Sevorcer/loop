@@ -6,7 +6,6 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { useJobs } from "@/features/jobs/state/JobsProvider";
-import type { Job } from "@/features/jobs/types/job";
 
 import { AlertsBanner } from "../components/AlertsBanner";
 import { CrewSection, UnassignedCrewSection } from "../components/CrewSection";
@@ -46,13 +45,6 @@ function EmptyDay() {
       </p>
     </div>
   );
-}
-
-function buildUpdateInput(job: Job, changes: Partial<Job>): Job {
-  return {
-    ...job,
-    ...changes,
-  };
 }
 
 export function DailyPlansScreen() {
@@ -114,7 +106,7 @@ export function DailyPlansScreen() {
         return;
       }
 
-      updateJob(jobId, buildUpdateInput(job, { assignedTo: technician }));
+      updateJob(jobId, { ...job, assignedTo: technician });
       setActionNotice(
         technician
           ? `${job.jobNumber} assigned to ${technician}.`
@@ -132,10 +124,10 @@ export function DailyPlansScreen() {
         return;
       }
 
-      updateJob(
-        jobId,
-        buildUpdateInput(job, { scheduledFor: addDays(job.scheduledFor, 1) })
-      );
+      updateJob(jobId, {
+        ...job,
+        scheduledFor: addDays(job.scheduledFor, 1),
+      });
       setActionNotice(`${job.jobNumber} moved to ${addDays(job.scheduledFor, 1)}.`);
     },
     [jobs, updateJob]
@@ -158,7 +150,14 @@ export function DailyPlansScreen() {
   }, []);
 
   const activeCrewCards = useMemo(
-    () => crewWorkloads.filter((workload) => workload.jobs.length > 0 || workload.crew.availability === "available"),
+    () =>
+      crewWorkloads.filter(
+        (workload) =>
+          workload.jobs.length > 0 ||
+          workload.crew.availability === "available" ||
+          workload.crew.availability === "late arrival" ||
+          workload.crew.availability === "half day"
+      ),
     [crewWorkloads]
   );
 

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "LOOP",
-  description: "LOOP — The Operating System for Field Operations",
+  description: "LOOP - The Operating System for Field Operations",
 };
 
 export default function RootLayout({

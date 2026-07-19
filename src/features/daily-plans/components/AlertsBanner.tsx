@@ -33,7 +33,7 @@ export function AlertsBanner({ alerts }: AlertsBannerProps) {
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-red-100">Today&apos;s problems</p>
+            <p className="text-sm font-semibold text-red-100">Dispatch blockers</p>
             <p className="mt-1 text-sm leading-6 text-red-100/80">
               Resolve the blockers below before the first truck leaves the shop.
             </p>

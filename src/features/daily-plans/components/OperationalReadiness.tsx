@@ -74,20 +74,40 @@ export function OperationalReadiness({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Job states</p>
-          <div className="mt-3 space-y-2 text-sm text-slate-300">
-            <p className="flex items-center justify-between"><span>Ready</span><span>{readyJobs}</span></p>
-            <p className="flex items-center justify-between"><span>Warnings</span><span>{warningJobs}</span></p>
-            <p className="flex items-center justify-between"><span>Blocked</span><span>{blockedJobs}</span></p>
-          </div>
+          <dl className="mt-3 space-y-2 text-sm text-slate-300">
+            <div className="flex items-center justify-between">
+              <dt>Ready</dt>
+              <dd>{readyJobs}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Warnings</dt>
+              <dd>{warningJobs}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Blocked</dt>
+              <dd>{blockedJobs}</dd>
+            </div>
+          </dl>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Launch checks</p>
-          <div className="mt-3 space-y-2 text-sm text-slate-300">
-            <p className="flex items-center justify-between"><span>Truck ready</span><span>{truckReadyCount}/{crewWorkloads.length}</span></p>
-            <p className="flex items-center justify-between"><span>Active alerts</span><span>{alerts.length}</span></p>
-            <p className="flex items-center justify-between"><span>Crew constraints</span><span>{constrainedCrews.length}</span></p>
-          </div>
+          <dl className="mt-3 space-y-2 text-sm text-slate-300">
+            <div className="flex items-center justify-between">
+              <dt>Truck ready</dt>
+              <dd>
+                {truckReadyCount}/{crewWorkloads.length}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Active alerts</dt>
+              <dd>{alerts.length}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Crew constraints</dt>
+              <dd>{constrainedCrews.length}</dd>
+            </div>
+          </dl>
         </div>
       </div>
 

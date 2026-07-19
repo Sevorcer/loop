@@ -64,6 +64,7 @@ export function PlanJobCard({
   onDelay,
   onPlaceholderAction,
 }: PlanJobCardProps) {
+  const crewSelectId = `assign-crew-${job.id}`;
   const readinessLabel =
     job.manualState === "ready"
       ? "Manager Ready"
@@ -128,9 +129,33 @@ export function PlanJobCard({
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Planning</p>
           <div className="mt-3 space-y-2 text-sm text-slate-300">
-            <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-3.5 w-3.5 text-slate-500" /><span>{job.location} · {job.planning.city}</span></p>
-            <p className="flex items-start gap-2"><Timer className="mt-0.5 h-3.5 w-3.5 text-slate-500" /><span>{formatHours(job.planning.estimatedHours)} estimated</span></p>
-            <p className="flex items-start gap-2"><CalendarClock className="mt-0.5 h-3.5 w-3.5 text-slate-500" /><span>{job.planning.arrivalWindow}</span></p>
+            <p className="flex items-start gap-2">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 text-slate-500" />
+              <span className="flex flex-wrap items-center gap-1">
+                <span>{job.location}</span>
+                <span aria-hidden="true" className="text-slate-500">
+                  ·
+                </span>
+                <span>{job.planning.city}</span>
+              </span>
+            </p>
+            <p className="flex items-start gap-2">
+              <Timer aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 text-slate-500" />
+              <span>
+                <span className="sr-only">Estimated duration: </span>
+                {formatHours(job.planning.estimatedHours)} estimated
+              </span>
+            </p>
+            <p className="flex items-start gap-2">
+              <CalendarClock
+                aria-hidden="true"
+                className="mt-0.5 h-3.5 w-3.5 text-slate-500"
+              />
+              <span>
+                <span className="sr-only">Arrival window: </span>
+                {job.planning.arrivalWindow}
+              </span>
+            </p>
           </div>
         </div>
 
@@ -218,11 +243,15 @@ export function PlanJobCard({
       ) : null}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-        <label className="block">
-          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <div>
+          <label
+            htmlFor={crewSelectId}
+            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+          >
             Assign crew
-          </span>
+          </label>
           <select
+            id={crewSelectId}
             value={job.assignedTo}
             onChange={(event) => onAssign(job.id, event.target.value)}
             className="h-9 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white outline-none transition focus:border-blue-500/30"
@@ -234,7 +263,7 @@ export function PlanJobCard({
               </option>
             ))}
           </select>
-        </label>
+        </div>
 
         <div className="flex flex-wrap items-end gap-2">
           <Button

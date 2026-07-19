@@ -34,6 +34,8 @@ function parseStoredValue<T>(value: string | null, fallback: T): T {
   }
 
   try {
+    // Local-first Daily Plans state is only written by this app, so we trust the
+    // persisted JSON shape and fall back safely if the stored value is malformed.
     return JSON.parse(value) as T;
   } catch {
     return fallback;

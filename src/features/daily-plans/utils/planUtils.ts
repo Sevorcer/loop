@@ -117,7 +117,7 @@ function addHoursToClock(value: string, hours: number): string {
   const clock = parseClockValue(value);
   const totalMinutes = clock.hour * 60 + clock.minute + Math.round(hours * 60);
   const nextHour = Math.floor(totalMinutes / 60);
-  const nextMinute = totalMinutes % 60;
+  const nextMinute = ((totalMinutes % 60) + 60) % 60;
   return formatClockValue(nextHour, nextMinute);
 }
 
