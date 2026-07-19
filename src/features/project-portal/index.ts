@@ -114,10 +114,14 @@ export {
   PORTAL_SUPPORTED_EVENT_VERSIONS,
 } from "./types/events";
 export type {
+  PortalAppointmentSummary,
+  PortalApprovedChangeOrder,
   PortalDocumentVisibility,
   PortalFreshnessStatus,
   PortalInstalledSystemSummary,
   PortalMetricSummary,
+  PortalPublishedDocument,
+  PortalPublishedPhoto,
   PortalProjectionCheckpoint,
   PortalProjectionFreshnessState,
   PortalProjectionState,

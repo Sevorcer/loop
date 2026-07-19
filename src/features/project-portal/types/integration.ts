@@ -1,12 +1,6 @@
-export type PortalSourceDomain =
-  | "jobs"
-  | "daily-plans"
-  | "dispatch"
-  | "installed-systems"
-  | "documents"
-  | "photos"
-  | "change-orders"
-  | "reporting";
+import type { PortalSourceDomain as PortalProjectionSourceDomain } from "./portal";
+
+export type PortalSourceDomain = PortalProjectionSourceDomain | "reporting";
 
 export type PortalProjectionFreshnessState =
   | "fresh"
