@@ -123,6 +123,40 @@ function buildTechnicalProfile(
   bundle: EstimateEquipmentBundle,
   technicalIdentityId: string
 ) {
+  if (bundle.equipment.length === 0) {
+    const emptyProfile: TechnicalProfile = {
+      id: `profile-${job.id}`,
+      technicalIdentityId,
+      systemName: bundle.systemName,
+      manufacturer: "Pending",
+      equipmentType: "Pending",
+      catalogEntryIds: [],
+      matchState: "unmatched",
+      matchConfidence: 0,
+      permitFields: {},
+      knownFacts: [
+        {
+          label: "Catalog match",
+          value: "No equipment was attached to the sold estimate.",
+        },
+      ],
+      discoveredFacts: [
+        ...bundle.discoveredFacts,
+        {
+          label: "Estimate source",
+          value: `${bundle.estimateId} accepted and converted into ${job.jobNumber}.`,
+        },
+      ],
+      confirmationNote:
+        "Add equipment to the sold estimate before LOOP can establish trusted technical inheritance.",
+    };
+
+    return {
+      profile: emptyProfile,
+      matches: [] as CatalogMatchResult[],
+    };
+  }
+
   const matches = bundle.equipment.map((equipment) =>
     findCatalogMatch(equipment.manufacturer, equipment.modelNumber)
   );

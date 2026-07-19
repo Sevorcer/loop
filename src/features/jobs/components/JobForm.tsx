@@ -43,6 +43,17 @@ export const defaultJobFormValues: JobFormValues = {
   notes: "",
 };
 
+function getResetFieldsForTypeChange(type: JobType) {
+  if (type === "Install") {
+    return {};
+  }
+
+  return {
+    estimateId: "",
+    equipmentBundleId: "",
+  };
+}
+
 function normalizeValues(values: JobFormValues): JobFormValues {
   return {
     ...values,
@@ -81,12 +92,7 @@ export function JobForm({
   ) {
     setForm((current) => ({
       ...current,
-      ...(key === "type" && value !== "Install"
-        ? {
-            estimateId: "",
-            equipmentBundleId: "",
-          }
-        : {}),
+      ...(key === "type" ? getResetFieldsForTypeChange(value as JobType) : {}),
       [key]: value,
     }));
     setError(null);

@@ -268,9 +268,9 @@ export function InstalledSystemDetailScreen({
                   Discovered truth
                 </div>
                 <div className="mt-3 space-y-3">
-                  {profile?.discoveredFacts.map((fact) => (
+                  {profile?.discoveredFacts.map((fact, index) => (
                     <div
-                      key={`${fact.label}-${fact.value}`}
+                      key={`${fact.label}-${index}`}
                       className="rounded-2xl border border-white/10 bg-slate-950/60 p-4"
                     >
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
