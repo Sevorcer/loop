@@ -1,26 +1,294 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ==========================================================================
+   ATLAS Design System v1.0
+   LOOP – The Operating System for Field Operations
+   ========================================================================== */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* ----------------------------------------------------------------------
+       Colors
+       ---------------------------------------------------------------------- */
+
+    --background: #0b1220;
+    --surface: #111827;
+    --surface-elevated: #1f2937;
+
+    --foreground: #f9fafb;
+    --foreground-muted: #9ca3af;
+
+    --border: #374151;
+
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+
+    /* ----------------------------------------------------------------------
+       Spacing
+       ---------------------------------------------------------------------- */
+
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+
+    /* ----------------------------------------------------------------------
+       Radius
+       ---------------------------------------------------------------------- */
+
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+    --radius-3xl: 2rem;
+
+    /* ----------------------------------------------------------------------
+       Shadows
+       ---------------------------------------------------------------------- */
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.12);
+    --shadow-md: 0 4px 10px rgb(0 0 0 / 0.18);
+    --shadow-lg: 0 12px 28px rgb(0 0 0 / 0.24);
+
+    /* ----------------------------------------------------------------------
+       Motion
+       ---------------------------------------------------------------------- */
+
+    --transition-fast: 150ms cubic-bezier(.4,0,.2,1);
+    --transition-base: 200ms cubic-bezier(.4,0,.2,1);
+    --transition-slow: 300ms cubic-bezier(.4,0,.2,1);
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ==========================================================================
+   Semantic Utilities
+   ========================================================================== */
+
+@layer utilities {
+
+  /* Backgrounds */
+
+  .bg-background {
+    background: var(--background);
+  }
+
+  .bg-surface {
+    background: var(--surface);
+  }
+
+  .bg-surface-elevated {
+    background: var(--surface-elevated);
+  }
+
+  /* Text */
+
+  .text-primary {
+    color: var(--foreground);
+  }
+
+  .text-muted {
+    color: var(--foreground-muted);
+  }
+
+  /* Borders */
+
+  .border-default {
+    border-color: var(--border);
+  }
+
+  .border-primary {
+    border-color: var(--primary);
+  }
+
+  /* Radius */
+
+  .rounded-atlas-sm {
+    border-radius: var(--radius-sm);
+  }
+
+  .rounded-atlas-md {
+    border-radius: var(--radius-md);
+  }
+
+  .rounded-atlas-lg {
+    border-radius: var(--radius-lg);
+  }
+
+  .rounded-atlas-xl {
+    border-radius: var(--radius-xl);
+  }
+
+  .rounded-atlas-2xl {
+    border-radius: var(--radius-2xl);
+  }
+
+  .rounded-atlas-3xl {
+    border-radius: var(--radius-3xl);
+  }
+
+  /* Shadows */
+
+  .shadow-atlas-sm {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow-atlas-md {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-atlas-lg {
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Motion */
+
+  .transition-atlas {
+    transition:
+      background-color var(--transition-base),
+      color var(--transition-base),
+      border-color var(--transition-base),
+      box-shadow var(--transition-base),
+      transform var(--transition-base);
+  }
+
+  /* Hover */
+
+  .hover-surface:hover {
+    background: var(--surface);
+  }
+
+  .hover-surface-elevated:hover {
+    background: var(--surface-elevated);
+  }
+
+  .hover-border-primary:hover {
+    border-color: var(--primary);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* ==========================================================================
+   Button Variants
+   ========================================================================== */
+
+@layer components {
+
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: transparent;
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.05);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--surface-elevated);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--foreground);
+    border: 1px solid var(--border);
+  }
+
+  .btn-outline:hover {
+    background: var(--surface-elevated);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--foreground);
+    border-color: transparent;
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface-elevated);
+  }
+
+  .btn-destructive {
+    background: var(--danger);
+    color: white;
+    border-color: transparent;
+  }
+
+  .btn-destructive:hover {
+    filter: brightness(1.05);
+  }
+
+  .btn-link {
+    background: transparent;
+    color: var(--primary);
+    border-color: transparent;
+  }
+
+  .btn-link:hover {
+    text-decoration: underline;
+  }
+
+  /* ------------------------------------------------------------------------
+     Status Badges
+     ------------------------------------------------------------------------ */
+
+  .status-success {
+    background: rgb(34 197 94 / 0.15);
+    color: var(--success);
+    border: 1px solid rgb(34 197 94 / 0.35);
+  }
+
+  .status-warning {
+    background: rgb(245 158 11 / 0.15);
+    color: var(--warning);
+    border: 1px solid rgb(245 158 11 / 0.35);
+  }
+
+  .status-danger {
+    background: rgb(239 68 68 / 0.15);
+    color: var(--danger);
+    border: 1px solid rgb(239 68 68 / 0.35);
+  }
+
+  .status-info {
+    background: var(--surface-elevated);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+  }
+
+  .status-neutral {
+    background: var(--surface);
+    color: var(--foreground-muted);
+    border: 1px solid var(--border);
+  }
 }
