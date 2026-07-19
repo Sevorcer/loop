@@ -2,8 +2,6 @@
 
 import { Search } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-
 interface DataTableToolbarProps {
   searchPlaceholder?: string;
   searchValue?: string;

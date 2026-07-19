@@ -59,23 +59,14 @@ export function CustomerTable() {
     });
   }, [cityFilter, searchValue, statusFilter]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchValue, statusFilter, cityFilter]);
-
   const totalCustomers = filteredCustomers.length;
   const totalPages = Math.max(1, Math.ceil(totalCustomers / PAGE_SIZE));
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedCustomers = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
     return filteredCustomers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [currentPage, filteredCustomers]);
+  }, [safeCurrentPage, filteredCustomers]);
 
   const hasActiveFilters =
     searchValue.trim().length > 0 ||
@@ -83,9 +74,24 @@ export function CustomerTable() {
     cityFilter !== ALL_FILTER_VALUE;
 
   const showingFrom =
-    totalCustomers === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+    totalCustomers === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
   const showingTo =
-    totalCustomers === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, totalCustomers);
+    totalCustomers === 0 ? 0 : Math.min(safeCurrentPage * PAGE_SIZE, totalCustomers);
+
+  function handleSearchChange(value: string) {
+    setSearchValue(value);
+    setCurrentPage(1);
+  }
+
+  function handleStatusChange(value: string) {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  }
+
+  function handleCityChange(value: string) {
+    setCityFilter(value);
+    setCurrentPage(1);
+  }
 
   function handleClearFilters() {
     setSearchValue("");
@@ -103,11 +109,11 @@ export function CustomerTable() {
       <div className="space-y-4">
         <CustomerToolbar
           searchValue={searchValue}
-          onSearchChange={setSearchValue}
+          onSearchChange={handleSearchChange}
           statusFilter={statusFilter}
-          onStatusChange={setStatusFilter}
+          onStatusChange={handleStatusChange}
           cityFilter={cityFilter}
-          onCityChange={setCityFilter}
+          onCityChange={handleCityChange}
           cityOptions={cityOptions}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
@@ -131,11 +137,11 @@ export function CustomerTable() {
       <div className="space-y-4">
         <CustomerToolbar
           searchValue={searchValue}
-          onSearchChange={setSearchValue}
+          onSearchChange={handleSearchChange}
           statusFilter={statusFilter}
-          onStatusChange={setStatusFilter}
+          onStatusChange={handleStatusChange}
           cityFilter={cityFilter}
-          onCityChange={setCityFilter}
+          onCityChange={handleCityChange}
           cityOptions={cityOptions}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
@@ -164,11 +170,11 @@ export function CustomerTable() {
     <div className="space-y-4">
       <CustomerToolbar
         searchValue={searchValue}
-        onSearchChange={setSearchValue}
+        onSearchChange={handleSearchChange}
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={handleStatusChange}
         cityFilter={cityFilter}
-        onCityChange={setCityFilter}
+        onCityChange={handleCityChange}
         cityOptions={cityOptions}
         onClearFilters={handleClearFilters}
         hasActiveFilters={hasActiveFilters}
@@ -191,13 +197,13 @@ export function CustomerTable() {
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            disabled={currentPage === 1}
+            disabled={safeCurrentPage === 1}
           >
             Previous
           </Button>
 
           <span className="min-w-[72px] text-center">
-            Page {currentPage} of {totalPages}
+            Page {safeCurrentPage} of {totalPages}
           </span>
 
           <Button
@@ -206,7 +212,7 @@ export function CustomerTable() {
             onClick={() =>
               setCurrentPage((page) => Math.min(totalPages, page + 1))
             }
-            disabled={currentPage === totalPages}
+            disabled={safeCurrentPage === totalPages}
           >
             Next
           </Button>
