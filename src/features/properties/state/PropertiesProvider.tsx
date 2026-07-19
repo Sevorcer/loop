@@ -48,10 +48,6 @@ function parseStoredValue<T>(value: string | null, fallback: T): T {
   }
 }
 
-function createPropertyId(index: number) {
-  return `property-${String(index).padStart(3, "0")}`;
-}
-
 const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 
 export function PropertiesProvider({ children }: { children: ReactNode }) {
@@ -86,13 +82,11 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     function getPropertyById(id: string) {
       return properties.find((property) => property.id === id);
     }
-
     function createProperty(input: CreatePropertyInput) {
-      const nextIndex = properties.length + 1;
       const timestamp = new Date().toISOString();
 
       const newProperty: Property = {
-        id: createPropertyId(nextIndex),
+        id: crypto.randomUUID(),
         name: input.name,
         customer: input.customer,
         address: input.address,

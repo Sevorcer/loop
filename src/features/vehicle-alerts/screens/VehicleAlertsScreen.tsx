@@ -62,12 +62,11 @@ export function VehicleAlertsScreen() {
       return;
     }
 
-    const nextId = `VA-${1000 + alerts.length + 1}`;
     const now = new Date();
 
     setAlerts((current) => [
       {
-        id: nextId,
+        id: `VA-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
         vehicleName: form.vehicleName.trim(),
         title: form.title.trim(),
         description: form.description.trim(),
