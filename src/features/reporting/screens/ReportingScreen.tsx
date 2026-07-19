@@ -82,7 +82,7 @@ export function ReportingScreen() {
   } = useReporting();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <PageHeader
         title="Performance Intelligence"
         description="How is the company performing over time, and what patterns require attention?"

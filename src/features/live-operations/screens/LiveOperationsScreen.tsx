@@ -75,7 +75,7 @@ export function LiveOperationsScreen() {
   const { heroMetrics, health, crews, workOrders, events, decisions, attention } = snapshot;
 
   return (
-    <div className="min-h-screen space-y-6 p-8">
+    <div className="space-y-4 sm:space-y-6">
       {/* 1 — Operations Overview Hero */}
       <LiveOpsHero
         date={today}
@@ -85,7 +85,7 @@ export function LiveOperationsScreen() {
       />
 
       {/* 2 + 3 — Decision Feed and Needs Attention */}
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
         <DecisionFeed decisions={decisions} />
         <NeedsAttention attention={attention} />
       </div>
@@ -94,11 +94,11 @@ export function LiveOperationsScreen() {
       <ActiveCrewBoard crews={crews} />
 
       {/* 5 + 7 — Timeline and Health */}
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <OperationalTimeline events={events} />
         </div>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <OperationalHealth health={health} />
           <MilestoneProgress workOrders={workOrders} />
         </div>

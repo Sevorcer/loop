@@ -19,20 +19,20 @@ export function InstalledSystemsScreen() {
   ).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <SurfaceCard className="overflow-hidden">
-        <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-200">
+        <div className="flex flex-col gap-3 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2 sm:space-y-3">
+            <div className="hidden items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-200 sm:inline-flex">
               <Cpu className="h-3.5 w-3.5" />
               Assets · Technical Truth
             </div>
 
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-white">
+              <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
                 Installed Systems
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-slate-400 sm:block">
                 Technical truth now flows from the equipment catalog into a
                 normalized technical profile, then into each installed system,
                 so jobs and permits can reference the same source of truth.
@@ -40,7 +40,7 @@ export function InstalledSystemsScreen() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-3">
             <MetricCard
               icon={CheckCircle2}
               value={String(exactMatches)}
@@ -61,10 +61,10 @@ export function InstalledSystemsScreen() {
       </SurfaceCard>
 
       <SurfaceCard>
-        <div className="grid gap-6 p-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
           <div>
-            <h3 className="text-lg font-semibold text-white">Architecture first</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <h3 className="text-base font-semibold text-white sm:text-lg">Architecture first</h3>
+            <p className="mt-1.5 hidden text-sm leading-6 text-slate-400 sm:block">
               Equipment catalog entries own canonical manufacturer knowledge.
               LOOP derives a technical profile from trusted matches, then anchors
               the customer asset with a permanent technical identity. Jobs and
@@ -72,8 +72,8 @@ export function InstalledSystemsScreen() {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-            <ol className="space-y-3 text-sm text-slate-300">
+          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
+            <ol className="space-y-2 text-sm text-slate-300 sm:space-y-3">
               <li>1. Estimate accepted with equipment selected</li>
               <li>2. Job created and linked to a technical identity</li>
               <li>3. Equipment catalog matching establishes confidence</li>

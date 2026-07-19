@@ -20,21 +20,21 @@ export function InventoryScreen() {
   const { metrics } = snapshot;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* ── Hero ── */}
       <SurfaceCard className="overflow-hidden">
-        <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
+        <div className="flex flex-col gap-3 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2 sm:space-y-3">
+            <div className="hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200 sm:inline-flex">
               <Package className="h-3.5 w-3.5" />
               Inventory · Material Readiness
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
+              <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
                 Material Readiness
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-slate-400 sm:block">
                 Before work begins, LOOP knows whether every required material
                 is available, reserved, and ready to install. Inventory exists
                 to answer one question:{" "}
@@ -45,7 +45,7 @@ export function InventoryScreen() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={CheckCircle2}
               value={String(metrics.readyJobs)}
@@ -76,12 +76,12 @@ export function InventoryScreen() {
 
       {/* ── Architecture Note ── */}
       <SurfaceCard>
-        <div className="grid gap-6 p-4 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-base font-semibold text-white sm:text-lg">
               Material truth flows to work
             </h3>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-1.5 hidden text-sm leading-6 text-slate-400 sm:block">
               A sold job automatically generates a Material Plan from the
               known equipment and work requirements. Inventory is allocated —
               not just counted — so the system can distinguish on-hand stock
@@ -90,8 +90,8 @@ export function InventoryScreen() {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-            <ol className="space-y-3 text-sm text-slate-300">
+          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
+            <ol className="space-y-2 text-sm text-slate-300 sm:space-y-3">
               <li>1. Estimate accepted → material plan generated</li>
               <li>2. Inventory items reserved against the plan</li>
               <li>3. Warehouse picks and loads materials</li>

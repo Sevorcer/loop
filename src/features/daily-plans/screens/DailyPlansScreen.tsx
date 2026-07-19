@@ -195,7 +195,7 @@ export function DailyPlansScreen() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <MorningOperationsHero
         date={selectedDate}
         status={hydratedPlanStatus}

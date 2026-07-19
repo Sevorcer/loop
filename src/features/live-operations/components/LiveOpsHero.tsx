@@ -63,26 +63,26 @@ export function LiveOpsHero({
   return (
     <div
       className={[
-        "rounded-3xl border p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all duration-500",
+        "rounded-3xl border p-4 shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all duration-500 sm:p-6",
         colors.ring,
         colors.bg,
       ].join(" ")}
     >
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex flex-col gap-4 sm:gap-6 xl:flex-row xl:items-start xl:justify-between">
         {/* Left: identity + health */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Status badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
+          <div className="hidden items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-300 sm:inline-flex">
             <Activity className="h-3.5 w-3.5" />
             Live Operations
           </div>
 
           {/* Title */}
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">
+            <h1 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
               Day in Progress
             </h1>
-            <p className="mt-1 text-sm leading-6 text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-400 sm:mt-1 sm:text-sm sm:leading-6">
               {today} · Started at {startLabel}
             </p>
           </div>
@@ -106,7 +106,7 @@ export function LiveOpsHero({
               {health.label}
             </span>
             {health.reasons.length > 0 && (
-              <span className="text-sm text-slate-500">
+              <span className="hidden text-sm text-slate-500 sm:inline">
                 ·{" "}
                 {health.reasons.join(" · ")}
               </span>
@@ -115,7 +115,7 @@ export function LiveOpsHero({
         </div>
 
         {/* Right: stat tiles */}
-        <div className="flex flex-wrap gap-3 xl:justify-end">
+        <div className="flex flex-wrap gap-2 sm:gap-3 xl:justify-end">
           <StatTile
             icon={<Users className="h-4 w-4 text-blue-300" />}
             value={metrics.activeCrews}
@@ -147,7 +147,7 @@ export function LiveOpsHero({
 
       {/* Footer: last update + return link */}
       {metrics.lastEventTimeLabel && (
-        <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
+        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 sm:mt-5 sm:pt-4">
           <p className="text-xs text-slate-500">
             Last update · {metrics.lastEventTimeLabel}
           </p>

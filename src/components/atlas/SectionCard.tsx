@@ -23,12 +23,12 @@ export function SectionCard({
 }: SectionCardProps) {
   return (
     <Card className="hover-lift">
-      <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <CardTitle className="text-lg sm:text-xl">{title}</CardTitle>
+      <CardHeader className="flex flex-col gap-3 p-4 sm:gap-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-0.5 sm:space-y-1">
+          <CardTitle className="text-base sm:text-lg lg:text-xl">{title}</CardTitle>
 
           {description && (
-            <CardDescription className="text-sm leading-relaxed">
+            <CardDescription className="hidden text-sm leading-relaxed sm:block">
               {description}
             </CardDescription>
           )}
@@ -40,7 +40,7 @@ export function SectionCard({
           </div>
         )}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">{children}</CardContent>
     </Card>
   );
 }

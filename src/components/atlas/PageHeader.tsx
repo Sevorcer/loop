@@ -20,14 +20,14 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <Card className="bg-surface-elevated">
-      <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">
+      <CardHeader className="flex flex-col gap-3 p-4 sm:gap-4 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-1 sm:space-y-2">
+          <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
             {title}
           </CardTitle>
 
           {description ? (
-            <CardDescription className="max-w-2xl text-sm leading-relaxed sm:text-base">
+            <CardDescription className="hidden max-w-2xl text-sm leading-relaxed sm:block sm:text-base">
               {description}
             </CardDescription>
           ) : null}
