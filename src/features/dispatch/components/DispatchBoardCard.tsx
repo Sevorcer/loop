@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  CalendarDays,
   CheckCircle2,
   Clock,
   UserPlus,
@@ -22,6 +23,7 @@ interface DispatchBoardCardProps {
   crewName?: string;
   availableCrews?: Crew[];
   onAssignCrew?: (planId: string, crewId: string) => void;
+  onSchedulePlan?: (planId: string, date: string) => void;
 }
 
 const statusVariant = {
@@ -86,6 +88,7 @@ export function DispatchBoardCard({
   crewName,
   availableCrews = [],
   onAssignCrew,
+  onSchedulePlan,
 }: DispatchBoardCardProps) {
   const variant: Variant =
     statusVariant[plan.dispatchStatus] ?? "neutral";
@@ -100,6 +103,11 @@ export function DispatchBoardCard({
       plan.dispatchStatus === "awaiting_crew_availability") &&
     !!onAssignCrew &&
     availableCrews.length > 0;
+
+  const canSchedule =
+    plan.dispatchStatus === "ready_to_schedule" &&
+    !!crewName &&
+    !!onSchedulePlan;
 
   return (
     <SurfaceCard className="group transition-all duration-200 hover:border-white/20">
@@ -208,6 +216,24 @@ export function DispatchBoardCard({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {canSchedule && (
+            <div className="ml-auto flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+              <input
+                type="date"
+                defaultValue={plan.targetDate}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    onSchedulePlan!(plan.id, e.target.value);
+                  }
+                }}
+                className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+                aria-label="Schedule date"
+              />
             </div>
           )}
         </div>

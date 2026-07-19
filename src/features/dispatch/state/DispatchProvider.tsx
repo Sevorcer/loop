@@ -23,6 +23,7 @@ import type {
   DispatchEventType,
   DispatchPlan,
   DispatchSnapshot,
+  DispatchStatus,
   ScheduleBlock,
 } from "../types/dispatch";
 import {
@@ -34,6 +35,8 @@ import {
 
 const DISPATCH_ASSIGNMENTS_KEY = "loop.dispatch.assignments";
 const DISPATCH_EVENTS_KEY = "loop.dispatch.events";
+const DISPATCH_SCHEDULE_BLOCKS_KEY = "loop.dispatch.scheduleBlocks";
+const DISPATCH_PLAN_STATUS_KEY = "loop.dispatch.planStatusOverrides";
 
 const subscribeToHydration = (onStoreChange: () => void) => {
   void onStoreChange;
@@ -57,6 +60,7 @@ interface DispatchContextValue {
   getScheduleBlocksForDate: (date: string) => ScheduleBlock[];
   getEventsForPlan: (dispatchPlanId: string) => DispatchEvent[];
   assignCrew: (planId: string, crewId: string) => void;
+  schedulePlan: (planId: string, date: string) => void;
 }
 
 const DispatchContext = createContext<DispatchContextValue | null>(null);
@@ -78,6 +82,22 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
     );
   });
 
+  const [extraScheduleBlocks, setExtraScheduleBlocks] = useState<ScheduleBlock[]>(() => {
+    if (typeof window === "undefined") return [];
+    return parseStoredValue<ScheduleBlock[]>(
+      window.localStorage.getItem(DISPATCH_SCHEDULE_BLOCKS_KEY),
+      []
+    );
+  });
+
+  const [planStatusOverrides, setPlanStatusOverrides] = useState<Record<string, DispatchStatus>>(() => {
+    if (typeof window === "undefined") return {};
+    return parseStoredValue<Record<string, DispatchStatus>>(
+      window.localStorage.getItem(DISPATCH_PLAN_STATUS_KEY),
+      {}
+    );
+  });
+
   const hydrated = useSyncExternalStore(
     subscribeToHydration,
     () => true,
@@ -94,21 +114,45 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(DISPATCH_EVENTS_KEY, JSON.stringify(extraEvents));
   }, [hydrated, extraEvents]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem(DISPATCH_SCHEDULE_BLOCKS_KEY, JSON.stringify(extraScheduleBlocks));
+  }, [hydrated, extraScheduleBlocks]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem(DISPATCH_PLAN_STATUS_KEY, JSON.stringify(planStatusOverrides));
+  }, [hydrated, planStatusOverrides]);
+
   const allEvents = useMemo(
     () => [...mockDispatchEvents, ...extraEvents],
     [extraEvents]
   );
 
+  const allScheduleBlocks = useMemo(
+    () => [...mockScheduleBlocks, ...extraScheduleBlocks],
+    [extraScheduleBlocks]
+  );
+
+  const resolvedPlans = useMemo(
+    () =>
+      mockDispatchPlans.map((plan) => {
+        const override = planStatusOverrides[plan.id];
+        return override ? { ...plan, dispatchStatus: override } : plan;
+      }),
+    [planStatusOverrides]
+  );
+
   const snapshot = useMemo(
     () =>
       assembleDispatchSnapshot(
-        mockDispatchPlans,
+        resolvedPlans,
         assignments,
-        mockScheduleBlocks,
+        allScheduleBlocks,
         allEvents,
         mockCrews
       ),
-    [assignments, allEvents]
+    [resolvedPlans, assignments, allScheduleBlocks, allEvents]
   );
 
   const value = useMemo<DispatchContextValue>(() => {
@@ -202,6 +246,61 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    function schedulePlan(planId: string, date: string) {
+      const plan = snapshot.dispatchPlans.find((p) => p.id === planId);
+      if (!plan) return;
+
+      const assignment = getCrewAssignmentForPlan(assignments, planId);
+      if (!assignment) return;
+
+      const now = new Date().toISOString();
+
+      // Derive a start/end time based on the plan's estimated duration.
+      // Default start: 07:00; end: derived from duration.
+      const startHour = 7;
+      const endHour = startHour + plan.estimatedDurationHours;
+      const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");
+      const scheduledStartTime = `${pad(startHour)}:00`;
+      const scheduledEndTime = `${pad(endHour)}:00`;
+
+      const newBlock: ScheduleBlock = {
+        id: `sb-${crypto.randomUUID()}`,
+        dispatchPlanId: planId,
+        jobId: plan.jobId,
+        crewAssignmentId: assignment.id,
+        crewName: assignment.crewName,
+        scheduledDate: date,
+        scheduledStartTime,
+        scheduledEndTime,
+        estimatedDurationHours: plan.estimatedDurationHours,
+        jobType: plan.jobType,
+        customerName: plan.customerName,
+        propertyName: plan.propertyName,
+        dispatchStatus: "scheduled",
+      };
+
+      setExtraScheduleBlocks((current) => [
+        ...current.filter((b) => b.dispatchPlanId !== planId),
+        newBlock,
+      ]);
+
+      setPlanStatusOverrides((current) => ({
+        ...current,
+        [planId]: "scheduled",
+      }));
+
+      setExtraEvents((current) => [
+        ...current,
+        {
+          id: `evt-${crypto.randomUUID()}`,
+          dispatchPlanId: planId,
+          type: "job_scheduled" as DispatchEventType,
+          timestamp: now,
+          description: `${plan.jobNumber} — ${plan.customerName} scheduled for ${date} with ${assignment.crewName}.`,
+        },
+      ]);
+    }
+
     return {
       snapshot,
       crews: mockCrews,
@@ -210,6 +309,7 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
       getScheduleBlocksForDate: getScheduleBlocksForDateFn,
       getEventsForPlan: getEventsForPlanFn,
       assignCrew,
+      schedulePlan,
     };
   }, [snapshot, assignments]);
 

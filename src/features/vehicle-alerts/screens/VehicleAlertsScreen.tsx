@@ -7,8 +7,8 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 
 import { VehicleAlertTable } from "../components/VehicleAlertTable";
-import { mockVehicleAlerts } from "../data/mockVehicleAlerts";
-import type { VehicleAlertPriority, VehicleAlertStatus } from "../types/vehicleAlert";
+import { useVehicleAlerts } from "../state/VehicleAlertsProvider";
+import type { VehicleAlertPriority } from "../types/vehicleAlert";
 
 interface NewVehicleAlertFormValues {
   vehicleName: string;
@@ -27,7 +27,7 @@ const defaultFormValues: NewVehicleAlertFormValues = {
 };
 
 export function VehicleAlertsScreen() {
-  const [alerts, setAlerts] = useState(mockVehicleAlerts);
+  const { alerts, createAlert, updateAlertStatus } = useVehicleAlerts();
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
   const [form, setForm] = useState<NewVehicleAlertFormValues>(defaultFormValues);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -62,30 +62,14 @@ export function VehicleAlertsScreen() {
       return;
     }
 
-    const now = new Date();
-
-    setAlerts((current) => [
-      {
-        id: `VA-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-        vehicleName: form.vehicleName.trim(),
-        title: form.title.trim(),
-        description: form.description.trim(),
-        priority: form.priority,
-        status: "New",
-        reportedBy: form.reportedBy.trim(),
-        reportedAt: now.toISOString().slice(0, 10),
-      },
-      ...current,
-    ]);
+    createAlert({
+      vehicleName: form.vehicleName,
+      title: form.title,
+      description: form.description,
+      reportedBy: form.reportedBy,
+      priority: form.priority,
+    });
     closeReportForm();
-  }
-
-  function handleUpdateStatus(id: string, status: VehicleAlertStatus) {
-    setAlerts((current) =>
-      current.map((alert) =>
-        alert.id === id ? { ...alert, status } : alert
-      )
-    );
   }
 
   return (
@@ -238,7 +222,7 @@ export function VehicleAlertsScreen() {
         </div>
 
         <div className="p-4 sm:p-6">
-          <VehicleAlertTable alerts={alerts} onUpdateStatus={handleUpdateStatus} />
+          <VehicleAlertTable alerts={alerts} onUpdateStatus={updateAlertStatus} />
         </div>
       </SurfaceCard>
     </div>
