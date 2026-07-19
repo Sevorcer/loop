@@ -4,19 +4,21 @@ export const mockJobs: Job[] = [
   {
     id: "job-001",
     jobNumber: "JOB-1001",
-    title: "Rooftop unit replacement",
+    estimateId: "EST-2001",
+    equipmentBundleId: "bundle-smith-main",
+    title: "Whole-home hyper-heat replacement",
     type: "Install",
     status: "Scheduled",
     priority: "High",
-    customerName: "Northside Retail Group",
-    propertyName: "Northside Plaza",
+    customerName: "John Smith",
+    propertyName: "Smith Residence",
     assignedTo: "Marcus Rivera",
     scheduledFor: "2026-07-21",
     summary:
-      "Replace aging rooftop HVAC unit serving the main retail floor and verify startup performance after installation.",
-    location: "1450 Northside Blvd, Suite 100",
+      "Replace the aging primary system with a Mitsubishi Hyper-Heat pairing and carry permit-ready technical data forward automatically.",
+    location: "245 Maple Ave, Seattle",
     notes:
-      "Coordinate crane access with property management before arrival. Confirm electrical disconnect inspection window.",
+      "Sales confirmed panel capacity and attic access. Permit packet should inherit AHRI, electrical, and capacity values from the technical profile.",
   },
   {
     id: "job-002",
@@ -25,15 +27,15 @@ export const mockJobs: Job[] = [
     type: "Service",
     status: "In Progress",
     priority: "High",
-    customerName: "Lakeview Offices",
-    propertyName: "Lakeview Tower",
+    customerName: "Lakeview Property Management",
+    propertyName: "Lakeview Apartments",
     assignedTo: "Tina Brooks",
     scheduledFor: "2026-07-18",
     summary:
-      "Diagnose loss of cooling reported on the third floor and restore operation for tenant office suites.",
-    location: "88 Lakeview Avenue",
+      "Diagnose loss of cooling reported in the lobby and restore operation for shared tenant amenity areas.",
+    location: "1187 Lakeview Dr, Bellevue",
     notes:
-      "Initial call noted weak airflow and high indoor temperature in the west corridor.",
+      "Installed system history should already provide AHRI, electrical, and refrigerant context before the technician arrives.",
   },
   {
     id: "job-003",
@@ -140,19 +142,21 @@ export const mockJobs: Job[] = [
   {
     id: "job-009",
     jobNumber: "JOB-1009",
-    title: "Ductless mini-split installation",
+    estimateId: "EST-2002",
+    equipmentBundleId: "bundle-johnson-ducted",
+    title: "Ducted heat pump replacement",
     type: "Install",
     status: "Scheduled",
     priority: "High",
-    customerName: "Midtown Fitness",
-    propertyName: "Midtown Fitness Center",
+    customerName: "Mike Johnson",
+    propertyName: "Johnson Residence",
     assignedTo: "Marcus Rivera",
     scheduledFor: "2026-07-19",
     summary:
-      "Install a new ductless mini-split system in the cardio zone to address comfort complaints during peak hours.",
-    location: "380 Midtown Ave, Suite 200",
+      "Convert the upstairs ducted system to a Mitsubishi hyper-heat pairing and establish a technical identity before install day.",
+    location: "822 Cedar Ct, Bothell",
     notes:
-      "Coordinate with gym manager to access mechanical room. Equipment staged in van.",
+      "Distributor quote used an alias suffix on the outdoor unit. Technical truth should stay pending until office confirms the exact catalog match.",
   },
   {
     id: "job-010",
@@ -242,7 +246,9 @@ export const mockJobs: Job[] = [
   {
     id: "job-015",
     jobNumber: "JOB-1015",
-    title: "Thermostat upgrade and zoning install",
+    estimateId: "EST-2003",
+    equipmentBundleId: "bundle-clearwater-rooftop",
+    title: "Packaged rooftop conversion",
     type: "Install",
     status: "Scheduled",
     priority: "Medium",
@@ -251,9 +257,9 @@ export const mockJobs: Job[] = [
     assignedTo: "Taylor Reed",
     scheduledFor: "2026-07-20",
     summary:
-      "Replace legacy thermostats with smart zoning controllers across four zones in Building C.",
+      "Create the install job from the sold estimate while holding permit inheritance until the packaged rooftop model is confirmed.",
     location: "4800 Clearwater Pkwy, Building C",
     notes:
-      "All zones must remain functional at end of day. Wiring diagrams in job folder.",
+      "Sales notes reference a distributor placeholder SKU, so office should confirm the final model before permit filing.",
   },
 ];

@@ -120,6 +120,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       const newJob: Job = {
         id: createJobId(nextIndex),
         jobNumber: createJobNumber(nextIndex),
+        estimateId: input.estimateId,
+        equipmentBundleId: input.equipmentBundleId,
         title: input.title,
         type: input.type,
         status: "Scheduled",
@@ -182,6 +184,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
       const updatedJob: Job = {
         ...existingJob,
+        estimateId: input.estimateId,
+        equipmentBundleId: input.equipmentBundleId,
         title: input.title,
         customerName: input.customerName,
         propertyName: input.propertyName,
@@ -197,6 +201,12 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       const changedFields: string[] = [];
 
       if (existingJob.title !== updatedJob.title) changedFields.push("title");
+      if (existingJob.estimateId !== updatedJob.estimateId) {
+        changedFields.push("estimate");
+      }
+      if (existingJob.equipmentBundleId !== updatedJob.equipmentBundleId) {
+        changedFields.push("equipment");
+      }
       if (existingJob.customerName !== updatedJob.customerName) {
         changedFields.push("customer");
       }

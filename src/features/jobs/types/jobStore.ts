@@ -2,6 +2,8 @@ import type { Job, JobStatus } from "./job";
 import type { JobActivity } from "./jobActivity";
 
 export interface CreateJobInput {
+  estimateId?: string;
+  equipmentBundleId?: string;
   title: string;
   customerName: string;
   propertyName: string;
@@ -15,6 +17,8 @@ export interface CreateJobInput {
 }
 
 export interface UpdateJobInput {
+  estimateId?: string;
+  equipmentBundleId?: string;
   title: string;
   customerName: string;
   propertyName: string;

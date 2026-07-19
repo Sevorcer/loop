@@ -12,6 +12,8 @@ export type JobPriority = "Low" | "Medium" | "High";
 export interface Job {
   id: string;
   jobNumber: string;
+  estimateId?: string;
+  equipmentBundleId?: string;
   title: string;
   type: JobType;
   status: JobStatus;

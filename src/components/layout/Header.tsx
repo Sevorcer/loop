@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation";
 import { Bell, Search, User, Sparkles, CalendarDays } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 const pageContent: Record<string, { title: string; description: string }> = {
-  "/dashboard": {
+  [ROUTES.DASHBOARD]: {
     title: "Dashboard",
     description: "Welcome back. Here's what's happening today.",
   },
-  "/properties": {
+  [ROUTES.PROPERTIES]: {
     title: "Properties",
     description: "Track locations, status, and field visibility across your portfolio.",
   },
@@ -23,19 +24,24 @@ const pageContent: Record<string, { title: string; description: string }> = {
     title: "Vehicle Alerts",
     description: "Monitor fleet issues, response status, and field escalation activity.",
   },
-  "/jobs": {
+  [ROUTES.JOBS]: {
     title: "Jobs",
     description: "Review upcoming work, assignments, and operational progress.",
   },
-  "/daily-plans": {
+  [ROUTES.INSTALLED_SYSTEMS]: {
+    title: "Installed Systems",
+    description:
+      "Anchor permanent technical identities so permits, jobs, and service work inherit the same trusted system truth.",
+  },
+  [ROUTES.DAILY_PLANS]: {
     title: "Daily Plans",
     description: "Coordinate schedules, technician priorities, and day-of execution.",
   },
-  "/company-brain": {
+  [ROUTES.COMPANY_BRAIN]: {
     title: "Company Brain",
     description: "Search shared knowledge, procedures, and operational context.",
   },
-  "/settings": {
+  [ROUTES.SETTINGS]: {
     title: "Settings",
     description: "Configure system preferences, users, and workspace behavior.",
   },
@@ -59,7 +65,15 @@ function getPageMeta(pathname: string) {
     };
   }
 
-  return pageContent["/dashboard"];
+  if (pathname.startsWith(`${ROUTES.INSTALLED_SYSTEMS}/`)) {
+    return {
+      title: "Installed System Record",
+      description:
+        "Review the technical identity, catalog-backed profile, and workflow inheritance for this installed system.",
+    };
+  }
+
+  return pageContent[ROUTES.DASHBOARD];
 }
 
 export default function Header() {

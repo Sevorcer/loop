@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { estimateEquipmentBundles, getEstimateEquipmentBundle } from "@/features/installed-systems/utils/installedSystemsUtils";
 
 import type { JobPriority, JobType } from "../types/job";
 
@@ -13,6 +14,8 @@ const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
 
 export interface JobFormValues {
+  estimateId?: string;
+  equipmentBundleId?: string;
   title: string;
   customerName: string;
   propertyName: string;
@@ -26,6 +29,8 @@ export interface JobFormValues {
 }
 
 export const defaultJobFormValues: JobFormValues = {
+  estimateId: "",
+  equipmentBundleId: "",
   title: "",
   customerName: "",
   propertyName: "",
@@ -76,7 +81,39 @@ export function JobForm({
   ) {
     setForm((current) => ({
       ...current,
+      ...(key === "type" && value !== "Install"
+        ? {
+            estimateId: "",
+            equipmentBundleId: "",
+          }
+        : {}),
       [key]: value,
+    }));
+    setError(null);
+  }
+
+  function applyEstimateBundle(bundleId: string) {
+    const bundle = getEstimateEquipmentBundle(bundleId);
+
+    if (!bundle) {
+      setForm((current) => ({
+        ...current,
+        estimateId: "",
+        equipmentBundleId: "",
+      }));
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      estimateId: bundle.estimateId,
+      equipmentBundleId: bundle.id,
+      title: bundle.jobTitle,
+      customerName: bundle.customerName,
+      propertyName: bundle.propertyName,
+      location: bundle.location,
+      summary: bundle.jobSummary,
+      notes: bundle.jobNotes,
     }));
     setError(null);
   }
@@ -251,6 +288,31 @@ export function JobForm({
                 ))}
               </select>
             </div>
+
+            {form.type === "Install" ? (
+              <div className="space-y-2 lg:col-span-2">
+                <label className="text-sm font-medium text-slate-200">
+                  Accepted Estimate Equipment
+                </label>
+                <select
+                  value={form.equipmentBundleId ?? ""}
+                  onChange={(e) => applyEstimateBundle(e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+                >
+                  <option value="">Manual install job</option>
+                  {estimateEquipmentBundles.map((bundle) => (
+                    <option key={bundle.id} value={bundle.id}>
+                      {bundle.estimateId} — {bundle.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs leading-5 text-slate-500">
+                  Selecting a sold estimate establishes a technical identity and
+                  lets LOOP inherit trusted equipment data into the installed
+                  system record automatically.
+                </p>
+              </div>
+            ) : null}
 
             <div className="space-y-2 lg:col-span-2">
               <label className="text-sm font-medium text-slate-200">
