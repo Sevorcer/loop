@@ -1,5 +1,15 @@
-import { CompanyBrainScreen } from '@/features/company-brain'
+import AppShell from "@/components/layout/AppShell";
+import {
+  CompanyBrainProvider,
+  CompanyBrainScreen,
+} from "@/features/company-brain";
 
 export default function CompanyBrainPage() {
-  return <CompanyBrainScreen />
+  return (
+    <AppShell>
+      <CompanyBrainProvider>
+        <CompanyBrainScreen />
+      </CompanyBrainProvider>
+    </AppShell>
+  );
 }
