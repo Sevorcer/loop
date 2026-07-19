@@ -130,7 +130,7 @@ export function getReadinessStatus(score: number): {
   label: string;
   color: string;
 } {
-  if (score >= 85) return { label: "Ready to Execute", color: "text-green-400" };
+  if (score >= 85) return { label: "Ready to Launch", color: "text-green-400" };
   if (score >= 60) return { label: "Needs Attention", color: "text-yellow-400" };
   return { label: "Not Ready", color: "text-red-400" };
 }
