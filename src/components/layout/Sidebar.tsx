@@ -15,6 +15,7 @@ import {
   Brain,
   Settings,
   BellRing,
+  Send,
 } from "lucide-react";
 
 import { ROUTES } from "@/lib/routes";
@@ -33,6 +34,7 @@ const navigation = [
   { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
   { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
   { name: "Inventory", href: ROUTES.INVENTORY, icon: Package },
+  { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
   { name: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: Brain },
   { name: "Settings", href: ROUTES.SETTINGS, icon: Settings },
 ];

@@ -6,6 +6,7 @@ export const ROUTES = {
  DAILY_PLANS: "/daily-plans",
  LIVE_OPERATIONS: "/live-operations",
  INVENTORY: "/inventory",
+ DISPATCH: "/dispatch",
  COMPANY_BRAIN: "/company-brain",
  SETTINGS: "/settings",
 } as const;
