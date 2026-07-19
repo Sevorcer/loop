@@ -10,15 +10,12 @@ import { Button } from "@/components/ui/button";
 
 import { useJobs } from "../context/JobsContext";
 import type { Job, JobPriority, JobStatus, JobType } from "../types";
+import { formatJobDate } from "../utils";
 
 const allValue = "all";
 const statuses: Array<JobStatus | typeof allValue> = [allValue, "Scheduled", "In Progress", "On Hold", "Completed"];
 const priorities: Array<JobPriority | typeof allValue> = [allValue, "High", "Medium", "Low"];
 const types: Array<JobType | typeof allValue> = [allValue, "Install", "Service", "Maintenance", "Inspection"];
-
-function formatDate(value: string) {
-  return new Date(`${value}T12:00:00`).toLocaleDateString();
-}
 
 function getStatusVariant(status: JobStatus) {
   if (status === "Completed") return "success" as const;
@@ -61,7 +58,7 @@ function JobRow({ job }: { job: Job }) {
       </td>
       <td className="px-4 py-4 text-sm text-slate-600">{job.propertyName}</td>
       <td className="px-4 py-4 text-sm text-slate-600">{job.assignedTo}</td>
-      <td className="px-4 py-4 text-sm text-slate-600">{formatDate(job.scheduledFor)}</td>
+      <td className="px-4 py-4 text-sm text-slate-600">{formatJobDate(job.scheduledFor)}</td>
       <td className="px-4 py-4">
         <StatusBadge variant={getPriorityVariant(job.priority)}>{job.priority}</StatusBadge>
       </td>

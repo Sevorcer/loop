@@ -11,12 +11,9 @@ import { Button } from "@/components/ui/button";
 
 import { useJobs } from "../context/JobsContext";
 import type { JobPriority, JobStatus } from "../types";
+import { formatJobDate } from "../utils";
 
 const statusOptions: JobStatus[] = ["Scheduled", "In Progress", "On Hold", "Completed"];
-
-function formatDate(value: string) {
-  return new Date(`${value}T12:00:00`).toLocaleDateString();
-}
 
 function formatTimestamp(value: string) {
   return new Date(value).toLocaleString();
@@ -134,7 +131,7 @@ export function JobDetailScreen() {
               </div>
               <div>
                 <p className="text-sm text-slate-500">Scheduled for</p>
-                <p className="mt-1 font-medium text-slate-950">{formatDate(job.scheduledFor)}</p>
+                <p className="mt-1 font-medium text-slate-950">{formatJobDate(job.scheduledFor)}</p>
               </div>
               <div>
                 <p className="text-sm text-slate-500">Job type</p>

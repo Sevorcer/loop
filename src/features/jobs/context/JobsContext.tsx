@@ -12,6 +12,7 @@ import {
 
 import { mockJobs } from "../data/mockJobs";
 import type { Job, JobActivity, JobInput, JobStatus } from "../types";
+import { createLocalId } from "../utils";
 
 const STORAGE_KEY = "loop.jobs.v1";
 const editableFields: Array<keyof JobInput> = [
@@ -39,14 +40,6 @@ type JobsContextValue = {
 
 const JobsContext = createContext<JobsContextValue | undefined>(undefined);
 
-function generateId(prefix: string) {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-}
-
 function toSortedJobs(jobs: Job[]) {
   return [...jobs].sort((left, right) => {
     const leftDate = new Date(left.scheduledFor).getTime();
@@ -62,7 +55,7 @@ function toSortedJobs(jobs: Job[]) {
 
 function createActivity(activity: Omit<JobActivity, "id">): JobActivity {
   return {
-    id: generateId("activity"),
+    id: createLocalId("activity"),
     ...activity,
   };
 }
@@ -130,7 +123,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
   const createJob = useCallback((input: JobInput) => {
     const timestamp = new Date().toISOString();
-    const id = generateId("job");
+    const id = createLocalId("job");
     const newJob: Job = {
       id,
       ...input,
