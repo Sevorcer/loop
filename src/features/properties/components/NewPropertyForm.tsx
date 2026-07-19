@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Building2, CheckCircle2, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
 
@@ -52,15 +52,12 @@ export function NewPropertyForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const canSubmit = useMemo(() => {
-    return (
-      form.name.trim().length > 0 &&
-      form.customer.trim().length > 0 &&
-      form.address.trim().length > 0 &&
-      form.city.trim().length > 0 &&
-      form.primarySystem.trim().length > 0
-    );
-  }, [form]);
+  const canSubmit =
+    form.name.trim().length > 0 &&
+    form.customer.trim().length > 0 &&
+    form.address.trim().length > 0 &&
+    form.city.trim().length > 0 &&
+    form.primarySystem.trim().length > 0;
 
   function updateField<K extends keyof PropertyFormValues>(
     key: K,
@@ -81,8 +78,8 @@ export function NewPropertyForm() {
       return;
     }
 
-    const property = createProperty(normalizeValues(form));
-    setIsSubmitted(Boolean(property.id));
+    createProperty(normalizeValues(form));
+    setIsSubmitted(true);
   }
 
   if (isSubmitted) {

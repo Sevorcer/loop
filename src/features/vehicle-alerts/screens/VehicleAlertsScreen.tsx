@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { BellRing, Siren, Activity } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
@@ -31,14 +31,11 @@ export function VehicleAlertsScreen() {
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
   const [form, setForm] = useState<NewVehicleAlertFormValues>(defaultFormValues);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const canSubmit = useMemo(() => {
-    return (
-      form.vehicleName.trim().length > 0 &&
-      form.title.trim().length > 0 &&
-      form.description.trim().length > 0 &&
-      form.reportedBy.trim().length > 0
-    );
-  }, [form]);
+  const canSubmit =
+    form.vehicleName.trim().length > 0 &&
+    form.title.trim().length > 0 &&
+    form.description.trim().length > 0 &&
+    form.reportedBy.trim().length > 0;
 
   function updateField<K extends keyof NewVehicleAlertFormValues>(
     key: K,

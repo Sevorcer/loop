@@ -31,8 +31,8 @@ interface PropertiesContextValue {
 }
 
 const PROPERTIES_STORAGE_KEY = "loop.properties.items";
-const subscribeToHydration = (_onStoreChange: () => void) => {
-  void _onStoreChange;
+const subscribeToHydration = (onStoreChange: () => void) => {
+  void onStoreChange;
   return () => {};
 };
 
