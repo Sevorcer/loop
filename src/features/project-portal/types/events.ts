@@ -1,4 +1,4 @@
-import type { PortalSourceDomain } from "./portal";
+import type { PortalSourceDomain } from "./integration";
 
 export const PORTAL_SUPPORTED_EVENT_VERSIONS = ["1.0"] as const;
 

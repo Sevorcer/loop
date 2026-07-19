@@ -4,7 +4,7 @@ import type {
   PortalProjectionState,
   PortalSourceDomain,
   PortalTimelineEntry,
-} from "../types/portal";
+} from "../types/integration";
 
 function uniqDomains(domains: PortalSourceDomain[]): PortalSourceDomain[] {
   return Array.from(new Set(domains));

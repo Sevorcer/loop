@@ -13,3 +13,25 @@ export const ROUTES = {
   REPORTING: "/reporting",
   SETTINGS: "/settings",
 } as const;
+
+// ─── Project Portal Routes ────────────────────────────────────────────────────
+
+export const PORTAL_BASE = "/portal";
+
+export const PORTAL_ROUTES = {
+  HOME: PORTAL_BASE,
+  /** Alias used by Sidebar and Sprint 22A components */
+  ROOT: PORTAL_BASE,
+  PROJECT: (projectId: string) => `${PORTAL_BASE}/${projectId}`,
+  /** Sprint 22A overview route (/portal/[id]/overview) */
+  OVERVIEW: (projectId: string) => `${PORTAL_BASE}/${projectId}/overview`,
+  TIMELINE: (projectId: string) => `${PORTAL_BASE}/${projectId}/timeline`,
+  DOCUMENTS: (projectId: string) => `${PORTAL_BASE}/${projectId}/documents`,
+  PHOTOS: (projectId: string) => `${PORTAL_BASE}/${projectId}/photos`,
+  CONTACT: (projectId: string) => `${PORTAL_BASE}/${projectId}/contact`,
+  NOTIFICATIONS: (projectId: string) => `${PORTAL_BASE}/${projectId}/notifications`,
+  ERROR_UNAUTHORIZED: "/portal/error/unauthorized",
+  ERROR_EXPIRED_INVITE: "/portal/error/expired-invite",
+  ERROR_REVOKED: "/portal/error/revoked",
+  ERROR_NOT_FOUND: "/portal/error/not-found",
+} as const;

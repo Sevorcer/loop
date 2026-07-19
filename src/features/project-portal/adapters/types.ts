@@ -2,7 +2,7 @@ import type { PortalEventEnvelope } from "../types/events";
 import type {
   PortalDocumentVisibility,
   PortalSourceDomain,
-} from "../types/portal";
+} from "../types/integration";
 
 export interface PortalAdapterMetadata {
   adapterName: string;

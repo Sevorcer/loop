@@ -17,7 +17,7 @@ import type {
   PortalEventEnvelope,
   PortalEventValidationError,
 } from "../types/events";
-import type { PortalProjectionState } from "../types/portal";
+import type { PortalProjectionState } from "../types/integration";
 
 export interface PortalReplayHarnessOptions {
   checkpointStore: PortalCheckpointStore;

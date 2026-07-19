@@ -2,7 +2,7 @@ import type {
   PortalFreshnessStatus,
   PortalProjectionCheckpoint,
   PortalProjectionState,
-} from "../types/portal";
+} from "../types/integration";
 
 export interface PortalCheckpointStore {
   get(projectId: string): Promise<PortalProjectionCheckpoint | null>;
