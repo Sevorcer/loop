@@ -159,6 +159,19 @@ The idempotency key store is append-only. Keys are never deleted.
 
 ---
 
+## Sprint 22C Implementation Alignment
+
+The current implementation foundation for these rules lives in:
+
+- `src/features/project-portal/runtime/eventValidation.ts`
+- `src/features/project-portal/runtime/idempotency.ts`
+- `src/features/project-portal/runtime/checkpoints.ts`
+- `src/features/project-portal/runtime/replayHarness.ts`
+
+These modules enforce envelope validation, version parking, deduplication, checkpoint capture, and deterministic replay against the read-only adapter layer described in [`sprint-22c-launch-readiness.md`](./sprint-22c-launch-readiness.md).
+
+---
+
 ## Stale-Data Behavior
 
 If events are delayed beyond the freshness SLA (P95 < 5 minutes):

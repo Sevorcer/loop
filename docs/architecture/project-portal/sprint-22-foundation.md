@@ -446,6 +446,7 @@ The portal must **never** surface:
 - [ ] Event Contract Spec → [`event-contract-spec.md`](./event-contract-spec.md)
 - [ ] Error-State Catalog → [`error-state-catalog.md`](./error-state-catalog.md)
 - [ ] Audit Logging Policy
+- [ ] Sprint 22C launch readiness closure → [`sprint-22c-launch-readiness.md`](./sprint-22c-launch-readiness.md)
 - [ ] MVP Launch Gates Checklist → [`mvp-launch-gates-checklist.md`](./mvp-launch-gates-checklist.md)
 
 ---

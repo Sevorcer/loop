@@ -24,6 +24,7 @@ These documents define the security model, role permissions, event contracts, er
 | [`event-contract-spec.md`](./event-contract-spec.md) | Canonical event envelope definition. Field constraints, versioning policy, replay expectations, ordering guarantees, deduplication logic, portal projection processing rules, stale-data behavior, and sample events for all MVP event types. |
 | [`error-state-catalog.md`](./error-state-catalog.md) | Complete catalog of critical error and empty states. Every state includes trigger condition, user-facing copy, CTAs, telemetry event name, severity, recoverability, accessibility notes, and mobile behavior. |
 | [`mvp-launch-gates-checklist.md`](./mvp-launch-gates-checklist.md) | Implementation and QA checklist for all 12 MVP launch gates. Each gate has an owner, validation method, artifact evidence placeholder, and pass/fail field. Sprint 22 is not complete until all gates pass. |
+| [`sprint-22c-launch-readiness.md`](./sprint-22c-launch-readiness.md) | Sprint 22C implementation closure for adapters, contract validation, checkpoints, replay, rollout controls, and launch-readiness artifact mapping. |
 
 ---
 
@@ -33,7 +34,8 @@ These documents define the security model, role permissions, event contracts, er
 2. **`authorization-matrix.md`** — Understand the security model and role boundaries.
 3. **`event-contract-spec.md`** — Understand how portal state is built from events.
 4. **`error-state-catalog.md`** — Understand every failure mode and its designed response.
-5. **`mvp-launch-gates-checklist.md`** — Understand what must be true before Sprint 22 closes.
+5. **`sprint-22c-launch-readiness.md`** — Review the concrete implementation surface added to support safe production integration.
+6. **`mvp-launch-gates-checklist.md`** — Understand what must be true before Sprint 22 closes.
 
 ---
 
@@ -43,6 +45,7 @@ These documents define the security model, role permissions, event contracts, er
 - Use `authorization-matrix.md` as the spec for all server-side permission checks. Do not improvise role logic.
 - Use `event-contract-spec.md` as the contract for mock adapter implementation. All event shapes must match the defined envelopes.
 - Use `error-state-catalog.md` to implement every error state before the sprint demo. No state may be left as a blank page or unhandled exception.
+- Use `sprint-22c-launch-readiness.md` to find the implementation artifacts that back the Sprint 22C integration foundation.
 - Use `mvp-launch-gates-checklist.md` to track progress and provide artifact evidence for each gate. Engineering owns LG-01 through LG-03, LG-06 through LG-09, and LG-11.
 
 ---

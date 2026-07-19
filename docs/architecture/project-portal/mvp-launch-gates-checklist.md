@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Sprint:** 22  
-**Status:** Not started  
+**Status:** Sprint 22C implementation foundation landed — validation pending  
 **Last updated:** 2026-07-19
 
 Sprint 22 is **complete only when every gate below passes**. Each gate requires a documented artifact and a sign-off from its designated owner.
@@ -71,9 +71,9 @@ A gate may not be marked **Pass** without a completed artifact link.
 | **Description** | All portal event types defined in [`event-contract-spec.md`](./event-contract-spec.md) have finalized schemas (version 1.0). No open schema questions remain unresolved. |
 | **Owner** | Architecture |
 | **Validation method** | Event contract spec document approved. JSON schemas generated or documented for all event types. Open Questions in event-contract-spec.md resolved or deferred with explicit decision. |
-| **Artifact / evidence** | `[link to approved event-contract-spec.md]` |
+| **Artifact / evidence** | `docs/architecture/project-portal/event-contract-spec.md`, `docs/architecture/project-portal/sprint-22c-launch-readiness.md`, `src/features/project-portal/runtime/eventValidation.ts` |
 | **Pass / fail** | ☐ Not started |
-| **Notes** | — |
+| **Notes** | Schema guardrails, version parking, and deterministic replay hooks are now implemented; final approval is still required. |
 
 ---
 
@@ -110,9 +110,9 @@ A gate may not be marked **Pass** without a completed artifact link.
 | **Description** | Mock event adapters are implemented for all canonical portal event types. The portal UI is fully drivable from mock events without live backend integrations. |
 | **Owner** | Engineering |
 | **Validation method** | Each event type from the event contract spec has a mock emitter. End-to-end walkthrough confirms all portal screens update correctly from mock events. |
-| **Artifact / evidence** | `[link to mock adapter implementation PR]` |
+| **Artifact / evidence** | `src/features/project-portal/adapters/types.ts`, `src/features/project-portal/adapters/mockAdapters.ts`, `src/features/project-portal/adapters/fakeAdapters.ts` |
 | **Pass / fail** | ☐ Not started |
-| **Notes** | — |
+| **Notes** | Mock and fake adapters now cover Jobs, Daily Plans, Dispatch, Installed Systems, Documents, Photos, Change Orders, and Reporting. |
 
 ---
 
@@ -162,9 +162,9 @@ A gate may not be marked **Pass** without a completed artifact link.
 | **Description** | The portal's event projection pipeline processes mock events at P95 latency under 5 minutes. The freshness timestamp updates correctly. |
 | **Owner** | Engineering |
 | **Validation method** | Load test with mock event emitter at production-representative volume. Measure P95 end-to-end latency from event emission to portal UI update. Verify stale-data banner triggers correctly at >5 min threshold. |
-| **Artifact / evidence** | `[link to load test report and latency metrics]` |
+| **Artifact / evidence** | `src/features/project-portal/runtime/checkpoints.ts`, `src/features/project-portal/runtime/rollout.ts`, `docs/architecture/project-portal/sprint-22c-launch-readiness.md` |
 | **Pass / fail** | ☐ Not started |
-| **Notes** | Measured against mock pipeline only. Live integration pipeline SLA is out of scope for Sprint 22. |
+| **Notes** | Freshness thresholds, checkpoint tracking, and rollout hooks are in code; load validation remains pending. |
 
 ---
 
