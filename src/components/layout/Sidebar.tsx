@@ -9,6 +9,7 @@ import {
   Users,
   Briefcase,
   CalendarDays,
+  Radio,
   Brain,
   Settings,
   BellRing,
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Vehicle Alerts", href: "/vehicle-alerts", icon: BellRing },
   { name: "Jobs", href: "/jobs", icon: Briefcase },
   { name: "Daily Plans", href: "/daily-plans", icon: CalendarDays },
+  { name: "Live Operations", href: "/live-operations", icon: Radio },
   { name: "Company Brain", href: "/company-brain", icon: Brain },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
