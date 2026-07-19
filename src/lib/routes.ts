@@ -13,3 +13,17 @@ export const ROUTES = {
   REPORTING: "/reporting",
   SETTINGS: "/settings",
 } as const;
+
+// ─── Project Portal Routes ────────────────────────────────────────────────────
+
+export const PORTAL_BASE = "/portal";
+
+export const PORTAL_ROUTES = {
+  HOME: PORTAL_BASE,
+  PROJECT: (projectId: string) => `${PORTAL_BASE}/${projectId}`,
+  TIMELINE: (projectId: string) => `${PORTAL_BASE}/${projectId}/timeline`,
+  DOCUMENTS: (projectId: string) => `${PORTAL_BASE}/${projectId}/documents`,
+  PHOTOS: (projectId: string) => `${PORTAL_BASE}/${projectId}/photos`,
+  CONTACT: (projectId: string) => `${PORTAL_BASE}/${projectId}/contact`,
+  NOTIFICATIONS: (projectId: string) => `${PORTAL_BASE}/${projectId}/notifications`,
+} as const;
