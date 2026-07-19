@@ -71,7 +71,7 @@ export function StaleBanner({ freshness, onRefresh }: StaleBannerProps) {
             type="button"
             onClick={onRefresh}
             aria-label="Refresh data"
-            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
+            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px]"
           >
             <RefreshCw size={12} aria-hidden="true" />
             <span className="hidden sm:inline">Refresh</span>

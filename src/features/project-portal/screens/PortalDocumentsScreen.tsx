@@ -51,7 +51,7 @@ function DocumentRow({ doc }: { doc: PortalDocument }) {
       <button
         type="button"
         aria-label={`Download ${doc.name}`}
-        className="flex h-9 w-9 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+        className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         onClick={() => {
           // In production this would trigger a signed URL download
           // Audit log event: document.viewed

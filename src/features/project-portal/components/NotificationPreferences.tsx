@@ -47,7 +47,7 @@ const CHANNEL_LABELS: Record<NotificationChannel, string> = {
   in_app: "In-App",
 };
 
-const CHANNEL_ICONS: Record<NotificationChannel, React.ComponentType<{ size?: number; "aria-hidden"?: boolean | "true" | "false" }>> = {
+const CHANNEL_ICONS: Record<NotificationChannel, React.ComponentType<{ size?: number; "aria-hidden"?: boolean }>> = {
   email: Mail,
   sms: MessageSquare,
   push: Smartphone,
@@ -91,7 +91,7 @@ function ChannelToggle({ channel, enabled, onChange, labelledBy }: ChannelToggle
           : "bg-slate-800/50 text-slate-500 ring-1 ring-slate-700/50 hover:bg-slate-800",
       ].join(" ")}
     >
-      <Icon size={14} aria-hidden="true" />
+      <Icon size={14} aria-hidden={true} />
       <span>{label}</span>
       <span id={`${channel}-note`} className="sr-only">
         {CHANNEL_NOTE[channel]}
