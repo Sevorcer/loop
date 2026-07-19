@@ -43,7 +43,7 @@ export const defaultJobFormValues: JobFormValues = {
   notes: "",
 };
 
-function getResetFieldsWhenLeavingInstall(type: JobType) {
+function getClearedEstimateFieldsForNonInstall(type: JobType) {
   if (type === "Install") {
     return {};
   }
@@ -92,7 +92,9 @@ export function JobForm({
   ) {
     setForm((current) => ({
       ...current,
-      ...(key === "type" ? getResetFieldsWhenLeavingInstall(value as JobType) : {}),
+      ...(key === "type"
+        ? getClearedEstimateFieldsForNonInstall(value as JobType)
+        : {}),
       [key]: value,
     }));
     setError(null);

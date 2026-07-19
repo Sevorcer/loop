@@ -166,6 +166,8 @@ export const equipmentCatalog: EquipmentCatalogEntry[] = [
     equipmentType: "Heat Pump",
     role: "Outdoor Unit",
     series: "Hyper Heat",
+    // Use aliases only for trusted manufacturer-equivalent variants such as
+    // distributor suffixes or alternate SKU formatting that map to the same unit.
     matchedAliases: ["SUZ-KA36NAHZ.TH"],
     fuelType: "Electric",
     ahriNumber: "216550441",

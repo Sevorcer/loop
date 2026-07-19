@@ -34,6 +34,10 @@ function getLifecycleStatus(status: JobStatus): InstalledSystemLifecycle {
 }
 
 function aggregateMatchState(matches: CatalogMatchResult[]): CatalogMatchState {
+  if (matches.length === 0) {
+    return "unmatched";
+  }
+
   if (matches.some((match) => match.state === "unmatched")) {
     return "unmatched";
   }
