@@ -107,7 +107,7 @@ export default function Header() {
             </span>
 
             {isStaging ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-amber-400">
+              <span className="status-warning inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.15em]">
                 Staging Preview
               </span>
             ) : (
