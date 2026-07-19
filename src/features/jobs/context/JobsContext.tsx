@@ -91,6 +91,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    // Defer hydration until after mount so we can safely reconcile localStorage
+    // data without triggering the set-state-in-effect lint rule on first render.
     const hydrate = window.setTimeout(() => {
       try {
         const storedValue = window.localStorage.getItem(STORAGE_KEY);

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 import { useJobs } from "../context/JobsContext";
 import type { Job, JobPriority, JobStatus, JobType } from "../types";
-import { formatJobDate } from "../utils";
+import { formatJobDate, getTodayJobDateKey } from "../utils";
 
 const allValue = "all";
 const statuses: Array<JobStatus | typeof allValue> = [allValue, "Scheduled", "In Progress", "On Hold", "Completed"];
@@ -102,7 +102,7 @@ export function JobsScreen() {
     priorityFilter !== allValue ||
     typeFilter !== allValue;
 
-  const todayKey = new Date().toLocaleDateString("en-CA");
+  const todayKey = getTodayJobDateKey();
   const todayCount = jobs.filter((job) => job.scheduledFor === todayKey).length;
   const openCount = jobs.filter((job) => job.status !== "Completed").length;
   const highPriorityCount = jobs.filter((job) => job.priority === "High").length;
