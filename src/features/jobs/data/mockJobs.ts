@@ -1,0 +1,140 @@
+import type { Job } from "../types/job";
+
+export const mockJobs: Job[] = [
+  {
+    id: "job-001",
+    jobNumber: "JOB-1001",
+    title: "Rooftop unit replacement",
+    type: "Install",
+    status: "Scheduled",
+    priority: "High",
+    customerName: "Northside Retail Group",
+    propertyName: "Northside Plaza",
+    assignedTo: "Marcus Rivera",
+    scheduledFor: "2026-07-21",
+    summary:
+      "Replace aging rooftop HVAC unit serving the main retail floor and verify startup performance after installation.",
+    location: "1450 Northside Blvd, Suite 100",
+    notes:
+      "Coordinate crane access with property management before arrival. Confirm electrical disconnect inspection window.",
+  },
+  {
+    id: "job-002",
+    jobNumber: "JOB-1002",
+    title: "No cooling service call",
+    type: "Service",
+    status: "In Progress",
+    priority: "High",
+    customerName: "Lakeview Offices",
+    propertyName: "Lakeview Tower",
+    assignedTo: "Tina Brooks",
+    scheduledFor: "2026-07-18",
+    summary:
+      "Diagnose loss of cooling reported on the third floor and restore operation for tenant office suites.",
+    location: "88 Lakeview Avenue",
+    notes:
+      "Initial call noted weak airflow and high indoor temperature in the west corridor.",
+  },
+  {
+    id: "job-003",
+    jobNumber: "JOB-1003",
+    title: "Quarterly preventive maintenance",
+    type: "Maintenance",
+    status: "Scheduled",
+    priority: "Medium",
+    customerName: "Summit Storage",
+    propertyName: "Summit Storage West",
+    assignedTo: "Jordan Lee",
+    scheduledFor: "2026-07-22",
+    summary:
+      "Perform seasonal PM checklist across packaged units, replace filters, inspect belts, and document equipment condition.",
+    location: "2400 Summit Park Road",
+    notes:
+      "Customer requests morning arrival and digital checklist delivery after completion.",
+  },
+  {
+    id: "job-004",
+    jobNumber: "JOB-1004",
+    title: "Post-install quality inspection",
+    type: "Inspection",
+    status: "Completed",
+    priority: "Low",
+    customerName: "Cedar Point Dental",
+    propertyName: "Cedar Point Dental Clinic",
+    assignedTo: "Avery Collins",
+    scheduledFor: "2026-07-15",
+    summary:
+      "Inspect newly installed split system, verify controls, and confirm closeout readiness.",
+    location: "602 Cedar Point Drive",
+    notes:
+      "Inspection passed with minor thermostat calibration adjustment completed onsite.",
+  },
+  {
+    id: "job-005",
+    jobNumber: "JOB-1005",
+    title: "Compressor diagnostics",
+    type: "Service",
+    status: "On Hold",
+    priority: "Medium",
+    customerName: "Pioneer Manufacturing",
+    propertyName: "Pioneer Plant 2",
+    assignedTo: "Chris Nolan",
+    scheduledFor: "2026-07-19",
+    summary:
+      "Investigate repeated compressor trip events and determine whether replacement is required.",
+    location: "19 Foundry Lane",
+    notes:
+      "Waiting on equipment history and approval for advanced diagnostic teardown.",
+  },
+  {
+    id: "job-006",
+    jobNumber: "JOB-1006",
+    title: "Split system installation",
+    type: "Install",
+    status: "Cancelled",
+    priority: "Low",
+    customerName: "Harbor View Condos",
+    propertyName: "Harbor View Building B",
+    assignedTo: "Dana Foster",
+    scheduledFor: "2026-07-25",
+    summary:
+      "Install replacement split system for second-floor common area after prior equipment failure.",
+    location: "410 Harbor View Court",
+    notes:
+      "Cancelled pending revised budget approval from HOA board.",
+  },
+  {
+    id: "job-007",
+    jobNumber: "JOB-1007",
+    title: "Emergency condenser fan repair",
+    type: "Service",
+    status: "In Progress",
+    priority: "High",
+    customerName: "Elm Street Bakery",
+    propertyName: "Elm Street Bakery",
+    assignedTo: "Riley Morgan",
+    scheduledFor: "2026-07-18",
+    summary:
+      "Restore condenser fan operation to prevent further downtime during peak production hours.",
+    location: "12 Elm Street",
+    notes:
+      "Customer requests hourly updates until system is back online.",
+  },
+  {
+    id: "job-008",
+    jobNumber: "JOB-1008",
+    title: "Seasonal startup inspection",
+    type: "Inspection",
+    status: "Scheduled",
+    priority: "Medium",
+    customerName: "Westbrook Schools",
+    propertyName: "Westbrook High School",
+    assignedTo: "Taylor Reed",
+    scheduledFor: "2026-07-23",
+    summary:
+      "Complete startup walkthrough for classroom HVAC systems before the new term begins.",
+    location: "900 Westbrook Lane",
+    notes:
+      "School access limited to facilities entrance after 8:00 AM.",
+  },
+];

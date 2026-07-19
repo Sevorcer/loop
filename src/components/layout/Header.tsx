@@ -1,14 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, Search, User, Sparkles } from "lucide-react";
+import { Bell, Search, User, Sparkles, CalendarDays } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-const pageContent: Record<
-  string,
-  { title: string; description: string }
-> = {
+const pageContent: Record<string, { title: string; description: string }> = {
   "/dashboard": {
     title: "Dashboard",
     description: "Welcome back. Here's what's happening today.",
@@ -61,23 +59,35 @@ function getPageMeta(pathname: string) {
     };
   }
 
-  return {
-    title: "Dashboard",
-    description: "Welcome back. Here's what's happening today.",
-  };
+  return pageContent["/dashboard"];
 }
 
 export default function Header() {
   const pathname = usePathname();
   const pageMeta = getPageMeta(pathname);
 
+  const todayLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      }).format(new Date()),
+    [],
+  );
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
       <div className="flex min-h-20 items-center justify-between gap-6 px-6 py-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex h-7 items-center rounded-full border border-red-500/20 bg-gradient-to-r from-red-500/10 to-blue-500/10 px-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
               Operations Hub
+            </span>
+
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400">
+              <CalendarDays className="h-3.5 w-3.5 text-blue-400" />
+              {todayLabel}
             </span>
 
             <span className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400 md:inline-flex">
@@ -90,9 +100,7 @@ export default function Header() {
             {pageMeta.title}
           </h1>
 
-          <p className="text-sm text-slate-400">
-            {pageMeta.description}
-          </p>
+          <p className="text-sm text-slate-400">{pageMeta.description}</p>
         </div>
 
         <div className="flex items-center gap-2">
