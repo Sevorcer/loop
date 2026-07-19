@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   flexRender,
@@ -48,7 +48,7 @@ export function DataTable<TData>({
   onRowClick,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const humanizedLabelCache = useMemo(() => new Map<string, string>(), []);
+  const humanizedLabelCacheRef = useRef(new Map<string, string>());
 
   const table = useReactTable({
     data,
@@ -104,13 +104,13 @@ export function DataTable<TData>({
         ? cell.column.columnDef.accessorKey
         : cell.column.id;
 
-    const cached = humanizedLabelCache.get(rawLabel);
+    const cached = humanizedLabelCacheRef.current.get(rawLabel);
     if (cached) {
       return cached;
     }
 
     const humanized = humanizeLabel(rawLabel);
-    humanizedLabelCache.set(rawLabel, humanized);
+    humanizedLabelCacheRef.current.set(rawLabel, humanized);
     return humanized;
   }
 
@@ -148,6 +148,7 @@ export function DataTable<TData>({
                     }
 
                     if (event.key === "Enter") {
+                      event.preventDefault();
                       handleRowClick(row);
                       return;
                     }

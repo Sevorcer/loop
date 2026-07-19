@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Search, User, Sparkles, CalendarDays, Menu } from "lucide-react";
@@ -115,7 +116,7 @@ interface HeaderProps {
 export default function Header({ isMobileNavOpen = false, onMenuToggle }: HeaderProps) {
   const pathname = usePathname();
   const pageMeta = getPageMeta(pathname);
-  const todayLabel = headerDateFormatter.format(new Date());
+  const todayLabel = useMemo(() => headerDateFormatter.format(new Date()), []);
 
   const isStaging = process.env.NEXT_PUBLIC_APP_ENV === "staging";
   const showDashboardCrumb = pathname !== ROUTES.DASHBOARD;
