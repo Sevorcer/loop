@@ -1,1 +1,1 @@
-export { PropertiesScreen } from "./screens/PropertiesScreen";
+export { PropertiesScreen } from "./PropertiesScreen";

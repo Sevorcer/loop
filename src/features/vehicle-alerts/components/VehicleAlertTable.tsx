@@ -65,23 +65,15 @@ export function VehicleAlertTable() {
     });
   }, [priorityFilter, searchValue, statusFilter, vehicleFilter]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchValue, statusFilter, priorityFilter, vehicleFilter]);
-
   const totalAlerts = filteredAlerts.length;
   const totalPages = Math.max(1, Math.ceil(totalAlerts / PAGE_SIZE));
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  // Clamp current page to valid range without a useEffect
+  const effectivePage = Math.min(currentPage, totalPages);
 
   const paginatedAlerts = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    const startIndex = (effectivePage - 1) * PAGE_SIZE;
     return filteredAlerts.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [currentPage, filteredAlerts]);
+  }, [effectivePage, filteredAlerts]);
 
   const hasActiveFilters =
     searchValue.trim().length > 0 ||
@@ -89,9 +81,29 @@ export function VehicleAlertTable() {
     priorityFilter !== ALL_FILTER_VALUE ||
     vehicleFilter !== ALL_FILTER_VALUE;
 
-  const showingFrom = totalAlerts === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const showingFrom = totalAlerts === 0 ? 0 : (effectivePage - 1) * PAGE_SIZE + 1;
   const showingTo =
-    totalAlerts === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, totalAlerts);
+    totalAlerts === 0 ? 0 : Math.min(effectivePage * PAGE_SIZE, totalAlerts);
+
+  function handleSearchChange(value: string) {
+    setSearchValue(value);
+    setCurrentPage(1);
+  }
+
+  function handleStatusChange(value: string) {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  }
+
+  function handlePriorityChange(value: string) {
+    setPriorityFilter(value);
+    setCurrentPage(1);
+  }
+
+  function handleVehicleChange(value: string) {
+    setVehicleFilter(value);
+    setCurrentPage(1);
+  }
 
   function handleClearFilters() {
     setSearchValue("");
@@ -106,13 +118,13 @@ export function VehicleAlertTable() {
       <div className="space-y-4">
         <VehicleAlertToolbar
           searchValue={searchValue}
-          onSearchChange={setSearchValue}
+          onSearchChange={handleSearchChange}
           statusFilter={statusFilter}
-          onStatusChange={setStatusFilter}
+          onStatusChange={handleStatusChange}
           priorityFilter={priorityFilter}
-          onPriorityChange={setPriorityFilter}
+          onPriorityChange={handlePriorityChange}
           vehicleFilter={vehicleFilter}
-          onVehicleChange={setVehicleFilter}
+          onVehicleChange={handleVehicleChange}
           vehicleOptions={vehicleOptions}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
@@ -135,13 +147,13 @@ export function VehicleAlertTable() {
       <div className="space-y-4">
         <VehicleAlertToolbar
           searchValue={searchValue}
-          onSearchChange={setSearchValue}
+          onSearchChange={handleSearchChange}
           statusFilter={statusFilter}
-          onStatusChange={setStatusFilter}
+          onStatusChange={handleStatusChange}
           priorityFilter={priorityFilter}
-          onPriorityChange={setPriorityFilter}
+          onPriorityChange={handlePriorityChange}
           vehicleFilter={vehicleFilter}
-          onVehicleChange={setVehicleFilter}
+          onVehicleChange={handleVehicleChange}
           vehicleOptions={vehicleOptions}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
@@ -170,13 +182,13 @@ export function VehicleAlertTable() {
     <div className="space-y-4">
       <VehicleAlertToolbar
         searchValue={searchValue}
-        onSearchChange={setSearchValue}
+        onSearchChange={handleSearchChange}
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={handleStatusChange}
         priorityFilter={priorityFilter}
-        onPriorityChange={setPriorityFilter}
+        onPriorityChange={handlePriorityChange}
         vehicleFilter={vehicleFilter}
-        onVehicleChange={setVehicleFilter}
+        onVehicleChange={handleVehicleChange}
         vehicleOptions={vehicleOptions}
         onClearFilters={handleClearFilters}
         hasActiveFilters={hasActiveFilters}
@@ -199,13 +211,13 @@ export function VehicleAlertTable() {
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            disabled={currentPage === 1}
+            disabled={effectivePage === 1}
           >
             Previous
           </Button>
 
           <span className="min-w-[72px] text-center">
-            Page {currentPage} of {totalPages}
+            Page {effectivePage} of {totalPages}
           </span>
 
           <Button
@@ -214,7 +226,7 @@ export function VehicleAlertTable() {
             onClick={() =>
               setCurrentPage((page) => Math.min(totalPages, page + 1))
             }
-            disabled={currentPage === totalPages}
+            disabled={effectivePage === totalPages}
           >
             Next
           </Button>

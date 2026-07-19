@@ -1,19 +1,22 @@
+import Link from "next/link";
 import {
   LayoutDashboard,
   Building2,
   Briefcase,
   CalendarDays,
   Brain,
+  BarChart3,
   Settings,
 } from "lucide-react";
 
 const navigation = [
-  { name: "Dashboard", icon: LayoutDashboard },
-  { name: "Properties", icon: Building2 },
-  { name: "Jobs", icon: Briefcase },
-  { name: "Daily Plans", icon: CalendarDays },
-  { name: "Company Brain", icon: Brain },
-  { name: "Settings", icon: Settings },
+  { name: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { name: "Properties", icon: Building2, href: "#" },
+  { name: "Jobs", icon: Briefcase, href: "#" },
+  { name: "Daily Plans", icon: CalendarDays, href: "#" },
+  { name: "Company Brain", icon: Brain, href: "#" },
+  { name: "Reporting", icon: BarChart3, href: "/reporting" },
+  { name: "Settings", icon: Settings, href: "#" },
 ];
 
 export default function Sidebar() {
@@ -31,13 +34,14 @@ export default function Sidebar() {
           const Icon = item.icon;
 
           return (
-            <button
+            <Link
               key={item.name}
+              href={item.href}
               className="mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
             >
               <Icon size={18} />
               <span>{item.name}</span>
-            </button>
+            </Link>
           );
         })}
       </nav>
