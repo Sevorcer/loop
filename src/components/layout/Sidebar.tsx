@@ -17,9 +17,10 @@ import {
   Settings,
   BellRing,
   Send,
+  ExternalLink,
 } from "lucide-react";
 
-import { ROUTES } from "@/lib/routes";
+import { ROUTES, PORTAL_ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -69,6 +70,12 @@ const navGroups: NavGroup[] = [
     label: "Insights",
     items: [
       { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
+    ],
+  },
+  {
+    label: "External",
+    items: [
+      { name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: ExternalLink },
     ],
   },
   {

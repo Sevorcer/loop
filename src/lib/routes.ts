@@ -13,3 +13,22 @@ export const ROUTES = {
   REPORTING: "/reporting",
   SETTINGS: "/settings",
 } as const;
+
+// ─── Project Portal (external-facing) ────────────────────────────────────────
+
+export const PORTAL_ROUTES = {
+  /** Root redirect — navigates to the first available project for the mock user */
+  ROOT: "/portal",
+
+  /** Per-project screens */
+  OVERVIEW: (projectId: string) => `/portal/${projectId}/overview`,
+  TIMELINE: (projectId: string) => `/portal/${projectId}/timeline`,
+  DOCUMENTS: (projectId: string) => `/portal/${projectId}/documents`,
+  CONTACT: (projectId: string) => `/portal/${projectId}/contact`,
+
+  /** Error states */
+  ERROR_UNAUTHORIZED: "/portal/error/unauthorized",
+  ERROR_EXPIRED_INVITE: "/portal/error/expired-invite",
+  ERROR_REVOKED: "/portal/error/revoked",
+  ERROR_NOT_FOUND: "/portal/error/not-found",
+} as const;
