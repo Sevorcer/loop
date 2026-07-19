@@ -17,27 +17,27 @@ function CompanyHealthBanner({
 }) {
   const colorMap: Record<string, { bg: string; border: string; text: string; label: string }> = {
     healthy: {
-      bg: "bg-green-50",
-      border: "border-green-200",
-      text: "text-green-800",
+      bg: "bg-emerald-500/[0.08]",
+      border: "border-emerald-500/20",
+      text: "text-emerald-200",
       label: "Healthy",
     },
     improving: {
-      bg: "bg-blue-50",
-      border: "border-blue-200",
-      text: "text-blue-800",
+      bg: "bg-blue-500/[0.08]",
+      border: "border-blue-500/20",
+      text: "text-blue-200",
       label: "Improving",
     },
     "at-risk": {
-      bg: "bg-amber-50",
-      border: "border-amber-200",
-      text: "text-amber-800",
+      bg: "bg-amber-500/[0.08]",
+      border: "border-amber-500/20",
+      text: "text-amber-200",
       label: "At Risk",
     },
     deteriorating: {
-      bg: "bg-red-50",
-      border: "border-red-200",
-      text: "text-red-800",
+      bg: "bg-red-500/[0.08]",
+      border: "border-red-500/20",
+      text: "text-red-200",
       label: "Deteriorating",
     },
   };
@@ -47,7 +47,7 @@ function CompanyHealthBanner({
   return (
     <div
       className={[
-        "flex items-center justify-between rounded-xl border px-5 py-4",
+        "flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
         colors.bg,
         colors.border,
       ].join(" ")}
@@ -58,13 +58,13 @@ function CompanyHealthBanner({
           <p className={["text-sm font-semibold", colors.text].join(" ")}>
             Company Health: {colors.label}
           </p>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="mt-0.5 text-xs text-slate-400">
             Aggregated across all active performance models
           </p>
         </div>
       </div>
       {attentionCount > 0 ? (
-        <div className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+        <div className="rounded-full border border-amber-500/20 bg-amber-500/[0.12] px-3 py-1 text-xs font-medium text-amber-200">
           {attentionCount} item{attentionCount !== 1 ? "s" : ""} require attention
         </div>
       ) : null}
@@ -122,29 +122,29 @@ export function ReportingScreen() {
           {performanceModels.map((model) => (
             <div
               key={model.id}
-              className="flex items-start justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
+              className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 sm:flex-row sm:items-start sm:justify-between"
             >
-              <div className="space-y-0.5 min-w-0">
-                <p className="text-sm font-medium text-slate-900">
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-sm font-medium text-white">
                   {model.title}
                 </p>
-                <p className="text-xs text-slate-500">{model.description}</p>
+                <p className="text-xs text-slate-400">{model.description}</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {model.relatedDomains.map((domain) => (
                     <span
                       key={domain}
-                      className="rounded-full bg-white border border-slate-200 px-2 py-0.5 text-xs text-slate-500"
+                      className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-300"
                     >
                       {domain}
                     </span>
                   ))}
                 </div>
               </div>
-              <div className="ml-4 shrink-0 text-right">
-                <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 capitalize">
+              <div className="shrink-0 text-left sm:ml-4 sm:text-right">
+                <span className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.12] px-2.5 py-0.5 text-xs font-medium capitalize text-emerald-200">
                   {model.status}
                 </span>
-                <p className="mt-1 text-xs text-slate-400 capitalize">
+                <p className="mt-1 text-xs capitalize text-slate-500">
                   {model.scope} · {model.owner}
                 </p>
               </div>
@@ -154,11 +154,11 @@ export function ReportingScreen() {
       </SectionCard>
 
       {/* Domain Boundary Note */}
-      <div className="rounded-xl border border-slate-200 bg-white px-5 py-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
           Domain Boundary
         </p>
-        <p className="text-sm text-slate-600 leading-relaxed">
+        <p className="text-sm leading-relaxed text-slate-300">
           Reporting interprets operational truth — it does not own it. Performance intelligence
           is derived from Morning Operations, Dispatch, Live Operations, and Inventory data.
           Operational facts remain in their source domains.

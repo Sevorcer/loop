@@ -12,25 +12,25 @@ export function ScorecardSection({ enrichedScorecard }: ScorecardSectionProps) {
     <div className="space-y-5">
       {/* Scorecard Header */}
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-slate-900">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-base font-semibold text-white">
             {scorecard.title}
           </h2>
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs font-medium text-slate-300">
             {scorecard.audience}
           </span>
         </div>
         {scorecard.description ? (
-          <p className="text-sm text-slate-500">{scorecard.description}</p>
+          <p className="text-sm text-slate-400">{scorecard.description}</p>
         ) : null}
       </div>
 
       {/* Health Summary Narrative */}
-      <div className="rounded-xl bg-slate-50 border border-slate-200 px-5 py-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
           Interpretation
         </p>
-        <p className="text-sm text-slate-700 leading-relaxed">
+        <p className="text-sm leading-relaxed text-slate-300">
           {scorecard.healthSummary}
         </p>
       </div>
@@ -44,14 +44,14 @@ export function ScorecardSection({ enrichedScorecard }: ScorecardSectionProps) {
 
       {/* Action Items */}
       {scorecard.actionItems.length > 0 ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-600 mb-3">
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.08] px-4 py-4 sm:px-5">
+          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-amber-200">
             Where Attention May Be Needed
           </p>
           <ul className="space-y-2">
             {scorecard.actionItems.map((item, idx) => (
-              <li key={idx} className="flex items-start gap-2 text-sm text-amber-800">
-                <span className="mt-0.5 shrink-0 text-amber-500">→</span>
+              <li key={idx} className="flex items-start gap-2 text-sm text-amber-100">
+                <span className="mt-0.5 shrink-0 text-amber-300">→</span>
                 <span>{item}</span>
               </li>
             ))}
@@ -61,15 +61,15 @@ export function ScorecardSection({ enrichedScorecard }: ScorecardSectionProps) {
 
       {/* Performance Summary */}
       {summary ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 space-y-4">
+        <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-4 sm:px-5">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-1">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
               Period: {summary.period}
             </p>
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-white">
               {summary.headline}
             </p>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">
               {summary.interpretation}
             </p>
           </div>
@@ -77,13 +77,13 @@ export function ScorecardSection({ enrichedScorecard }: ScorecardSectionProps) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {summary.highlights.length > 0 ? (
               <div>
-                <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-2">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-emerald-300">
                   What Improved
                 </p>
                 <ul className="space-y-1.5">
                   {summary.highlights.map((h, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                      <span className="mt-0.5 shrink-0 text-green-500">✓</span>
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-200">
+                      <span className="mt-0.5 shrink-0 text-emerald-300">✓</span>
                       <span>{h}</span>
                     </li>
                   ))}
@@ -93,13 +93,13 @@ export function ScorecardSection({ enrichedScorecard }: ScorecardSectionProps) {
 
             {summary.concerns.length > 0 ? (
               <div>
-                <p className="text-xs font-medium text-amber-600 uppercase tracking-wide mb-2">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-300">
                   What Requires Attention
                 </p>
                 <ul className="space-y-1.5">
                   {summary.concerns.map((c, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                      <span className="mt-0.5 shrink-0 text-amber-500">!</span>
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-200">
+                      <span className="mt-0.5 shrink-0 text-amber-300">!</span>
                       <span>{c}</span>
                     </li>
                   ))}
