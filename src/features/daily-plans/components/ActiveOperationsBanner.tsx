@@ -1,5 +1,7 @@
 import { Activity, Clock, Zap } from "lucide-react";
+import Link from "next/link";
 
+import { ROUTES } from "@/lib/routes";
 import { formatStartTime } from "../utils/planUtils";
 
 interface ActiveOperationsBannerProps {
@@ -27,10 +29,13 @@ export function ActiveOperationsBanner({ startedAt }: ActiveOperationsBannerProp
             <Clock className="h-3.5 w-3.5" />
             Started {formatStartTime(startedAt)}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/[0.08] px-3 py-1 text-xs font-medium text-indigo-300">
+          <Link
+            href={ROUTES.LIVE_OPERATIONS}
+            className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/[0.08] px-3 py-1 text-xs font-medium text-indigo-300 transition-colors hover:border-indigo-400/40 hover:text-indigo-200"
+          >
             <Zap className="h-3.5 w-3.5" />
-            Live Operations — coming soon
-          </span>
+            Open Live Operations →
+          </Link>
         </div>
       </div>
     </div>

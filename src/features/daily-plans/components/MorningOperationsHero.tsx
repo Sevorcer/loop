@@ -1,18 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Activity,
-  CalendarDays,
-  CheckCircle2,
-  Clock,
-  Printer,
-  Rocket,
-  ShieldAlert,
-  Zap,
-} from "lucide-react";
+import { Activity, CalendarDays, CheckCircle2, Clock, Printer, Rocket, ShieldAlert, Zap } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 import type { DailyPlanStatus, MorningAlert, MorningDashboardMetrics } from "../types/dailyPlan";
 import { formatPlanDate, formatStartTime, getDayLabel, getReadinessStatus } from "../utils/planUtils";
@@ -117,12 +110,15 @@ export function MorningOperationsHero({
                     Started at {formatStartTime(startedAt)}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.06] px-3 py-2">
+                <Link
+                  href={ROUTES.LIVE_OPERATIONS}
+                  className="flex items-center gap-2 rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.06] px-3 py-2 transition-colors hover:border-indigo-400/40 hover:text-indigo-200"
+                >
                   <Zap className="h-3.5 w-3.5 text-indigo-300" />
                   <span className="text-xs font-medium text-indigo-200">
-                    Live Operations — coming soon
+                    Open Live Operations →
                   </span>
-                </div>
+                </Link>
               </div>
             ) : null}
 
