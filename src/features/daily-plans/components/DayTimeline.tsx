@@ -1,6 +1,7 @@
 import { Clock3, Flag, Truck } from "lucide-react";
 
 import type { CrewWorkload } from "../types/dailyPlan";
+import { formatStartTime } from "../utils/planUtils";
 
 interface DayTimelineProps {
   crewWorkloads: CrewWorkload[];
@@ -23,7 +24,7 @@ export function DayTimeline({ crewWorkloads, isActive = false, startedAt }: DayT
           <p className="text-sm font-semibold text-white">{isActive ? "Active Timeline" : "Planned Timeline"}</p>
           <p className="text-xs text-slate-400">
             {isActive && startedAt
-              ? `Operations started · ${new Date(startedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+              ? `Operations started · ${formatStartTime(startedAt)}`
               : "Dispatch-to-completion framing for active crews"}
           </p>
         </div>

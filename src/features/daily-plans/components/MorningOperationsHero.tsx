@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import type { DailyPlanStatus, MorningAlert, MorningDashboardMetrics } from "../types/dailyPlan";
-import { formatPlanDate, getDayLabel, getReadinessStatus } from "../utils/planUtils";
+import { formatPlanDate, formatStartTime, getDayLabel, getReadinessStatus } from "../utils/planUtils";
 import { ActivationDialog } from "./ActivationDialog";
 import { DayNavigator } from "./DayNavigator";
 
@@ -28,14 +28,6 @@ interface MorningOperationsHeroProps {
   blockerCount: number;
   onActivate: () => void;
   onPrintPackets: () => void;
-}
-
-function formatStartTime(isoString: string): string {
-  return new Date(isoString).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
 }
 
 export function MorningOperationsHero({

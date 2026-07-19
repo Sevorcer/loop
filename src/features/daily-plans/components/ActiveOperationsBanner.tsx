@@ -1,15 +1,9 @@
 import { Activity, Clock, Zap } from "lucide-react";
 
+import { formatStartTime } from "../utils/planUtils";
+
 interface ActiveOperationsBannerProps {
   startedAt: string;
-}
-
-function formatStartTime(isoString: string): string {
-  return new Date(isoString).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
 }
 
 export function ActiveOperationsBanner({ startedAt }: ActiveOperationsBannerProps) {

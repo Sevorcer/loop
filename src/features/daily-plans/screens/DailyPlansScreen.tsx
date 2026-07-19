@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
@@ -58,6 +58,12 @@ export function DailyPlansScreen() {
   } = useDailyPlans();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!actionNotice) return;
+    const timeout = window.setTimeout(() => setActionNotice(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [actionNotice]);
+
   const planStatus = getPlanStatus(selectedDate);
   const planActivation = getPlanActivation(selectedDate);
   const isActive = planStatus === "active";
@@ -107,9 +113,6 @@ export function DailyPlansScreen() {
   const handleActivate = useCallback(() => {
     activatePlan(selectedDate);
     setActionNotice("Operations started — crews are cleared to roll.");
-    // Dismiss notice after a brief moment; the hero/banner now conveys the state
-    const timeout = window.setTimeout(() => setActionNotice(null), 3000);
-    return () => window.clearTimeout(timeout);
   }, [activatePlan, selectedDate]);
 
   const handleAssign = useCallback(
@@ -121,13 +124,16 @@ export function DailyPlansScreen() {
       }
 
       updateJob(jobId, { ...job, assignedTo: technician });
-      setActionNotice(
-        isActive
-          ? `Override: ${job.jobNumber} reassigned to ${technician || "unassigned queue"}.`
-          : technician
-            ? `${job.jobNumber} assigned to ${technician}.`
-            : `${job.jobNumber} moved back to the unassigned queue.`
-      );
+
+      let notice: string;
+      if (isActive) {
+        notice = `Override: ${job.jobNumber} reassigned to ${technician || "unassigned queue"}.`;
+      } else if (technician) {
+        notice = `${job.jobNumber} assigned to ${technician}.`;
+      } else {
+        notice = `${job.jobNumber} moved back to the unassigned queue.`;
+      }
+      setActionNotice(notice);
     },
     [jobs, updateJob, isActive]
   );
@@ -140,15 +146,13 @@ export function DailyPlansScreen() {
         return;
       }
 
-      updateJob(jobId, {
-        ...job,
-        scheduledFor: addDays(job.scheduledFor, 1),
-      });
-      setActionNotice(
-        isActive
-          ? `Override: ${job.jobNumber} moved to ${addDays(job.scheduledFor, 1)}. Notify the customer.`
-          : `${job.jobNumber} moved to ${addDays(job.scheduledFor, 1)}.`
-      );
+      const nextDate = addDays(job.scheduledFor, 1);
+      updateJob(jobId, { ...job, scheduledFor: nextDate });
+
+      const notice = isActive
+        ? `Override: ${job.jobNumber} moved to ${nextDate}. Notify the customer.`
+        : `${job.jobNumber} moved to ${nextDate}.`;
+      setActionNotice(notice);
     },
     [jobs, updateJob, isActive]
   );
@@ -156,15 +160,18 @@ export function DailyPlansScreen() {
   const handleSetReadiness = useCallback(
     (jobId: string, state: PlanReadinessState) => {
       setJobOverride(jobId, { readinessState: state });
-      setActionNotice(
-        isActive
-          ? state === "ready"
-            ? "Override: job readiness confirmed during active operations."
-            : "Override: job flagged for active-day attention."
-          : state === "ready"
-            ? "Job marked ready for the morning launch."
-            : "Job flagged for morning attention."
-      );
+
+      let notice: string;
+      if (isActive) {
+        notice = state === "ready"
+          ? "Override: job readiness confirmed during active operations."
+          : "Override: job flagged for active-day attention.";
+      } else {
+        notice = state === "ready"
+          ? "Job marked ready for the morning launch."
+          : "Job flagged for morning attention.";
+      }
+      setActionNotice(notice);
     },
     [setJobOverride, isActive]
   );

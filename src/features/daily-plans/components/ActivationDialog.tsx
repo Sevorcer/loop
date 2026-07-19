@@ -13,6 +13,25 @@ interface ActivationDialogProps {
   onCancel: () => void;
 }
 
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
+}
+
+function buildBodyText(blockerCount: number, alertCount: number): string {
+  if (blockerCount > 0) {
+    const verb = pluralize(blockerCount, "is", "are");
+    const noun = pluralize(blockerCount, "blocker", "blockers");
+    const pronoun = pluralize(blockerCount, "has", "have");
+    return `There ${verb} ${blockerCount} open ${noun} that ${pronoun} not been resolved. You can still launch, but these issues will carry forward into the active day.`;
+  }
+  if (alertCount > 0) {
+    const verb = pluralize(alertCount, "is", "are");
+    const noun = pluralize(alertCount, "active alert", "active alerts");
+    return `There ${verb} ${alertCount} ${noun} to monitor, but no blockers. The company will transition from planning to operations.`;
+  }
+  return "All crews, trucks, and jobs are clear. The company is ready to transition from planning to operations.";
+}
+
 export function ActivationDialog({
   open,
   blockerCount,
@@ -76,11 +95,7 @@ export function ActivationDialog({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          {hasBlockers
-            ? `There ${blockerCount === 1 ? "is" : "are"} ${blockerCount} open blocker${blockerCount === 1 ? "" : "s"} that ${blockerCount === 1 ? "has" : "have"} not been resolved. You can still launch, but these issues will carry forward into the active day.`
-            : alertCount > 0
-              ? `There ${alertCount === 1 ? "is" : "are"} ${alertCount} active alert${alertCount === 1 ? "" : "s"} to monitor, but no blockers. The company will transition from planning to operations.`
-              : "All crews, trucks, and jobs are clear. The company is ready to transition from planning to operations."}
+          {buildBodyText(blockerCount, alertCount)}
         </p>
 
         {hasBlockers && (
