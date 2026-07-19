@@ -12,18 +12,17 @@ interface MetricProps {
   label: string;
   value: number;
   icon: React.ReactNode;
-  color: string;
   detail?: string;
 }
 
-function MetricPill({ label, value, icon, color, detail }: MetricProps) {
+function MetricPill({ label, value, icon, detail }: MetricProps) {
   return (
     <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
           {label}
         </p>
-        <div className={["flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.06]", color].join(" ")}>
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.06]">
           {icon}
         </div>
       </div>
@@ -48,7 +47,6 @@ export function ReadinessSummary({ metrics }: ReadinessSummaryProps) {
         label="Planned"
         value={metrics.totalPlanned}
         icon={<ClipboardList className="h-4 w-4 text-blue-300" />}
-        color=""
         detail="Jobs scheduled for the day"
       />
 
@@ -56,7 +54,6 @@ export function ReadinessSummary({ metrics }: ReadinessSummaryProps) {
         label="Assigned"
         value={metrics.assigned}
         icon={<UserCheck className="h-4 w-4 text-green-300" />}
-        color=""
         detail="Covered by field crew"
       />
 
@@ -64,7 +61,6 @@ export function ReadinessSummary({ metrics }: ReadinessSummaryProps) {
         label="Unassigned"
         value={metrics.unassigned}
         icon={<UserX className="h-4 w-4 text-yellow-300" />}
-        color=""
         detail={metrics.unassigned > 0 ? "Need crew assignment" : "All covered"}
       />
 
@@ -72,7 +68,6 @@ export function ReadinessSummary({ metrics }: ReadinessSummaryProps) {
         label="At Risk"
         value={metrics.atRisk}
         icon={<AlertTriangle className="h-4 w-4 text-red-300" />}
-        color=""
         detail="On hold, unassigned, or high priority"
       />
 
@@ -81,7 +76,6 @@ export function ReadinessSummary({ metrics }: ReadinessSummaryProps) {
           label="In Progress"
           value={metrics.inProgress}
           icon={<CalendarCheck className="h-4 w-4 text-purple-300" />}
-          color=""
           detail="Currently active in the field"
         />
       ) : null}

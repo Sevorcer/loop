@@ -17,6 +17,9 @@ const DailyPlansContext = createContext<DailyPlanStoreValue | null>(null);
 
 const DAILY_NOTES_STORAGE_KEY = "loop.daily-plans.notes";
 
+// No-op subscription: useSyncExternalStore requires a subscribe function, but we only
+// use the server/client snapshot difference to detect hydration. No external store to
+// subscribe to — the `() => true` client snapshot is the signal we need.
 const subscribeToHydration = (onStoreChange: () => void) => {
   void onStoreChange;
   return () => {};
