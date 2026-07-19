@@ -115,6 +115,8 @@ export default function Header() {
     [],
   );
 
+  const isStaging = process.env.NEXT_PUBLIC_APP_ENV === "staging";
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
       <div className="flex min-h-20 items-center justify-between gap-6 px-6 py-4">
@@ -129,10 +131,16 @@ export default function Header() {
               {todayLabel}
             </span>
 
-            <span className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400 md:inline-flex">
-              <Sparkles className="h-3.5 w-3.5 text-red-400" />
-              Live Workspace
-            </span>
+            {isStaging ? (
+              <span className="status-warning inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.15em]">
+                Staging Preview
+              </span>
+            ) : (
+              <span className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400 md:inline-flex">
+                <Sparkles className="h-3.5 w-3.5 text-red-400" />
+                Live Workspace
+              </span>
+            )}
           </div>
 
           <h1 className="text-2xl font-semibold tracking-tight text-white">
