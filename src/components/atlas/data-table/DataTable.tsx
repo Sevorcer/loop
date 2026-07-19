@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   flexRender,
@@ -23,8 +23,6 @@ type MobileColumnMeta = {
   mobileHidden?: boolean;
 };
 
-const humanizedLabelCache = new Map<string, string>();
-
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
@@ -36,20 +34,12 @@ function getColumnMeta<TData>(columnDef: ColumnDef<TData, unknown>): MobileColum
 }
 
 function humanizeLabel(value: string) {
-  const cached = humanizedLabelCache.get(value);
-  if (cached) {
-    return cached;
-  }
-
-  const humanized = value
+  return value
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/[-_]/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^./, (char) => char.toUpperCase())
     .trim();
-
-  humanizedLabelCache.set(value, humanized);
-  return humanized;
 }
 
 export function DataTable<TData>({
@@ -58,6 +48,7 @@ export function DataTable<TData>({
   onRowClick,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const humanizedLabelCache = useMemo(() => new Map<string, string>(), []);
 
   const table = useReactTable({
     data,
@@ -107,11 +98,20 @@ export function DataTable<TData>({
       return header;
     }
 
-    if ("accessorKey" in cell.column.columnDef && typeof cell.column.columnDef.accessorKey === "string") {
-      return humanizeLabel(cell.column.columnDef.accessorKey);
+    const rawLabel =
+      "accessorKey" in cell.column.columnDef &&
+      typeof cell.column.columnDef.accessorKey === "string"
+        ? cell.column.columnDef.accessorKey
+        : cell.column.id;
+
+    const cached = humanizedLabelCache.get(rawLabel);
+    if (cached) {
+      return cached;
     }
 
-    return humanizeLabel(cell.column.id);
+    const humanized = humanizeLabel(rawLabel);
+    humanizedLabelCache.set(rawLabel, humanized);
+    return humanized;
   }
 
   return (
@@ -147,7 +147,12 @@ export function DataTable<TData>({
                       return;
                     }
 
-                    if (event.key === "Enter" || event.key === " ") {
+                    if (event.key === "Enter") {
+                      handleRowClick(row);
+                      return;
+                    }
+
+                    if (event.key === " ") {
                       event.preventDefault();
                       handleRowClick(row);
                     }

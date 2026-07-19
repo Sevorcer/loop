@@ -143,6 +143,8 @@ export default function Header({ isMobileNavOpen = false, onMenuToggle }: Header
               </span>
 
               <span
+                // The label includes the current local date, so the server-rendered
+                // string can differ from the client-rendered string by timezone.
                 suppressHydrationWarning
                 className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400"
               >
