@@ -8,5 +8,6 @@ export const ROUTES = {
  INVENTORY: "/inventory",
  DISPATCH: "/dispatch",
  COMPANY_BRAIN: "/company-brain",
+ REPORTING: "/reporting",
  SETTINGS: "/settings",
 } as const;

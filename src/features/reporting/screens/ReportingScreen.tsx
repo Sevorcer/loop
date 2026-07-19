@@ -108,7 +108,7 @@ export function ReportingScreen() {
 
       {/* Scorecards */}
       {enrichedScorecards.map((enriched) => (
-        <SectionCard key={enriched.scorecard.id}>
+        <SectionCard key={enriched.scorecard.id} title={enriched.scorecard.title}>
           <ScorecardSection enrichedScorecard={enriched} />
         </SectionCard>
       ))}

@@ -12,11 +12,8 @@
     "@base-ui/react": "^1.6.0",
     "@supabase/supabase-js": "^2.110.6",
     "@tanstack/react-table": "^8.21.3",
-<<<<<<< HEAD
-=======
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
->>>>>>> origin/main
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
     "react": "19.2.4",

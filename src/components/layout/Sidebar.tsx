@@ -1,12 +1,8 @@
-<<<<<<< HEAD
-import Link from "next/link";
-=======
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
->>>>>>> origin/main
 import {
   LayoutDashboard,
   Building2,
@@ -26,15 +22,6 @@ import {
 import { ROUTES } from "@/lib/routes";
 
 const navigation = [
-<<<<<<< HEAD
-  { name: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { name: "Properties", icon: Building2, href: "#" },
-  { name: "Jobs", icon: Briefcase, href: "#" },
-  { name: "Daily Plans", icon: CalendarDays, href: "#" },
-  { name: "Company Brain", icon: Brain, href: "#" },
-  { name: "Reporting", icon: BarChart3, href: "/reporting" },
-  { name: "Settings", icon: Settings, href: "#" },
-=======
   { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
   { name: "Customers", href: "/customers", icon: Users },
@@ -50,8 +37,8 @@ const navigation = [
   { name: "Inventory", href: ROUTES.INVENTORY, icon: Package },
   { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
   { name: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: Brain },
+  { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
   { name: "Settings", href: ROUTES.SETTINGS, icon: Settings },
->>>>>>> origin/main
 ];
 
 export default function Sidebar() {
@@ -86,20 +73,6 @@ export default function Sidebar() {
           Operations
         </div>
 
-<<<<<<< HEAD
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-            >
-              <Icon size={18} />
-              <span>{item.name}</span>
-            </Link>
-          );
-        })}
-      </nav>
-=======
         <nav className="space-y-1.5">
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -159,7 +132,6 @@ export default function Sidebar() {
           </p>
         </div>
       </div>
->>>>>>> origin/main
     </aside>
   );
 }

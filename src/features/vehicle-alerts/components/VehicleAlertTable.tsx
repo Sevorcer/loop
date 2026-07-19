@@ -67,22 +67,12 @@ export function VehicleAlertTable() {
 
   const totalAlerts = filteredAlerts.length;
   const totalPages = Math.max(1, Math.ceil(totalAlerts / PAGE_SIZE));
-<<<<<<< HEAD
-  // Clamp current page to valid range without a useEffect
-  const effectivePage = Math.min(currentPage, totalPages);
-
-  const paginatedAlerts = useMemo(() => {
-    const startIndex = (effectivePage - 1) * PAGE_SIZE;
-    return filteredAlerts.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [effectivePage, filteredAlerts]);
-=======
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedAlerts = useMemo(() => {
     const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
     return filteredAlerts.slice(startIndex, startIndex + PAGE_SIZE);
   }, [safeCurrentPage, filteredAlerts]);
->>>>>>> origin/main
 
   const hasActiveFilters =
     searchValue.trim().length > 0 ||
@@ -90,15 +80,9 @@ export function VehicleAlertTable() {
     priorityFilter !== ALL_FILTER_VALUE ||
     vehicleFilter !== ALL_FILTER_VALUE;
 
-<<<<<<< HEAD
-  const showingFrom = totalAlerts === 0 ? 0 : (effectivePage - 1) * PAGE_SIZE + 1;
-  const showingTo =
-    totalAlerts === 0 ? 0 : Math.min(effectivePage * PAGE_SIZE, totalAlerts);
-=======
   const showingFrom = totalAlerts === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
   const showingTo =
     totalAlerts === 0 ? 0 : Math.min(safeCurrentPage * PAGE_SIZE, totalAlerts);
->>>>>>> origin/main
 
   function handleSearchChange(value: string) {
     setSearchValue(value);
@@ -226,21 +210,13 @@ export function VehicleAlertTable() {
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-<<<<<<< HEAD
-            disabled={effectivePage === 1}
-=======
             disabled={safeCurrentPage === 1}
->>>>>>> origin/main
           >
             Previous
           </Button>
 
           <span className="min-w-[72px] text-center">
-<<<<<<< HEAD
-            Page {effectivePage} of {totalPages}
-=======
             Page {safeCurrentPage} of {totalPages}
->>>>>>> origin/main
           </span>
 
           <Button
@@ -249,11 +225,7 @@ export function VehicleAlertTable() {
             onClick={() =>
               setCurrentPage((page) => Math.min(totalPages, page + 1))
             }
-<<<<<<< HEAD
-            disabled={effectivePage === totalPages}
-=======
             disabled={safeCurrentPage === totalPages}
->>>>>>> origin/main
           >
             Next
           </Button>
