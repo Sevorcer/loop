@@ -7,6 +7,12 @@ import { Bell, Search, User, Sparkles, CalendarDays, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
+const headerDateFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
+
 const pageContent: Record<string, { title: string; description: string }> = {
   [ROUTES.DASHBOARD]: {
     title: "Dashboard",
@@ -109,11 +115,7 @@ interface HeaderProps {
 export default function Header({ isMobileNavOpen = false, onMenuToggle }: HeaderProps) {
   const pathname = usePathname();
   const pageMeta = getPageMeta(pathname);
-  const todayLabel = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(new Date());
+  const todayLabel = headerDateFormatter.format(new Date());
 
   const isStaging = process.env.NEXT_PUBLIC_APP_ENV === "staging";
   const showDashboardCrumb = pathname !== ROUTES.DASHBOARD;

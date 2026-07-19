@@ -23,6 +23,8 @@ type MobileColumnMeta = {
   mobileHidden?: boolean;
 };
 
+const humanizedLabelCache = new Map<string, string>();
+
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
@@ -34,12 +36,20 @@ function getColumnMeta<TData>(columnDef: ColumnDef<TData, unknown>): MobileColum
 }
 
 function humanizeLabel(value: string) {
-  return value
+  const cached = humanizedLabelCache.get(value);
+  if (cached) {
+    return cached;
+  }
+
+  const humanized = value
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/[-_]/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^./, (char) => char.toUpperCase())
     .trim();
+
+  humanizedLabelCache.set(value, humanized);
+  return humanized;
 }
 
 export function DataTable<TData>({
