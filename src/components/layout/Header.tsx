@@ -41,7 +41,7 @@ const pageContent: Record<string, { title: string; description: string }> = {
     title: "Properties",
     description: "Track locations, status, and field visibility across your portfolio.",
   },
-  "/customers": {
+  [ROUTES.CUSTOMERS]: {
     title: "Customers",
     description: "Manage customer relationships, service history, and account context.",
   },
@@ -50,7 +50,7 @@ const pageContent: Record<string, { title: string; description: string }> = {
     description:
       "Anchor permanent technical identities so permits, jobs, and service work inherit the same trusted system truth.",
   },
-  "/vehicle-alerts": {
+  [ROUTES.VEHICLE_ALERTS]: {
     title: "Vehicle Alerts",
     description: "Monitor fleet issues, response status, and field escalation activity.",
   },
@@ -83,6 +83,12 @@ function getPageMeta(pathname: string) {
     return {
       title: "Customer Details",
       description: "Review account activity, notes, related jobs, and history.",
+    };
+  }
+  if (pathname === `${ROUTES.PROPERTIES}/new`) {
+    return {
+      title: "Create Property",
+      description: "Capture a new service location and add it to your property portfolio.",
     };
   }
   if (pathname.startsWith("/properties/")) {
@@ -158,32 +164,35 @@ export default function Header({ isMobileNavOpen = false, onMenuToggle }: Header
         )}
 
         <div className="flex shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Search"
-            className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-          >
-            <Search size={16} />
-          </Button>
+          <Link href={ROUTES.COMPANY_BRAIN} aria-label="Search">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <Search size={16} />
+            </Button>
+          </Link>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Notifications"
-            className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-          >
-            <Bell size={16} />
-          </Button>
+          <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Notifications">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <Bell size={16} />
+            </Button>
+          </Link>
 
-          <Button
-            variant="secondary"
-            size="icon"
-            aria-label="User menu"
-            className="h-9 w-9 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 text-white hover:from-red-500/20 hover:to-blue-500/15"
-          >
-            <User size={16} />
-          </Button>
+          <Link href={ROUTES.SETTINGS} aria-label="User menu">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-9 w-9 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 text-white hover:from-red-500/20 hover:to-blue-500/15"
+            >
+              <User size={16} />
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -258,31 +267,35 @@ export default function Header({ isMobileNavOpen = false, onMenuToggle }: Header
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Search"
-              className="border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-            >
-              <Search size={18} />
-            </Button>
+            <Link href={ROUTES.COMPANY_BRAIN} aria-label="Search">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+              >
+                <Search size={18} />
+              </Button>
+            </Link>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Notifications"
-              className="border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-            >
-              <Bell size={18} />
-            </Button>
+            <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Notifications">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+              >
+                <Bell size={18} />
+              </Button>
+            </Link>
 
-            <Button
-              variant="secondary"
-              className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 px-3 text-white hover:from-red-500/20 hover:to-blue-500/15"
-            >
-              <User size={18} />
-              <span className="hidden sm:inline">Collin</span>
-            </Button>
+            <Link href={ROUTES.SETTINGS} aria-label="User menu">
+              <Button
+                variant="secondary"
+                className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 px-3 text-white hover:from-red-500/20 hover:to-blue-500/15"
+              >
+                <User size={18} />
+                <span className="hidden sm:inline">Collin</span>
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

@@ -53,9 +53,9 @@ const navGroups: NavGroup[] = [
     items: [
       { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
       { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
-      { name: "Customers", href: "/customers", icon: Users },
+      { name: "Customers", href: ROUTES.CUSTOMERS, icon: Users },
       { name: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS, icon: Cpu },
-      { name: "Vehicle Alerts", href: "/vehicle-alerts", icon: BellRing },
+      { name: "Vehicle Alerts", href: ROUTES.VEHICLE_ALERTS, icon: BellRing },
     ],
   },
   {

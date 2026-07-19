@@ -5,14 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { DataTable, EmptyState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
-import { mockVehicleAlerts } from "../data/mockVehicleAlerts";
+import type { VehicleAlert } from "../types/vehicleAlert";
 import { vehicleAlertColumns } from "./VehicleAlertColumns";
 import { VehicleAlertToolbar } from "./VehicleAlertToolbar";
 
 const ALL_FILTER_VALUE = "all";
 const PAGE_SIZE = 10;
 
-export function VehicleAlertTable() {
+export function VehicleAlertTable({ alerts }: { alerts: VehicleAlert[] }) {
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [priorityFilter, setPriorityFilter] = useState(ALL_FILTER_VALUE);
@@ -29,15 +29,13 @@ export function VehicleAlertTable() {
   }, []);
 
   const vehicleOptions = useMemo(() => {
-    return Array.from(
-      new Set(mockVehicleAlerts.map((alert) => alert.vehicleName))
-    ).sort();
-  }, []);
+    return Array.from(new Set(alerts.map((alert) => alert.vehicleName))).sort();
+  }, [alerts]);
 
   const filteredAlerts = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return mockVehicleAlerts.filter((alert) => {
+    return alerts.filter((alert) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         alert.title.toLowerCase().includes(normalizedSearch) ||
@@ -63,7 +61,7 @@ export function VehicleAlertTable() {
         matchesVehicle
       );
     });
-  }, [priorityFilter, searchValue, statusFilter, vehicleFilter]);
+  }, [alerts, priorityFilter, searchValue, statusFilter, vehicleFilter]);
 
   const totalAlerts = filteredAlerts.length;
   const totalPages = Math.max(1, Math.ceil(totalAlerts / PAGE_SIZE));
