@@ -1,9 +1,20 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const APP_ICON = "/logo.png";
+
 export const metadata: Metadata = {
-  title: "LOOP",
-  description: "LOOP - The Operating System for Field Operations",
+  title: {
+    default: "LOOP — Field Operations Platform",
+    template: "%s | LOOP",
+  },
+  description:
+    "LOOP is the operating system for field service companies — jobs, dispatch, properties, inventory, and more.",
+  icons: {
+    icon: APP_ICON,
+    shortcut: APP_ICON,
+    apple: APP_ICON,
+  },
 };
 
 export default function RootLayout({
