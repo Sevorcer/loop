@@ -136,6 +136,7 @@ function buildTechnicalProfile(
       permitFields: {},
       knownFacts: [
         {
+          id: `known-${job.id}-missing-equipment`,
           label: "Catalog match",
           value: "No equipment was attached to the sold estimate.",
         },
@@ -143,6 +144,7 @@ function buildTechnicalProfile(
       discoveredFacts: [
         ...bundle.discoveredFacts,
         {
+          id: `discovered-${job.id}-estimate-source`,
           label: "Estimate source",
           value: `${bundle.estimateId} accepted and converted into ${job.jobNumber}.`,
         },
@@ -198,34 +200,40 @@ function buildTechnicalProfile(
     matchState === "exact"
       ? [
           {
+            id: `known-${job.id}-ahri`,
             label: "AHRI",
             value: primaryEntry?.ahriNumber ?? "Pending confirmation",
           },
           {
+            id: `known-${job.id}-cooling`,
             label: "Cooling capacity",
             value: formatCapacity(
               outdoorEntry?.capacity?.coolingBtu ?? indoorEntry?.capacity?.coolingBtu
             ),
           },
           {
+            id: `known-${job.id}-heating`,
             label: "Heating capacity",
             value: formatCapacity(
               outdoorEntry?.capacity?.heatingBtu ?? indoorEntry?.capacity?.heatingBtu
             ),
           },
           {
+            id: `known-${job.id}-electrical`,
             label: "Electrical",
             value: `${outdoorEntry?.electrical?.voltage ?? "Pending"} · MCA ${
               outdoorEntry?.electrical?.mca ?? "Pending"
             } · MOCP ${outdoorEntry?.electrical?.mocp ?? "Pending"}`,
           },
           {
+            id: `known-${job.id}-refrigerant`,
             label: "Refrigerant",
             value: outdoorEntry?.refrigerant?.type ?? "Pending confirmation",
           },
         ]
       : [
           {
+            id: `known-${job.id}-catalog-match`,
             label: "Catalog match",
             value:
               matchState === "possible"
@@ -237,6 +245,7 @@ function buildTechnicalProfile(
   const discoveredFacts = [
     ...bundle.discoveredFacts,
     {
+      id: `discovered-${job.id}-estimate-source`,
       label: "Estimate source",
       value: `${bundle.estimateId} accepted and converted into ${job.jobNumber}.`,
     },

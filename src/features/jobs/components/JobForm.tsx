@@ -43,7 +43,7 @@ export const defaultJobFormValues: JobFormValues = {
   notes: "",
 };
 
-function getResetFieldsForTypeChange(type: JobType) {
+function getResetFieldsWhenLeavingInstall(type: JobType) {
   if (type === "Install") {
     return {};
   }
@@ -92,13 +92,23 @@ export function JobForm({
   ) {
     setForm((current) => ({
       ...current,
-      ...(key === "type" ? getResetFieldsForTypeChange(value as JobType) : {}),
+      ...(key === "type" ? getResetFieldsWhenLeavingInstall(value as JobType) : {}),
       [key]: value,
     }));
     setError(null);
   }
 
   function applyEstimateBundle(bundleId: string) {
+    if (bundleId.length === 0) {
+      setForm((current) => ({
+        ...current,
+        estimateId: "",
+        equipmentBundleId: "",
+      }));
+      setError(null);
+      return;
+    }
+
     const bundle = getEstimateEquipmentBundle(bundleId);
 
     if (!bundle) {

@@ -34,14 +34,26 @@ export const seedTechnicalProfiles: TechnicalProfile[] = [
       weightLbs: 181,
     },
     knownFacts: [
-      { label: "AHRI", value: "208774501" },
-      { label: "Voltage", value: "208/230V-1-60" },
-      { label: "MCA / MOCP", value: "23.1A / 35A" },
-      { label: "Efficiency", value: "16.4 SEER2 · 9.1 HSPF2" },
+      { id: "lakeview-ahri", label: "AHRI", value: "208774501" },
+      { id: "lakeview-voltage", label: "Voltage", value: "208/230V-1-60" },
+      { id: "lakeview-electrical", label: "MCA / MOCP", value: "23.1A / 35A" },
+      {
+        id: "lakeview-efficiency",
+        label: "Efficiency",
+        value: "16.4 SEER2 · 9.1 HSPF2",
+      },
     ],
     discoveredFacts: [
-      { label: "Line length", value: "52 ft verified at startup" },
-      { label: "Accessory", value: "Condensate safety switch installed" },
+      {
+        id: "lakeview-line-length",
+        label: "Line length",
+        value: "52 ft verified at startup",
+      },
+      {
+        id: "lakeview-accessory",
+        label: "Accessory",
+        value: "Condensate safety switch installed",
+      },
     ],
   },
 ];

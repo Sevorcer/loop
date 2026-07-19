@@ -16,6 +16,10 @@ export interface EquipmentCatalogEntry {
   equipmentType: string;
   role: EquipmentRole;
   series: string;
+  /**
+   * Alternate normalized model strings such as distributor suffix variants or
+   * known SKU aliases that should still resolve to the same canonical entry.
+   */
   matchedAliases?: string[];
   fuelType: string;
   ahriNumber?: string;
@@ -76,10 +80,7 @@ export interface EstimateEquipmentBundle {
   jobNotes: string;
   equipment: EstimateEquipmentItem[];
   accessories: string[];
-  discoveredFacts: Array<{
-    label: string;
-    value: string;
-  }>;
+  discoveredFacts: TechnicalFact[];
 }
 
 export interface CatalogMatchResult {
@@ -116,15 +117,15 @@ export interface TechnicalProfile {
     dimensions?: string;
     weightLbs?: number;
   };
-  knownFacts: Array<{
-    label: string;
-    value: string;
-  }>;
-  discoveredFacts: Array<{
-    label: string;
-    value: string;
-  }>;
+  knownFacts: TechnicalFact[];
+  discoveredFacts: TechnicalFact[];
   confirmationNote?: string;
+}
+
+export interface TechnicalFact {
+  id: string;
+  label: string;
+  value: string;
 }
 
 export interface InstalledSystem {

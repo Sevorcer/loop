@@ -37,10 +37,12 @@ export const estimateEquipmentBundles: EstimateEquipmentBundle[] = [
     ],
     discoveredFacts: [
       {
+        id: "smith-line-length",
         label: "Estimated line length",
         value: "38 ft",
       },
       {
+        id: "smith-site-note",
         label: "Site note",
         value: "Reuse existing attic chase after pressure test.",
       },
@@ -80,6 +82,7 @@ export const estimateEquipmentBundles: EstimateEquipmentBundle[] = [
     ],
     discoveredFacts: [
       {
+        id: "johnson-return-transition",
         label: "Existing return transition",
         value: "Needs field fabrication",
       },
@@ -111,6 +114,7 @@ export const estimateEquipmentBundles: EstimateEquipmentBundle[] = [
     ],
     discoveredFacts: [
       {
+        id: "clearwater-curb-condition",
         label: "Roof curb condition",
         value: "Existing curb to be inspected before final order.",
       },
