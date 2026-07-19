@@ -79,7 +79,7 @@ export function JobTable() {
         searchValue={searchValue}
         onSearchChange={setSearchValue}
         primaryAction={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-slate-300 lg:flex">
               <Funnel className="h-3.5 w-3.5 text-slate-400" />
               Filters
@@ -88,7 +88,7 @@ export function JobTable() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as JobStatus | "All")}
-              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40 sm:w-auto"
             >
               {statusOptions.map((option) => (
                 <option key={option} value={option}>
@@ -100,7 +100,7 @@ export function JobTable() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as JobType | "All")}
-              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/40 sm:w-auto"
             >
               {typeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -114,7 +114,7 @@ export function JobTable() {
               onChange={(e) =>
                 setPriorityFilter(e.target.value as JobPriority | "All")
               }
-              className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40 sm:w-auto"
             >
               {priorityOptions.map((option) => (
                 <option key={option} value={option}>
@@ -132,7 +132,7 @@ export function JobTable() {
                   setTypeFilter("All");
                   setPriorityFilter("All");
                 }}
-                className="text-slate-300 hover:bg-white/5 hover:text-white"
+                className="w-full text-slate-300 hover:bg-white/5 hover:text-white sm:w-auto"
               >
                 Clear
               </Button>

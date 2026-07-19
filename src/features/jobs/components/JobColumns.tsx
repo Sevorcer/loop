@@ -59,6 +59,10 @@ function getTypeIcon(type: Job["type"]) {
 export const jobColumns: ColumnDef<Job>[] = [
   {
     accessorKey: "jobNumber",
+    meta: {
+      mobileLabel: "Job",
+      mobilePrimary: true,
+    },
     header: ({ column }) => (
       <SortableHeader label="Job #" column={column} />
     ),
@@ -71,6 +75,9 @@ export const jobColumns: ColumnDef<Job>[] = [
   },
   {
     accessorKey: "type",
+    meta: {
+      mobileLabel: "Type",
+    },
     header: ({ column }) => (
       <SortableHeader label="Type" column={column} />
     ),
@@ -85,6 +92,9 @@ export const jobColumns: ColumnDef<Job>[] = [
   },
   {
     accessorKey: "status",
+    meta: {
+      mobileLabel: "Status",
+    },
     header: ({ column }) => (
       <SortableHeader label="Status" column={column} />
     ),
@@ -96,6 +106,9 @@ export const jobColumns: ColumnDef<Job>[] = [
   },
   {
     accessorKey: "priority",
+    meta: {
+      mobileLabel: "Priority",
+    },
     header: ({ column }) => (
       <SortableHeader label="Priority" column={column} />
     ),
@@ -107,12 +120,18 @@ export const jobColumns: ColumnDef<Job>[] = [
   },
   {
     accessorKey: "customerName",
+    meta: {
+      mobileLabel: "Customer",
+    },
     header: ({ column }) => (
       <SortableHeader label="Customer" column={column} />
     ),
   },
   {
     accessorKey: "propertyName",
+    meta: {
+      mobileLabel: "Property",
+    },
     header: ({ column }) => (
       <SortableHeader label="Property" column={column} />
     ),
@@ -122,12 +141,18 @@ export const jobColumns: ColumnDef<Job>[] = [
   },
   {
     accessorKey: "assignedTo",
+    meta: {
+      mobileLabel: "Assigned To",
+    },
     header: ({ column }) => (
       <SortableHeader label="Assigned To" column={column} />
     ),
   },
   {
     accessorKey: "scheduledFor",
+    meta: {
+      mobileLabel: "Scheduled",
+    },
     header: ({ column }) => (
       <SortableHeader label="Scheduled" column={column} />
     ),

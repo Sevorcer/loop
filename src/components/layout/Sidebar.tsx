@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 interface NavItem {
   name: string;
@@ -78,13 +79,25 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  id?: string;
+  className?: string;
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-950 text-slate-100">
+    <aside
+      id={id}
+      className={cn(
+        "flex h-full w-full flex-col border-r border-slate-800 bg-slate-950 text-slate-100",
+        className
+      )}
+    >
       {/* Logo */}
-      <div className="border-b border-slate-800 px-5 py-5">
+      <div className="border-b border-slate-800 px-4 py-4 sm:px-5 sm:py-5">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white shadow-[0_0_30px_rgba(239,68,68,0.12)] ring-1 ring-white/10">
             <Image
@@ -126,6 +139,7 @@ export default function Sidebar() {
                     <Link
                       key={item.name}
                       href={item.href}
+                      onClick={onNavigate}
                       className={[
                         "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                         isActive

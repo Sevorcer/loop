@@ -20,21 +20,21 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <Card className="bg-surface-elevated">
-      <CardHeader className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
-          <CardTitle className="text-3xl font-bold tracking-tight">
+          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">
             {title}
           </CardTitle>
 
           {description ? (
-            <CardDescription className="max-w-2xl text-base leading-relaxed">
+            <CardDescription className="max-w-2xl text-sm leading-relaxed sm:text-base">
               {description}
             </CardDescription>
           ) : null}
         </div>
 
         {actions ? (
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
             {actions}
           </div>
         ) : null}

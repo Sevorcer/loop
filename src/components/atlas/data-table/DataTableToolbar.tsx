@@ -16,10 +16,8 @@ export function DataTableToolbar({
   primaryAction,
 }: DataTableToolbarProps) {
   return (
-    <div className="border-default bg-surface flex items-center justify-between border-b px-6 py-4">
-
-      <div className="relative w-full max-w-sm">
-
+    <div className="border-default bg-surface flex flex-col gap-3 border-b px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="relative w-full lg:max-w-sm">
         <Search
           className="text-muted absolute left-3 top-1/2 -translate-y-1/2"
           size={16}
@@ -46,15 +44,11 @@ export function DataTableToolbar({
             focus:border-primary
           "
         />
-
       </div>
 
-      <div className="ml-4 flex items-center gap-2">
-
+      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:ml-4 lg:w-auto lg:justify-end">
         {primaryAction}
-
       </div>
-
     </div>
   );
 }
