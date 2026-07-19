@@ -1,26 +1,20 @@
-import SurfaceCard from "@/components/layout/SurfaceCard";
-
 import { DashboardHeader } from "./DashboardHeader";
 import { MetricsGrid } from "./MetricsGrid";
+import { NeedsAttention } from "./NeedsAttention";
 import { QuickActions } from "./QuickActions";
 import { RecentActivity } from "./RecentActivity";
 
 export function DashboardScreen() {
   return (
-    <div className="space-y-6">
-      <SurfaceCard className="p-6">
-        <DashboardHeader />
-      </SurfaceCard>
+    <div className="space-y-4 sm:space-y-6">
+      <DashboardHeader />
+
+      <NeedsAttention />
 
       <MetricsGrid />
 
-      <SurfaceCard className="p-6">
-        <QuickActions />
-      </SurfaceCard>
-
-      <SurfaceCard className="p-6">
-        <RecentActivity />
-      </SurfaceCard>
+      <RecentActivity />
+      <QuickActions />
     </div>
   );
 }

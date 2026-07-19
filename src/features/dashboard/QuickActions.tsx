@@ -10,7 +10,7 @@ const actions = [
 
 export function QuickActions() {
   return (
-    <Card>
+    <Card className="hover-lift">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <CardTitle>Quick Actions</CardTitle>
