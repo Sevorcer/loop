@@ -66,7 +66,9 @@ export function DailyPlansScreen() {
 
   const planStatus = getPlanStatus(selectedDate);
   const planActivation = getPlanActivation(selectedDate);
-  const isActive = planStatus === "active";
+  const hydratedPlanStatus = hydrated ? planStatus : "planning";
+  const hydratedPlanActivation = hydrated ? planActivation : undefined;
+  const isActive = hydratedPlanStatus === "active";
 
   const dayJobs = useMemo(
     () => getJobsForDate(jobs, selectedDate),
@@ -196,8 +198,8 @@ export function DailyPlansScreen() {
     <div className="min-h-screen space-y-6 p-8">
       <MorningOperationsHero
         date={selectedDate}
-        status={planStatus}
-        startedAt={planActivation?.startedAt ?? null}
+        status={hydratedPlanStatus}
+        startedAt={hydratedPlanActivation?.startedAt ?? null}
         metrics={metrics}
         alerts={alerts}
         blockerCount={blockerCount}
@@ -224,8 +226,8 @@ export function DailyPlansScreen() {
         </div>
       ) : (
         <>
-          {isActive && planActivation ? (
-            <ActiveOperationsBanner startedAt={planActivation.startedAt} />
+          {isActive && hydratedPlanActivation ? (
+            <ActiveOperationsBanner startedAt={hydratedPlanActivation.startedAt} />
           ) : (
             <AlertsBanner alerts={alerts} />
           )}
@@ -289,7 +291,7 @@ export function DailyPlansScreen() {
                   readinessScore={metrics.readinessScore}
                   isActive={isActive}
                 />
-                <DayTimeline crewWorkloads={crewWorkloads} isActive={isActive} startedAt={planActivation?.startedAt} />
+                <DayTimeline crewWorkloads={crewWorkloads} isActive={isActive} startedAt={hydratedPlanActivation?.startedAt} />
                 <PlanningNotes key={selectedDate} date={selectedDate} isActive={isActive} />
               </div>
             </div>
