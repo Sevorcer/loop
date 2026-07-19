@@ -28,6 +28,10 @@ const JobsContext = createContext<JobsContextValue | null>(null);
 
 const JOBS_STORAGE_KEY = "loop.jobs.items";
 const JOB_ACTIVITY_STORAGE_KEY = "loop.jobs.activity";
+const subscribeToHydration = (onStoreChange: () => void) => {
+  void onStoreChange;
+  return () => {};
+};
 
 function createJobNumber(index: number) {
   return `JOB-${1000 + index}`;
@@ -71,7 +75,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     );
   });
   const hydrated = useSyncExternalStore(
-    () => () => {},
+    subscribeToHydration,
     () => true,
     () => false
   );
@@ -190,10 +194,6 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         notes: input.notes,
       };
 
-      setJobs((current) =>
-        current.map((job) => (job.id === jobId ? updatedJob : job))
-      );
-
       const changedFields: string[] = [];
 
       if (existingJob.title !== updatedJob.title) changedFields.push("title");
@@ -221,15 +221,20 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       }
       if (existingJob.notes !== updatedJob.notes) changedFields.push("notes");
 
+      if (changedFields.length === 0) {
+        return existingJob;
+      }
+
+      setJobs((current) =>
+        current.map((job) => (job.id === jobId ? updatedJob : job))
+      );
+
       const editActivity: JobActivity = {
         id: `activity-edit-${jobId}-${Date.now()}`,
         jobId,
         type: "edited",
         title: "Job updated",
-        description:
-          changedFields.length === 0
-            ? "Job details were saved with no field changes."
-            : `Updated fields: ${changedFields.join(", ")}.`,
+        description: `Updated fields: ${changedFields.join(", ")}.`,
         timestamp: new Date().toISOString(),
       };
 
