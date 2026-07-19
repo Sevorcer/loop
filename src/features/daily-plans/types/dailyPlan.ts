@@ -136,6 +136,8 @@ export interface DailyPlanStoreValue {
   getPlanStatus: (date: string) => DailyPlanStatus;
   getPlanActivation: (date: string) => DailyPlanActivation | undefined;
   activatePlan: (date: string) => void;
+  getPacketsSent: (date: string) => boolean;
+  markPacketsSent: (date: string) => void;
 }
 
 export interface DailyPlanActivation {

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { DataTable, EmptyState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
-import { mockCustomers } from "../data/mockCustomers";
+import { useCustomers } from "../state/CustomersProvider";
 import type { Customer } from "../types/customer";
 import { customerColumns } from "./CustomerColumns";
 import { CustomerToolbar } from "./CustomerToolbar";
@@ -16,6 +16,7 @@ const PAGE_SIZE = 10;
 
 export function CustomerTable() {
   const router = useRouter();
+  const { customers } = useCustomers();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
@@ -33,14 +34,14 @@ export function CustomerTable() {
 
   const cityOptions = useMemo(() => {
     return Array.from(
-      new Set(mockCustomers.map((customer) => customer.city))
+      new Set(customers.map((customer) => customer.city))
     ).sort();
-  }, []);
+  }, [customers]);
 
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return mockCustomers.filter((customer) => {
+    return customers.filter((customer) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         customer.name.toLowerCase().includes(normalizedSearch) ||
@@ -57,7 +58,7 @@ export function CustomerTable() {
 
       return matchesSearch && matchesStatus && matchesCity;
     });
-  }, [cityFilter, searchValue, statusFilter]);
+  }, [customers, cityFilter, searchValue, statusFilter]);
 
   const totalCustomers = filteredCustomers.length;
   const totalPages = Math.max(1, Math.ceil(totalCustomers / PAGE_SIZE));

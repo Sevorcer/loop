@@ -253,7 +253,11 @@ export function DispatchScreen() {
 // ------------------------------------------------------------------
 
 function DispatchBoard({ plans }: { plans: DispatchPlan[] }) {
-  const { snapshot } = useDispatch();
+  const { snapshot, crews, assignCrew } = useDispatch();
+
+  const availableCrews = crews.filter(
+    (c) => c.availability === "available" || c.availability === "partially_available"
+  );
 
   return (
     <div className="space-y-6">
@@ -290,6 +294,8 @@ function DispatchBoard({ plans }: { plans: DispatchPlan[] }) {
                       key={plan.id}
                       plan={plan}
                       crewName={assignment?.crewName}
+                      availableCrews={availableCrews}
+                      onAssignCrew={assignCrew}
                     />
                   );
                 })}

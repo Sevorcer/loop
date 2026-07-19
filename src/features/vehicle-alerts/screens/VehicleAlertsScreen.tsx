@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 import { VehicleAlertTable } from "../components/VehicleAlertTable";
 import { mockVehicleAlerts } from "../data/mockVehicleAlerts";
-import type { VehicleAlertPriority } from "../types/vehicleAlert";
+import type { VehicleAlertPriority, VehicleAlertStatus } from "../types/vehicleAlert";
 
 interface NewVehicleAlertFormValues {
   vehicleName: string;
@@ -78,6 +78,14 @@ export function VehicleAlertsScreen() {
       ...current,
     ]);
     closeReportForm();
+  }
+
+  function handleUpdateStatus(id: string, status: VehicleAlertStatus) {
+    setAlerts((current) =>
+      current.map((alert) =>
+        alert.id === id ? { ...alert, status } : alert
+      )
+    );
   }
 
   return (
@@ -230,7 +238,7 @@ export function VehicleAlertsScreen() {
         </div>
 
         <div className="p-4 sm:p-6">
-          <VehicleAlertTable alerts={alerts} />
+          <VehicleAlertTable alerts={alerts} onUpdateStatus={handleUpdateStatus} />
         </div>
       </SurfaceCard>
     </div>

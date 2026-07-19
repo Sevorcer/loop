@@ -5,20 +5,30 @@ import { useEffect, useMemo, useState } from "react";
 import { DataTable, EmptyState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
-import type { VehicleAlert } from "../types/vehicleAlert";
-import { vehicleAlertColumns } from "./VehicleAlertColumns";
+import type { VehicleAlert, VehicleAlertStatus } from "../types/vehicleAlert";
+import { buildVehicleAlertColumns } from "./VehicleAlertColumns";
 import { VehicleAlertToolbar } from "./VehicleAlertToolbar";
 
 const ALL_FILTER_VALUE = "all";
 const PAGE_SIZE = 10;
 
-export function VehicleAlertTable({ alerts }: { alerts: VehicleAlert[] }) {
+interface VehicleAlertTableProps {
+  alerts: VehicleAlert[];
+  onUpdateStatus?: (id: string, status: VehicleAlertStatus) => void;
+}
+
+export function VehicleAlertTable({ alerts, onUpdateStatus }: VehicleAlertTableProps) {
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [priorityFilter, setPriorityFilter] = useState(ALL_FILTER_VALUE);
   const [vehicleFilter, setVehicleFilter] = useState(ALL_FILTER_VALUE);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+
+  const columns = useMemo(
+    () => buildVehicleAlertColumns(onUpdateStatus ?? (() => {})),
+    [onUpdateStatus]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -230,7 +240,7 @@ export function VehicleAlertTable({ alerts }: { alerts: VehicleAlert[] }) {
         </div>
       </div>
 
-      <DataTable columns={vehicleAlertColumns} data={paginatedAlerts} />
+      <DataTable columns={columns} data={paginatedAlerts} />
     </div>
   );
 }

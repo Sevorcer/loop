@@ -25,6 +25,7 @@ const DailyPlansContext = createContext<DailyPlanStoreValue | null>(null);
 const DAILY_NOTES_STORAGE_KEY = "loop.daily-plans.notes";
 const DAILY_OVERRIDES_STORAGE_KEY = "loop.daily-plans.overrides";
 const DAILY_ACTIVATIONS_STORAGE_KEY = "loop.daily-plans.activations";
+const DAILY_PACKETS_STORAGE_KEY = "loop.daily-plans.packets";
 
 const subscribeToHydration = (onStoreChange: () => void) => {
   void onStoreChange;
@@ -76,6 +77,15 @@ export function DailyPlansProvider({ children }: { children: ReactNode }) {
     );
   });
 
+  const [packetsSent, setPacketsSent] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+
+    return parseStoredValue<Record<string, boolean>>(
+      window.localStorage.getItem(DAILY_PACKETS_STORAGE_KEY),
+      {}
+    );
+  });
+
   const hydrated = useSyncExternalStore(
     subscribeToHydration,
     () => true,
@@ -111,6 +121,17 @@ export function DailyPlansProvider({ children }: { children: ReactNode }) {
       JSON.stringify(activations)
     );
   }, [hydrated, activations]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      DAILY_PACKETS_STORAGE_KEY,
+      JSON.stringify(packetsSent)
+    );
+  }, [hydrated, packetsSent]);
 
   const getNote = useCallback(
     (date: string): string => {
@@ -175,6 +196,17 @@ export function DailyPlansProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const getPacketsSent = useCallback(
+    (date: string): boolean => {
+      return packetsSent[date] ?? false;
+    },
+    [packetsSent]
+  );
+
+  const markPacketsSent = useCallback((date: string) => {
+    setPacketsSent((current) => ({ ...current, [date]: true }));
+  }, []);
+
   const value = useMemo<DailyPlanStoreValue>(
     () => ({
       selectedDate,
@@ -186,8 +218,10 @@ export function DailyPlansProvider({ children }: { children: ReactNode }) {
       getPlanStatus,
       getPlanActivation,
       activatePlan,
+      getPacketsSent,
+      markPacketsSent,
     }),
-    [selectedDate, getNote, saveNote, getJobOverride, setJobOverride, getPlanStatus, getPlanActivation, activatePlan]
+    [selectedDate, getNote, saveNote, getJobOverride, setJobOverride, getPlanStatus, getPlanActivation, activatePlan, getPacketsSent, markPacketsSent]
   );
 
   return (

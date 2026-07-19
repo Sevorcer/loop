@@ -55,6 +55,8 @@ export function DailyPlansScreen() {
     getPlanStatus,
     getPlanActivation,
     activatePlan,
+    getPacketsSent,
+    markPacketsSent,
   } = useDailyPlans();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
@@ -69,6 +71,7 @@ export function DailyPlansScreen() {
   const hydratedPlanStatus = hydrated ? planStatus : "planning";
   const hydratedPlanActivation = hydrated ? planActivation : undefined;
   const isActive = hydratedPlanStatus === "active";
+  const packetsAlreadySent = hydrated ? getPacketsSent(selectedDate) : false;
 
   const dayJobs = useMemo(
     () => getJobsForDate(jobs, selectedDate),
@@ -182,6 +185,11 @@ export function DailyPlansScreen() {
     setActionNotice(message);
   }, []);
 
+  const handlePrintPackets = useCallback(() => {
+    markPacketsSent(selectedDate);
+    setActionNotice("Morning packets sent — all active crews have received their job packets.");
+  }, [markPacketsSent, selectedDate]);
+
   const activeCrewCards = useMemo(
     () =>
       crewWorkloads.filter(
@@ -203,8 +211,9 @@ export function DailyPlansScreen() {
         metrics={metrics}
         alerts={alerts}
         blockerCount={blockerCount}
+        packetsAlreadySent={packetsAlreadySent}
         onActivate={handleActivate}
-        onPrintPackets={() => handlePlaceholderAction("Morning packets queued for all active crews.")}
+        onPrintPackets={handlePrintPackets}
       />
 
       {actionNotice ? (
