@@ -33,6 +33,7 @@ function getAvailabilityClasses(availability: CrewWorkload["crew"]["availability
 interface CrewSectionProps {
   crewWorkload: CrewWorkload;
   crewOptions: CrewProfile[];
+  isActive?: boolean;
   onAssign: (jobId: string, technician: string) => void;
   onSetReadiness: (jobId: string, state: PlanReadinessState) => void;
   onDelay: (jobId: string) => void;
@@ -42,6 +43,7 @@ interface CrewSectionProps {
 export function CrewSection({
   crewWorkload,
   crewOptions,
+  isActive = false,
   onAssign,
   onSetReadiness,
   onDelay,
@@ -77,14 +79,20 @@ export function CrewSection({
           <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs text-slate-300">
             Forecast {crewWorkload.forecastCompletion}
           </span>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onPlaceholderAction(`${crew.leadInstaller} marked ready to leave the shop.`)}
-            className="h-8 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 hover:bg-white/10"
-          >
-            Start day
-          </Button>
+          {isActive ? (
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-green-500/20 bg-green-500/[0.08] px-3 py-1.5 text-xs font-medium text-green-300">
+              Dispatched
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onPlaceholderAction(`${crew.leadInstaller} marked ready to leave the shop.`)}
+              className="h-8 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 hover:bg-white/10"
+            >
+              Start day
+            </Button>
+          )}
         </div>
       </div>
 
@@ -157,6 +165,7 @@ export function CrewSection({
               key={job.id}
               job={job}
               crewOptions={crewOptions}
+              isActive={isActive}
               onAssign={onAssign}
               onSetReadiness={onSetReadiness}
               onDelay={onDelay}
@@ -172,6 +181,7 @@ export function CrewSection({
 interface UnassignedCrewSectionProps {
   jobs: CrewWorkload["jobs"];
   crewOptions: CrewProfile[];
+  isActive?: boolean;
   onAssign: (jobId: string, technician: string) => void;
   onSetReadiness: (jobId: string, state: PlanReadinessState) => void;
   onDelay: (jobId: string) => void;
@@ -181,6 +191,7 @@ interface UnassignedCrewSectionProps {
 export function UnassignedCrewSection({
   jobs,
   crewOptions,
+  isActive = false,
   onAssign,
   onSetReadiness,
   onDelay,
@@ -207,6 +218,7 @@ export function UnassignedCrewSection({
             key={job.id}
             job={job}
             crewOptions={crewOptions}
+            isActive={isActive}
             onAssign={onAssign}
             onSetReadiness={onSetReadiness}
             onDelay={onDelay}

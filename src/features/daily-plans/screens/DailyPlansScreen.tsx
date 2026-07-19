@@ -1,16 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardList, Printer, Rocket } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { CalendarDays, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { useJobs } from "@/features/jobs/state/JobsProvider";
 
+import { ActiveOperationsBanner } from "../components/ActiveOperationsBanner";
 import { AlertsBanner } from "../components/AlertsBanner";
 import { CrewSection, UnassignedCrewSection } from "../components/CrewSection";
-import { DayNavigator } from "../components/DayNavigator";
 import { DayTimeline } from "../components/DayTimeline";
+import { MorningOperationsHero } from "../components/MorningOperationsHero";
 import { OperationalReadiness } from "../components/OperationalReadiness";
 import { PlanningNotes } from "../components/PlanningNotes";
 import { ReadinessSummary } from "../components/ReadinessSummary";
@@ -22,7 +22,6 @@ import {
   buildMorningAlerts,
   buildMorningDashboardMetrics,
   buildPlannedJob,
-  getDayOverviewSummary,
   getJobsForDate,
   getUnassignedJobs,
 } from "../utils/planUtils";
@@ -49,17 +48,19 @@ function EmptyDay() {
 
 export function DailyPlansScreen() {
   const { hydrated, jobs, updateJob } = useJobs();
-  const { selectedDate, getJobOverride, setJobOverride } = useDailyPlans();
+  const {
+    selectedDate,
+    getJobOverride,
+    setJobOverride,
+    getPlanStatus,
+    getPlanActivation,
+    activatePlan,
+  } = useDailyPlans();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!actionNotice) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setActionNotice(null), 2500);
-    return () => window.clearTimeout(timeout);
-  }, [actionNotice]);
+  const planStatus = getPlanStatus(selectedDate);
+  const planActivation = getPlanActivation(selectedDate);
+  const isActive = planStatus === "active";
 
   const dayJobs = useMemo(
     () => getJobsForDate(jobs, selectedDate),
@@ -86,6 +87,11 @@ export function DailyPlansScreen() {
     [plannedJobs, crewWorkloads, selectedDate]
   );
 
+  const blockerCount = useMemo(
+    () => plannedJobs.filter((job) => job.readiness.state === "blocked").length,
+    [plannedJobs]
+  );
+
   const unassignedJobs = useMemo(
     () => getUnassignedJobs(plannedJobs),
     [plannedJobs]
@@ -98,6 +104,14 @@ export function DailyPlansScreen() {
     [crewWorkloads]
   );
 
+  const handleActivate = useCallback(() => {
+    activatePlan(selectedDate);
+    setActionNotice("Operations started — crews are cleared to roll.");
+    // Dismiss notice after a brief moment; the hero/banner now conveys the state
+    const timeout = window.setTimeout(() => setActionNotice(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [activatePlan, selectedDate]);
+
   const handleAssign = useCallback(
     (jobId: string, technician: string) => {
       const job = jobs.find((item) => item.id === jobId);
@@ -108,12 +122,14 @@ export function DailyPlansScreen() {
 
       updateJob(jobId, { ...job, assignedTo: technician });
       setActionNotice(
-        technician
-          ? `${job.jobNumber} assigned to ${technician}.`
-          : `${job.jobNumber} moved back to the unassigned queue.`
+        isActive
+          ? `Override: ${job.jobNumber} reassigned to ${technician || "unassigned queue"}.`
+          : technician
+            ? `${job.jobNumber} assigned to ${technician}.`
+            : `${job.jobNumber} moved back to the unassigned queue.`
       );
     },
-    [jobs, updateJob]
+    [jobs, updateJob, isActive]
   );
 
   const handleDelay = useCallback(
@@ -128,21 +144,29 @@ export function DailyPlansScreen() {
         ...job,
         scheduledFor: addDays(job.scheduledFor, 1),
       });
-      setActionNotice(`${job.jobNumber} moved to ${addDays(job.scheduledFor, 1)}.`);
+      setActionNotice(
+        isActive
+          ? `Override: ${job.jobNumber} moved to ${addDays(job.scheduledFor, 1)}. Notify the customer.`
+          : `${job.jobNumber} moved to ${addDays(job.scheduledFor, 1)}.`
+      );
     },
-    [jobs, updateJob]
+    [jobs, updateJob, isActive]
   );
 
   const handleSetReadiness = useCallback(
     (jobId: string, state: PlanReadinessState) => {
       setJobOverride(jobId, { readinessState: state });
       setActionNotice(
-        state === "ready"
-          ? "Job marked ready for the morning launch."
-          : "Job flagged for morning attention."
+        isActive
+          ? state === "ready"
+            ? "Override: job readiness confirmed during active operations."
+            : "Override: job flagged for active-day attention."
+          : state === "ready"
+            ? "Job marked ready for the morning launch."
+            : "Job flagged for morning attention."
       );
     },
-    [setJobOverride]
+    [setJobOverride, isActive]
   );
 
   const handlePlaceholderAction = useCallback((message: string) => {
@@ -163,48 +187,26 @@ export function DailyPlansScreen() {
 
   return (
     <div className="min-h-screen space-y-6 p-8">
-      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
-              <CalendarDays className="h-3.5 w-3.5" />
-              Daily Plans
-            </div>
-
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">Daily Plans</h1>
-              <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-400">
-                {getDayOverviewSummary(selectedDate)}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 xl:items-end">
-            <DayNavigator />
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => handlePlaceholderAction("Morning packets queued for all active crews.")}
-                className="h-9 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white"
-              >
-                <Printer className="h-3.5 w-3.5" />
-                Print packets
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => handlePlaceholderAction("Morning launch started — crews are cleared to roll.")}
-                className="h-9 rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 text-xs font-medium text-blue-100 hover:bg-blue-500/15"
-              >
-                <Rocket className="h-3.5 w-3.5" />
-                Start day
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <MorningOperationsHero
+        date={selectedDate}
+        status={planStatus}
+        startedAt={planActivation?.startedAt ?? null}
+        metrics={metrics}
+        alerts={alerts}
+        blockerCount={blockerCount}
+        onActivate={handleActivate}
+        onPrintPackets={() => handlePlaceholderAction("Morning packets queued for all active crews.")}
+      />
 
       {actionNotice ? (
-        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.08] px-4 py-3 text-sm text-blue-100">
+        <div
+          className={[
+            "rounded-2xl border px-4 py-3 text-sm",
+            isActive
+              ? "border-yellow-500/20 bg-yellow-500/[0.08] text-yellow-100"
+              : "border-blue-500/20 bg-blue-500/[0.08] text-blue-100",
+          ].join(" ")}
+        >
           {actionNotice}
         </div>
       ) : null}
@@ -215,7 +217,12 @@ export function DailyPlansScreen() {
         </div>
       ) : (
         <>
-          <AlertsBanner alerts={alerts} />
+          {isActive && planActivation ? (
+            <ActiveOperationsBanner startedAt={planActivation.startedAt} />
+          ) : (
+            <AlertsBanner alerts={alerts} />
+          )}
+
           <ReadinessSummary metrics={metrics} />
 
           {dayJobs.length === 0 ? (
@@ -224,7 +231,7 @@ export function DailyPlansScreen() {
                 <EmptyDay />
               </div>
               <div className="space-y-6">
-                <PlanningNotes key={selectedDate} date={selectedDate} />
+                <PlanningNotes key={selectedDate} date={selectedDate} isActive={isActive} />
               </div>
             </div>
           ) : (
@@ -233,7 +240,7 @@ export function DailyPlansScreen() {
                 <div className="flex items-center gap-2 px-1">
                   <ClipboardList className="h-4 w-4 text-slate-400" />
                   <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-400">
-                    Crew Assignments
+                    {isActive ? "Active Crews" : "Crew Assignments"}
                   </h2>
                   <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">
                     {activeCrewCards.length} crew{activeCrewCards.length !== 1 ? "s" : ""}
@@ -246,6 +253,7 @@ export function DailyPlansScreen() {
                     key={workload.crew.id}
                     crewWorkload={workload}
                     crewOptions={crewOptions}
+                    isActive={isActive}
                     onAssign={handleAssign}
                     onSetReadiness={handleSetReadiness}
                     onDelay={handleDelay}
@@ -257,6 +265,7 @@ export function DailyPlansScreen() {
                   <UnassignedCrewSection
                     jobs={unassignedJobs}
                     crewOptions={crewOptions}
+                    isActive={isActive}
                     onAssign={handleAssign}
                     onSetReadiness={handleSetReadiness}
                     onDelay={handleDelay}
@@ -271,9 +280,10 @@ export function DailyPlansScreen() {
                   crewWorkloads={crewWorkloads}
                   alerts={alerts}
                   readinessScore={metrics.readinessScore}
+                  isActive={isActive}
                 />
-                <DayTimeline crewWorkloads={crewWorkloads} />
-                <PlanningNotes key={selectedDate} date={selectedDate} />
+                <DayTimeline crewWorkloads={crewWorkloads} isActive={isActive} startedAt={planActivation?.startedAt} />
+                <PlanningNotes key={selectedDate} date={selectedDate} isActive={isActive} />
               </div>
             </div>
           )}

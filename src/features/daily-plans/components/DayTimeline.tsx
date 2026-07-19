@@ -4,9 +4,11 @@ import type { CrewWorkload } from "../types/dailyPlan";
 
 interface DayTimelineProps {
   crewWorkloads: CrewWorkload[];
+  isActive?: boolean;
+  startedAt?: string;
 }
 
-export function DayTimeline({ crewWorkloads }: DayTimelineProps) {
+export function DayTimeline({ crewWorkloads, isActive = false, startedAt }: DayTimelineProps) {
   const activeCrews = crewWorkloads.filter(
     (workload) => workload.jobs.length > 0 && workload.crew.availability !== "training"
   );
@@ -18,8 +20,12 @@ export function DayTimeline({ crewWorkloads }: DayTimelineProps) {
           <Clock3 className="h-4 w-4 text-indigo-300" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-white">Planned Timeline</p>
-          <p className="text-xs text-slate-400">Dispatch-to-completion framing for active crews</p>
+          <p className="text-sm font-semibold text-white">{isActive ? "Active Timeline" : "Planned Timeline"}</p>
+          <p className="text-xs text-slate-400">
+            {isActive && startedAt
+              ? `Operations started · ${new Date(startedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+              : "Dispatch-to-completion framing for active crews"}
+          </p>
         </div>
       </div>
 

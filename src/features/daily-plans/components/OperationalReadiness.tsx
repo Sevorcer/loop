@@ -15,6 +15,7 @@ interface OperationalReadinessProps {
   crewWorkloads: CrewWorkload[];
   alerts: MorningAlert[];
   readinessScore: number;
+  isActive?: boolean;
 }
 
 export function OperationalReadiness({
@@ -22,6 +23,7 @@ export function OperationalReadiness({
   crewWorkloads,
   alerts,
   readinessScore,
+  isActive = false,
 }: OperationalReadinessProps) {
   const status = getReadinessStatus(readinessScore);
   const scoreBarColor =
@@ -49,8 +51,8 @@ export function OperationalReadiness({
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-white">Operational Readiness</p>
-          <p className="text-xs text-slate-400">Blockers, materials, truck, and crew launch risk</p>
+          <p className="text-sm font-semibold text-white">{isActive ? "Day Status" : "Operational Readiness"}</p>
+          <p className="text-xs text-slate-400">{isActive ? "Active alerts, crew status, and execution blockers" : "Blockers, materials, truck, and crew launch risk"}</p>
         </div>
       </div>
 
