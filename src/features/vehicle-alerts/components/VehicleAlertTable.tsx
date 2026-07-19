@@ -1,23 +1,68 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 
-import { DataTable, EmptyState } from "@/components/atlas";
+import { EmptyState, StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
 import { mockVehicleAlerts } from "../data/mockVehicleAlerts";
-import { vehicleAlertColumns } from "./VehicleAlertColumns";
+import { type VehicleAlert, type VehicleAlertPriority, type VehicleAlertStatus } from "../types/vehicleAlert";
 import { VehicleAlertToolbar } from "./VehicleAlertToolbar";
 
 const ALL_FILTER_VALUE = "all";
-const PAGE_SIZE = 10;
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString();
+}
+
+function getPriorityVariant(priority: VehicleAlertPriority) {
+  if (priority === "High") return "destructive" as const;
+  if (priority === "Medium") return "warning" as const;
+  return "neutral" as const;
+}
+
+function getStatusVariant(status: VehicleAlertStatus) {
+  if (status === "Resolved") return "success" as const;
+  if (status === "Scheduled") return "warning" as const;
+  if (status === "Acknowledged") return "neutral" as const;
+  return "destructive" as const;
+}
+
+function VehicleAlertRow({ alert }: { alert: VehicleAlert }) {
+  return (
+    <tr className="border-b border-slate-200 last:border-0">
+      <td className="px-4 py-4 align-top">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
+            <AlertTriangle className="h-4 w-4 text-slate-500" />
+          </div>
+          <div>
+            <div className="font-medium text-slate-950">{alert.title}</div>
+            <div className="text-xs text-slate-500">{alert.vehicleName}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-sm text-slate-600">{alert.description}</td>
+      <td className="px-4 py-4">
+        <StatusBadge variant={getPriorityVariant(alert.priority)}>
+          {alert.priority}
+        </StatusBadge>
+      </td>
+      <td className="px-4 py-4">
+        <StatusBadge variant={getStatusVariant(alert.status)}>{alert.status}</StatusBadge>
+      </td>
+      <td className="px-4 py-4 text-sm text-slate-600">{alert.reportedBy}</td>
+      <td className="px-4 py-4 text-sm text-slate-600">{formatDate(alert.reportedAt)}</td>
+    </tr>
+  );
+}
 
 export function VehicleAlertTable() {
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [priorityFilter, setPriorityFilter] = useState(ALL_FILTER_VALUE);
   const [vehicleFilter, setVehicleFilter] = useState(ALL_FILTER_VALUE);
-  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -47,14 +92,10 @@ export function VehicleAlertTable() {
 
       const matchesStatus =
         statusFilter === ALL_FILTER_VALUE || alert.status === statusFilter;
-
       const matchesPriority =
-        priorityFilter === ALL_FILTER_VALUE ||
-        alert.priority === priorityFilter;
-
+        priorityFilter === ALL_FILTER_VALUE || alert.priority === priorityFilter;
       const matchesVehicle =
-        vehicleFilter === ALL_FILTER_VALUE ||
-        alert.vehicleName === vehicleFilter;
+        vehicleFilter === ALL_FILTER_VALUE || alert.vehicleName === vehicleFilter;
 
       return (
         matchesSearch &&
@@ -65,40 +106,17 @@ export function VehicleAlertTable() {
     });
   }, [priorityFilter, searchValue, statusFilter, vehicleFilter]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchValue, statusFilter, priorityFilter, vehicleFilter]);
-
-  const totalAlerts = filteredAlerts.length;
-  const totalPages = Math.max(1, Math.ceil(totalAlerts / PAGE_SIZE));
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  const paginatedAlerts = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return filteredAlerts.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [currentPage, filteredAlerts]);
-
   const hasActiveFilters =
     searchValue.trim().length > 0 ||
     statusFilter !== ALL_FILTER_VALUE ||
     priorityFilter !== ALL_FILTER_VALUE ||
     vehicleFilter !== ALL_FILTER_VALUE;
 
-  const showingFrom = totalAlerts === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const showingTo =
-    totalAlerts === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, totalAlerts);
-
   function handleClearFilters() {
     setSearchValue("");
     setStatusFilter(ALL_FILTER_VALUE);
     setPriorityFilter(ALL_FILTER_VALUE);
     setVehicleFilter(ALL_FILTER_VALUE);
-    setCurrentPage(1);
   }
 
   if (isLoading) {
@@ -118,12 +136,11 @@ export function VehicleAlertTable() {
           hasActiveFilters={hasActiveFilters}
         />
 
-        <div className="rounded-lg border bg-card">
-          <div className="space-y-3 p-4">
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="space-y-3">
+            <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
+            <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
+            <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
           </div>
         </div>
       </div>
@@ -151,7 +168,7 @@ export function VehicleAlertTable() {
           title="No vehicle alerts found"
           description={
             hasActiveFilters
-              ? "We couldn&apos;t find any vehicle alerts matching your current search and filter settings."
+              ? "We couldn’t find any vehicle alerts matching your current filters."
               : "No vehicle alerts have been reported yet."
           }
           action={
@@ -182,46 +199,38 @@ export function VehicleAlertTable() {
         hasActiveFilters={hasActiveFilters}
       />
 
-      <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between text-sm text-slate-500">
         <p>
-          Showing {showingFrom}–{showingTo} of {totalAlerts}{" "}
-          {totalAlerts === 1 ? "alert" : "alerts"}
+          Showing {filteredAlerts.length} {filteredAlerts.length === 1 ? "alert" : "alerts"}
         </p>
-
-        <div className="flex items-center gap-2">
-          {hasActiveFilters ? (
-            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-              Clear filters
-            </Button>
-          ) : null}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
+        {hasActiveFilters ? (
+          <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+            Clear filters
           </Button>
-
-          <span className="min-w-[72px] text-center">
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setCurrentPage((page) => Math.min(totalPages, page + 1))
-            }
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
-        </div>
+        ) : null}
       </div>
 
-      <DataTable columns={vehicleAlertColumns} data={paginatedAlerts} />
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse">
+            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Alert</th>
+                <th className="px-4 py-3 font-semibold">Details</th>
+                <th className="px-4 py-3 font-semibold">Priority</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Reported By</th>
+                <th className="px-4 py-3 font-semibold">Reported</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAlerts.map((alert) => (
+                <VehicleAlertRow key={alert.id} alert={alert} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
