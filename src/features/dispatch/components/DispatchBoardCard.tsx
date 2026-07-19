@@ -4,13 +4,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  UserPlus,
   Users,
   XCircle,
 } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
-import type { DispatchPlan } from "../types/dispatch";
+import type { Crew, DispatchPlan } from "../types/dispatch";
 import {
   formatTargetDate,
   getDispatchStatusLabel,
@@ -19,6 +20,8 @@ import {
 interface DispatchBoardCardProps {
   plan: DispatchPlan;
   crewName?: string;
+  availableCrews?: Crew[];
+  onAssignCrew?: (planId: string, crewId: string) => void;
 }
 
 const statusVariant = {
@@ -78,7 +81,12 @@ function StatusIcon({ variant }: { variant: Variant }) {
   }
 }
 
-export function DispatchBoardCard({ plan, crewName }: DispatchBoardCardProps) {
+export function DispatchBoardCard({
+  plan,
+  crewName,
+  availableCrews = [],
+  onAssignCrew,
+}: DispatchBoardCardProps) {
   const variant: Variant =
     statusVariant[plan.dispatchStatus] ?? "neutral";
   const styles = variantStyles[variant];
@@ -86,6 +94,12 @@ export function DispatchBoardCard({ plan, crewName }: DispatchBoardCardProps) {
   const blockingConstraints = plan.constraints.filter(
     (c) => c.severity === "blocking"
   );
+
+  const canAssign =
+    (plan.dispatchStatus === "ready_to_schedule" ||
+      plan.dispatchStatus === "awaiting_crew_availability") &&
+    !!onAssignCrew &&
+    availableCrews.length > 0;
 
   return (
     <SurfaceCard className="group transition-all duration-200 hover:border-white/20">
@@ -145,8 +159,8 @@ export function DispatchBoardCard({ plan, crewName }: DispatchBoardCardProps) {
           />
         </div>
 
-        {/* Crew assignment or blocker */}
-        <div className="mt-4 flex items-center gap-2 border-t border-white/5 pt-4 flex-wrap">
+        {/* Crew assignment footer */}
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/5 pt-4">
           {crewName ? (
             <span className="flex items-center gap-1.5 text-xs text-slate-400">
               <Users className="h-3.5 w-3.5 text-slate-500" />
@@ -162,13 +176,39 @@ export function DispatchBoardCard({ plan, crewName }: DispatchBoardCardProps) {
             </span>
           )}
 
-          {plan.sequencingNotes && (
+          {plan.sequencingNotes && !blockingConstraints.length && (
             <span
               className="ml-auto max-w-xs truncate text-xs text-slate-500"
               title={plan.sequencingNotes}
             >
               {plan.sequencingNotes}
             </span>
+          )}
+
+          {canAssign && (
+            <div className="ml-auto flex items-center gap-1.5">
+              <UserPlus className="h-3.5 w-3.5 text-slate-500" />
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    onAssignCrew!(plan.id, e.target.value);
+                    e.target.value = "";
+                  }
+                }}
+                className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-emerald-500/40"
+                aria-label="Assign crew"
+              >
+                <option value="" disabled>
+                  Assign crew…
+                </option>
+                {availableCrews.map((crew) => (
+                  <option key={crew.id} value={crew.id}>
+                    {crew.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       </div>
