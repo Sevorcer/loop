@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Search, User, Sparkles, CalendarDays, Menu } from "lucide-react";
@@ -110,17 +109,11 @@ interface HeaderProps {
 export default function Header({ isMobileNavOpen = false, onMenuToggle }: HeaderProps) {
   const pathname = usePathname();
   const pageMeta = getPageMeta(pathname);
-  const [todayLabel, setTodayLabel] = useState("Today");
-
-  useEffect(() => {
-    setTodayLabel(
-      new Intl.DateTimeFormat("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      }).format(new Date()),
-    );
-  }, []);
+  const todayLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
 
   const isStaging = process.env.NEXT_PUBLIC_APP_ENV === "staging";
   const showDashboardCrumb = pathname !== ROUTES.DASHBOARD;
@@ -147,7 +140,10 @@ export default function Header({ isMobileNavOpen = false, onMenuToggle }: Header
                 Operations Hub
               </span>
 
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400">
+              <span
+                suppressHydrationWarning
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400"
+              >
                 <CalendarDays className="h-3.5 w-3.5 text-blue-400" />
                 {todayLabel}
               </span>
