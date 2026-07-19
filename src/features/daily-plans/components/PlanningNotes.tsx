@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { FileText, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ interface PlanningNotesProps {
 
 export function PlanningNotes({ date }: PlanningNotesProps) {
   const { getNote, saveNote } = useDailyPlans();
-  // Initialize from the note for this date; parent uses key={date} to remount on date change
   const [draft, setDraft] = useState(() => getNote(date));
   const [saved, setSaved] = useState(false);
 
@@ -36,7 +35,7 @@ export function PlanningNotes({ date }: PlanningNotesProps) {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-white">Planning Notes</p>
+            <p className="text-sm font-semibold text-white">Morning Meeting Notes</p>
             <p className="text-xs text-slate-400">{formatDateShort(date)}</p>
           </div>
         </div>
@@ -61,9 +60,15 @@ export function PlanningNotes({ date }: PlanningNotesProps) {
 
       <textarea
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder={`Add notes for ${formatDateShort(date)}…\n\nUse this space for shift briefing notes, special instructions, known issues, or day-specific reminders.`}
-        rows={7}
+        onChange={(event) => setDraft(event.target.value)}
+        placeholder={`Add notes for ${formatDateShort(date)}…
+
+Examples:
+• Customer has aggressive dog.
+• Garage code 1432.
+• Neighbor driveway only — do not block.
+• Helper picking up special order parts at 7:15.`}
+        rows={8}
         className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-relaxed text-slate-200 outline-none placeholder:text-slate-600 transition focus:border-blue-500/30 focus:bg-white/[0.06]"
       />
     </div>
