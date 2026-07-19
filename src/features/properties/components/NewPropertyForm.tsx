@@ -50,7 +50,7 @@ export function NewPropertyForm() {
 
   const [form, setForm] = useState<PropertyFormValues>(defaultPropertyFormValues);
   const [error, setError] = useState<string | null>(null);
-  const [submittedPropertyId, setSubmittedPropertyId] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const canSubmit = useMemo(() => {
     return (
@@ -82,10 +82,10 @@ export function NewPropertyForm() {
     }
 
     const property = createProperty(normalizeValues(form));
-    setSubmittedPropertyId(Boolean(property.id));
+    setIsSubmitted(Boolean(property.id));
   }
 
-  if (submittedPropertyId) {
+  if (isSubmitted) {
     return (
       <SurfaceCard className="mx-auto max-w-3xl">
         <div className="space-y-4 p-8 text-center">
@@ -108,7 +108,7 @@ export function NewPropertyForm() {
 
             <Button
               onClick={() => {
-                setSubmittedPropertyId(false);
+                setIsSubmitted(false);
                 setForm(defaultPropertyFormValues);
               }}
             >
