@@ -228,7 +228,7 @@ export function DispatchBoardCard({
                 min={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => {
                   if (e.target.value) {
-                    onSchedulePlan!(plan.id, e.target.value);
+                    onSchedulePlan(plan.id, e.target.value);
                   }
                 }}
                 className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-blue-500/40"

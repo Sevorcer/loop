@@ -34,6 +34,11 @@ interface VehicleAlertsContextValue {
 
 const VEHICLE_ALERTS_STORAGE_KEY = "loop.vehicle-alerts.items";
 
+// useSyncExternalStore requires a subscribe function. We use a no-op here
+// because hydration is a one-time server→client transition — there is no
+// external store to subscribe to. The snapshot function returns `true` on
+// the client and `false` on the server, so the initial client render picks
+// up the correct hydrated flag without any ongoing subscription.
 const subscribeToHydration = (onStoreChange: () => void) => {
   void onStoreChange;
   return () => {};

@@ -38,6 +38,9 @@ const DISPATCH_EVENTS_KEY = "loop.dispatch.events";
 const DISPATCH_SCHEDULE_BLOCKS_KEY = "loop.dispatch.scheduleBlocks";
 const DISPATCH_PLAN_STATUS_KEY = "loop.dispatch.planStatusOverrides";
 
+/** Default crew start hour for scheduled jobs (07:00 local time). */
+const DEFAULT_SCHEDULE_START_HOUR = 7;
+
 const subscribeToHydration = (onStoreChange: () => void) => {
   void onStoreChange;
   return () => {};
@@ -257,7 +260,7 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
 
       // Derive a start/end time based on the plan's estimated duration.
       // Default start: 07:00; end: derived from duration.
-      const startHour = 7;
+      const startHour = DEFAULT_SCHEDULE_START_HOUR;
       const endHour = startHour + plan.estimatedDurationHours;
       const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");
       const scheduledStartTime = `${pad(startHour)}:00`;
