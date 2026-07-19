@@ -17,7 +17,7 @@ import {
   Settings,
   BellRing,
   Send,
-  ExternalLink,
+  Globe,
 } from "lucide-react";
 
 import { ROUTES, PORTAL_ROUTES } from "@/lib/routes";
@@ -75,7 +75,7 @@ const navGroups: NavGroup[] = [
   {
     label: "External",
     items: [
-      { name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: ExternalLink },
+      { name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: Globe },
     ],
   },
   {

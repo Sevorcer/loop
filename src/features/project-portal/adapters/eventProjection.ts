@@ -20,6 +20,7 @@ import type {
 
 const STALE_WARNING_MINUTES = 5;
 const STALE_ELEVATED_MINUTES = 15;
+const MS_PER_MINUTE = 60_000;
 
 // ─── Freshness Computation ────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ export function computeFreshness(lastSynchronizedAt: string): FreshnessStatus {
   const now = new Date();
   const syncTime = new Date(lastSynchronizedAt);
   const minutesSinceSync = Math.floor(
-    (now.getTime() - syncTime.getTime()) / 60_000,
+    (now.getTime() - syncTime.getTime()) / MS_PER_MINUTE,
   );
 
   let state: FreshnessState;
