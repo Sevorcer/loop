@@ -1,12 +1,8 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { PortalOverviewScreen } from "@/features/project-portal/screens/PortalOverviewScreen";
 
-import { PORTAL_ROUTES } from "@/lib/routes";
+export const metadata: Metadata = { title: "Overview" };
 
-interface PageProps {
-  params: Promise<{ projectId: string }>;
-}
-
-export default async function ProjectRootPage({ params }: PageProps) {
-  const { projectId } = await params;
-  redirect(PORTAL_ROUTES.OVERVIEW(projectId));
+export default function PortalOverviewPage() {
+  return <PortalOverviewScreen />;
 }

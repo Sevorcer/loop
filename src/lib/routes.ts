@@ -14,19 +14,22 @@ export const ROUTES = {
   SETTINGS: "/settings",
 } as const;
 
-// ─── Project Portal (external-facing) ────────────────────────────────────────
+// ─── Project Portal Routes ────────────────────────────────────────────────────
+
+export const PORTAL_BASE = "/portal";
 
 export const PORTAL_ROUTES = {
-  /** Root redirect — navigates to the first available project for the mock user */
-  ROOT: "/portal",
-
-  /** Per-project screens */
-  OVERVIEW: (projectId: string) => `/portal/${projectId}/overview`,
-  TIMELINE: (projectId: string) => `/portal/${projectId}/timeline`,
-  DOCUMENTS: (projectId: string) => `/portal/${projectId}/documents`,
-  CONTACT: (projectId: string) => `/portal/${projectId}/contact`,
-
-  /** Error states */
+  HOME: PORTAL_BASE,
+  /** Alias used by Sidebar and Sprint 22A components */
+  ROOT: PORTAL_BASE,
+  PROJECT: (projectId: string) => `${PORTAL_BASE}/${projectId}`,
+  /** Sprint 22A overview route (/portal/[id]/overview) */
+  OVERVIEW: (projectId: string) => `${PORTAL_BASE}/${projectId}/overview`,
+  TIMELINE: (projectId: string) => `${PORTAL_BASE}/${projectId}/timeline`,
+  DOCUMENTS: (projectId: string) => `${PORTAL_BASE}/${projectId}/documents`,
+  PHOTOS: (projectId: string) => `${PORTAL_BASE}/${projectId}/photos`,
+  CONTACT: (projectId: string) => `${PORTAL_BASE}/${projectId}/contact`,
+  NOTIFICATIONS: (projectId: string) => `${PORTAL_BASE}/${projectId}/notifications`,
   ERROR_UNAUTHORIZED: "/portal/error/unauthorized",
   ERROR_EXPIRED_INVITE: "/portal/error/expired-invite",
   ERROR_REVOKED: "/portal/error/revoked",

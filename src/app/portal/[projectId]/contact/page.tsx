@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-
-import { ContactTeamScreen } from "@/features/project-portal/screens/ContactTeamScreen";
+import { PortalContactScreen } from "@/features/project-portal/screens/PortalContactScreen";
 
 export const metadata: Metadata = { title: "Contact Team" };
 
-export default function ContactPage() {
-  return <ContactTeamScreen />;
+export default function PortalContactPage() {
+  return <PortalContactScreen />;
 }

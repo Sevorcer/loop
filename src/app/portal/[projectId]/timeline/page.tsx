@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-
-import { TimelineScreen } from "@/features/project-portal/screens/TimelineScreen";
+import { PortalTimelineScreen } from "@/features/project-portal/screens/PortalTimelineScreen";
 
 export const metadata: Metadata = { title: "Timeline" };
 
-export default function TimelinePage() {
-  return <TimelineScreen />;
+export default function PortalTimelinePage() {
+  return <PortalTimelineScreen />;
 }
