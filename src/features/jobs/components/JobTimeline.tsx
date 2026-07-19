@@ -2,6 +2,7 @@ import {
   CalendarClock,
   ClipboardList,
   FileText,
+  FilePenLine,
   User,
   Wrench,
 } from "lucide-react";
@@ -20,6 +21,8 @@ function getActivityIcon(type: JobActivity["type"]) {
       return <ClipboardList className="h-4 w-4 text-red-300" />;
     case "scheduled":
       return <CalendarClock className="h-4 w-4 text-blue-300" />;
+    case "edited":
+      return <FilePenLine className="h-4 w-4 text-indigo-300" />;
     case "assigned":
       return <User className="h-4 w-4 text-slate-200" />;
     case "status":

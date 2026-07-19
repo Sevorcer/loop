@@ -65,6 +65,10 @@ export function JobDetailScreen({ job }: { job: Job }) {
             Back to Jobs
           </Button>
         </Link>
+
+        <Link href={`/jobs/${currentJob.id}/edit`}>
+          <Button variant="secondary">Edit Job</Button>
+        </Link>
       </div>
 
       <SurfaceCard className="overflow-hidden">
