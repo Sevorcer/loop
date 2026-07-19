@@ -79,7 +79,7 @@ export function DailyPlansScreen() {
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
               <CalendarDays className="h-3.5 w-3.5" />
-              Operations
+              Morning Operations
             </div>
 
             <div>

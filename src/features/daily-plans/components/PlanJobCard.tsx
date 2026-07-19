@@ -54,8 +54,9 @@ export function PlanJobCard({ job }: PlanJobCardProps) {
   return (
     <Link
       href={`/jobs/${job.id}`}
+      aria-label={`Open work order ${job.jobNumber}: ${job.title}`}
       className={[
-        "group block rounded-2xl border p-4 transition-all duration-200 hover:bg-white/[0.05]",
+        "group block rounded-2xl border p-4 transition-all duration-200 hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
         isAtRisk
           ? "border-red-500/20 bg-red-500/[0.04]"
           : "border-white/10 bg-white/[0.03]",
