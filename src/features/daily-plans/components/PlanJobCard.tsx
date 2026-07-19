@@ -111,7 +111,8 @@ export function PlanJobCard({
 
         <Link
           href={`/jobs/${job.id}`}
-          className="mt-1 inline-flex shrink-0 items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
+          aria-label={`Open work order ${job.jobNumber}: ${job.title}`}
+          className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-md text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           Open
           <ArrowRight className="h-3.5 w-3.5" />
