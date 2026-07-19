@@ -137,4 +137,123 @@ export const mockJobs: Job[] = [
     notes:
       "School access limited to facilities entrance after 8:00 AM.",
   },
+  {
+    id: "job-009",
+    jobNumber: "JOB-1009",
+    title: "Ductless mini-split installation",
+    type: "Install",
+    status: "Scheduled",
+    priority: "High",
+    customerName: "Midtown Fitness",
+    propertyName: "Midtown Fitness Center",
+    assignedTo: "Marcus Rivera",
+    scheduledFor: "2026-07-19",
+    summary:
+      "Install a new ductless mini-split system in the cardio zone to address comfort complaints during peak hours.",
+    location: "380 Midtown Ave, Suite 200",
+    notes:
+      "Coordinate with gym manager to access mechanical room. Equipment staged in van.",
+  },
+  {
+    id: "job-010",
+    jobNumber: "JOB-1010",
+    title: "Cooling tune-up and filter replacement",
+    type: "Maintenance",
+    status: "Scheduled",
+    priority: "Medium",
+    customerName: "Fern Valley HOA",
+    propertyName: "Fern Valley Clubhouse",
+    assignedTo: "Tina Brooks",
+    scheduledFor: "2026-07-19",
+    summary:
+      "Seasonal cooling tune-up including coil cleaning, refrigerant check, and filter swap for main air handler.",
+    location: "715 Fern Valley Drive",
+    notes:
+      "Unit is on the roof. Safety harness required. HOA contact is Sandra.",
+  },
+  {
+    id: "job-011",
+    jobNumber: "JOB-1011",
+    title: "Filter and belt inspection",
+    type: "Maintenance",
+    status: "Scheduled",
+    priority: "Low",
+    customerName: "Harbor City Suites",
+    propertyName: "Harbor City Suites Hotel",
+    assignedTo: "Marcus Rivera",
+    scheduledFor: "2026-07-19",
+    summary:
+      "Routine filter change and belt inspection across hotel HVAC units on floors 3–6.",
+    location: "55 Harbor Point Boulevard",
+    notes:
+      "Must complete before 11:00 AM checkout rush. Coordinate with front desk.",
+  },
+  {
+    id: "job-012",
+    jobNumber: "JOB-1012",
+    title: "No heat emergency call",
+    type: "Service",
+    status: "Scheduled",
+    priority: "High",
+    customerName: "Ridgeline Senior Living",
+    propertyName: "Ridgeline Senior Community",
+    assignedTo: "",
+    scheduledFor: "2026-07-19",
+    summary:
+      "Resident reported complete heating loss in the east wing. Suspected gas valve failure requiring urgent response.",
+    location: "1100 Ridgeline Way",
+    notes:
+      "Emergency call-in at 6:45 AM. Needs tech assignment before 9:00 AM.",
+  },
+  {
+    id: "job-013",
+    jobNumber: "JOB-1013",
+    title: "RTU diagnostic and repair",
+    type: "Service",
+    status: "In Progress",
+    priority: "Medium",
+    customerName: "Eastgate Shopping Center",
+    propertyName: "Eastgate Mall — West Entrance",
+    assignedTo: "Jordan Lee",
+    scheduledFor: "2026-07-19",
+    summary:
+      "Diagnose intermittent tripping on rooftop unit B-3 and repair fault. Customer reporting repeated shutdowns.",
+    location: "2900 Eastgate Boulevard",
+    notes:
+      "Tech on site since 8:00 AM. Compressor contactor suspected. Parts on order.",
+  },
+  {
+    id: "job-014",
+    jobNumber: "JOB-1014",
+    title: "Chiller pre-season startup",
+    type: "Inspection",
+    status: "Scheduled",
+    priority: "High",
+    customerName: "Pacific Tower Partners",
+    propertyName: "Pacific Tower — Mechanical Penthouse",
+    assignedTo: "Riley Morgan",
+    scheduledFor: "2026-07-20",
+    summary:
+      "Pre-season startup inspection for 200-ton chiller including oil analysis, controls verification, and leak check.",
+    location: "1 Pacific Tower Drive, Floor 42",
+    notes:
+      "Chiller manufacturer rep on standby for commissioning support. Full day job.",
+  },
+  {
+    id: "job-015",
+    jobNumber: "JOB-1015",
+    title: "Thermostat upgrade and zoning install",
+    type: "Install",
+    status: "Scheduled",
+    priority: "Medium",
+    customerName: "Clearwater Office Park",
+    propertyName: "Clearwater Building C",
+    assignedTo: "Taylor Reed",
+    scheduledFor: "2026-07-20",
+    summary:
+      "Replace legacy thermostats with smart zoning controllers across four zones in Building C.",
+    location: "4800 Clearwater Pkwy, Building C",
+    notes:
+      "All zones must remain functional at end of day. Wiring diagrams in job folder.",
+  },
 ];

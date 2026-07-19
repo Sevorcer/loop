@@ -1,1 +1,1 @@
-export { DailyPlansScreen } from './DailyPlansScreen'
+export { DailyPlansScreen } from "./screens/DailyPlansScreen";
