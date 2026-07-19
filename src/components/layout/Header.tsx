@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Search, User, Sparkles, CalendarDays } from "lucide-react";
 
@@ -116,6 +117,7 @@ export default function Header() {
   );
 
   const isStaging = process.env.NEXT_PUBLIC_APP_ENV === "staging";
+  const showDashboardCrumb = pathname !== ROUTES.DASHBOARD;
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
@@ -142,6 +144,26 @@ export default function Header() {
               </span>
             )}
           </div>
+
+          <nav aria-label="Breadcrumbs" className="pt-0.5">
+            <ol className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
+              {showDashboardCrumb ? (
+                <>
+                  <li>
+                    <Link href={ROUTES.DASHBOARD} className="transition-colors hover:text-slate-300">
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li aria-hidden="true" className="px-1 text-slate-600">
+                    /
+                  </li>
+                  <li className="text-slate-300">{pageMeta.title}</li>
+                </>
+              ) : (
+                <li className="text-slate-300">Dashboard</li>
+              )}
+            </ol>
+          </nav>
 
           <h1 className="text-2xl font-semibold tracking-tight text-white">
             {pageMeta.title}
