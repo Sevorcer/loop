@@ -157,11 +157,11 @@ export function assembleInventorySnapshot(
 
   const backordered = inventoryItems.filter((item) => item.isBackordered).length;
 
+  const now = new Date();
+  const todayUtc = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+
   const totalItemsToPickToday = materialPlans
-    .filter((plan) => {
-      const today = new Date().toISOString().split("T")[0];
-      return plan.scheduledFor <= today;
-    })
+    .filter((plan) => plan.scheduledFor <= todayUtc)
     .flatMap((plan) => plan.items)
     .filter(
       (item) =>

@@ -228,7 +228,7 @@ function InventoryStatusGrid() {
                 key={item.id}
                 className="flex items-center justify-between gap-2"
               >
-                <p className="text-sm text-slate-100 truncate">{item.name}</p>
+                <p className="truncate text-sm text-slate-100" title={item.name}>{item.name}</p>
                 <span className="flex-shrink-0 text-xs font-semibold text-emerald-400">
                   {item.quantityAvailable} {item.unit}
                 </span>
