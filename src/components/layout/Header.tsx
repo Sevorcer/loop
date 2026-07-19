@@ -3,10 +3,16 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Search, User, Sparkles, CalendarDays } from "lucide-react";
+import { Bell, Search, User, Sparkles, CalendarDays, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
+
+const headerDateFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
 
 const pageContent: Record<string, { title: string; description: string }> = {
   [ROUTES.DASHBOARD]: {
@@ -102,77 +108,92 @@ function getPageMeta(pathname: string) {
   return pageContent[ROUTES.DASHBOARD];
 }
 
-export default function Header() {
+interface HeaderProps {
+  isMobileNavOpen?: boolean;
+  onMenuToggle?: () => void;
+}
+
+export default function Header({ isMobileNavOpen = false, onMenuToggle }: HeaderProps) {
   const pathname = usePathname();
   const pageMeta = getPageMeta(pathname);
-
-  const todayLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      }).format(new Date()),
-    [],
-  );
+  const todayLabel = useMemo(() => headerDateFormatter.format(new Date()), []);
 
   const isStaging = process.env.NEXT_PUBLIC_APP_ENV === "staging";
   const showDashboardCrumb = pathname !== ROUTES.DASHBOARD;
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
-      <div className="flex min-h-20 items-center justify-between gap-6 px-6 py-4">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-7 items-center rounded-full border border-red-500/20 bg-gradient-to-r from-red-500/10 to-blue-500/10 px-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-              Operations Hub
-            </span>
+      <div className="flex flex-wrap items-start gap-3 px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={isMobileNavOpen}
+            aria-controls="mobile-navigation"
+            onClick={onMenuToggle}
+            className="mt-0.5 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white lg:hidden"
+          >
+            <Menu size={18} />
+          </Button>
 
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400">
-              <CalendarDays className="h-3.5 w-3.5 text-blue-400" />
-              {todayLabel}
-            </span>
-
-            {isStaging ? (
-              <span className="status-warning inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.15em]">
-                Staging Preview
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="hidden h-7 items-center rounded-full border border-red-500/20 bg-gradient-to-r from-red-500/10 to-blue-500/10 px-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300 sm:inline-flex">
+                Operations Hub
               </span>
-            ) : (
-              <span className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400 md:inline-flex">
-                <Sparkles className="h-3.5 w-3.5 text-red-400" />
-                Live Workspace
-              </span>
-            )}
-          </div>
 
-          <nav aria-label="Breadcrumbs" className="pt-0.5">
-            <ol className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
-              {showDashboardCrumb ? (
-                <>
-                  <li>
-                    <Link href={ROUTES.DASHBOARD} className="transition-colors hover:text-slate-300">
-                      Dashboard
-                    </Link>
-                  </li>
-                  <li aria-hidden="true" className="px-1 text-slate-600">
-                    /
-                  </li>
-                  <li className="text-slate-300">{pageMeta.title}</li>
-                </>
+              <span
+                // The label includes the current local date, so the server-rendered
+                // string can differ from the client-rendered string by timezone.
+                suppressHydrationWarning
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400"
+              >
+                <CalendarDays className="h-3.5 w-3.5 text-blue-400" />
+                {todayLabel}
+              </span>
+
+              {isStaging ? (
+                <span className="status-warning inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.15em]">
+                  Staging Preview
+                </span>
               ) : (
-                <li className="text-slate-300">Dashboard</li>
+                <span className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400 md:inline-flex">
+                  <Sparkles className="h-3.5 w-3.5 text-red-400" />
+                  Live Workspace
+                </span>
               )}
-            </ol>
-          </nav>
+            </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
-            {pageMeta.title}
-          </h1>
+            <nav aria-label="Breadcrumbs" className="pt-0.5">
+              <ol className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                {showDashboardCrumb ? (
+                  <>
+                    <li>
+                      <Link href={ROUTES.DASHBOARD} className="transition-colors hover:text-slate-300">
+                        Dashboard
+                      </Link>
+                    </li>
+                    <li aria-hidden="true" className="px-1 text-slate-600">
+                      /
+                    </li>
+                    <li className="text-slate-300">{pageMeta.title}</li>
+                  </>
+                ) : (
+                  <li className="text-slate-300">Dashboard</li>
+                )}
+              </ol>
+            </nav>
 
-          <p className="text-sm text-slate-400">{pageMeta.description}</p>
+            <h1 className="truncate text-xl font-semibold tracking-tight text-white sm:text-2xl">
+              {pageMeta.title}
+            </h1>
+
+            <p className="hidden max-w-2xl text-sm text-slate-400 sm:block">{pageMeta.description}</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
           <Button
             variant="ghost"
             size="icon"
@@ -193,10 +214,10 @@ export default function Header() {
 
           <Button
             variant="secondary"
-            className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 text-white hover:from-red-500/20 hover:to-blue-500/15"
+            className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 px-3 text-white hover:from-red-500/20 hover:to-blue-500/15"
           >
             <User size={18} />
-            <span>Collin</span>
+            <span className="hidden sm:inline">Collin</span>
           </Button>
         </div>
       </div>

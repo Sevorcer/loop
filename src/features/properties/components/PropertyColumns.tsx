@@ -15,6 +15,10 @@ function formatDate(value: string) {
 export const propertyColumns: ColumnDef<Property>[] = [
   {
     accessorKey: "name",
+    meta: {
+      mobileLabel: "Property",
+      mobilePrimary: true,
+    },
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -42,6 +46,9 @@ export const propertyColumns: ColumnDef<Property>[] = [
   },
   {
     accessorKey: "address",
+    meta: {
+      mobileLabel: "Address",
+    },
     header: "Address",
     cell: ({ row }) => (
       <div>
@@ -54,10 +61,16 @@ export const propertyColumns: ColumnDef<Property>[] = [
   },
   {
     accessorKey: "type",
+    meta: {
+      mobileLabel: "Type",
+    },
     header: "Type",
   },
   {
     accessorKey: "status",
+    meta: {
+      mobileLabel: "Status",
+    },
     header: "Status",
     cell: ({ row }) => {
       const status = row.original.status;
@@ -74,6 +87,9 @@ export const propertyColumns: ColumnDef<Property>[] = [
   },
   {
     accessorKey: "primarySystem",
+    meta: {
+      mobileLabel: "Primary System",
+    },
     header: "Primary System",
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
@@ -83,6 +99,9 @@ export const propertyColumns: ColumnDef<Property>[] = [
   },
   {
     accessorKey: "openJobs",
+    meta: {
+      mobileLabel: "Open Jobs",
+    },
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -99,6 +118,9 @@ export const propertyColumns: ColumnDef<Property>[] = [
   },
   {
     accessorKey: "lastVisit",
+    meta: {
+      mobileLabel: "Last Visit",
+    },
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -117,6 +139,9 @@ export const propertyColumns: ColumnDef<Property>[] = [
   },
   {
     id: "actions",
+    meta: {
+      mobileHidden: true,
+    },
     enableHiding: false,
     cell: () => (
       <Button variant="ghost" size="icon">

@@ -15,35 +15,35 @@ function getStatusColors(status: HealthStatus): {
   switch (status) {
     case "healthy":
       return {
-        bg: "bg-green-50",
-        border: "border-green-200",
+        bg: "bg-emerald-500/[0.08]",
+        border: "border-emerald-500/20",
         dot: "bg-green-500",
-        badge: "bg-green-100",
-        badgeText: "text-green-700",
+        badge: "bg-emerald-500/[0.12]",
+        badgeText: "text-emerald-200",
       };
     case "improving":
       return {
-        bg: "bg-blue-50",
-        border: "border-blue-200",
+        bg: "bg-blue-500/[0.08]",
+        border: "border-blue-500/20",
         dot: "bg-blue-500",
-        badge: "bg-blue-100",
-        badgeText: "text-blue-700",
+        badge: "bg-blue-500/[0.12]",
+        badgeText: "text-blue-200",
       };
     case "at-risk":
       return {
-        bg: "bg-amber-50",
-        border: "border-amber-200",
+        bg: "bg-amber-500/[0.08]",
+        border: "border-amber-500/20",
         dot: "bg-amber-500",
-        badge: "bg-amber-100",
-        badgeText: "text-amber-700",
+        badge: "bg-amber-500/[0.12]",
+        badgeText: "text-amber-200",
       };
     case "deteriorating":
       return {
-        bg: "bg-red-50",
-        border: "border-red-200",
+        bg: "bg-red-500/[0.08]",
+        border: "border-red-500/20",
         dot: "bg-red-500",
-        badge: "bg-red-100",
-        badgeText: "text-red-700",
+        badge: "bg-red-500/[0.12]",
+        badgeText: "text-red-200",
       };
   }
 }
@@ -60,14 +60,14 @@ export function HealthIndicatorCard({ indicator }: HealthIndicatorCardProps) {
       ].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
           <span
             className={[
               "mt-0.5 h-2 w-2 shrink-0 rounded-full",
               colors.dot,
             ].join(" ")}
           />
-          <p className="text-sm font-medium text-slate-900 truncate">
+          <p className="truncate text-sm font-medium text-white">
             {indicator.area}
           </p>
         </div>
@@ -82,10 +82,10 @@ export function HealthIndicatorCard({ indicator }: HealthIndicatorCardProps) {
         </span>
       </div>
 
-      <p className="mt-2 text-sm text-slate-600">{indicator.summary}</p>
+      <p className="mt-2 text-sm text-slate-300">{indicator.summary}</p>
 
       {indicator.requiresAttention ? (
-        <p className="mt-2 text-xs font-medium text-amber-700">
+        <p className="mt-2 text-xs font-medium text-amber-200">
           ⚠ Requires attention
         </p>
       ) : null}

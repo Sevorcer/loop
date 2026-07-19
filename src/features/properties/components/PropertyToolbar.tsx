@@ -30,7 +30,7 @@ export function PropertyToolbar({
   cityOptions,
 }: PropertyToolbarProps) {
   return (
-    <div className="flex flex-col gap-4 border-b pb-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 border-b pb-4 md:gap-4 md:flex-row md:items-center md:justify-between">
       <div className="relative w-full md:max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
@@ -43,11 +43,11 @@ export function PropertyToolbar({
         />
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
         <select
           value={statusFilter}
           onChange={(event) => onStatusChange(event.target.value)}
-          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
         >
           {statusOptions.map((status) => (
             <option key={status} value={status}>
@@ -59,7 +59,7 @@ export function PropertyToolbar({
         <select
           value={typeFilter}
           onChange={(event) => onTypeChange(event.target.value)}
-          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
         >
           {typeOptions.map((type) => (
             <option key={type} value={type}>
@@ -71,7 +71,7 @@ export function PropertyToolbar({
         <select
           value={cityFilter}
           onChange={(event) => onCityChange(event.target.value)}
-          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
         >
           <option value="all">All cities</option>
 

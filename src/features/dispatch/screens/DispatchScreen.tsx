@@ -66,7 +66,7 @@ export function DispatchScreen() {
     <div className="space-y-6">
       {/* ── Hero ── */}
       <SurfaceCard className="overflow-hidden">
-        <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-200">
               <Send className="h-3.5 w-3.5" />
@@ -74,7 +74,7 @@ export function DispatchScreen() {
             </div>
 
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-white">
+              <h2 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
                 Dispatch Planning
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
@@ -88,7 +88,7 @@ export function DispatchScreen() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={CheckCircle2}
               value={String(metrics.readyToSchedule)}
@@ -123,7 +123,7 @@ export function DispatchScreen() {
 
       {/* ── Architecture Note ── */}
       <SurfaceCard>
-        <div className="grid gap-6 p-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="grid gap-6 p-4 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
           <div>
             <h3 className="text-lg font-semibold text-white">
               Dispatch Plan is the aggregate root
@@ -203,7 +203,7 @@ export function DispatchScreen() {
 
       {/* ── Dispatchability Model ── */}
       <SurfaceCard>
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-white">
             Dispatchability Formula
           </h3>
@@ -443,12 +443,12 @@ function MetricCard({
             : "text-slate-400";
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
       <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
         <Icon className={`h-4 w-4 ${iconColor}`} />
         {label}
       </div>
-      <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
+      <p className="mt-3 text-2xl font-semibold text-white sm:text-3xl">{value}</p>
     </div>
   );
 }
