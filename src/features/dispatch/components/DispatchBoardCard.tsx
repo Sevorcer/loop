@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
-import { Button } from "@/components/ui/button";
 
 import type { Crew, DispatchPlan } from "../types/dispatch";
 import {
@@ -188,6 +187,7 @@ export function DispatchBoardCard({
 
           {canAssign && (
             <div className="ml-auto flex items-center gap-1.5">
+              <UserPlus className="h-3.5 w-3.5 text-slate-500" />
               <select
                 defaultValue=""
                 onChange={(e) => {
@@ -208,16 +208,6 @@ export function DispatchBoardCard({
                   </option>
                 ))}
               </select>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 rounded-lg px-2 text-xs text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
-                onClick={() => {}}
-                aria-label="Assign crew button"
-                type="button"
-              >
-                <UserPlus className="h-3.5 w-3.5" />
-              </Button>
             </div>
           )}
         </div>

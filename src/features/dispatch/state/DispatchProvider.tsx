@@ -165,7 +165,7 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
         setExtraEvents((current) => [
           ...current,
           {
-            id: `evt-${crypto.randomUUID().slice(0, 8)}`,
+            id: `evt-${crypto.randomUUID()}`,
             dispatchPlanId: planId,
             type: eventType,
             timestamp: now,
@@ -174,7 +174,7 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
         ]);
       } else {
         const newAssignment: CrewAssignment = {
-          id: `ca-${crypto.randomUUID().slice(0, 8)}`,
+          id: `ca-${crypto.randomUUID()}`,
           dispatchPlanId: planId,
           jobId: plan.jobId,
           crewId: crew.id,
@@ -192,7 +192,7 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
         setExtraEvents((current) => [
           ...current,
           {
-            id: `evt-${crypto.randomUUID().slice(0, 8)}`,
+            id: `evt-${crypto.randomUUID()}`,
             dispatchPlanId: planId,
             type: "crew_assigned" as DispatchEventType,
             timestamp: now,
