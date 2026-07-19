@@ -6,7 +6,7 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
-export default function GlobalError({
+export default function Error({
   error,
   reset,
 }: {
