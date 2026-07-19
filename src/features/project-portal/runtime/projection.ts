@@ -151,6 +151,18 @@ export function buildPortalProjectionState(
   );
   const timeline = buildTimeline(snapshot.events);
   const lastEventAt = timeline.at(-1)?.occurredAt;
+  const upcomingMilestone = [
+    ...snapshot.dispatch.map((record) => ({
+      date: record.targetDate,
+      label: record.dispatchStatus,
+    })),
+    ...snapshot.dailyPlans.map((record) => ({
+      date: record.serviceDate,
+      label: record.summary,
+    })),
+  ]
+    .filter((candidate) => !Number.isNaN(Date.parse(candidate.date)))
+    .sort((left, right) => Date.parse(left.date) - Date.parse(right.date))[0];
 
   return {
     projectId: snapshot.projectId,
@@ -164,7 +176,7 @@ export function buildPortalProjectionState(
         completionMetric?.value ?? completionPercentFromStatus(primaryJob?.status ?? "Not started"),
       estimatedCompletionDate:
         snapshot.dispatch[0]?.targetDate ?? primaryJob?.scheduledFor ?? undefined,
-      nextMilestone: timeline.find((entry) => entry.occurredAt >= (lastEventAt ?? ""))?.label,
+      nextMilestone: upcomingMilestone?.label ?? timeline.at(-1)?.label,
       assignedProjectManager: primaryJob?.assignedProjectManager,
       lastUpdated: lastEventAt,
     },
