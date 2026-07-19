@@ -40,4 +40,9 @@ export interface JobsStoreValue {
   updateJob: (jobId: string, input: UpdateJobInput) => Job | undefined;
   updateJobStatus: (jobId: string, status: JobStatus) => void;
   addJobNote: (jobId: string, note: string) => void;
+  assignContractor: (
+    jobId: string,
+    contractorId: string
+  ) => { ok: true } | { ok: false; error: string };
+  removeContractorAssignment: (jobId: string, contractorId: string) => void;
 }

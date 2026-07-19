@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Briefcase, Building2, CalendarDays, Brain } from "lucide-react";
+import { Briefcase, Building2, CalendarDays, HardHat } from "lucide-react";
 
 import { ROUTES } from "@/lib/routes";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const actions = [
   { label: "New Job", href: `${ROUTES.JOBS}/new`, icon: Briefcase },
   { label: "New Property", href: `${ROUTES.PROPERTIES}/new`, icon: Building2 },
+  { label: "Add Contractor", href: `${ROUTES.CONTRACTORS}/new`, icon: HardHat },
   { label: "Daily Plan", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
-  { label: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: Brain },
 ];
 
 export function QuickActions() {
