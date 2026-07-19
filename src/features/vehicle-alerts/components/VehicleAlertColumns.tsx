@@ -35,7 +35,7 @@ function SortableHeader({
 }
 
 function getPriorityVariant(priority: VehicleAlert["priority"]) {
-  if (priority === "High") return "destructive" as const;
+  if (priority === "High") return "danger" as const;
   if (priority === "Medium") return "warning" as const;
   return "neutral" as const;
 }
@@ -44,7 +44,7 @@ function getStatusVariant(status: VehicleAlert["status"]) {
   if (status === "Resolved") return "success" as const;
   if (status === "Scheduled") return "warning" as const;
   if (status === "Acknowledged") return "neutral" as const;
-  return "destructive" as const;
+  return "danger" as const;
 }
 
 export const vehicleAlertColumns: ColumnDef<VehicleAlert>[] = [

@@ -1,0 +1,140 @@
+"use client";
+
+import type { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown, Briefcase, Wrench } from "lucide-react";
+
+import { StatusBadge } from "@/components/atlas";
+import { Button } from "@/components/ui/button";
+
+import type { Job } from "../types/job";
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString();
+}
+
+function SortableHeader({
+  label,
+  column,
+}: {
+  label: string;
+  column: {
+    toggleSorting: (desc?: boolean) => void;
+    getIsSorted: () => false | "asc" | "desc";
+  };
+}) {
+  return (
+    <Button
+      variant="ghost"
+      className="-ml-3"
+      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    >
+      {label}
+      <ArrowUpDown className="ml-2 h-4 w-4" />
+    </Button>
+  );
+}
+
+function getStatusVariant(status: Job["status"]) {
+  if (status === "Completed") return "success" as const;
+  if (status === "Scheduled") return "info" as const;
+  if (status === "In Progress") return "warning" as const;
+  if (status === "On Hold") return "neutral" as const;
+  return "danger" as const;
+}
+
+function getPriorityVariant(priority: Job["priority"]) {
+  if (priority === "High") return "danger" as const;
+  if (priority === "Medium") return "warning" as const;
+  return "neutral" as const;
+}
+
+function getTypeIcon(type: Job["type"]) {
+  if (type === "Service" || type === "Maintenance") {
+    return <Wrench className="h-4 w-4 text-blue-300" />;
+  }
+
+  return <Briefcase className="h-4 w-4 text-red-300" />;
+}
+
+export const jobColumns: ColumnDef<Job>[] = [
+  {
+    accessorKey: "jobNumber",
+    header: ({ column }) => (
+      <SortableHeader label="Job #" column={column} />
+    ),
+    cell: ({ row }) => (
+      <div>
+        <div className="font-medium text-white">{row.original.jobNumber}</div>
+        <div className="text-xs text-slate-400">{row.original.title}</div>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "type",
+    header: ({ column }) => (
+      <SortableHeader label="Type" column={column} />
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10">
+          {getTypeIcon(row.original.type)}
+        </div>
+        <span className="text-sm text-slate-200">{row.original.type}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => (
+      <SortableHeader label="Status" column={column} />
+    ),
+    cell: ({ row }) => (
+      <StatusBadge variant={getStatusVariant(row.original.status)}>
+        {row.original.status}
+      </StatusBadge>
+    ),
+  },
+  {
+    accessorKey: "priority",
+    header: ({ column }) => (
+      <SortableHeader label="Priority" column={column} />
+    ),
+    cell: ({ row }) => (
+      <StatusBadge variant={getPriorityVariant(row.original.priority)}>
+        {row.original.priority}
+      </StatusBadge>
+    ),
+  },
+  {
+    accessorKey: "customerName",
+    header: ({ column }) => (
+      <SortableHeader label="Customer" column={column} />
+    ),
+  },
+  {
+    accessorKey: "propertyName",
+    header: ({ column }) => (
+      <SortableHeader label="Property" column={column} />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm text-slate-300">{row.original.propertyName}</span>
+    ),
+  },
+  {
+    accessorKey: "assignedTo",
+    header: ({ column }) => (
+      <SortableHeader label="Assigned To" column={column} />
+    ),
+  },
+  {
+    accessorKey: "scheduledFor",
+    header: ({ column }) => (
+      <SortableHeader label="Scheduled" column={column} />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm text-slate-400">
+        {formatDate(row.original.scheduledFor)}
+      </span>
+    ),
+  },
+];

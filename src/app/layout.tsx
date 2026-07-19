@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+<<<<<<< HEAD
   title: "LOOP — Field Operations Platform",
   description: "The Operating System for Field Operations",
+=======
+  title: "LOOP",
+  description: "LOOP - The Operating System for Field Operations",
+>>>>>>> origin/main
 };
 
 export default function RootLayout({
