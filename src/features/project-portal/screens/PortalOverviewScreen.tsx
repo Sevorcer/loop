@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock, AlertCircle, Calendar } from "lucide-react";
+import { Clock, Calendar } from "lucide-react";
 
 import { usePortal } from "../state/PortalProvider";
 import { PortalEmptyState } from "../components/PortalErrorState";

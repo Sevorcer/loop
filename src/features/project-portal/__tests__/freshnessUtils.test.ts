@@ -1,15 +1,16 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { computeFreshness, formatLastSynced, getStaleBannerCopy } from "../utils/freshnessUtils";
 
 // ─── computeFreshness ─────────────────────────────────────────────────────────
 
 describe("computeFreshness", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-07-19T12:00:00.000Z"));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-19T12:00:00.000Z"));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("returns fresh when lastSyncedAt is within 5 minutes", () => {
@@ -56,12 +57,12 @@ describe("computeFreshness", () => {
 
 describe("formatLastSynced", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-07-19T12:00:00.000Z"));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-19T12:00:00.000Z"));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("returns 'Just now' for less than 1 minute", () => {
@@ -98,12 +99,12 @@ describe("formatLastSynced", () => {
 
 describe("getStaleBannerCopy", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-07-19T12:00:00.000Z"));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-19T12:00:00.000Z"));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("stale: shows banner with Last synchronized copy, no support link", () => {

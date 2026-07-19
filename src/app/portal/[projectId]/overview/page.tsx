@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-
-import { ProjectOverviewScreen } from "@/features/project-portal/screens/ProjectOverviewScreen";
+import { PortalOverviewScreen } from "@/features/project-portal/screens/PortalOverviewScreen";
 
 export const metadata: Metadata = { title: "Overview" };
 
 export default function OverviewPage() {
-  return <ProjectOverviewScreen />;
+  return <PortalOverviewScreen />;
 }

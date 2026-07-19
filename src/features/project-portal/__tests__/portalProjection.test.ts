@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 /**
  * Portal projection idempotency and event processing tests.
  *
@@ -25,8 +26,8 @@ describe("Portal event fixtures — canonical envelope compliance", () => {
     for (const event of mockPortalEvents) {
       for (const field of REQUIRED_FIELDS) {
         expect(event).toHaveProperty(field);
-        expect((event as Record<string, unknown>)[field]).not.toBeNull();
-        expect((event as Record<string, unknown>)[field]).not.toBeUndefined();
+        expect((event as unknown as Record<string, unknown>)[field]).not.toBeNull();
+        expect((event as unknown as Record<string, unknown>)[field]).not.toBeUndefined();
       }
     }
   });
