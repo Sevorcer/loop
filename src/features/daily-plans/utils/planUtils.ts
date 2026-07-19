@@ -11,6 +11,14 @@ import type {
 } from "../types/dailyPlan";
 import type { Job } from "@/features/jobs/types/job";
 
+export function formatStartTime(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export function getTodayDate(): string {
   return new Date().toISOString().split("T")[0];
 }

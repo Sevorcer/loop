@@ -50,6 +50,7 @@ function getTypeIcon(type: PlannedJob["type"]) {
 interface PlanJobCardProps {
   job: PlannedJob;
   crewOptions: CrewProfile[];
+  isActive?: boolean;
   onAssign: (jobId: string, technician: string) => void;
   onSetReadiness: (jobId: string, state: PlanReadinessState) => void;
   onDelay: (jobId: string) => void;
@@ -59,6 +60,7 @@ interface PlanJobCardProps {
 export function PlanJobCard({
   job,
   crewOptions,
+  isActive = false,
   onAssign,
   onSetReadiness,
   onDelay,
@@ -249,13 +251,18 @@ export function PlanJobCard({
             htmlFor={crewSelectId}
             className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"
           >
-            Assign crew
+            {isActive ? "Reassign crew (override)" : "Assign crew"}
           </label>
           <select
             id={crewSelectId}
             value={job.assignedTo}
             onChange={(event) => onAssign(job.id, event.target.value)}
-            className="h-9 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white outline-none transition focus:border-blue-500/30"
+            className={[
+              "h-9 w-full rounded-xl border px-3 text-sm text-white outline-none transition focus:border-blue-500/30",
+              isActive
+                ? "border-yellow-500/20 bg-yellow-500/[0.05] focus:border-yellow-500/40"
+                : "border-white/10 bg-white/[0.05]",
+            ].join(" ")}
           >
             <option value="">Unassigned</option>
             {crewOptions.map((crew) => (
@@ -276,17 +283,27 @@ export function PlanJobCard({
                 job.manualState === "ready" ? "needs-attention" : "ready"
               )
             }
-            className="h-9 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 hover:bg-white/10"
+            className={[
+              "h-9 rounded-xl border px-3 text-xs hover:bg-white/10",
+              isActive
+                ? "border-yellow-500/20 bg-yellow-500/[0.05] text-yellow-200 hover:bg-yellow-500/10"
+                : "border-white/10 bg-white/[0.05] text-slate-200",
+            ].join(" ")}
           >
-            {job.manualState === "ready" ? "Needs attention" : "Mark ready"}
+            {job.manualState === "ready" ? "Needs attention" : isActive ? "Override: mark ready" : "Mark ready"}
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={() => onDelay(job.id)}
-            className="h-9 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 hover:bg-white/10"
+            className={[
+              "h-9 rounded-xl border px-3 text-xs hover:bg-white/10",
+              isActive
+                ? "border-yellow-500/20 bg-yellow-500/[0.05] text-yellow-200 hover:bg-yellow-500/10"
+                : "border-white/10 bg-white/[0.05] text-slate-200",
+            ].join(" ")}
           >
-            Delay 1 day
+            {isActive ? "Override: delay" : "Delay 1 day"}
           </Button>
         </div>
       </div>

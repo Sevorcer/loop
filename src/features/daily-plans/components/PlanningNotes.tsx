@@ -10,9 +10,10 @@ import { formatDateShort } from "../utils/planUtils";
 
 interface PlanningNotesProps {
   date: string;
+  isActive?: boolean;
 }
 
-export function PlanningNotes({ date }: PlanningNotesProps) {
+export function PlanningNotes({ date, isActive = false }: PlanningNotesProps) {
   const { getNote, saveNote } = useDailyPlans();
   const [draft, setDraft] = useState(() => getNote(date));
   const [saved, setSaved] = useState(false);
@@ -35,7 +36,7 @@ export function PlanningNotes({ date }: PlanningNotesProps) {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-white">Morning Meeting Notes</p>
+            <p className="text-sm font-semibold text-white">{isActive ? "Operational Notes" : "Morning Meeting Notes"}</p>
             <p className="text-xs text-slate-400">{formatDateShort(date)}</p>
           </div>
         </div>
@@ -61,13 +62,9 @@ export function PlanningNotes({ date }: PlanningNotesProps) {
       <textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        placeholder={`Add notes for ${formatDateShort(date)}…
-
-Examples:
-• Customer has aggressive dog.
-• Garage code 1432.
-• Neighbor driveway only — do not block.
-• Helper picking up special order parts at 7:15.`}
+        placeholder={isActive
+          ? `Active-day notes for ${formatDateShort(date)}…\n\nExamples:\n• Crew 2 delayed — customer rescheduled to 11 AM.\n• Permit called in — awaiting inspector callback.\n• Material substitution approved by field lead.`
+          : `Add notes for ${formatDateShort(date)}…\n\nExamples:\n• Customer has aggressive dog.\n• Garage code 1432.\n• Neighbor driveway only — do not block.\n• Helper picking up special order parts at 7:15.`}
         rows={8}
         className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-relaxed text-slate-200 outline-none placeholder:text-slate-600 transition focus:border-blue-500/30 focus:bg-white/[0.06]"
       />

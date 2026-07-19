@@ -1,5 +1,7 @@
 import type { Job } from "@/features/jobs/types/job";
 
+export type DailyPlanStatus = "planning" | "active" | "completed";
+
 export type PlanReadinessState = "ready" | "needs-attention";
 
 export type CrewAvailabilityState =
@@ -131,4 +133,13 @@ export interface DailyPlanStoreValue {
     jobId: string,
     override: Partial<DailyPlanJobOverride>
   ) => void;
+  getPlanStatus: (date: string) => DailyPlanStatus;
+  getPlanActivation: (date: string) => DailyPlanActivation | undefined;
+  activatePlan: (date: string) => void;
+}
+
+export interface DailyPlanActivation {
+  date: string;
+  status: DailyPlanStatus;
+  startedAt: string;
 }
