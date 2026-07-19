@@ -43,7 +43,7 @@ export const defaultJobFormValues: JobFormValues = {
   notes: "",
 };
 
-function getClearedEstimateFieldsForNonInstall(type: JobType) {
+function clearEstimateFieldsIfNeeded(type: JobType) {
   if (type === "Install") {
     return {};
   }
@@ -93,7 +93,7 @@ export function JobForm({
     setForm((current) => ({
       ...current,
       ...(key === "type"
-        ? getClearedEstimateFieldsForNonInstall(value as JobType)
+        ? clearEstimateFieldsIfNeeded(value as JobType)
         : {}),
       [key]: value,
     }));
