@@ -16,10 +16,12 @@ export function NewJobForm() {
   const { createJob } = useJobs();
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
+  const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
 
   function handleSubmit(values: JobFormValues) {
     const job = createJob(values);
     setSubmittedJobId(job.id);
+    setCreatedFromEstimate(Boolean(job.estimateId && job.equipmentBundleId));
   }
 
   if (submittedJobId) {
@@ -36,6 +38,13 @@ export function NewJobForm() {
               Your new job has been added to the Jobs board and is ready for
               execution tracking.
             </p>
+            {createdFromEstimate ? (
+              <p className="mt-3 text-sm leading-6 text-blue-200">
+                LOOP also established the installed system&apos;s technical
+                identity so permit-ready data can inherit from the technical
+                profile instead of being re-entered later.
+              </p>
+            ) : null}
           </div>
 
           <div className="flex justify-center gap-3">

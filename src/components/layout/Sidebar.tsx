@@ -8,6 +8,7 @@ import {
   Building2,
   Users,
   Briefcase,
+  Cpu,
   CalendarDays,
   Radio,
   Brain,
@@ -15,16 +16,23 @@ import {
   BellRing,
 } from "lucide-react";
 
+import { ROUTES } from "@/lib/routes";
+
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Properties", href: "/properties", icon: Building2 },
+  { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
+  { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Vehicle Alerts", href: "/vehicle-alerts", icon: BellRing },
-  { name: "Jobs", href: "/jobs", icon: Briefcase },
-  { name: "Daily Plans", href: "/daily-plans", icon: CalendarDays },
-  { name: "Live Operations", href: "/live-operations", icon: Radio },
-  { name: "Company Brain", href: "/company-brain", icon: Brain },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
+  {
+    name: "Installed Systems",
+    href: ROUTES.INSTALLED_SYSTEMS,
+    icon: Cpu,
+  },
+  { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
+  { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
+  { name: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: Brain },
+  { name: "Settings", href: ROUTES.SETTINGS, icon: Settings },
 ];
 
 export default function Sidebar() {

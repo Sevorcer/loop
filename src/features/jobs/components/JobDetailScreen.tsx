@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 
 import { useJobs } from "../state/JobsProvider";
 import type { Job, JobStatus } from "../types/job";
+import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTimeline } from "./JobTimeline";
@@ -191,6 +192,8 @@ export function JobDetailScreen({ job }: { job: Job }) {
               updateJobStatus(currentJob.id, nextStatus)
             }
           />
+
+          <JobInstalledSystemsPanel jobId={currentJob.id} />
 
           <JobNoteComposer onAddNote={(note) => addJobNote(currentJob.id, note)} />
         </div>

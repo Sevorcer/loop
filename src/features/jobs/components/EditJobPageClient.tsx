@@ -29,6 +29,8 @@ export function EditJobPageClient({ id }: { id: string }) {
       mode="edit"
       cancelHref={`/jobs/${job.id}`}
       initialValues={{
+        estimateId: job.estimateId,
+        equipmentBundleId: job.equipmentBundleId,
         title: job.title,
         customerName: job.customerName,
         propertyName: job.propertyName,
