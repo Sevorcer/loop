@@ -12,6 +12,24 @@ const pageContent: Record<string, { title: string; description: string }> = {
     title: "Dashboard",
     description: "Welcome back. Here's what's happening today.",
   },
+  // Operations
+  [ROUTES.DAILY_PLANS]: {
+    title: "Daily Plans",
+    description: "Coordinate schedules, technician priorities, and day-of execution.",
+  },
+  [ROUTES.LIVE_OPERATIONS]: {
+    title: "Live Operations",
+    description: "Monitor active jobs, crew status, and real-time field activity.",
+  },
+  [ROUTES.DISPATCH]: {
+    title: "Dispatch",
+    description: "Assign crews, schedule blocks, and coordinate same-day field deployments.",
+  },
+  // Field
+  [ROUTES.JOBS]: {
+    title: "Jobs",
+    description: "Review upcoming work, assignments, and operational progress.",
+  },
   [ROUTES.PROPERTIES]: {
     title: "Properties",
     description: "Track locations, status, and field visibility across your portfolio.",
@@ -20,27 +38,30 @@ const pageContent: Record<string, { title: string; description: string }> = {
     title: "Customers",
     description: "Manage customer relationships, service history, and account context.",
   },
-  "/vehicle-alerts": {
-    title: "Vehicle Alerts",
-    description: "Monitor fleet issues, response status, and field escalation activity.",
-  },
-  [ROUTES.JOBS]: {
-    title: "Jobs",
-    description: "Review upcoming work, assignments, and operational progress.",
-  },
   [ROUTES.INSTALLED_SYSTEMS]: {
     title: "Installed Systems",
     description:
       "Anchor permanent technical identities so permits, jobs, and service work inherit the same trusted system truth.",
   },
-  [ROUTES.DAILY_PLANS]: {
-    title: "Daily Plans",
-    description: "Coordinate schedules, technician priorities, and day-of execution.",
+  "/vehicle-alerts": {
+    title: "Vehicle Alerts",
+    description: "Monitor fleet issues, response status, and field escalation activity.",
+  },
+  // Resources
+  [ROUTES.INVENTORY]: {
+    title: "Inventory",
+    description: "Track material availability, job allocations, and warehouse readiness.",
   },
   [ROUTES.COMPANY_BRAIN]: {
     title: "Company Brain",
     description: "Search shared knowledge, procedures, and operational context.",
   },
+  // Insights
+  [ROUTES.REPORTING]: {
+    title: "Reporting",
+    description: "Interpret operational performance across time, domains, and teams.",
+  },
+  // Workspace
   [ROUTES.SETTINGS]: {
     title: "Settings",
     description: "Configure system preferences, users, and workspace behavior.",
@@ -57,20 +78,24 @@ function getPageMeta(pathname: string) {
       description: "Review account activity, notes, related jobs, and history.",
     };
   }
-
   if (pathname.startsWith("/properties/")) {
     return {
       title: "Property Details",
       description: "Inspect site information, service history, and related operational data.",
     };
   }
-
   if (pathname.startsWith(`${ROUTES.INSTALLED_SYSTEMS}/`)) {
     return {
       title: "Installed System Record",
       description:
         "Review the technical identity, catalog-backed profile, and workflow inheritance for this installed system.",
     };
+  }
+  if (pathname.startsWith(`${ROUTES.JOBS}/`)) {
+    if (pathname.endsWith("/edit")) {
+      return { title: "Edit Job", description: "Update job details, assignment, or schedule." };
+    }
+    return { title: "Job Details", description: "Review job progress, timeline, and field activity." };
   }
 
   return pageContent[ROUTES.DASHBOARD];
