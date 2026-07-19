@@ -99,7 +99,9 @@ export function deriveHeroMetrics(
     (e) => e.severity === "critical" && !e.resolved
   ).length;
 
-  const lastEvent = events.length > 0 ? events[events.length - 1] : null;
+  // Sort by timestamp to safely get the most recent event regardless of input order
+  const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const lastEvent = sorted.length > 0 ? sorted[sorted.length - 1] : null;
 
   return {
     activeCrews,
@@ -249,20 +251,9 @@ export function deriveWorkOrders(
       } else if (last.type === "crew_dispatched" || last.type === "crew_en_route") {
         milestone = "en_route";
       } else if (last.type === "milestone_advanced") {
-        // The title of milestone_advanced encodes the new milestone
-        const titleLower = last.title.toLowerCase();
-        if (titleLower.includes("working") || titleLower.includes("installation") || titleLower.includes("diagnostic")) {
-          milestone = "working";
-        } else if (titleLower.includes("quality")) {
-          milestone = "quality_check";
-        } else if (titleLower.includes("complete")) {
-          milestone = "complete";
-        } else if (titleLower.includes("arrived") || titleLower.includes("on site")) {
-          milestone = "arrived";
-        } else if (titleLower.includes("en route") || titleLower.includes("traveling")) {
-          milestone = "en_route";
-        } else {
-          milestone = "working";
+        // Use the explicit newMilestone field when available; avoids fragile title matching
+        if (last.newMilestone) {
+          milestone = last.newMilestone;
         }
       }
     }
@@ -276,6 +267,8 @@ export function deriveWorkOrders(
     return {
       ...seed,
       milestone,
+      // minutesInMilestone is stubbed for Sprint 16; real duration will come
+      // from the difference between the current timestamp and the milestone event timestamp.
       minutesInMilestone: 0,
       isBlocked: !!unresolvedBlocker,
       blockerLabel: unresolvedBlocker?.title ?? null,

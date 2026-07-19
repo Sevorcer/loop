@@ -192,6 +192,7 @@ const events: OperationalEvent[] = [
     description: "Mini-split installation underway at Capitol Hill Fitness.",
     relatedCrewId: "crew-riley-morgan",
     relatedWorkOrderId: "job-009",
+    newMilestone: "working",
   },
 
   // ---- 9:00 ---- Tina Brooks arrives ----
@@ -223,7 +224,7 @@ const events: OperationalEvent[] = [
     relatedCrewId: "crew-jordan-lee",
     relatedWorkOrderId: "job-013",
     actionRecommendation: "Contact warehouse runner for ETA update.",
-    // Resolved once nitrogen is delivered (evt-011)
+    // Resolved once nitrogen is delivered (evt-010)
     resolved: true,
   },
 
@@ -270,6 +271,7 @@ const events: OperationalEvent[] = [
     description: "Rooftop air handler maintenance underway at Southgate HOA.",
     relatedCrewId: "crew-tina-brooks",
     relatedWorkOrderId: "job-010",
+    newMilestone: "working",
   },
 
   // ---- 9:22 ---- Jordan Lee dispatched (after delay cleared) ----

@@ -41,6 +41,11 @@ export interface OperationalEvent {
   description: string;
   relatedWorkOrderId?: string;
   relatedCrewId?: string;
+  /**
+   * For `milestone_advanced` events, the explicit next milestone.
+   * Prefer this over title-string matching in derivation.
+   */
+  newMilestone?: WorkOrderMilestone;
   /** Shown in Decision Feed and Needs Attention as the suggested next step */
   actionRecommendation?: string;
   /** If true, this event surfaces in the Decision Feed */

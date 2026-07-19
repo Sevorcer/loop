@@ -8,7 +8,7 @@ interface MilestoneProgressProps {
 }
 
 export function MilestoneProgress({ workOrders }: MilestoneProgressProps) {
-  const visible = workOrders.filter((wo) => wo.assignedCrewId || wo.isBlocked);
+  const visible = workOrders.filter((wo) => wo.assignedCrewId !== "" || wo.isBlocked);
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">

@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock, MapPin, Truck } from "lucide-react";
 
 import type { LiveCrewCard, WorkOrderMilestone } from "../types/liveOps";
-import { MILESTONE_LABELS } from "../types/liveOps";
+import { MILESTONE_LABELS, MILESTONE_ORDER } from "../types/liveOps";
 
 interface ActiveCrewBoardProps {
   crews: LiveCrewCard[];
@@ -49,11 +49,8 @@ const stateConfig: Record<
 };
 
 function milestoneProgress(milestone: WorkOrderMilestone): number {
-  const order: WorkOrderMilestone[] = [
-    "assigned", "en_route", "arrived", "working", "quality_check", "complete",
-  ];
-  const idx = order.indexOf(milestone);
-  return idx < 0 ? 0 : Math.round((idx / (order.length - 1)) * 100);
+  const idx = MILESTONE_ORDER.indexOf(milestone);
+  return idx < 0 ? 0 : Math.round((idx / (MILESTONE_ORDER.length - 1)) * 100);
 }
 
 export function ActiveCrewBoard({ crews }: ActiveCrewBoardProps) {

@@ -11,6 +11,9 @@ import {
 
 import type { OperationalEvent, OperationalEventType } from "../types/liveOps";
 
+/** Maximum number of events shown in the timeline. Keeps the display focused. */
+const MAX_TIMELINE_EVENTS = 12;
+
 interface OperationalTimelineProps {
   events: OperationalEvent[];
 }
@@ -44,7 +47,7 @@ const severityConnector: Record<OperationalEvent["severity"], string> = {
 
 export function OperationalTimeline({ events }: OperationalTimelineProps) {
   // Reverse for newest-first display
-  const displayed = [...events].reverse().slice(0, 12);
+  const displayed = [...events].reverse().slice(0, MAX_TIMELINE_EVENTS);
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
