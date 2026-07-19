@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
-import { mockProperties } from "../data/mockProperties";
+import { useProperties } from "../state/PropertiesProvider";
 import type { Property } from "../types/property";
 import { propertyColumns } from "./PropertyColumns";
 import { PropertyToolbar } from "./PropertyToolbar";
@@ -15,6 +15,7 @@ const ALL_FILTER_VALUE = "all";
 
 export function PropertyTable() {
   const router = useRouter();
+  const { hydrated, properties } = useProperties();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
@@ -31,13 +32,13 @@ export function PropertyTable() {
   }, []);
 
   const cityOptions = useMemo(() => {
-    return Array.from(new Set(mockProperties.map((property) => property.city))).sort();
-  }, []);
+    return Array.from(new Set(properties.map((property) => property.city))).sort();
+  }, [properties]);
 
   const filteredProperties = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return mockProperties.filter((property) => {
+    return properties.filter((property) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         property.name.toLowerCase().includes(normalizedSearch) ||
@@ -57,7 +58,7 @@ export function PropertyTable() {
 
       return matchesSearch && matchesStatus && matchesType && matchesCity;
     });
-  }, [cityFilter, searchValue, statusFilter, typeFilter]);
+  }, [cityFilter, properties, searchValue, statusFilter, typeFilter]);
 
   const hasActiveFilters =
     searchValue.trim().length > 0 ||
@@ -76,7 +77,7 @@ export function PropertyTable() {
     router.push(`/properties/${property.id}`);
   }
 
-  if (isLoading) {
+  if (!hydrated || isLoading) {
     return (
       <div className="space-y-4">
         <PropertyToolbar
