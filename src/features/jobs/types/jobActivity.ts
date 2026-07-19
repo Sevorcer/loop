@@ -1,5 +1,6 @@
 export type JobActivityType =
   | "created"
+  | "edited"
   | "scheduled"
   | "assigned"
   | "status"

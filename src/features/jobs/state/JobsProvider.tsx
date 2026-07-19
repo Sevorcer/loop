@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -13,7 +14,11 @@ import { mockJobActivity } from "../data/mockJobActivity";
 import { mockJobs } from "../data/mockJobs";
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
-import type { CreateJobInput, JobsStoreValue } from "../types/jobStore";
+import type {
+  CreateJobInput,
+  JobsStoreValue,
+  UpdateJobInput,
+} from "../types/jobStore";
 
 interface JobsContextValue extends JobsStoreValue {
   hydrated: boolean;
@@ -23,6 +28,10 @@ const JobsContext = createContext<JobsContextValue | null>(null);
 
 const JOBS_STORAGE_KEY = "loop.jobs.items";
 const JOB_ACTIVITY_STORAGE_KEY = "loop.jobs.activity";
+const subscribeToHydration = (onStoreChange: () => void) => {
+  void onStoreChange;
+  return () => {};
+};
 
 function createJobNumber(index: number) {
   return `JOB-${1000 + index}`;
@@ -45,25 +54,31 @@ function parseStoredValue<T>(value: string | null, fallback: T): T {
 }
 
 export function JobsProvider({ children }: { children: ReactNode }) {
-  const [jobs, setJobs] = useState<Job[]>(mockJobs);
-  const [activity, setActivity] = useState<JobActivity[]>(mockJobActivity);
-  const [hydrated, setHydrated] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>(() => {
+    if (typeof window === "undefined") {
+      return mockJobs;
+    }
 
-  useEffect(() => {
-    const storedJobs = parseStoredValue<Job[]>(
+    return parseStoredValue<Job[]>(
       window.localStorage.getItem(JOBS_STORAGE_KEY),
       mockJobs
     );
+  });
+  const [activity, setActivity] = useState<JobActivity[]>(() => {
+    if (typeof window === "undefined") {
+      return mockJobActivity;
+    }
 
-    const storedActivity = parseStoredValue<JobActivity[]>(
+    return parseStoredValue<JobActivity[]>(
       window.localStorage.getItem(JOB_ACTIVITY_STORAGE_KEY),
       mockJobActivity
     );
-
-    setJobs(storedJobs);
-    setActivity(storedActivity);
-    setHydrated(true);
-  }, []);
+  });
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false
+  );
 
   useEffect(() => {
     if (!hydrated) {
@@ -158,6 +173,76 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       return newJob;
     }
 
+    function updateJob(jobId: string, input: UpdateJobInput) {
+      const existingJob = jobs.find((job) => job.id === jobId);
+
+      if (!existingJob) {
+        return undefined;
+      }
+
+      const updatedJob: Job = {
+        ...existingJob,
+        title: input.title,
+        customerName: input.customerName,
+        propertyName: input.propertyName,
+        assignedTo: input.assignedTo,
+        scheduledFor: input.scheduledFor,
+        type: input.type,
+        priority: input.priority,
+        location: input.location,
+        summary: input.summary,
+        notes: input.notes,
+      };
+
+      const changedFields: string[] = [];
+
+      if (existingJob.title !== updatedJob.title) changedFields.push("title");
+      if (existingJob.customerName !== updatedJob.customerName) {
+        changedFields.push("customer");
+      }
+      if (existingJob.propertyName !== updatedJob.propertyName) {
+        changedFields.push("property");
+      }
+      if (existingJob.assignedTo !== updatedJob.assignedTo) {
+        changedFields.push("assignee");
+      }
+      if (existingJob.scheduledFor !== updatedJob.scheduledFor) {
+        changedFields.push("schedule");
+      }
+      if (existingJob.type !== updatedJob.type) changedFields.push("type");
+      if (existingJob.priority !== updatedJob.priority) {
+        changedFields.push("priority");
+      }
+      if (existingJob.location !== updatedJob.location) {
+        changedFields.push("location");
+      }
+      if (existingJob.summary !== updatedJob.summary) {
+        changedFields.push("summary");
+      }
+      if (existingJob.notes !== updatedJob.notes) changedFields.push("notes");
+
+      if (changedFields.length === 0) {
+        return existingJob;
+      }
+
+      setJobs((current) =>
+        current.map((job) => (job.id === jobId ? updatedJob : job))
+      );
+
+      const editActivity: JobActivity = {
+        id: `activity-edit-${jobId}-${Date.now()}`,
+        jobId,
+        type: "edited",
+        title: "Job updated",
+        description: `Updated fields: ${changedFields.join(", ")}.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      setActivity((current) => [editActivity, ...current]);
+
+      return updatedJob;
+    }
+
     function updateJobStatus(jobId: string, status: JobStatus) {
       setJobs((current) =>
         current.map((job) => (job.id === jobId ? { ...job, status } : job))
@@ -205,6 +290,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       getJobById,
       getActivityByJobId,
       createJob,
+      updateJob,
       updateJobStatus,
       addJobNote,
     };
