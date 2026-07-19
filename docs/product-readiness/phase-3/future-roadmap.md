@@ -1,7 +1,7 @@
 # Future Roadmap
 
-| idea | related domain | why it matters | dependency/precondition | suggested timing bucket |
-|---|---|---|---|---|
+| idea | related domain | why it matters | dependency/precondition | suggested timing bucket
+|---|---|---|---|---
 | Replace dead dashboard quick actions with real workflow launch points and route-aware tiles. | Dashboard / Platform UX | The dashboard should drive action, not just display intent. | Decide which actions truly belong on the dashboard and confirm their destination flows. | Now (0–2 weeks) |
 | Add property creation flow or remove the CTA until the write path exists. | Properties | Property onboarding is a fundamental workflow for a field-operations platform. | Property write model, validation rules, and destination route/modal. | Now (0–2 weeks) |
 | Add customer creation flow or remove the CTA until the write path exists. | Customers | Customer acquisition and account setup need a complete first-step workflow. | Customer write model, validation rules, and destination route/modal. | Now (0–2 weeks) |

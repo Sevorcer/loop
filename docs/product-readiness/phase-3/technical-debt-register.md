@@ -1,7 +1,7 @@
 # Technical Debt Register
 
-| issue | affected route(s)/domain | user impact | technical impact | severity | recommended follow-up | suggested owner (team area, not person) | dependency/blocker links (if any) |
-|---|---|---|---|---|---|---|---|
+| issue | affected route(s)/domain | user impact | technical impact | severity | recommended follow-up | suggested owner (team area, not person) | dependency/blocker links (if any)
+|---|---|---|---|---|---|---|---
 | Dashboard quick actions render as dead buttons with no navigation or workflow behind them. | `/dashboard` | Users are invited to start core workflows, but the primary shortcuts do nothing and create an immediate trust break. | CTA layer is disconnected from route architecture and hides missing flows behind polished UI. | P1 | Either wire each action to an existing route/workflow or remove the action until the destination exists. | Platform UX + Field Workflows | Depends on create/report flows for Jobs, Properties, Daily Plans, and Company Brain entry actions. |
 | Dashboard health, activity, and greeting are hardcoded instead of reflecting operational state. | `/dashboard` | The home screen can show a “healthy” day and stale activity even when job, dispatch, or daily-plan state changes elsewhere. | Creates data-trust drift between dashboard summary and domain sources. | P1 | Rebuild dashboard summary from shared domain state or clearly relabel it as preview/demo content. | Platform Data + Operations Insights | Linked to shared state strategy across Jobs, Daily Plans, Dispatch, Inventory, and Reporting. |
 | New Property CTA is a dead end. | `/properties` | Users can discover the add-property action but cannot complete it. | Route contract suggests a create flow that does not exist. | P1 | Add a real property-creation workflow or remove the button until the flow ships. | CRM / Properties | Likely depends on customer/property write model and route addition such as `/properties/new`. |
