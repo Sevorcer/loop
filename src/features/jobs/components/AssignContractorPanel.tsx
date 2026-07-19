@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { HardHat, UserMinus, UserPlus } from "lucide-react";
+import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 import { useContractors } from "@/features/contractors/state/ContractorsProvider";
 
 import { useJobs } from "../state/JobsProvider";
@@ -146,9 +148,12 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
         ) : (
           <p className="mt-4 text-xs text-slate-500">
             No contractors available.{" "}
-            <a href="/contractors/new" className="text-blue-400 hover:underline">
+            <Link
+              href={`${ROUTES.CONTRACTORS}/new`}
+              className="text-blue-400 hover:underline"
+            >
               Add one
-            </a>
+            </Link>
             .
           </p>
         )}

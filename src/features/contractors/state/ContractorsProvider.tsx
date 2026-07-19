@@ -29,6 +29,10 @@ interface ContractorsContextValue {
 
 const CONTRACTORS_STORAGE_KEY = "loop.contractors.items";
 
+// This no-op subscription satisfies useSyncExternalStore's API.
+// The hydration signal is derived from the server/client boundary:
+// the server snapshot always returns false and the client snapshot
+// always returns true, so no external subscription is needed.
 const subscribeToHydration = (onStoreChange: () => void) => {
   void onStoreChange;
   return () => {};
