@@ -37,10 +37,9 @@ export function InstalledSystemsProvider({
   children: ReactNode;
 }) {
   const { jobs } = useJobs();
+  const snapshot = useMemo(() => buildInstalledSystemsSnapshot(jobs), [jobs]);
 
   const value = useMemo<InstalledSystemsContextValue>(() => {
-    const snapshot = buildInstalledSystemsSnapshot(jobs);
-
     function getInstalledSystemById(id: string) {
       return snapshot.installedSystems.find((system) => system.id === id);
     }
@@ -68,7 +67,7 @@ export function InstalledSystemsProvider({
       getTechnicalProfileById,
       getCatalogEntryById,
     };
-  }, [jobs]);
+  }, [snapshot]);
 
   return (
     <InstalledSystemsContext.Provider value={value}>

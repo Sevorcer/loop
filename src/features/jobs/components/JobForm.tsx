@@ -101,7 +101,7 @@ export function JobForm({
   }
 
   function applyEstimateBundle(bundleId: string) {
-    if (bundleId.length === 0) {
+    if (!bundleId) {
       setForm((current) => ({
         ...current,
         estimateId: "",
