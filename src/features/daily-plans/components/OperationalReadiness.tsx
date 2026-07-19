@@ -1,114 +1,45 @@
 import {
   AlertTriangle,
   CheckCircle2,
-  Circle,
   Gauge,
-  UserX,
-  XCircle,
+  ShieldAlert,
+  Truck,
+  UserRound,
 } from "lucide-react";
 
-import type { Job } from "@/features/jobs/types/job";
-
-import { computeReadiness, getReadinessStatus } from "../utils/planUtils";
-
-interface ReadinessFlag {
-  label: string;
-  detail: string;
-  status: "ok" | "warn" | "error";
-  icon: React.ReactNode;
-}
-
-function buildFlags(jobs: Job[]): ReadinessFlag[] {
-  const flags: ReadinessFlag[] = [];
-  const unassigned = jobs.filter((j) => !j.assignedTo.trim());
-  const onHold = jobs.filter((j) => j.status === "On Hold");
-  const cancelled = jobs.filter((j) => j.status === "Cancelled");
-  const highPriorityUnready = jobs.filter(
-    (j) =>
-      j.priority === "High" &&
-      j.status !== "In Progress" &&
-      j.status !== "Completed" &&
-      j.status !== "Cancelled"
-  );
-
-  if (unassigned.length === 0) {
-    flags.push({
-      label: "All jobs assigned",
-      detail: "No unassigned work remaining",
-      status: "ok",
-      icon: <CheckCircle2 className="h-4 w-4 text-green-400" />,
-    });
-  } else {
-    flags.push({
-      label: `${unassigned.length} unassigned ${unassigned.length === 1 ? "job" : "jobs"}`,
-      detail: "Crew assignment required before execution",
-      status: "error",
-      icon: <UserX className="h-4 w-4 text-red-400" />,
-    });
-  }
-
-  if (onHold.length === 0) {
-    flags.push({
-      label: "No jobs on hold",
-      detail: "All active work is moving forward",
-      status: "ok",
-      icon: <CheckCircle2 className="h-4 w-4 text-green-400" />,
-    });
-  } else {
-    flags.push({
-      label: `${onHold.length} ${onHold.length === 1 ? "job" : "jobs"} on hold`,
-      detail: "Blocked — waiting on resolution before proceeding",
-      status: "warn",
-      icon: <AlertTriangle className="h-4 w-4 text-yellow-400" />,
-    });
-  }
-
-  if (highPriorityUnready.length > 0) {
-    flags.push({
-      label: `${highPriorityUnready.length} high-priority ${highPriorityUnready.length === 1 ? "job" : "jobs"} need action`,
-      detail: "Confirm crew, access, and readiness before dispatch",
-      status: "warn",
-      icon: <AlertTriangle className="h-4 w-4 text-yellow-400" />,
-    });
-  }
-
-  if (cancelled.length > 0) {
-    flags.push({
-      label: `${cancelled.length} ${cancelled.length === 1 ? "job" : "jobs"} cancelled`,
-      detail: "Review and remove from active schedule if needed",
-      status: "warn",
-      icon: <XCircle className="h-4 w-4 text-slate-400" />,
-    });
-  }
-
-  if (jobs.length === 0) {
-    flags.push({
-      label: "No jobs scheduled",
-      detail: "The day is clear — no active work planned",
-      status: "ok",
-      icon: <Circle className="h-4 w-4 text-slate-400" />,
-    });
-  }
-
-  return flags;
-}
+import type { CrewWorkload, MorningAlert, PlannedJob } from "../types/dailyPlan";
+import { getReadinessStatus } from "../utils/planUtils";
 
 interface OperationalReadinessProps {
-  jobs: Job[];
+  plannedJobs: PlannedJob[];
+  crewWorkloads: CrewWorkload[];
+  alerts: MorningAlert[];
+  readinessScore: number;
 }
 
-export function OperationalReadiness({ jobs }: OperationalReadinessProps) {
-  const metrics = computeReadiness(jobs);
-  const status = getReadinessStatus(metrics.readinessScore);
-
-  const flags = buildFlags(jobs);
-
+export function OperationalReadiness({
+  plannedJobs,
+  crewWorkloads,
+  alerts,
+  readinessScore,
+}: OperationalReadinessProps) {
+  const status = getReadinessStatus(readinessScore);
   const scoreBarColor =
-    metrics.readinessScore >= 85
+    readinessScore >= 85
       ? "bg-green-500"
-      : metrics.readinessScore >= 60
+      : readinessScore >= 60
         ? "bg-yellow-500"
         : "bg-red-500";
+
+  const readyJobs = plannedJobs.filter((job) => job.readiness.state === "ready").length;
+  const warningJobs = plannedJobs.filter((job) => job.readiness.state === "warning").length;
+  const blockedJobs = plannedJobs.filter((job) => job.readiness.state === "blocked").length;
+  const truckReadyCount = crewWorkloads.filter(
+    (workload) => workload.crew.truckInService && workload.crew.truckChecks.every((check) => check.ready)
+  ).length;
+  const constrainedCrews = crewWorkloads.filter(
+    (workload) => workload.crew.availability !== "available"
+  );
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
@@ -119,17 +50,15 @@ export function OperationalReadiness({ jobs }: OperationalReadinessProps) {
 
         <div>
           <p className="text-sm font-semibold text-white">Operational Readiness</p>
-          <p className="text-xs text-slate-400">Day execution status</p>
+          <p className="text-xs text-slate-400">Blockers, materials, truck, and crew launch risk</p>
         </div>
       </div>
 
       <div className="mb-5">
-        <div className="mb-2 flex items-end justify-between">
-          <span className={["text-lg font-bold", status.color].join(" ")}>
-            {status.label}
-          </span>
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <span className={["text-lg font-bold", status.color].join(" ")}>{status.label}</span>
           <span className="text-sm font-semibold text-white">
-            {metrics.readinessScore}
+            {readinessScore}
             <span className="text-xs font-normal text-slate-400">/100</span>
           </span>
         </div>
@@ -137,32 +66,120 @@ export function OperationalReadiness({ jobs }: OperationalReadinessProps) {
         <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
           <div
             className={["h-full rounded-full transition-all duration-500", scoreBarColor].join(" ")}
-            style={{ width: `${metrics.readinessScore}%` }}
+            style={{ width: `${readinessScore}%` }}
           />
         </div>
       </div>
 
-      <div className="space-y-3">
-        {flags.map((flag, index) => (
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Job states</p>
+          <dl className="mt-3 space-y-2 text-sm text-slate-300">
+            <div className="flex items-center justify-between">
+              <dt>Ready</dt>
+              <dd>{readyJobs}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Warnings</dt>
+              <dd>{warningJobs}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Blocked</dt>
+              <dd>{blockedJobs}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Launch checks</p>
+          <dl className="mt-3 space-y-2 text-sm text-slate-300">
+            <div className="flex items-center justify-between">
+              <dt>Truck ready</dt>
+              <dd>
+                {truckReadyCount}/{crewWorkloads.length}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Active alerts</dt>
+              <dd>{alerts.length}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Crew constraints</dt>
+              <dd>{constrainedCrews.length}</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {alerts.slice(0, 3).map((alert) => (
           <div
-            key={index}
+            key={alert.id}
             className={[
               "flex items-start gap-3 rounded-xl p-3",
-              flag.status === "error"
+              alert.severity === "critical"
                 ? "border border-red-500/15 bg-red-500/[0.06]"
-                : flag.status === "warn"
+                : alert.severity === "warning"
                   ? "border border-yellow-500/15 bg-yellow-500/[0.04]"
                   : "border border-white/5 bg-white/[0.02]",
             ].join(" ")}
           >
-            <div className="mt-0.5 shrink-0">{flag.icon}</div>
+            <div className="mt-0.5 shrink-0">
+              {alert.severity === "critical" ? (
+                <ShieldAlert className="h-4 w-4 text-red-400" />
+              ) : alert.severity === "warning" ? (
+                <AlertTriangle className="h-4 w-4 text-yellow-400" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-slate-300" />
+              )}
+            </div>
 
             <div>
-              <p className="text-xs font-semibold text-slate-200">{flag.label}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{flag.detail}</p>
+              <p className="text-xs font-semibold text-slate-200">{alert.title}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{alert.detail}</p>
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-5 border-t border-white/10 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Crew availability
+        </p>
+        <div className="mt-3 space-y-2">
+          {crewWorkloads.map((workload) => (
+            <div
+              key={workload.crew.id}
+              className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+            >
+              <div className="flex items-center gap-2">
+                {workload.crew.truckInService ? (
+                  <Truck className="h-3.5 w-3.5 text-sky-300" />
+                ) : (
+                  <Truck className="h-3.5 w-3.5 text-red-300" />
+                )}
+                <div>
+                  <p className="text-xs font-semibold text-white">{workload.crew.leadInstaller}</p>
+                  <p className="text-[11px] text-slate-500">{workload.crew.truckName}</p>
+                </div>
+              </div>
+
+              <span
+                className={[
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize",
+                  workload.crew.availability === "available"
+                    ? "border-green-500/20 bg-green-500/10 text-green-300"
+                    : workload.crew.availability === "late arrival" || workload.crew.availability === "half day"
+                      ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-300"
+                      : "border-red-500/20 bg-red-500/10 text-red-300",
+                ].join(" ")}
+              >
+                <UserRound className="h-3 w-3" />
+                {workload.crew.availability}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
