@@ -25,4 +25,5 @@ export interface Job {
   summary: string;
   location: string;
   notes: string;
+  contractorIds?: string[];
 }

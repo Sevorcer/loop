@@ -19,6 +19,7 @@ import type {
   JobsStoreValue,
   UpdateJobInput,
 } from "../types/jobStore";
+import { applyAssignment, removeAssignment, validateAssignment } from "../utils/assignmentUtils";
 
 interface JobsContextValue extends JobsStoreValue {
   hydrated: boolean;
@@ -294,6 +295,70 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       setActivity((current) => [noteActivity, ...current]);
     }
 
+    function assignContractor(
+      jobId: string,
+      contractorId: string
+    ): { ok: true } | { ok: false; error: string } {
+      const job = jobs.find((j) => j.id === jobId);
+
+      if (!job) {
+        return { ok: false, error: "Job not found." };
+      }
+
+      const validation = validateAssignment(job, contractorId);
+
+      if (!validation.valid) {
+        return { ok: false, error: validation.error };
+      }
+
+      const updated = applyAssignment(job, contractorId);
+
+      setJobs((current) =>
+        current.map((j) => (j.id === jobId ? updated : j))
+      );
+
+      const assignActivity: JobActivity = {
+        id: `activity-contractor-${jobId}-${Date.now()}`,
+        jobId,
+        type: "assigned",
+        title: "Contractor assigned",
+        description: `Contractor ${contractorId} assigned to this job.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      setActivity((current) => [assignActivity, ...current]);
+
+      return { ok: true };
+    }
+
+    function removeContractorAssignment(
+      jobId: string,
+      contractorId: string
+    ): void {
+      const job = jobs.find((j) => j.id === jobId);
+
+      if (!job) {
+        return;
+      }
+
+      const updated = removeAssignment(job, contractorId);
+
+      setJobs((current) =>
+        current.map((j) => (j.id === jobId ? updated : j))
+      );
+
+      const removeActivity: JobActivity = {
+        id: `activity-contractor-remove-${jobId}-${Date.now()}`,
+        jobId,
+        type: "edited",
+        title: "Contractor removed",
+        description: `Contractor ${contractorId} removed from this job.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      setActivity((current) => [removeActivity, ...current]);
+    }
+
     return {
       hydrated,
       jobs,
@@ -303,6 +368,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       updateJob,
       updateJobStatus,
       addJobNote,
+      assignContractor,
+      removeContractorAssignment,
     };
   }, [activity, hydrated, jobs]);
 
