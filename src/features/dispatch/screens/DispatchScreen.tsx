@@ -63,21 +63,21 @@ export function DispatchScreen() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* ── Hero ── */}
       <SurfaceCard className="overflow-hidden">
-        <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-200">
+        <div className="flex flex-col gap-3 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2 sm:space-y-3">
+            <div className="hidden items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-200 sm:inline-flex">
               <Send className="h-3.5 w-3.5" />
               Dispatch · Coordination
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
+              <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
                 Dispatch Planning
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-slate-400 sm:block">
                 Dispatch coordinates the right crew, at the right time, with the
                 right work, using the right materials. A job becomes
                 dispatchable only when all four readiness conditions are true:{" "}
@@ -88,7 +88,7 @@ export function DispatchScreen() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={CheckCircle2}
               value={String(metrics.readyToSchedule)}
@@ -123,12 +123,12 @@ export function DispatchScreen() {
 
       {/* ── Architecture Note ── */}
       <SurfaceCard>
-        <div className="grid gap-6 p-4 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-base font-semibold text-white sm:text-lg">
               Dispatch Plan is the aggregate root
             </h3>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-1.5 hidden text-sm leading-6 text-slate-400 sm:block">
               Dispatch does not own jobs, materials, or installed systems — it
               coordinates them. A Dispatch Plan is the single source of
               scheduling truth. Crew Assignments, Schedule Blocks, and Dispatch
@@ -137,7 +137,7 @@ export function DispatchScreen() {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
             <ol className="space-y-2 text-sm text-slate-300">
               <li>1. Estimate accepted → job created</li>
               <li>2. Material + Technical + Customer readiness confirmed</li>

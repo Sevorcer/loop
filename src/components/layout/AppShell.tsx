@@ -28,7 +28,7 @@ export default function AppShell({ children }: AppShellProps) {
   }, [isMobileNavOpen]);
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-dvh bg-slate-950 text-slate-100">
       <div className="hidden h-screen w-64 shrink-0 lg:block">
         <Sidebar />
       </div>
@@ -44,15 +44,15 @@ export default function AppShell({ children }: AppShellProps) {
 
       <div
         className={[
-          "fixed inset-y-0 left-0 z-50 w-[min(20rem,calc(100vw-1.5rem))] max-w-full transition-transform duration-200 lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 lg:hidden safe-area-drawer",
           isMobileNavOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
         <Sidebar id="mobile-navigation" onNavigate={() => setIsMobileNavOpen(false)} />
       </div>
 
-      <div className="relative flex min-h-screen min-w-0 flex-1 flex-col overflow-hidden bg-slate-950">
-        <div className="pointer-events-none absolute inset-0">
+      <div className="relative flex min-h-dvh min-w-0 flex-1 flex-col overflow-x-hidden bg-slate-950">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute left-[-120px] top-[-120px] h-72 w-72 rounded-full bg-red-600/10 blur-3xl" />
           <div className="absolute right-[-140px] top-[120px] h-80 w-80 rounded-full bg-blue-600/10 blur-3xl" />
           <div className="absolute bottom-[-160px] left-[25%] h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
@@ -63,8 +63,8 @@ export default function AppShell({ children }: AppShellProps) {
           onMenuToggle={() => setIsMobileNavOpen((open) => !open)}
         />
 
-        <main className="relative z-10 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+        <main className="relative z-10 flex-1">
+          <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8 safe-area-content">
             {children}
           </div>
         </main>

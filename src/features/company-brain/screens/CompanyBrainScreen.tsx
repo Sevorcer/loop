@@ -70,21 +70,21 @@ export function CompanyBrainScreen() {
   const isSearchActive = searchText.trim().length > 0 || typeFilter !== "all";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* ── Hero ── */}
       <SurfaceCard className="overflow-hidden">
-        <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-200">
+        <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2 sm:space-y-3">
+            <div className="hidden items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-200 sm:inline-flex">
               <Brain className="h-3.5 w-3.5" />
               Company Brain · Organizational Knowledge
             </div>
 
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-white">
+              <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
                 Company Brain
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-slate-400 sm:block">
                 Every lesson learned by the company becomes reusable operational
                 knowledge. Company Brain captures knowledge once and makes it
                 available everywhere — on jobs, in dispatch, on installed
@@ -127,14 +127,14 @@ export function CompanyBrainScreen() {
 
       {/* ── Search ── */}
       <SurfaceCard>
-        <div className="p-6">
-          <div className="mb-4 flex items-center gap-2">
+        <div className="p-4 sm:p-6">
+          <div className="mb-3 flex items-center gap-2 sm:mb-4">
             <Sparkles className="h-4 w-4 text-violet-400" />
             <p className="text-sm font-semibold text-white">
               Search Organizational Knowledge
             </p>
           </div>
-          <p className="mb-4 text-xs text-slate-500">
+          <p className="mb-3 hidden text-xs text-slate-500 sm:mb-4 sm:block">
             Ask an operational question — not a file path. Try:{" "}
             <span className="text-slate-400">
               &ldquo;mini-split startup&rdquo;, &ldquo;breaker sizing&rdquo;, &ldquo;hrv commissioning&rdquo;,{" "}
@@ -243,14 +243,14 @@ export function CompanyBrainScreen() {
 
       {/* ── Lifecycle Overview ── */}
       <SurfaceCard>
-        <div className="p-6">
-          <div className="mb-5 flex items-center gap-2">
+        <div className="p-4 sm:p-6">
+          <div className="mb-4 flex items-center gap-2 sm:mb-5">
             <Zap className="h-4 w-4 text-amber-400" />
             <p className="text-sm font-semibold text-white">
               Knowledge Lifecycle
             </p>
           </div>
-          <p className="mb-5 text-xs text-slate-500">
+          <p className="mb-4 hidden text-xs text-slate-500 sm:mb-5 sm:block">
             Knowledge evolves over time as the company learns. It does not
             become static forever.
           </p>
@@ -330,14 +330,14 @@ export function CompanyBrainScreen() {
 
       {/* ── Domain Coverage ── */}
       <SurfaceCard>
-        <div className="p-6">
-          <div className="mb-5 flex items-center gap-2">
+        <div className="p-4 sm:p-6">
+          <div className="mb-4 flex items-center gap-2 sm:mb-5">
             <Link2 className="h-4 w-4 text-cyan-400" />
             <p className="text-sm font-semibold text-white">
               Domain Coverage
             </p>
           </div>
-          <p className="mb-5 text-xs text-slate-500">
+          <p className="mb-4 hidden text-xs text-slate-500 sm:mb-5 sm:block">
             Company Brain references operational domains without duplicating
             their data. Knowledge connects to work where it matters.
           </p>
@@ -419,14 +419,14 @@ export function CompanyBrainScreen() {
       {/* ── Recent Activity ── */}
       {recentUsage.length > 0 && (
         <SurfaceCard>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-emerald-400" />
               <p className="text-sm font-semibold text-white">
                 Recent Knowledge Activity
               </p>
             </div>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 hidden text-xs text-slate-500 sm:block">
               Tracks how knowledge is being used across operations —
               not for analytics, but to understand whether knowledge is helping.
             </p>
@@ -480,7 +480,7 @@ export function CompanyBrainScreen() {
 
       {/* ── Architecture Note ── */}
       <SurfaceCard>
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <FileText className="h-4 w-4 text-slate-400" />
             <p className="text-sm font-semibold text-white">
@@ -557,7 +557,7 @@ function KnowledgeDetailPanel({
 }) {
   return (
     <SurfaceCard className="border border-violet-500/20">
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Header */}
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="min-w-0">
