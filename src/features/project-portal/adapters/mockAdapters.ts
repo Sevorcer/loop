@@ -14,19 +14,16 @@ import {
 import type { PortalEventEnvelope } from "../types/events";
 import type {
   ChangeOrdersAdapter,
-  ChangeOrdersProjectionRecord,
   DailyPlansAdapter,
   DailyPlansProjectionRecord,
   DispatchAdapter,
   DispatchProjectionRecord,
   DocumentsAdapter,
-  DocumentsProjectionRecord,
   InstalledSystemsAdapter,
   InstalledSystemsProjectionRecord,
   JobsAdapter,
   JobsProjectionRecord,
   PhotosAdapter,
-  PhotosProjectionRecord,
   PortalUpstreamAdapters,
   ReportingAdapter,
   ReportingProjectionRecord,
@@ -286,7 +283,7 @@ const installedSystemsAdapter: InstalledSystemsAdapter = {
       })),
     ];
   },
-  async fetchEvents(projectId) {
+  async fetchEvents() {
     return [];
   },
 };
