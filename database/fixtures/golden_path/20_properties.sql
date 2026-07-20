@@ -1,0 +1,57 @@
+INSERT INTO properties (
+  id,
+  org_id,
+  customer_id,
+  name,
+  address,
+  city,
+  type,
+  status,
+  primary_system,
+  open_jobs,
+  last_visit,
+  latitude,
+  longitude,
+  formatted_address,
+  place_id,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    '00000000-0000-4101-8000-000000000003',
+    '00000000-0000-4000-8000-000000000001',
+    '00000000-0000-4001-8000-000000000003',
+    'Riverstone Condos',
+    '1 Microsoft Way',
+    'Redmond',
+    'Multi-Family',
+    'Active',
+    'LG Multi V',
+    1,
+    '2026-07-20',
+    47.6740,
+    -122.1215,
+    '1 Microsoft Way, Redmond',
+    'seed-place-riverstone',
+    '2026-01-07T09:00:00Z',
+    '2026-07-20T09:00:00Z'
+  )
+ON CONFLICT (id) DO UPDATE
+SET
+  org_id = EXCLUDED.org_id,
+  customer_id = EXCLUDED.customer_id,
+  name = EXCLUDED.name,
+  address = EXCLUDED.address,
+  city = EXCLUDED.city,
+  type = EXCLUDED.type,
+  status = EXCLUDED.status,
+  primary_system = EXCLUDED.primary_system,
+  open_jobs = EXCLUDED.open_jobs,
+  last_visit = EXCLUDED.last_visit,
+  latitude = EXCLUDED.latitude,
+  longitude = EXCLUDED.longitude,
+  formatted_address = EXCLUDED.formatted_address,
+  place_id = EXCLUDED.place_id,
+  created_at = EXCLUDED.created_at,
+  updated_at = EXCLUDED.updated_at;

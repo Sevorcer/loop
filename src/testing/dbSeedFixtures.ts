@@ -1,0 +1,28 @@
+export const DB_SEED_FIXTURE_IDS = {
+  org: "00000000-0000-4000-8000-000000000001",
+  customers: {
+    smith: "00000000-0000-4001-8000-000000000001",
+    evergreen: "00000000-0000-4001-8000-000000000002",
+    goldenRiverstone: "00000000-0000-4001-8000-000000000003",
+  },
+  properties: {
+    smithResidence: "00000000-0000-4101-8000-000000000001",
+    evergreenDental: "00000000-0000-4101-8000-000000000002",
+    goldenRiverstoneCondos: "00000000-0000-4101-8000-000000000003",
+  },
+  jobs: {
+    smithInstall: "00000000-0000-4201-8000-000000000001",
+    evergreenService: "00000000-0000-4201-8000-000000000002",
+    goldenInstallHandoff: "00000000-0000-4201-8000-000000000003",
+  },
+  jobActivity: {
+    baselineDispatchPlan: "00000000-0000-4301-8000-000000000001",
+    baselineCrewAssigned: "00000000-0000-4301-8000-000000000002",
+    baselineDocumentUploaded: "00000000-0000-4302-8000-000000000001",
+    baselineManualLinked: "00000000-0000-4302-8000-000000000002",
+    goldenDispatchPlan: "00000000-0000-4301-8000-000000000003",
+    goldenCrewDispatched: "00000000-0000-4301-8000-000000000004",
+    goldenDocumentUploaded: "00000000-0000-4302-8000-000000000003",
+    goldenManualLinked: "00000000-0000-4302-8000-000000000004",
+  },
+} as const;
