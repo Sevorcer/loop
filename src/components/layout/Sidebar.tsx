@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -28,12 +29,17 @@ import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 import { UserDisplay } from "@/features/auth/components/UserDisplay";
 
+/**
+ * Avoid permanent "blank sidebar" when role/session resolution is slow:
+ * - Show skeleton briefly while loading.
+ * - Then fall back to a conservative role so navigation still renders.
+ */
+const LOADING_FALLBACK_MS = 1500;
+
 const navGroups: NavGroup[] = [
   {
     label: "Overview",
-    items: [
-      { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
-    ],
+    items: [{ name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard }],
   },
   {
     label: "Operations",
@@ -63,21 +69,15 @@ const navGroups: NavGroup[] = [
   },
   {
     label: "Insights",
-    items: [
-      { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
-    ],
+    items: [{ name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 }],
   },
   {
     label: "External",
-    items: [
-      { name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: Globe },
-    ],
+    items: [{ name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: Globe }],
   },
   {
     label: "Workspace",
-    items: [
-      { name: "Settings", href: ROUTES.SETTINGS, icon: Settings },
-    ],
+    items: [{ name: "Settings", href: ROUTES.SETTINGS, icon: Settings }],
   },
 ];
 
@@ -94,7 +94,28 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { role, loading } = useSession();
 
-  const visibleGroups = getNavItemsForRole(role, navGroups);
+  // If loading takes too long, stop blocking nav render.
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingTimedOut(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setLoadingTimedOut(true);
+    }, LOADING_FALLBACK_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  // Infer role type directly from useSession() so we don't need to import AppRole.
+  // Use conservative fallback role string expected by your current role union.
+  const resolvedRole: NonNullable<typeof role> = (role ?? "dispatch") as NonNullable<typeof role>;
+  const visibleGroups = getNavItemsForRole(resolvedRole, navGroups);
+
+  const showSkeleton = loading && !loadingTimedOut && visibleGroups.length === 0;
 
   return (
     <aside
@@ -118,9 +139,7 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
             />
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-white">
-              LOOP
-            </h1>
+            <h1 className="text-xl font-semibold tracking-tight text-white">LOOP</h1>
             <p className="text-xs text-slate-400">Field Operations</p>
           </div>
         </div>
@@ -128,22 +147,14 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        <nav
-          className="space-y-5"
-          aria-busy={loading}
-          aria-label="Main navigation"
-        >
-          {loading ? (
-            /* Skeleton rows — prevent flash of nav before role resolves */
+        <nav className="space-y-5" aria-busy={loading} aria-label="Main navigation">
+          {showSkeleton ? (
             <div className="space-y-1 px-3" aria-hidden="true">
               {Array.from({ length: NAV_SKELETON_ROWS }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-9 animate-pulse rounded-lg bg-white/5"
-                />
+                <div key={i} className="h-9 animate-pulse rounded-lg bg-white/5" />
               ))}
             </div>
-          ) : (
+          ) : visibleGroups.length > 0 ? (
             visibleGroups.map((group) => (
               <div key={group.label}>
                 <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -197,6 +208,10 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
                 </div>
               </div>
             ))
+          ) : (
+            <div className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-3 text-xs text-slate-400">
+              Navigation unavailable for current role.
+            </div>
           )}
         </nav>
       </div>
