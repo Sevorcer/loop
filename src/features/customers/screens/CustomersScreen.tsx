@@ -1,7 +1,6 @@
 import { UserPlus, Users, Handshake } from "lucide-react";
 import Link from "next/link";
 
-import { PermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/features/auth";
@@ -31,22 +30,14 @@ export function CustomersScreen() {
             </div>
           </div>
 
-<<<<<<< HEAD
-          <PermissionGuard table="customers" action="insert">
-=======
           <PermissionGate table="customers" action="insert">
->>>>>>> origin/main
             <Link href={`${ROUTES.CUSTOMERS}/new`}>
               <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700 sm:w-auto">
                 <UserPlus className="h-4 w-4" />
                 New Customer
               </Button>
             </Link>
-<<<<<<< HEAD
-          </PermissionGuard>
-=======
           </PermissionGate>
->>>>>>> origin/main
         </div>
       </SurfaceCard>
 

@@ -65,7 +65,15 @@ function normalizeRoute(rawRoute?: string): string {
 }
 
 function createFallbackId(): string {
-  return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `req_${token}`;
+  }
+
+  // Last-resort deterministic fallback for runtimes without Web Crypto.
+  return `req_${Date.now().toString(36)}_${performance.now().toString(36).replace(".", "")}`;
 }
 
 export function createCorrelationId(): string {
@@ -203,10 +211,10 @@ export function incrementAuthMetric(
   );
 }
 
-export function applyTraceHeaders(
-  response: Response,
+export function applyTraceHeaders<T extends Response>(
+  response: T,
   trace: Pick<RequestTraceContext, "requestId" | "correlationId">,
-): Response {
+): T {
   response.headers.set("x-request-id", trace.requestId);
   response.headers.set("x-correlation-id", trace.correlationId);
   return response;
