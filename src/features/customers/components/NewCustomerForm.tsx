@@ -97,7 +97,7 @@ function NewCustomerFormContent() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Failed to create customer.",
+          : "Failed to create customer. Please check the form and try again.",
       );
     } finally {
       setIsSaving(false);

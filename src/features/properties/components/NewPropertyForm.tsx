@@ -101,7 +101,7 @@ function NewPropertyFormContent() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Failed to create property.",
+          : "Failed to create property. Please verify the address and try again.",
       );
     } finally {
       setIsSaving(false);

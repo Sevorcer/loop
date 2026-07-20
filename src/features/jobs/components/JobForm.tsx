@@ -167,7 +167,7 @@ export function JobForm({
       await onSubmit(normalizeValues(form));
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "Failed to save job.",
+        submitError instanceof Error ? submitError.message : "Failed to save job. Please check your connection and try again.",
       );
     } finally {
       setIsSaving(false);

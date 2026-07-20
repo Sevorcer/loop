@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 
+import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
 
 interface CustomerRow {
@@ -172,7 +173,7 @@ export async function countOpenJobsForCustomer(customerId: string): Promise<numb
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
     .eq("customer_id", customerId)
-    .not("status", "in", '("Completed","Cancelled")');
+    .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER);
 
   if (error) {
     throw new Error(error.message);

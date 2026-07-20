@@ -7,6 +7,7 @@ import type {
   PropertyType,
 } from "@/features/properties/types/property";
 
+import { OPEN_JOB_STATUS_EXCLUSION_FILTER, UNLINKED_CUSTOMER_LABEL } from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
 
 interface PropertyRow {
@@ -131,7 +132,7 @@ export async function listProperties(): Promise<Property[]> {
     rows.map((property) => property.customer_id ?? ""),
   );
 
-  return rows.map((row) => mapProperty(row, customerNames.get(row.customer_id ?? "") ?? "Unlinked Customer"));
+  return rows.map((row) => mapProperty(row, customerNames.get(row.customer_id ?? "") ?? UNLINKED_CUSTOMER_LABEL));
 }
 
 export async function getPropertyById(id: string): Promise<Property | null> {
@@ -156,7 +157,7 @@ export async function getPropertyById(id: string): Promise<Property | null> {
   const customerNames = await getCustomerNameMap([(data as PropertyRow).customer_id ?? ""]);
   return mapProperty(
     data as PropertyRow,
-    customerNames.get((data as PropertyRow).customer_id ?? "") ?? "Unlinked Customer",
+    customerNames.get((data as PropertyRow).customer_id ?? "") ?? UNLINKED_CUSTOMER_LABEL,
   );
 }
 
@@ -241,7 +242,7 @@ export async function updateProperty(
 
   if (!customerName) {
     const customerNames = await getCustomerNameMap([(data as PropertyRow).customer_id ?? ""]);
-    customerName = customerNames.get((data as PropertyRow).customer_id ?? "") ?? "Unlinked Customer";
+    customerName = customerNames.get((data as PropertyRow).customer_id ?? "") ?? UNLINKED_CUSTOMER_LABEL;
   }
 
   return mapProperty(data as PropertyRow, customerName);
@@ -269,7 +270,7 @@ export async function countOpenJobsForProperty(propertyId: string): Promise<numb
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
     .eq("property_id", propertyId)
-    .not("status", "in", '("Completed","Cancelled")');
+    .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER);
 
   if (error) {
     throw new Error(error.message);
