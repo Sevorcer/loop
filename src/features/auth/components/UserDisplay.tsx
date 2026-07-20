@@ -15,6 +15,7 @@ export function UserDisplay() {
   const displayName = user.user_metadata?.full_name ?? user.email ?? "User";
   const initials = displayName
     .split(" ")
+    .filter((p: string) => p.length > 0)
     .map((p: string) => p[0])
     .slice(0, 2)
     .join("")
