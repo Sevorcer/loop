@@ -86,7 +86,7 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     return {
       error: applyTraceHeaders(
         NextResponse.json(
-          { error: "Unauthorized", message: "A valid session is required." },
+          { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
           { status: 401 }
         ),
         trace,

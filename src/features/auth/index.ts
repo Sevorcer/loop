@@ -1,6 +1,7 @@
 // Auth feature public API
 
 // Session-based auth (Supabase)
+export { SessionProvider, useSession } from "./SessionProvider";
 export { AuthProvider, useAuth } from "./state/AuthProvider";
 export { SignOutButton } from "./components/SignOutButton";
 export { UserDisplay } from "./components/UserDisplay";
@@ -11,9 +12,6 @@ export { RoleProvider, useCurrentRole } from "./RoleContext";
 export { usePermission } from "./usePermission";
 export { PermissionGate } from "./PermissionGate";
 
-// Dev/mock session provider (kept for backward compatibility)
-export { SessionProvider, useSession } from "./SessionProvider";
-
-// Navigation permission utilities
+// Navigation permissions
 export { getNavItemsForRole, NAV_ROUTE_ROLES } from "./utils/navPermissions";
 export type { NavItem, NavGroup } from "./utils/navPermissions";

@@ -122,7 +122,7 @@ describe("negative: unauthenticated request", () => {
     expect(response.status).toBe(401);
 
     const body = await response.json();
-    expect(body.error).toBe("Unauthorized");
+    expect(body.error).toBe("UNAUTHORIZED");
   });
 
   it("getAuthSession returns null", async () => {
