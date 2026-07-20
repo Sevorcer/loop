@@ -2,6 +2,29 @@
 
 
 
+\## Sprint 24 — P0: RLS Baseline + Role Matrix Enforcement
+
+Status: Complete
+
+\### Completed
+
+\- Defined approved internal role set: Owner, Manager, Dispatch, Tech, Office, Sales, Portal
+\- Created `database/migrations/001_core_schema.sql` — core operational tables (organizations, user_profiles, customers, properties, contractors, jobs, job_activity, portal_users, portal_memberships)
+\- Created `database/policies/001_rls_baseline.sql` — deny-by-default RLS baseline for all core tables
+\- Created `database/policies/002_role_policies.sql` — explicit allow policies per role for all core tables
+\- Created `docs/architecture/security/rls-role-matrix.md` — permission matrix doc (single source of truth)
+\- Created `src/services/authorization.ts` — TypeScript authorization contract mirroring the matrix
+\- Created `src/services/__tests__/authorization.test.ts` — 42 automated role-matrix tests (allowed, denied, privilege escalation)
+\- Updated `database/README.md` with apply order, security posture, and extension guide
+
+\### Outcome
+
+Deny-by-default RLS baseline is established for all core operational tables. Every role is tested against allowed and denied operations. Portal users are structurally isolated from internal operational tables. No unauthorized access path exists in the policy matrix; all escalation scenarios are covered by automated tests.
+
+---
+
+
+
 \## Sprint 11 - Properties List
 
 Status: Complete
