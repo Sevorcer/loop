@@ -12,6 +12,7 @@
 
 import { ROUTES, PORTAL_ROUTES } from "@/lib/routes";
 import type { AppRole } from "@/services/authorization";
+import { isAppRole } from "./appRole";
 
 // ---------------------------------------------------------------------------
 // Internal roles — the roles that may access the operations shell at all.
@@ -86,16 +87,21 @@ export interface NavGroup {
 // Groups that end up with zero visible items are omitted entirely.
 //
 // portal role: returns empty array — portal users see nothing in the ops shell.
-// null role (loading): returns empty array — nothing shown before role resolves.
+// null/unknown role: returns the baseline nav instead of a blank sidebar.
 // ---------------------------------------------------------------------------
 
 export function getNavItemsForRole(
-  role: AppRole | null,
+  role: AppRole | string | null | undefined,
   groups: NavGroup[]
 ): NavGroup[] {
-  // Portal users and unauthenticated states see nothing in the ops shell.
-  if (!role || role === "portal") {
+  const baselineGroups = groups.filter((group) => group.items.length > 0);
+
+  if (role === "portal") {
     return [];
+  }
+
+  if (!isAppRole(role)) {
+    return baselineGroups;
   }
 
   return groups
