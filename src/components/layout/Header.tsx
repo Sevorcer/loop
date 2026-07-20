@@ -117,9 +117,14 @@ function getPageMeta(pathname: string) {
 interface HeaderProps {
   isMobileNavOpen?: boolean;
   onMenuToggle?: () => void;
+  onOpenCommandBar?: () => void;
 }
 
-export default function Header({ isMobileNavOpen = false, onMenuToggle }: HeaderProps) {
+export default function Header({
+  isMobileNavOpen = false,
+  onMenuToggle,
+  onOpenCommandBar,
+}: HeaderProps) {
   const pathname = usePathname();
   const pageMeta = getPageMeta(pathname);
   const todayLabel = useMemo(() => headerDateFormatter.format(new Date()), []);
@@ -164,15 +169,16 @@ export default function Header({ isMobileNavOpen = false, onMenuToggle }: Header
         )}
 
         <div className="flex shrink-0 items-center gap-1">
-          <Link href={ROUTES.COMPANY_BRAIN} aria-label="Search">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-            >
-              <Search size={16} />
-            </Button>
-          </Link>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Open command bar"
+            onClick={onOpenCommandBar}
+            className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+          >
+            <Search size={16} />
+          </Button>
 
           <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Notifications">
             <Button
@@ -267,15 +273,16 @@ export default function Header({ isMobileNavOpen = false, onMenuToggle }: Header
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href={ROUTES.COMPANY_BRAIN} aria-label="Search">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-              >
-                <Search size={18} />
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Open command bar"
+              onClick={onOpenCommandBar}
+              className="border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <Search size={18} />
+            </Button>
 
             <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Notifications">
               <Button
