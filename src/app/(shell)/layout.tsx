@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { SessionProvider } from "@/features/auth";
 import AppShell from "@/components/layout/AppShell";
 import { AuthProvider, RoleProvider } from "@/features/auth";
 import { getAuthSession } from "@/lib/auth/session";
@@ -18,4 +17,3 @@ export default async function ShellLayout({ children }: { children: ReactNode })
     </AuthProvider>
   );
 }
-
