@@ -55,7 +55,8 @@ export async function getAuthSession(): Promise<AuthSession | null> {
   // during static prerendering at build time or local dev without a project).
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+      !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
   ) {
     logAuthEvent({
       event: "session_refresh_failure",
