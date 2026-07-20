@@ -104,7 +104,10 @@ export function PortalHomeScreen({ projects }: PortalHomeScreenProps) {
               </CardContent>
 
               <CardFooter>
-                <Button render={<Link href={PORTAL_ROUTES.PROJECT(project.id)} />}>
+                <Button
+                  aria-label={`Open portal for ${project.name}`}
+                  render={<Link href={PORTAL_ROUTES.PROJECT(project.id)} />}
+                >
                   Open Project
                 </Button>
               </CardFooter>
