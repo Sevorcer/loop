@@ -14,7 +14,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -43,11 +42,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 function useDerivedSessionValue(): SessionContextValue {
   const { session, user, isLoading } = useAuth();
-  const [devRole, setDevRole] = useState<AppRole | null>(null);
-
-  useEffect(() => {
-    setDevRole(readStoredDevRole());
-  }, []);
+  const [devRole] = useState<AppRole | null>(() => readStoredDevRole());
 
   const role = useMemo<AppRole | null>(() => {
     if (isLoading) {

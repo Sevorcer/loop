@@ -15,7 +15,6 @@
 import {
   createContext,
   useCallback,
-  useEffect,
   useContext,
   useMemo,
   useState,
@@ -54,11 +53,9 @@ const RoleContext = createContext<RoleContextValue | null>(null);
  */
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { session, user, isLoading } = useAuth();
-  const [devRoleOverride, setDevRoleOverride] = useState<AppRole | null>(null);
-
-  useEffect(() => {
-    setDevRoleOverride(readStoredDevRole());
-  }, []);
+  const [devRoleOverride, setDevRoleOverride] = useState<AppRole | null>(() =>
+    readStoredDevRole()
+  );
 
   const role = useMemo<AppRole | null>(() => {
     if (isLoading) {
