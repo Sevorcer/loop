@@ -14,6 +14,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/features/auth";
 
 import { useJobs } from "../state/JobsProvider";
 import type { Job, JobStatus } from "../types/job";
@@ -68,9 +69,11 @@ export function JobDetailScreen({ job }: { job: Job }) {
           </Button>
         </Link>
 
-        <Link href={`/jobs/${currentJob.id}/edit`}>
-          <Button variant="secondary">Edit Job</Button>
-        </Link>
+        <PermissionGate table="jobs" action="update">
+          <Link href={`/jobs/${currentJob.id}/edit`}>
+            <Button variant="secondary">Edit Job</Button>
+          </Link>
+        </PermissionGate>
       </div>
 
       <SurfaceCard className="overflow-hidden">
@@ -187,12 +190,14 @@ export function JobDetailScreen({ job }: { job: Job }) {
             </div>
           </SurfaceCard>
 
-          <JobStatusActions
-            status={currentJob.status}
-            onChangeStatus={(nextStatus) =>
-              updateJobStatus(currentJob.id, nextStatus)
-            }
-          />
+          <PermissionGate table="jobs" action="update">
+            <JobStatusActions
+              status={currentJob.status}
+              onChangeStatus={(nextStatus) =>
+                updateJobStatus(currentJob.id, nextStatus)
+              }
+            />
+          </PermissionGate>
 
           <AssignContractorPanel jobId={currentJob.id} />
 

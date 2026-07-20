@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/features/auth";
 
 import { JobTable } from "../components/JobTable";
 import { JobsMetrics } from "../components/JobsMetrics";
@@ -29,12 +30,14 @@ export function JobsScreen() {
             </div>
           </div>
 
-          <Link href="/jobs/new" className="w-full sm:w-auto">
-            <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700">
-              <Briefcase className="h-4 w-4" />
-              New Job
-            </Button>
-          </Link>
+          <PermissionGate table="jobs" action="insert">
+            <Link href="/jobs/new" className="w-full sm:w-auto">
+              <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700">
+                <Briefcase className="h-4 w-4" />
+                New Job
+              </Button>
+            </Link>
+          </PermissionGate>
         </div>
       </SurfaceCard>
 
