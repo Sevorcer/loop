@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { mockJobs } from "@/features/jobs/data/mockJobs";
+import { createRepositoryErrorBody } from "@/lib/repositories/http";
+import { createJobsService } from "@/services/domain/jobsService";
+import type { JobWriteInput } from "@/services/repositories/jobsRepository";
+
+const jobsService = createJobsService();
 
 export async function GET(
   request: Request,
@@ -12,16 +16,13 @@ export async function GET(
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
-  const job = mockJobs.find((j) => j.id === id);
-
-  if (!job) {
-    return NextResponse.json(
-      { error: "NOT_FOUND", message: `Job '${id}' not found.`, code: 404 },
-      { status: 404 },
-    );
+  const result = await jobsService.getById(id);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
   }
 
-  return NextResponse.json({ job });
+  return NextResponse.json({ job: result.data });
 }
 
 export async function PATCH(
@@ -51,7 +52,12 @@ export async function PATCH(
     details: body,
   });
 
-  // TODO: persist to Supabase when wired
+  const result = await jobsService.update(id, body as JobWriteInput);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
   return NextResponse.json({ message: "Job updated.", id });
 }
 
@@ -71,6 +77,11 @@ export async function DELETE(
     resourceId: id,
   });
 
-  // TODO: persist to Supabase when wired
+  const result = await jobsService.remove(id);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
   return NextResponse.json({ message: "Job deleted.", id });
 }

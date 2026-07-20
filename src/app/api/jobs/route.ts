@@ -2,13 +2,23 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { mockJobs } from "@/features/jobs/data/mockJobs";
+import { createRepositoryErrorBody } from "@/lib/repositories/http";
+import { createJobsService } from "@/services/domain/jobsService";
+import type { JobWriteInput } from "@/services/repositories/jobsRepository";
+
+const jobsService = createJobsService();
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
-  return NextResponse.json({ jobs: mockJobs });
+  const result = await jobsService.list();
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
+  return NextResponse.json({ jobs: result.data.items });
 }
 
 export async function POST(request: Request) {
@@ -32,6 +42,11 @@ export async function POST(request: Request) {
     details: { title: body.title, type: body.type },
   });
 
-  // TODO: persist to Supabase when wired
-  return NextResponse.json({ message: "Job created.", job: body }, { status: 201 });
+  const result = await jobsService.create(body as JobWriteInput);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
+  return NextResponse.json({ message: "Job created.", job: result.data }, { status: 201 });
 }
