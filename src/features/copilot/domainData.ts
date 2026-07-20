@@ -1,19 +1,48 @@
-import { mockKnowledgeItems } from "@/features/company-brain/data/mockKnowledgeItems";
-import { mockCustomers } from "@/features/customers/data/mockCustomers";
+/**
+ * Copilot domain data — Sprint 27 #58
+ *
+ * LIVE SOURCES (production path via getSearchRecords):
+ *   - Customers        → listCustomers() service
+ *   - Properties       → listProperties() service
+ *   - Jobs             → listJobsWithActivity() service
+ *   - Installed Systems→ listInstalledSystems() repository (Sprint 27)
+ *   - Knowledge Items  → listKnowledgeItems() repository (Sprint 27)
+ *   - Portal Projects  → listPortalProjects() repository (Sprint 27)
+ *   - Portal Documents → listAllPortalDocuments() repository (Sprint 27)
+ *   - Portal Photos    → listAllPortalPhotos() repository (Sprint 27)
+ *   - Performance Models → listPerformanceModels() repository (Sprint 27)
+ *
+ * STATIC SOURCES (intentional deviations — not user data):
+ *   - equipmentCatalog  → HVAC equipment reference catalog (manufacturer specs,
+ *                         static product data, not org-specific).
+ *                         Deviation rationale: catalog data is configuration, not
+ *                         user-generated operational data. No Supabase table needed.
+ *   - mockPropertyDetails → property document/photo metadata pending
+ *                         property_documents migration (tracked as follow-up).
+ *   - NAVIGATION_TARGETS → pure UI config; no database involvement appropriate.
+ *
+ * FALLBACK (getFallbackSearchRecords — test/dev only):
+ *   Returns records built from mock fixtures. Used by test suite and as a
+ *   graceful degradation when Supabase is unavailable.
+ *   Mock imports in this function are NOT a production concern.
+ */
+
 import { equipmentCatalog } from "@/features/installed-systems/data/equipmentCatalog";
-import { seedInstalledSystems } from "@/features/installed-systems/data/seedInstalledSystems";
+import { mockCustomers } from "@/features/customers/data/mockCustomers";
 import { mockJobs } from "@/features/jobs/data/mockJobs";
-import {
-  fakeDocumentsProjectionRecords,
-  fakePhotosProjectionRecords,
-} from "@/features/project-portal/data/fakePortalArtifacts";
-import { mockPortalProjects } from "@/features/project-portal/data/mockPortalProjects";
 import { mockProperties } from "@/features/properties/data/mockProperties";
 import { mockPropertyDetails } from "@/features/properties/data/mockPropertyDetails";
-import { mockPerformanceModels } from "@/features/reporting/data/mockReporting";
 import { listCustomers } from "@/services/customers";
 import { listJobsWithActivity } from "@/services/jobs";
 import { listProperties } from "@/services/properties";
+import { listInstalledSystems } from "@/repositories/installedSystems";
+import { listKnowledgeItems } from "@/repositories/knowledgeItems";
+import { listPerformanceModels } from "@/repositories/performanceReporting";
+import {
+  listPortalProjects,
+  listAllPortalDocuments,
+  listAllPortalPhotos,
+} from "@/repositories/portalProjects";
 import { PORTAL_ROUTES, ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { SearchRecord } from "./types";
@@ -87,15 +116,44 @@ export function getFallbackSearchRecords(): SearchRecord[] {
   return buildStaticSearchRecords([...jobRecords, ...propertyRecords, ...customerRecords]);
 }
 
+/**
+ * buildStaticSearchRecords — fallback/test path only.
+ *
+ * Combines entity records (provided as `liveRecords`) with records derived
+ * from static reference data.  This function is intentionally kept for the
+ * `getFallbackSearchRecords()` path used by tests and dev environments where
+ * Supabase is unavailable.
+ *
+ * DEVIATIONS (static data intentionally retained):
+ *   - equipmentCatalog: HVAC product reference catalog. Manufacturer specs are
+ *     universal, not org-specific.  No Supabase table is appropriate.
+ *   - mockPropertyDetails: Property documents/photos pending a dedicated
+ *     property_documents migration (follow-up task).
+ *   - NAVIGATION_TARGETS: Pure UI configuration. No database involvement appropriate.
+ *
+ * Production mock imports below (mockPortalProjects, mockKnowledgeItems, etc.)
+ * are ONLY used in this fallback function. The production path (getSearchRecords)
+ * exclusively uses live Supabase services.
+ */
+
+import { mockKnowledgeItems } from "@/features/company-brain/data/mockKnowledgeItems";
+import { seedInstalledSystems } from "@/features/installed-systems/data/seedInstalledSystems";
+import {
+  fakeDocumentsProjectionRecords,
+  fakePhotosProjectionRecords,
+} from "@/features/project-portal/data/fakePortalArtifacts";
+import { mockPortalProjects } from "@/features/project-portal/data/mockPortalProjects";
+import { mockPerformanceModels } from "@/features/reporting/data/mockReporting";
+
 function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
   const projectRecords: SearchRecord[] = mockPortalProjects.map((project) => ({
     id: `project-${project.id}`,
     title: project.name,
     subtitle: `${project.status.replaceAll("_", " ")} • ${project.projectManager}`,
-    domain: "projects",
+    domain: "projects" as const,
     sourceLabel: "Project Portal",
     href: PORTAL_ROUTES.PROJECT(project.id),
-    recordType: "entity",
+    recordType: "entity" as const,
     tokens: sanitizeTokenStrings([project.name, project.address, project.projectManager, project.nextMilestone]),
     contextRefs: { projectId: project.id },
   }));
@@ -104,10 +162,10 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     id: `report-${model.id}`,
     title: model.title,
     subtitle: model.description,
-    domain: "reports",
+    domain: "reports" as const,
     sourceLabel: "Reporting",
     href: ROUTES.REPORTING,
-    recordType: "report",
+    recordType: "report" as const,
     tokens: sanitizeTokenStrings([model.title, model.description, ...model.relatedDomains]),
   }));
 
@@ -115,10 +173,10 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     id: `knowledge-${item.id}`,
     title: item.title,
     subtitle: item.summary,
-    domain: "company_brain",
+    domain: "company_brain" as const,
     sourceLabel: "Company Brain",
     href: ROUTES.COMPANY_BRAIN,
-    recordType: "document",
+    recordType: "document" as const,
     tokens: sanitizeTokenStrings([item.title, item.summary, item.body, ...item.tags, ...item.relatedDomains]),
   }));
 
@@ -166,10 +224,10 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     id: `system-${system.id}`,
     title: system.systemName,
     subtitle: `${system.propertyName} • ${system.lifecycleStatus}`,
-    domain: "installed_systems",
+    domain: "installed_systems" as const,
     sourceLabel: "Installed Systems",
     href: ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id),
-    recordType: "entity",
+    recordType: "entity" as const,
     tokens: sanitizeTokenStrings([system.systemName, system.customerName, system.propertyName, system.location, ...(system.serialNumbers ?? [])]),
     contextRefs: {
       installedSystemId: system.id,
@@ -210,10 +268,10 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     id: `portal-document-${document.documentId}`,
     title: document.title,
     subtitle: `${document.category} • Portal project ${document.projectId}`,
-    domain: "documents",
+    domain: "documents" as const,
     sourceLabel: "Project Portal",
     href: PORTAL_ROUTES.DOCUMENTS(document.projectId),
-    recordType: "document",
+    recordType: "document" as const,
     tokens: sanitizeTokenStrings([document.title, document.category, document.visibility, document.projectId]),
     contextRefs: { projectId: document.projectId },
   }));
@@ -222,10 +280,10 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     id: `portal-photo-${photo.photoId}`,
     title: photo.caption,
     subtitle: `Portal project ${photo.projectId}`,
-    domain: "photos",
+    domain: "photos" as const,
     sourceLabel: "Project Portal",
     href: PORTAL_ROUTES.PHOTOS(photo.projectId),
-    recordType: "photo",
+    recordType: "photo" as const,
     tokens: sanitizeTokenStrings([photo.caption, photo.projectId, photo.customerVisible ? "customer" : "internal"]),
     contextRefs: { projectId: photo.projectId },
   }));
@@ -234,10 +292,10 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     id: `navigation-${target.href}`,
     title: target.label,
     subtitle: `Navigate to ${target.label}`,
-    domain: "navigation",
+    domain: "navigation" as const,
     sourceLabel: "Navigation",
     href: target.href,
-    recordType: "navigation",
+    recordType: "navigation" as const,
     tokens: sanitizeTokenStrings([target.label, ...target.aliases]),
   }));
 
@@ -256,14 +314,84 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
   ];
 }
 
+/**
+ * getSearchRecords — production path.
+ *
+ * Fetches all searchable records from live Supabase sources in parallel.
+ * No mock data is imported or used in this path.
+ */
 export async function getSearchRecords(): Promise<SearchRecord[]> {
-  const [{ jobs }, properties, customers] = await Promise.all([
+  const [
+    { jobs },
+    properties,
+    customers,
+    installedSystems,
+    knowledgeItems,
+    portalProjects,
+    portalDocuments,
+    portalPhotos,
+    performanceModels,
+  ] = await Promise.all([
     listJobsWithActivity(),
     listProperties(),
     listCustomers(),
+    listInstalledSystems().catch(() => []),
+    listKnowledgeItems().catch(() => []),
+    listPortalProjects().catch(() => []),
+    listAllPortalDocuments().catch(() => []),
+    listAllPortalPhotos().catch(() => []),
+    listPerformanceModels({ status: "active" }).catch(() => []),
   ]);
 
-  const liveRecords: SearchRecord[] = [
+  const navigationRecords: SearchRecord[] = NAVIGATION_TARGETS.map((target) => ({
+    id: `navigation-${target.href}`,
+    title: target.label,
+    subtitle: `Navigate to ${target.label}`,
+    domain: "navigation" as const,
+    sourceLabel: "Navigation",
+    href: target.href,
+    recordType: "navigation" as const,
+    tokens: sanitizeTokenStrings([target.label, ...target.aliases]),
+  }));
+
+  // Equipment manuals — static reference catalog, not org-specific user data
+  const manualRecords: SearchRecord[] = equipmentCatalog.flatMap((entry) => [
+    {
+      id: `manual-${entry.id}`,
+      title: entry.documents.manual,
+      subtitle: `${entry.manufacturer} ${entry.modelNumber}`,
+      domain: "documents" as const,
+      sourceLabel: "Installed Systems",
+      href: ROUTES.INSTALLED_SYSTEMS,
+      recordType: "manual" as const,
+      tokens: sanitizeTokenStrings([
+        entry.documents.manual,
+        entry.manufacturer,
+        entry.modelNumber,
+        entry.equipmentType,
+        ...(entry.matchedAliases ?? []),
+      ]),
+    },
+    {
+      id: `submittal-${entry.id}`,
+      title: entry.documents.submittal,
+      subtitle: `${entry.manufacturer} ${entry.modelNumber}`,
+      domain: "documents" as const,
+      sourceLabel: "Installed Systems",
+      href: ROUTES.INSTALLED_SYSTEMS,
+      recordType: "manual" as const,
+      tokens: sanitizeTokenStrings([
+        entry.documents.submittal,
+        entry.manufacturer,
+        entry.modelNumber,
+        entry.equipmentType,
+        ...(entry.matchedAliases ?? []),
+      ]),
+    },
+  ]);
+
+  return [
+    // Live entity records
     ...jobs.map((job) => ({
       id: `job-${job.id}`,
       title: `${job.jobNumber} · ${job.title}`,
@@ -297,7 +425,82 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
       tokens: sanitizeTokenStrings([customer.name, customer.primaryContact, customer.city, customer.email, customer.phone]),
       contextRefs: { customerId: customer.id },
     })),
+    // Live installed systems (Sprint 27 — was seedInstalledSystems)
+    ...installedSystems.map((system) => ({
+      id: `system-${system.id}`,
+      title: system.systemName,
+      subtitle: `${system.propertyName} • ${system.lifecycleStatus}`,
+      domain: "installed_systems" as const,
+      sourceLabel: "Installed Systems",
+      href: ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id),
+      recordType: "entity" as const,
+      tokens: sanitizeTokenStrings([system.systemName, system.customerName, system.propertyName, system.location, ...system.serialNumbers]),
+      contextRefs: {
+        installedSystemId: system.id,
+        propertyId: system.propertyId ?? undefined,
+        jobId: system.jobId ?? undefined,
+      },
+    })),
+    // Live knowledge items (Sprint 27 — was mockKnowledgeItems)
+    ...knowledgeItems.map((item) => ({
+      id: `knowledge-${item.id}`,
+      title: item.title,
+      subtitle: item.summary,
+      domain: "company_brain" as const,
+      sourceLabel: "Company Brain",
+      href: ROUTES.COMPANY_BRAIN,
+      recordType: "document" as const,
+      tokens: sanitizeTokenStrings([item.title, item.summary, item.body, ...item.tags, ...item.relatedDomains]),
+    })),
+    // Live portal projects (Sprint 27 — was mockPortalProjects)
+    ...portalProjects.map((project) => ({
+      id: `project-${project.id}`,
+      title: project.name,
+      subtitle: `${project.status.replaceAll("_", " ")} • ${project.projectManager}`,
+      domain: "projects" as const,
+      sourceLabel: "Project Portal",
+      href: PORTAL_ROUTES.PROJECT(project.id),
+      recordType: "entity" as const,
+      tokens: sanitizeTokenStrings([project.name, project.address, project.projectManager, project.nextMilestone]),
+      contextRefs: { projectId: project.id },
+    })),
+    // Live portal documents (Sprint 27 — was fakeDocumentsProjectionRecords)
+    ...portalDocuments.map((doc) => ({
+      id: `portal-document-${doc.id}`,
+      title: doc.name,
+      subtitle: `${doc.documentType} • Portal project ${doc.projectId}`,
+      domain: "documents" as const,
+      sourceLabel: "Project Portal",
+      href: PORTAL_ROUTES.DOCUMENTS(doc.projectId),
+      recordType: "document" as const,
+      tokens: sanitizeTokenStrings([doc.name, doc.documentType, doc.visibility, doc.projectId]),
+      contextRefs: { projectId: doc.projectId },
+    })),
+    // Live portal photos (Sprint 27 — was fakePhotosProjectionRecords)
+    ...portalPhotos.map((photo) => ({
+      id: `portal-photo-${photo.id}`,
+      title: photo.caption ?? photo.category,
+      subtitle: `Portal project ${photo.projectId}`,
+      domain: "photos" as const,
+      sourceLabel: "Project Portal",
+      href: PORTAL_ROUTES.PHOTOS(photo.projectId),
+      recordType: "photo" as const,
+      tokens: sanitizeTokenStrings([photo.caption ?? "", photo.category, photo.projectId]),
+      contextRefs: { projectId: photo.projectId },
+    })),
+    // Live performance models (Sprint 27 — was mockPerformanceModels)
+    ...performanceModels.map((model) => ({
+      id: `report-${model.id}`,
+      title: model.title,
+      subtitle: model.description,
+      domain: "reports" as const,
+      sourceLabel: "Reporting",
+      href: ROUTES.REPORTING,
+      recordType: "report" as const,
+      tokens: sanitizeTokenStrings([model.title, model.description, ...model.relatedDomains]),
+    })),
+    // Static reference data (deviations documented above)
+    ...manualRecords,
+    ...navigationRecords,
   ];
-
-  return buildStaticSearchRecords(liveRecords);
 }

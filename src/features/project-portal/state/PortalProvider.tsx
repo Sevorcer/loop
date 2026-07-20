@@ -11,17 +11,13 @@ import {
 } from "react";
 
 import {
-  mockPortalProjects,
   mockPortalUsers,
   DEMO_USER_ID,
 } from "../data/mockPortalProjects";
 import {
-  mockMilestones,
   mockAppointments,
-  mockDocuments,
   mockContacts,
   mockChangeOrders,
-  mockPhotos,
   defaultNotificationPreferences,
 } from "../data/mockPortalEvents";
 import { checkAuthorization, filterVisibleDocuments, filterVisiblePhotos } from "../utils/portalAuth";
@@ -95,11 +91,31 @@ interface PortalProviderProps {
 
 const STORAGE_KEY_NOTIFICATIONS = "loop.portal.notification_prefs";
 
+// ── Live portal data bundle ───────────────────────────────────────────────────
+
+interface LiveBundle {
+  project: PortalProject | null;
+  milestones: PortalMilestone[];
+  documents: PortalDocument[];
+  photos: PortalPhoto[];
+}
+
+const EMPTY_BUNDLE: LiveBundle = { project: null, milestones: [], documents: [], photos: [] };
+
 /**
- * PortalProvider is the state layer for the Project Portal domain.
+ * PortalProvider — Sprint 27 #59
  *
- * It derives role-filtered projection data from mock event fixtures and exposes
- * authorization, freshness state, and notification preferences to portal screens.
+ * Fetches portal project, milestones, documents, and photos from live
+ * Supabase-backed endpoints (/api/portal-projects).
+ *
+ * MIGRATION NOTE:
+ *   - project, milestones, documents, photos → live via /api/portal-projects
+ *   - currentUser → still from mockPortalUsers (portal auth migration is a
+ *     follow-up task; portal_users/portal_memberships tables exist but
+ *     portal session management is beyond this sprint's scope)
+ *   - appointments, contacts, changeOrders → remain mock (require additional
+ *     portal_appointments, portal_contacts, portal_change_orders tables,
+ *     tracked as follow-up in migration-status.md)
  *
  * Authorization and tenancy checks are centralized here — not in UI components.
  */
@@ -112,6 +128,50 @@ export function PortalProvider({ children, projectId: initialProjectId }: Portal
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     initialProjectId ?? null
   );
+
+  // ── Live project data ─────────────────────────────────────────────────────
+
+  const [liveBundle, setLiveBundle] = useState<LiveBundle>(EMPTY_BUNDLE);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchBundle() {
+      if (!currentProjectId) {
+        setLiveBundle(EMPTY_BUNDLE);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/portal-projects?projectId=${encodeURIComponent(currentProjectId)}`, {
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!res.ok) return;
+
+        const json = (await res.json()) as {
+          project?: PortalProject | null;
+          milestones?: PortalMilestone[];
+          documents?: PortalDocument[];
+          photos?: PortalPhoto[];
+        };
+
+        if (!cancelled) {
+          setLiveBundle({
+            project: json.project ?? null,
+            milestones: json.milestones ?? [],
+            documents: json.documents ?? [],
+            photos: json.photos ?? [],
+          });
+        }
+      } catch {
+        // Network error — leave existing bundle in place
+      }
+    }
+
+    void fetchBundle();
+    return () => { cancelled = true; };
+  }, [currentProjectId]);
 
   // ── Notification Preferences ──────────────────────────────────────────────
 
@@ -155,14 +215,7 @@ export function PortalProvider({ children, projectId: initialProjectId }: Portal
 
   // ── Project Resolution ────────────────────────────────────────────────────
 
-  const project = useMemo(
-    () =>
-      currentProjectId
-        ? mockPortalProjects.find((p) => p.id === currentProjectId) ?? null
-        : null,
-    [currentProjectId]
-  );
-
+  const project = liveBundle.project;
   const currentOrgId = project?.orgId ?? null;
 
   // ── Authorization ─────────────────────────────────────────────────────────
@@ -175,7 +228,6 @@ export function PortalProvider({ children, projectId: initialProjectId }: Portal
       orgId: currentOrgId,
       projectId: currentProjectId,
       projectExists: project !== null,
-      // In the mock layer, invitations are always active for active memberships
       inviteActive: true,
     });
   }, [currentUser, currentProjectId, currentOrgId, project]);
@@ -194,10 +246,8 @@ export function PortalProvider({ children, projectId: initialProjectId }: Portal
 
   const milestones = useMemo(() => {
     if (!currentProjectId || !authz?.granted || !permissions?.canViewTimeline) return [];
-    return mockMilestones
-      .filter((m) => m.projectId === currentProjectId)
-      .sort((a, b) => a.sequence - b.sequence);
-  }, [currentProjectId, authz, permissions]);
+    return [...liveBundle.milestones].sort((a, b) => a.sequence - b.sequence);
+  }, [currentProjectId, authz, permissions, liveBundle.milestones]);
 
   const appointments = useMemo(() => {
     if (!currentProjectId || !authz?.granted || !permissions?.canViewAppointments) return [];
@@ -206,16 +256,14 @@ export function PortalProvider({ children, projectId: initialProjectId }: Portal
 
   const documents = useMemo(() => {
     if (!currentProjectId || !authz?.granted || !permissions?.canViewDocuments) return [];
-    const projectDocs = mockDocuments.filter((d) => d.projectId === currentProjectId);
-    return filterVisibleDocuments(projectDocs, effectiveRoles);
-  }, [currentProjectId, authz, permissions, effectiveRoles]);
+    return filterVisibleDocuments(liveBundle.documents, effectiveRoles);
+  }, [currentProjectId, authz, permissions, effectiveRoles, liveBundle.documents]);
 
   const photos = useMemo(() => {
     if (!currentProjectId || !authz?.granted || !permissions?.canViewPhotos) return [];
     if (!project?.photosEnabled) return [];
-    const projectPhotos = mockPhotos.filter((p) => p.projectId === currentProjectId);
-    return filterVisiblePhotos(projectPhotos, effectiveRoles, project.photosEnabled);
-  }, [currentProjectId, authz, permissions, effectiveRoles, project]);
+    return filterVisiblePhotos(liveBundle.photos, effectiveRoles, project.photosEnabled);
+  }, [currentProjectId, authz, permissions, effectiveRoles, liveBundle.photos, project]);
 
   const contacts = useMemo(() => {
     if (!currentProjectId || !authz?.granted || !permissions?.canViewContact) return [];
@@ -269,7 +317,7 @@ export function PortalProvider({ children, projectId: initialProjectId }: Portal
 export function usePortal(): PortalContextValue {
   const ctx = useContext(PortalContext);
   if (!ctx) {
-    throw new Error("usePortal must be used inside <PortalProvider>");
+    throw new Error("usePortal must be inside <PortalProvider>");
   }
   return ctx;
 }
