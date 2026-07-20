@@ -110,7 +110,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
       });
       setIsLoading(false);
     }
-  }, [supabase, user?.id]);
+  }, [supabase, user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, session, isLoading, signOut }),
