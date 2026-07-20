@@ -145,6 +145,75 @@ The automated tests in `src/services/__tests__/authorization.test.ts` cover:
 
 ---
 
+## API Authorization Layer (Sprint 25)
+
+The authorization contract in `src/services/authorization.ts` is now enforced at the Next.js API boundary via `src/lib/api-auth.ts`.
+
+### Endpoint → Table/Action Mapping
+
+| Endpoint | Method | Table | Action |
+|----------|--------|-------|--------|
+| `/api/customers` | GET | `customers` | `select` |
+| `/api/customers` | POST | `customers` | `insert` |
+| `/api/customers/[id]` | GET | `customers` | `select` |
+| `/api/customers/[id]` | PATCH | `customers` | `update` |
+| `/api/customers/[id]` | DELETE | `customers` | `delete` |
+| `/api/properties` | GET | `properties` | `select` |
+| `/api/properties` | POST | `properties` | `insert` |
+| `/api/properties/[id]` | GET | `properties` | `select` |
+| `/api/properties/[id]` | PATCH | `properties` | `update` |
+| `/api/properties/[id]` | DELETE | `properties` | `delete` |
+| `/api/jobs` | GET | `jobs` | `select` |
+| `/api/jobs` | POST | `jobs` | `insert` |
+| `/api/jobs/[id]` | GET | `jobs` | `select` |
+| `/api/jobs/[id]` | PATCH | `jobs` | `update` |
+| `/api/jobs/[id]` | DELETE | `jobs` | `delete` |
+| `/api/dispatch` | GET | `jobs` | `select` |
+| `/api/documents` | GET | `portal_memberships` | `select` |
+| `/api/documents` | POST | `portal_memberships` | `insert` |
+
+### Error Response Format
+
+All authorization failures return a consistent JSON envelope:
+
+```json
+// 401 — unauthenticated
+{ "error": "UNAUTHORIZED", "message": "...", "code": 401 }
+
+// 403 — authenticated but insufficient role
+{ "error": "FORBIDDEN", "message": "Role 'X' is not permitted to perform 'Y' on 'Z'.", "code": 403 }
+```
+
+### Role Resolution (current)
+
+The `resolveRequestRole` function in `src/lib/api-auth.ts` reads the `X-Loop-Role` request header during development and testing. When Supabase auth is wired, this function will be extended to verify the JWT ****** and extract the `app_role` claim. No other code changes are required.
+
+### Audit Events
+
+Every sensitive mutation (POST/PATCH/DELETE) emits a structured log event via `src/lib/audit.ts`:
+
+```
+[AUDIT] {"role":"owner","action":"create","resource":"jobs","resourceId":"","details":{},"timestamp":"..."}
+```
+
+When Supabase persistence is wired, `emitAuditEvent` will be extended to write to `job_activity` or a dedicated `audit_log` table.
+
+### Frontend Permission Gates
+
+The `PermissionGate` component (`src/features/auth/PermissionGate.tsx`) is used in key screens to hide restricted actions. Role is resolved client-side from `localStorage` (`loop_dev_role` key, default `owner`) via `RoleProvider`. No action is rendered until the role is confirmed — preventing any flash of unauthorized content.
+
+Gated UI elements:
+
+| Screen | Element | Table | Action |
+|--------|---------|-------|--------|
+| `/jobs` | New Job button | `jobs` | `insert` |
+| `/jobs/[id]` | Edit Job link | `jobs` | `update` |
+| `/jobs/[id]` | Job status actions panel | `jobs` | `update` |
+| `/customers` | New Customer button | `customers` | `insert` |
+| `/properties` | New Property button | `properties` | `insert` |
+
+---
+
 ## Deferred Scope (Post Sprint 24)
 
 | Item | Notes |
@@ -154,3 +223,4 @@ The automated tests in `src/services/__tests__/authorization.test.ts` cover:
 | `dispatch_plans` table policies | Added when dispatch transitions off mock storage |
 | Per-column audit triggers | To track which field changed in a job UPDATE |
 | Rate limiting by role | Future Supabase Edge Function concern |
+| Supabase JWT claim extraction in `resolveRequestRole` | Replace header-based role resolution with real session auth |
