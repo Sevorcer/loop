@@ -79,6 +79,9 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+/** Total number of nav items across all groups — used to size the loading skeleton. */
+const NAV_SKELETON_ROWS = navGroups.reduce((sum, g) => sum + g.items.length, 0);
+
 interface SidebarProps {
   id?: string;
   className?: string;
@@ -131,7 +134,7 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
           {loading ? (
             /* Skeleton rows — prevent flash of nav before role resolves */
             <div className="space-y-1 px-3" aria-hidden="true">
-              {Array.from({ length: 8 }).map((_, i) => (
+              {Array.from({ length: NAV_SKELETON_ROWS }).map((_, i) => (
                 <div
                   key={i}
                   className="h-9 animate-pulse rounded-lg bg-white/5"

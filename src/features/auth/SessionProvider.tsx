@@ -77,11 +77,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Resolve synchronously from localStorage on mount. A real implementation
-    // would await a Supabase getSession() call here.
-    const resolved = resolveDevRole();
-    setRole(resolved);
-    setLoading(false);
+    // Defer resolution by a microtask so the loading skeleton renders at least
+    // once before the role is applied, preventing any flash of unauthorized
+    // content even on fast devices. A real implementation would await a
+    // Supabase getSession() call here.
+    queueMicrotask(() => {
+      const resolved = resolveDevRole();
+      setRole(resolved);
+      setLoading(false);
+    });
   }, []);
 
   return (

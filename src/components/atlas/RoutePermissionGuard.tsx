@@ -18,6 +18,7 @@
 import type { ReactNode } from "react";
 
 import { AccessDenied } from "./AccessDenied";
+import { LoadingState } from "./LoadingState";
 import { usePermission } from "@/hooks/usePermission";
 import type { CoreTable, TableAction } from "@/services/authorization";
 
@@ -37,11 +38,7 @@ export function RoutePermissionGuard({
   const { allowed, loading } = usePermission(table, action);
 
   if (loading) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
-        Loading...
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!allowed) {
