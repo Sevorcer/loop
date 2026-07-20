@@ -2,13 +2,23 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { mockProperties } from "@/features/properties/data/mockProperties";
+import { createRepositoryErrorBody } from "@/lib/repositories/http";
+import { createPropertiesService } from "@/services/domain/propertiesService";
+import type { PropertyWriteInput } from "@/services/repositories/propertiesRepository";
+
+const propertiesService = createPropertiesService();
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
-  return NextResponse.json({ properties: mockProperties });
+  const result = await propertiesService.list();
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
+  return NextResponse.json({ properties: result.data.items });
 }
 
 export async function POST(request: Request) {
@@ -32,6 +42,11 @@ export async function POST(request: Request) {
     details: { address: body.address },
   });
 
-  // TODO: persist to Supabase when wired
-  return NextResponse.json({ message: "Property created.", property: body }, { status: 201 });
+  const result = await propertiesService.create(body as PropertyWriteInput);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
+  return NextResponse.json({ message: "Property created.", property: result.data }, { status: 201 });
 }

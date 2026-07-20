@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { mockCustomers } from "@/features/customers/data/mockCustomers";
+import { createRepositoryErrorBody } from "@/lib/repositories/http";
+import { createCustomersService } from "@/services/domain/customersService";
+import type { CustomerWriteInput } from "@/services/repositories/customersRepository";
+
+const customersService = createCustomersService();
 
 export async function GET(
   request: Request,
@@ -12,16 +16,13 @@ export async function GET(
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
-  const customer = mockCustomers.find((c) => c.id === id);
-
-  if (!customer) {
-    return NextResponse.json(
-      { error: "NOT_FOUND", message: `Customer '${id}' not found.`, code: 404 },
-      { status: 404 },
-    );
+  const result = await customersService.getById(id);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
   }
 
-  return NextResponse.json({ customer });
+  return NextResponse.json({ customer: result.data });
 }
 
 export async function PATCH(
@@ -51,7 +52,12 @@ export async function PATCH(
     details: body,
   });
 
-  // TODO: persist to Supabase when wired
+  const result = await customersService.update(id, body as CustomerWriteInput);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
   return NextResponse.json({ message: "Customer updated.", id });
 }
 
@@ -71,6 +77,11 @@ export async function DELETE(
     resourceId: id,
   });
 
-  // TODO: persist to Supabase when wired
+  const result = await customersService.remove(id);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
   return NextResponse.json({ message: "Customer deleted.", id });
 }

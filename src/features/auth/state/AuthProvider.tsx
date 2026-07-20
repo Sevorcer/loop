@@ -13,9 +13,13 @@ import {
 import { useRouter } from "next/navigation";
 
 import { createCorrelationId, logAuthEvent } from "@/lib/observability/auth";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
-import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+import {
+  signOutFromAuthClient,
+  subscribeToAuthSession,
+  type AuthSession as Session,
+  type AuthUser as User,
+} from "@/services/authClient";
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -49,21 +53,15 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children, initialSession }: AuthProviderProps) {
   const router = useRouter();
-  const supabase = getSupabaseBrowserClient();
 
   const [session, setSession] = useState<Session | null>(initialSession);
   const [user, setUser] = useState<User | null>(initialSession?.user ?? null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // No-op when Supabase is not configured (e.g. local dev without env vars).
-    if (!supabase) return;
-
     // Subscribe to auth state changes so the UI reacts to token refresh,
     // sign-out from another tab, and session expiry.
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, newSession: Session | null) => {
+    const unsubscribe = subscribeToAuthSession((_event, newSession: Session | null) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setIsLoading(false);
@@ -74,16 +72,19 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [supabase, router]);
+    if (!unsubscribe) return;
+    return unsubscribe;
+  }, [router]);
 
   const signOut = useCallback(async () => {
-    if (!supabase) return;
     setIsLoading(true);
     const requestId = createCorrelationId();
 
     try {
-      await supabase.auth.signOut();
+      const result = await signOutFromAuthClient();
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
       logAuthEvent({
         event: "sign_out",
         outcome: "success",
@@ -110,7 +111,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
       });
       setIsLoading(false);
     }
-  }, [supabase, user]);
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, session, isLoading, signOut }),

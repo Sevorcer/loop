@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { mockProperties } from "@/features/properties/data/mockProperties";
+import { createRepositoryErrorBody } from "@/lib/repositories/http";
+import { createPropertiesService } from "@/services/domain/propertiesService";
+import type { PropertyWriteInput } from "@/services/repositories/propertiesRepository";
+
+const propertiesService = createPropertiesService();
 
 export async function GET(
   request: Request,
@@ -12,16 +16,13 @@ export async function GET(
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
-  const property = mockProperties.find((p) => p.id === id);
-
-  if (!property) {
-    return NextResponse.json(
-      { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
-      { status: 404 },
-    );
+  const result = await propertiesService.getById(id);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
   }
 
-  return NextResponse.json({ property });
+  return NextResponse.json({ property: result.data });
 }
 
 export async function PATCH(
@@ -51,7 +52,12 @@ export async function PATCH(
     details: body,
   });
 
-  // TODO: persist to Supabase when wired
+  const result = await propertiesService.update(id, body as PropertyWriteInput);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
   return NextResponse.json({ message: "Property updated.", id });
 }
 
@@ -71,6 +77,11 @@ export async function DELETE(
     resourceId: id,
   });
 
-  // TODO: persist to Supabase when wired
+  const result = await propertiesService.remove(id);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
   return NextResponse.json({ message: "Property deleted.", id });
 }

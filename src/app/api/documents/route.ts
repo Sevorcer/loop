@@ -15,13 +15,23 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
+import { createRepositoryErrorBody } from "@/lib/repositories/http";
+import { createDocumentsService } from "@/services/domain/documentsService";
+import type { PortalDocumentAccess } from "@/services/repositories/documentsRepository";
+
+const documentsService = createDocumentsService();
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "portal_memberships", "select");
   if (!guard.ok) return guard.response;
 
-  // TODO: fetch from portal_memberships via Supabase when wired
-  return NextResponse.json({ documents: [] });
+  const result = await documentsService.list();
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
+  return NextResponse.json({ documents: result.data.items });
 }
 
 export async function POST(request: Request) {
@@ -45,6 +55,11 @@ export async function POST(request: Request) {
     details: { projectId: body.projectId },
   });
 
-  // TODO: persist to portal_memberships via Supabase when wired
-  return NextResponse.json({ message: "Document access created.", document: body }, { status: 201 });
+  const result = await documentsService.create(body as Partial<PortalDocumentAccess>);
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
+  return NextResponse.json({ message: "Document access created.", document: result.data }, { status: 201 });
 }
