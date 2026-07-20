@@ -10,13 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  DEMO_USER_ID,
-  mockPortalProjects,
-  mockPortalUsers,
-} from "../data/mockPortalProjects";
-import { getPortalHomeProjects } from "../utils/portalHome";
 import { PORTAL_ROUTES, ROUTES } from "@/lib/routes";
+import type { PortalProject } from "../types/portalTypes";
 
 const STATUS_LABELS = {
   not_started: "Not started",
@@ -36,11 +31,11 @@ const STATUS_VARIANTS = {
   cancelled: "danger",
 } as const;
 
-export function PortalHomeScreen() {
-  const currentUser =
-    mockPortalUsers.find((user) => user.id === DEMO_USER_ID) ?? null;
-  const projects = getPortalHomeProjects(currentUser, mockPortalProjects);
+interface PortalHomeScreenProps {
+  projects: PortalProject[];
+}
 
+export function PortalHomeScreen({ projects }: PortalHomeScreenProps) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6">
       <PageHeader
