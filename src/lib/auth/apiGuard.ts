@@ -63,7 +63,7 @@ export async function requireApiSession(): Promise<ApiSessionResult> {
   if (error || !user) {
     return {
       error: NextResponse.json(
-        { error: "Unauthorized", message: "A valid session is required." },
+        { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
         { status: 401 }
       ),
       user: null,

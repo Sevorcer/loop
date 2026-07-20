@@ -14,8 +14,15 @@
 import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireApiSession } from "@/lib/auth/apiGuard";
 
 export async function POST() {
+  // Require an authenticated session before accepting a sign-out request.
+  // This prevents unauthenticated callers from triggering server-side
+  // session teardown against arbitrary cookies.
+  const sessionResult = await requireApiSession();
+  if (sessionResult.error) return sessionResult.error;
+
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
 

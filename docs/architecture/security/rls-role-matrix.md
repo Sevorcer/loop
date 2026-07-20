@@ -145,32 +145,34 @@ The automated tests in `src/services/__tests__/authorization.test.ts` cover:
 
 ---
 
-## API Authorization Layer (Sprint 25)
+## API Authorization Layer (Sprint 25–26)
 
-The authorization contract in `src/services/authorization.ts` is now enforced at the Next.js API boundary via `src/lib/api-auth.ts`.
+The authorization contract in `src/services/authorization.ts` is now enforced at the Next.js API boundary via `src/lib/api-auth.ts`. A full endpoint-to-policy inventory, including CI guard documentation, lives at [`docs/architecture/security/endpoint-authz-inventory.md`](./endpoint-authz-inventory.md).
 
 ### Endpoint → Table/Action Mapping
 
-| Endpoint | Method | Table | Action |
-|----------|--------|-------|--------|
-| `/api/customers` | GET | `customers` | `select` |
-| `/api/customers` | POST | `customers` | `insert` |
-| `/api/customers/[id]` | GET | `customers` | `select` |
-| `/api/customers/[id]` | PATCH | `customers` | `update` |
-| `/api/customers/[id]` | DELETE | `customers` | `delete` |
-| `/api/properties` | GET | `properties` | `select` |
-| `/api/properties` | POST | `properties` | `insert` |
-| `/api/properties/[id]` | GET | `properties` | `select` |
-| `/api/properties/[id]` | PATCH | `properties` | `update` |
-| `/api/properties/[id]` | DELETE | `properties` | `delete` |
-| `/api/jobs` | GET | `jobs` | `select` |
-| `/api/jobs` | POST | `jobs` | `insert` |
-| `/api/jobs/[id]` | GET | `jobs` | `select` |
-| `/api/jobs/[id]` | PATCH | `jobs` | `update` |
-| `/api/jobs/[id]` | DELETE | `jobs` | `delete` |
-| `/api/dispatch` | GET | `jobs` | `select` |
-| `/api/documents` | GET | `portal_memberships` | `select` |
-| `/api/documents` | POST | `portal_memberships` | `insert` |
+| Endpoint | Method | Auth primitive | Table | Action |
+|----------|--------|---------------|-------|--------|
+| `/api/customers` | GET | `requirePermission` | `customers` | `select` |
+| `/api/customers` | POST | `requirePermission` | `customers` | `insert` |
+| `/api/customers/[id]` | GET | `requirePermission` | `customers` | `select` |
+| `/api/customers/[id]` | PATCH | `requirePermission` | `customers` | `update` |
+| `/api/customers/[id]` | DELETE | `requirePermission` | `customers` | `delete` |
+| `/api/properties` | GET | `requirePermission` | `properties` | `select` |
+| `/api/properties` | POST | `requirePermission` | `properties` | `insert` |
+| `/api/properties/[id]` | GET | `requirePermission` | `properties` | `select` |
+| `/api/properties/[id]` | PATCH | `requirePermission` | `properties` | `update` |
+| `/api/properties/[id]` | DELETE | `requirePermission` | `properties` | `delete` |
+| `/api/jobs` | GET | `requirePermission` | `jobs` | `select` |
+| `/api/jobs` | POST | `requirePermission` | `jobs` | `insert` |
+| `/api/jobs/[id]` | GET | `requirePermission` | `jobs` | `select` |
+| `/api/jobs/[id]` | PATCH | `requirePermission` | `jobs` | `update` |
+| `/api/jobs/[id]` | DELETE | `requirePermission` | `jobs` | `delete` |
+| `/api/dispatch` | GET | `requirePermission` | `jobs` | `select` |
+| `/api/documents` | GET | `requirePermission` | `portal_memberships` | `select` |
+| `/api/documents` | POST | `requirePermission` | `portal_memberships` | `insert` |
+| `/api/copilot/search` | POST | `requireApiSession` | n/a (search) | n/a |
+| `/api/auth/sign-out` | POST | `requireApiSession` | n/a (session teardown) | n/a |
 
 ### Error Response Format
 
