@@ -43,6 +43,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 function useDerivedSessionValue(): SessionContextValue {
   const { session, user, isLoading } = useAuth();
   const [devRole] = useState<AppRole | null>(() => readStoredDevRole());
+  const authUser = session?.user ?? user;
 
   const role = useMemo<AppRole | null>(() => {
     if (isLoading) {
@@ -50,8 +51,8 @@ function useDerivedSessionValue(): SessionContextValue {
     }
 
     // Fallback order: dev override → hydrated auth session/user metadata → owner.
-    return devRole ?? resolveAuthUserRole(session?.user ?? user) ?? DEFAULT_APP_ROLE;
-  }, [devRole, isLoading, session, user]);
+    return devRole ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+  }, [authUser, devRole, isLoading]);
 
   return { role, loading: isLoading };
 }
@@ -81,5 +82,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 export function useSession(): SessionContextValue {
   const contextValue = useContext(SessionContext);
   const derivedValue = useDerivedSessionValue();
+  // Sidebar and other legacy callers still consume this hook without mounting
+  // SessionProvider, so fall back to the auth-derived value instead of hanging
+  // in the default loading state from an uninitialized context.
   return contextValue ?? derivedValue;
 }

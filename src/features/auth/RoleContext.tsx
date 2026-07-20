@@ -56,14 +56,15 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [devRoleOverride, setDevRoleOverride] = useState<AppRole | null>(() =>
     readStoredDevRole()
   );
+  const authUser = session?.user ?? user;
 
   const role = useMemo<AppRole | null>(() => {
     if (isLoading) {
       return null;
     }
 
-    return devRoleOverride ?? resolveAuthUserRole(session?.user ?? user) ?? DEFAULT_APP_ROLE;
-  }, [devRoleOverride, isLoading, session, user]);
+    return devRoleOverride ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+  }, [authUser, devRoleOverride, isLoading]);
 
   const setDevRole = useCallback((next: AppRole) => {
     if (typeof window !== "undefined") {

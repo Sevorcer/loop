@@ -1,5 +1,3 @@
-"use client";
-
 import type { AuthUser } from "@/services/authClient";
 import type { AppRole } from "@/services/authorization";
 
