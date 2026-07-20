@@ -1,6 +1,3 @@
-export { SessionProvider, useSession } from "./SessionProvider";
-export { getNavItemsForRole, NAV_ROUTE_ROLES } from "./utils/navPermissions";
-export type { NavItem, NavGroup } from "./utils/navPermissions";
 // Auth feature public API
 
 // Session-based auth (Supabase)
@@ -13,3 +10,10 @@ export { SignInScreen } from "./screens/SignInScreen";
 export { RoleProvider, useCurrentRole } from "./RoleContext";
 export { usePermission } from "./usePermission";
 export { PermissionGate } from "./PermissionGate";
+
+// Dev/mock session provider (kept for backward compatibility)
+export { SessionProvider, useSession } from "./SessionProvider";
+
+// Navigation permission utilities
+export { getNavItemsForRole, NAV_ROUTE_ROLES } from "./utils/navPermissions";
+export type { NavItem, NavGroup } from "./utils/navPermissions";
