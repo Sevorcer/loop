@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import AppShell from "@/components/layout/AppShell";
-import { AuthProvider } from "@/features/auth";
+import { AuthProvider, RoleProvider } from "@/features/auth";
 import { getAuthSession } from "@/lib/auth/session";
 
 export default async function ShellLayout({ children }: { children: ReactNode }) {
@@ -11,7 +11,9 @@ export default async function ShellLayout({ children }: { children: ReactNode })
 
   return (
     <AuthProvider initialSession={authSession?.session ?? null}>
-      <AppShell>{children}</AppShell>
+      <RoleProvider>
+        <AppShell>{children}</AppShell>
+      </RoleProvider>
     </AuthProvider>
   );
 }

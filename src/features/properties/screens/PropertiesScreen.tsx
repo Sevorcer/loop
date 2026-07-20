@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/features/auth";
 import { ROUTES } from "@/lib/routes";
 
 import { PropertyTable } from "../components/PropertyTable";
@@ -29,12 +30,14 @@ export function PropertiesScreen() {
             </div>
           </div>
 
-          <Link href={`${ROUTES.PROPERTIES}/new`}>
-            <Button className="w-full gap-2 border border-blue-500/20 bg-gradient-to-r from-blue-500/80 to-cyan-600 text-white hover:from-blue-500 hover:to-cyan-700 sm:w-auto">
-              <Building2 className="h-4 w-4" />
-              New Property
-            </Button>
-          </Link>
+          <PermissionGate table="properties" action="insert">
+            <Link href={`${ROUTES.PROPERTIES}/new`}>
+              <Button className="w-full gap-2 border border-blue-500/20 bg-gradient-to-r from-blue-500/80 to-cyan-600 text-white hover:from-blue-500 hover:to-cyan-700 sm:w-auto">
+                <Building2 className="h-4 w-4" />
+                New Property
+              </Button>
+            </Link>
+          </PermissionGate>
         </div>
       </SurfaceCard>
 
