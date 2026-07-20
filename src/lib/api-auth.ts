@@ -16,6 +16,12 @@
 
 import { NextResponse } from "next/server";
 
+import {
+  applyTraceHeaders,
+  getRequestTraceContext,
+  incrementAuthMetric,
+  logAuthEvent,
+} from "@/lib/observability/auth";
 import { hasPermission } from "@/services/authorization";
 import type { AppRole, CoreTable, TableAction } from "@/services/authorization";
 
@@ -109,15 +115,53 @@ export function requirePermission(
   table: CoreTable,
   action: TableAction,
 ): PermissionResult {
+  const trace = getRequestTraceContext(request);
   const role = resolveRequestRole(request);
 
   if (role === null) {
-    return { ok: false, response: unauthorizedResponse() };
+    logAuthEvent({
+      event: "unauthorized_access_attempt",
+      outcome: "deny",
+      route: trace.route,
+      statusCode: 401,
+      requestId: trace.requestId,
+      correlationId: trace.correlationId,
+      errorCode: "MISSING_ROLE",
+      details: { table, action },
+    });
+    incrementAuthMetric("auth_401_total", { route: trace.route });
+    return { ok: false, response: applyTraceHeaders(unauthorizedResponse(), trace) };
   }
 
   if (!hasPermission(role, table, action)) {
-    return { ok: false, response: forbiddenResponse(role, table, action) };
+    logAuthEvent({
+      event: "unauthorized_access_attempt",
+      outcome: "deny",
+      route: trace.route,
+      statusCode: 403,
+      requestId: trace.requestId,
+      correlationId: trace.correlationId,
+      role,
+      errorCode: "PERMISSION_DENIED",
+      details: { table, action },
+    });
+    incrementAuthMetric("auth_403_total", { route: trace.route });
+    return {
+      ok: false,
+      response: applyTraceHeaders(forbiddenResponse(role, table, action), trace),
+    };
   }
+
+  logAuthEvent({
+    event: "authz_decision_allow",
+    outcome: "success",
+    route: trace.route,
+    statusCode: 200,
+    requestId: trace.requestId,
+    correlationId: trace.correlationId,
+    role,
+    details: { table, action },
+  });
 
   return { ok: true, ctx: { role } };
 }

@@ -4,7 +4,7 @@ import { searchCopilot, type CopilotSearchRequestBody } from "@/features/copilot
 import { requireApiSession } from "@/lib/auth/apiGuard";
 
 export async function POST(request: Request) {
-  const sessionResult = await requireApiSession();
+  const sessionResult = await requireApiSession(request);
   if (sessionResult.error) return sessionResult.error;
 
   let body: CopilotSearchRequestBody;
@@ -24,4 +24,3 @@ export async function POST(request: Request) {
   const result = searchCopilot(query, body.context);
   return NextResponse.json(result);
 }
-

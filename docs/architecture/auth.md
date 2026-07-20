@@ -189,3 +189,12 @@ Run with:
 ```bash
 npm run test
 ```
+
+---
+
+## Production Observability
+
+Auth/authz operational monitoring and alert thresholds are documented in:
+
+- [`docs/architecture/security/auth-observability.md`](security/auth-observability.md)
+- [`docs/runbooks/auth-authz-incidents.md`](../runbooks/auth-authz-incidents.md)

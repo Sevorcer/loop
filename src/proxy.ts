@@ -18,6 +18,12 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import {
+  applyTraceHeaders,
+  getRequestTraceContext,
+  incrementAuthMetric,
+  logAuthEvent,
+} from "@/lib/observability/auth";
 
 // ---------------------------------------------------------------------------
 // Route classification helpers
@@ -68,10 +74,11 @@ function isPublicRoute(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const trace = getRequestTraceContext(request);
 
   // Pass through public routes without touching session state.
   if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+    return applyTraceHeaders(NextResponse.next(), trace);
   }
 
   // Build a response object that we can attach Set-Cookie headers to.
@@ -86,9 +93,20 @@ export async function proxy(request: NextRequest) {
     // Env vars not configured — allow through in development without auth.
     // In production, deployment should always have these set.
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.redirect(new URL("/sign-in", request.url));
+      const redirect = NextResponse.redirect(new URL("/sign-in", request.url));
+      logAuthEvent({
+        event: "session_refresh_failure",
+        outcome: "failure",
+        route: pathname,
+        statusCode: 302,
+        requestId: trace.requestId,
+        correlationId: trace.correlationId,
+        errorCode: "SUPABASE_ENV_MISSING",
+      });
+      incrementAuthMetric("auth_session_refresh_failure_total", { route: pathname });
+      return applyTraceHeaders(redirect, trace);
     }
-    return response;
+    return applyTraceHeaders(response, trace);
   }
 
   // Create a middleware-aware Supabase client that refreshes tokens via cookies.
@@ -113,9 +131,33 @@ export async function proxy(request: NextRequest) {
   // is validated server-side.
   const {
     data: { user },
+    error: refreshError,
   } = await supabase.auth.getUser();
 
   const isAuthenticated = Boolean(user);
+  if (refreshError) {
+    logAuthEvent({
+      event: "session_refresh_failure",
+      outcome: "failure",
+      route: pathname,
+      statusCode: 401,
+      requestId: trace.requestId,
+      correlationId: trace.correlationId,
+      errorCode: refreshError.name ?? "SESSION_REFRESH_ERROR",
+      details: { message: refreshError.message },
+    });
+    incrementAuthMetric("auth_session_refresh_failure_total", { route: pathname });
+  } else {
+    logAuthEvent({
+      event: "session_refresh_success",
+      outcome: "success",
+      route: pathname,
+      statusCode: 200,
+      requestId: trace.requestId,
+      correlationId: trace.correlationId,
+      userId: user?.id,
+    });
+  }
 
   // ── Shell routes ──────────────────────────────────────────────────────────
   if (isShellRoute(pathname)) {
@@ -123,23 +165,46 @@ export async function proxy(request: NextRequest) {
       const signInUrl = new URL("/sign-in", request.url);
       // Preserve the intended destination so we can redirect after sign-in.
       signInUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(signInUrl);
+      logAuthEvent({
+        event: "unauthorized_access_attempt",
+        outcome: "deny",
+        route: pathname,
+        statusCode: 401,
+        requestId: trace.requestId,
+        correlationId: trace.correlationId,
+        errorCode: "SHELL_ROUTE_UNAUTHENTICATED",
+      });
+      incrementAuthMetric("auth_401_total", { route: pathname });
+      return applyTraceHeaders(NextResponse.redirect(signInUrl), trace);
     }
-    return response;
+    return applyTraceHeaders(response, trace);
   }
 
   // ── Protected API routes ──────────────────────────────────────────────────
   if (isProtectedApiRoute(pathname)) {
     if (!isAuthenticated) {
-      return NextResponse.json(
+      logAuthEvent({
+        event: "unauthorized_access_attempt",
+        outcome: "deny",
+        route: pathname,
+        statusCode: 401,
+        requestId: trace.requestId,
+        correlationId: trace.correlationId,
+        errorCode: "API_ROUTE_UNAUTHENTICATED",
+      });
+      incrementAuthMetric("auth_401_total", { route: pathname });
+      return applyTraceHeaders(
+        NextResponse.json(
         { error: "Unauthorized", message: "A valid session is required." },
         { status: 401 }
+        ),
+        trace,
       );
     }
-    return response;
+    return applyTraceHeaders(response, trace);
   }
 
-  return response;
+  return applyTraceHeaders(response, trace);
 }
 
 // ---------------------------------------------------------------------------
