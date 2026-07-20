@@ -4,13 +4,13 @@ import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, AlertCircle } from "lucide-react";
 
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   createCorrelationId,
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
 import { ROUTES } from "@/lib/routes";
+import { isAuthClientConfigured, signInWithPassword } from "@/services/authClient";
 import { Button } from "@/components/ui/button";
 
 function getEmailDomain(value: string): string {
@@ -23,7 +23,6 @@ function getEmailDomain(value: string): string {
 export function SignInScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = getSupabaseBrowserClient();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +35,7 @@ export function SignInScreen() {
       const requestId = createCorrelationId();
       const normalizedEmail = email.trim();
       const emailDomain = getEmailDomain(normalizedEmail);
-      if (!supabase) {
+      if (!isAuthClientConfigured()) {
         logAuthEvent({
           event: "sign_in_failure",
           outcome: "failure",
@@ -54,12 +53,9 @@ export function SignInScreen() {
       setIsLoading(true);
       setError(null);
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
+      const result = await signInWithPassword(normalizedEmail, password);
 
-      if (signInError) {
+      if (!result.ok) {
         logAuthEvent({
           event: "sign_in_failure",
           outcome: "failure",
@@ -67,14 +63,14 @@ export function SignInScreen() {
           statusCode: 401,
           requestId,
           correlationId: requestId,
-          errorCode: signInError.name,
+          errorCode: result.error.code,
           details: {
-            message: signInError.message,
+            message: result.error.message,
             emailDomain,
           },
         });
         incrementAuthMetric("auth_sign_in_failure_total", { route: ROUTES.SIGN_IN });
-        setError(signInError.message);
+        setError(result.error.message);
         setIsLoading(false);
         return;
       }
@@ -94,7 +90,7 @@ export function SignInScreen() {
       router.push(next);
       router.refresh();
     },
-    [email, password, supabase, router, searchParams]
+    [email, password, router, searchParams]
   );
 
   return (

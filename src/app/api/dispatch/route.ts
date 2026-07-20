@@ -10,12 +10,20 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { mockJobs } from "@/features/jobs/data/mockJobs";
+import { createRepositoryErrorBody } from "@/lib/repositories/http";
+import { createJobsService } from "@/services/domain/jobsService";
+
+const jobsService = createJobsService();
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
-  // TODO: when Supabase is wired, apply role-scoped RLS filtering here
-  return NextResponse.json({ jobs: mockJobs });
+  const result = await jobsService.list();
+  if (!result.ok) {
+    const error = createRepositoryErrorBody(result.error);
+    return NextResponse.json(error.body, { status: error.status });
+  }
+
+  return NextResponse.json({ jobs: result.data.items });
 }
