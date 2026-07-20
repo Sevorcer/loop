@@ -14,7 +14,7 @@ Status: Complete
 \- Created `database/policies/002_role_policies.sql` — explicit allow policies per role for all core tables
 \- Created `docs/architecture/security/rls-role-matrix.md` — permission matrix doc (single source of truth)
 \- Created `src/services/authorization.ts` — TypeScript authorization contract mirroring the matrix
-\- Created `src/services/__tests__/authorization.test.ts` — 42 automated role-matrix tests (allowed, denied, privilege escalation)
+\- Created `src/services/__tests__/authorization.test.ts` — 58 automated role-matrix tests (allowed, denied, privilege escalation)
 \- Updated `database/README.md` with apply order, security posture, and extension guide
 
 \### Outcome

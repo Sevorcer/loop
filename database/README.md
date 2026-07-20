@@ -18,7 +18,7 @@ database/
 
 ## Apply Order
 
-1. `migrations/001_core_schema.sql` — creates core operational tables with `user_id` and `org_id` columns used by policy expressions
+1. `migrations/001_core_schema.sql` — creates core operational tables with `org_id` (multi-tenant isolation) and user reference columns (e.g. `assigned_user_id` in jobs, `actor_id` in job_activity) used by policy expressions
 2. `policies/001_rls_baseline.sql` — enables RLS on every core table and installs deny-by-default guards
 3. `policies/002_role_policies.sql` — installs explicit ALLOW policies for each internal role
 
@@ -38,7 +38,7 @@ Roles are assigned via a custom JWT claim `app_role` set by the Supabase Auth ho
 | `sales`    | Sales team — manage customers and properties        |
 | `portal`   | External portal user — isolated from internal data  |
 
-For the full permission matrix, see [`docs/architecture/rls-role-matrix.md`](../docs/architecture/rls-role-matrix.md).
+For the full permission matrix, see [`docs/architecture/security/rls-role-matrix.md`](../docs/architecture/security/rls-role-matrix.md).
 
 ---
 
