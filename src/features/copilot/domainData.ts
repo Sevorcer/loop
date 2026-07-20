@@ -284,7 +284,7 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     sourceLabel: "Project Portal",
     href: PORTAL_ROUTES.PHOTOS(photo.projectId),
     recordType: "photo" as const,
-    tokens: sanitizeTokenStrings([photo.caption, photo.projectId, photo.customerVisible ? "customer" : "internal"]),
+    tokens: sanitizeTokenStrings([photo.caption, photo.projectId]),
     contextRefs: { projectId: photo.projectId },
   }));
 
