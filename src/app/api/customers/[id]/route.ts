@@ -5,6 +5,21 @@ import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/ro
 import { emitAuditEvent } from "@/lib/audit";
 import { deleteCustomer, getCustomer, updateCustomer } from "@/services/customers";
 
+const CUSTOMER_STATUSES = new Set(["Active", "Prospect", "Inactive"]);
+
+function readOptionalCustomerStatus(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value);
+  if (!CUSTOMER_STATUSES.has(normalized)) {
+    throw new Error("Invalid customer status.");
+  }
+
+  return normalized as "Active" | "Prospect" | "Inactive";
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -52,7 +67,7 @@ export async function PATCH(
       email: body.email !== undefined ? String(body.email).trim() : undefined,
       phone: body.phone !== undefined ? String(body.phone).trim() : undefined,
       city: body.city !== undefined ? String(body.city).trim() : undefined,
-      status: body.status as "Active" | "Prospect" | "Inactive" | undefined,
+      status: readOptionalCustomerStatus(body.status),
     });
 
     if (!customer) {

@@ -5,6 +5,16 @@ import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/ro
 import { emitAuditEvent } from "@/lib/audit";
 import { createCustomer, listCustomers } from "@/services/customers";
 
+const CUSTOMER_STATUSES = new Set(["Active", "Prospect", "Inactive"]);
+
+function readCustomerStatus(value: unknown) {
+  const normalized = String(value ?? "Active");
+  if (!CUSTOMER_STATUSES.has(normalized)) {
+    throw new Error("Invalid customer status.");
+  }
+  return normalized as "Active" | "Prospect" | "Inactive";
+}
+
 export async function GET(request: Request) {
   const guard = requirePermission(request, "customers", "select");
   if (!guard.ok) return guard.response;
@@ -35,7 +45,7 @@ export async function POST(request: Request) {
       email: String(body.email ?? "").trim(),
       phone: String(body.phone ?? "").trim(),
       city: String(body.city ?? "").trim(),
-      status: (body.status as "Active" | "Prospect" | "Inactive") ?? "Active",
+      status: readCustomerStatus(body.status),
     });
 
     emitAuditEvent({

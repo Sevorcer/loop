@@ -45,22 +45,6 @@ function readJobStatus(value: unknown) {
     | "Cancelled";
 }
 
-function resolveJobAction(body: Record<string, unknown>) {
-  if (body.action !== undefined) {
-    return String(body.action);
-  }
-
-  if (body.note !== undefined && Object.keys(body).length === 1) {
-    return "note";
-  }
-
-  if (body.status !== undefined && Object.keys(body).length === 1) {
-    return "status";
-  }
-
-  return "update";
-}
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -102,7 +86,7 @@ export async function PATCH(
 
   try {
     const { id } = await params;
-    const action = resolveJobAction(body);
+    const action = String(body.action ?? "update");
 
     if (!JOB_ACTIONS.has(action)) {
       return NextResponse.json(
