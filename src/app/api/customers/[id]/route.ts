@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import {
-  deleteCustomer,
-  getCustomer,
-  updateCustomer,
-} from "@/services/customers";
+import { deleteCustomer, getCustomer, updateCustomer } from "@/services/customers";
+
+const CUSTOMER_STATUSES = new Set(["Active", "Prospect", "Inactive"]);
+
+function readOptionalCustomerStatus(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value);
+  if (!CUSTOMER_STATUSES.has(normalized)) {
+    throw new Error("Invalid customer status.");
+  }
+
+  return normalized as "Active" | "Prospect" | "Inactive";
+}
 
 export async function GET(
   request: Request,
@@ -15,30 +27,21 @@ export async function GET(
   const guard = requirePermission(request, "customers", "select");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-  let customer = null;
   try {
-    customer = await getCustomer(id);
+    const { id } = await params;
+    const customer = await getCustomer(id);
+
+    if (!customer) {
+      return NextResponse.json(
+        { error: "NOT_FOUND", message: `Customer '${id}' not found.`, code: 404 },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ customer });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to load customer.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
-
-  if (!customer) {
-    return NextResponse.json(
-      { error: "NOT_FOUND", message: `Customer '${id}' not found.`, code: 404 },
-      { status: 404 },
-    );
-  }
-
-  return NextResponse.json({ customer });
 }
 
 export async function PATCH(
@@ -48,36 +51,29 @@ export async function PATCH(
   const guard = requirePermission(request, "customers", "update");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    body = await readJsonObject(request);
   } catch {
-    return NextResponse.json(
-      { error: "INVALID_PAYLOAD", message: "Request body must be valid JSON.", code: 400 },
-      { status: 400 },
-    );
+    return invalidJsonResponse();
   }
 
   try {
+    const { id } = await params;
     const customer = await updateCustomer(id, {
-      name:
-        body.name !== undefined ? String(body.name).trim() : undefined,
+      name: body.name !== undefined ? String(body.name).trim() : undefined,
       primaryContact:
-        body.primaryContact !== undefined
-          ? String(body.primaryContact).trim()
-          : undefined,
+        body.primaryContact !== undefined ? String(body.primaryContact).trim() : undefined,
       email: body.email !== undefined ? String(body.email).trim() : undefined,
       phone: body.phone !== undefined ? String(body.phone).trim() : undefined,
       city: body.city !== undefined ? String(body.city).trim() : undefined,
-      status: body.status as "Active" | "Prospect" | "Inactive" | undefined,
+      status: readOptionalCustomerStatus(body.status),
     });
 
     if (!customer) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Customer '${id}' not found.`, code: 404 },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -91,15 +87,7 @@ export async function PATCH(
 
     return NextResponse.json({ customer });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to update customer.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }
 
@@ -110,15 +98,14 @@ export async function DELETE(
   const guard = requirePermission(request, "customers", "delete");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-
   try {
+    const { id } = await params;
     const deleted = await deleteCustomer(id);
 
     if (!deleted) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Customer '${id}' not found.`, code: 404 },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -131,14 +118,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Customer deleted.", id });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to delete customer.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }

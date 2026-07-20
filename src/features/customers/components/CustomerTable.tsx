@@ -24,9 +24,7 @@ export function CustomerTable() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const cityOptions = useMemo(() => {
-    return Array.from(
-      new Set(customers.map((customer) => customer.city))
-    ).sort();
+    return Array.from(new Set(customers.map((customer) => customer.city))).sort();
   }, [customers]);
 
   const filteredCustomers = useMemo(() => {
@@ -44,8 +42,7 @@ export function CustomerTable() {
       const matchesStatus =
         statusFilter === ALL_FILTER_VALUE || customer.status === statusFilter;
 
-      const matchesCity =
-        cityFilter === ALL_FILTER_VALUE || customer.city === cityFilter;
+      const matchesCity = cityFilter === ALL_FILTER_VALUE || customer.city === cityFilter;
 
       return matchesSearch && matchesStatus && matchesCity;
     });
@@ -58,15 +55,14 @@ export function CustomerTable() {
   const paginatedCustomers = useMemo(() => {
     const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
     return filteredCustomers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [safeCurrentPage, filteredCustomers]);
+  }, [filteredCustomers, safeCurrentPage]);
 
   const hasActiveFilters =
     searchValue.trim().length > 0 ||
     statusFilter !== ALL_FILTER_VALUE ||
     cityFilter !== ALL_FILTER_VALUE;
 
-  const showingFrom =
-    totalCustomers === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const showingFrom = totalCustomers === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
   const showingTo =
     totalCustomers === 0 ? 0 : Math.min(safeCurrentPage * PAGE_SIZE, totalCustomers);
 
@@ -228,9 +224,7 @@ export function CustomerTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() =>
-              setCurrentPage((page) => Math.min(totalPages, page + 1))
-            }
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
             disabled={safeCurrentPage === totalPages}
           >
             Next
@@ -238,11 +232,7 @@ export function CustomerTable() {
         </div>
       </div>
 
-      <DataTable
-        columns={customerColumns}
-        data={paginatedCustomers}
-        onRowClick={handleRowClick}
-      />
+      <DataTable columns={customerColumns} data={paginatedCustomers} onRowClick={handleRowClick} />
     </div>
   );
 }

@@ -1,14 +1,49 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import {
-  createJobActivity,
-  deleteJob,
-  getJob,
-  listJobActivity,
-  updateJob,
-} from "@/services/jobs";
+import { addJobNote, deleteJob, getJob, listJobActivity, updateJob, updateJobStatus } from "@/services/jobs";
+
+const JOB_ACTIONS = new Set(["update", "status", "note"]);
+const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
+const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
+const JOB_STATUSES = new Set([
+  "Scheduled",
+  "In Progress",
+  "On Hold",
+  "Completed",
+  "Cancelled",
+]);
+
+function readJobType(value: unknown) {
+  const normalized = String(value ?? "Service");
+  if (!JOB_TYPES.has(normalized)) {
+    throw new Error("Invalid job type.");
+  }
+  return normalized as "Install" | "Service" | "Maintenance" | "Inspection";
+}
+
+function readJobPriority(value: unknown) {
+  const normalized = String(value ?? "Medium");
+  if (!JOB_PRIORITIES.has(normalized)) {
+    throw new Error("Invalid job priority.");
+  }
+  return normalized as "Low" | "Medium" | "High";
+}
+
+function readJobStatus(value: unknown) {
+  const normalized = String(value ?? "Scheduled");
+  if (!JOB_STATUSES.has(normalized)) {
+    throw new Error("Invalid job status.");
+  }
+  return normalized as
+    | "Scheduled"
+    | "In Progress"
+    | "On Hold"
+    | "Completed"
+    | "Cancelled";
+}
 
 export async function GET(
   request: Request,
@@ -17,41 +52,21 @@ export async function GET(
   const guard = requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-  let job = null;
   try {
-    job = await getJob(id);
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message: error instanceof Error ? error.message : "Failed to load job.",
-        code: 500,
-      },
-      { status: 500 }
-    );
-  }
+    const { id } = await params;
+    const job = await getJob(id);
 
-  if (!job) {
-    return NextResponse.json(
-      { error: "NOT_FOUND", message: `Job '${id}' not found.`, code: 404 },
-      { status: 404 },
-    );
-  }
+    if (!job) {
+      return NextResponse.json(
+        { error: "NOT_FOUND", message: `Job '${id}' not found.`, code: 404 },
+        { status: 404 },
+      );
+    }
 
-  try {
     const activity = await listJobActivity(id);
     return NextResponse.json({ job, activity });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to load job activity.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }
 
@@ -62,83 +77,57 @@ export async function PATCH(
   const guard = requirePermission(request, "jobs", "update");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    body = await readJsonObject(request);
   } catch {
-    return NextResponse.json(
-      { error: "INVALID_PAYLOAD", message: "Request body must be valid JSON.", code: 400 },
-      { status: 400 },
-    );
+    return invalidJsonResponse();
   }
 
   try {
-    const updated = await updateJob(id, {
-      estimateId:
-        body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
-      equipmentBundleId:
-        body.equipmentBundleId !== undefined
-          ? String(body.equipmentBundleId).trim()
-          : undefined,
-      title: body.title !== undefined ? String(body.title).trim() : undefined,
-      customerName:
-        body.customerName !== undefined
-          ? String(body.customerName).trim()
-          : undefined,
-      propertyName:
-        body.propertyName !== undefined
-          ? String(body.propertyName).trim()
-          : undefined,
-      assignedTo:
-        body.assignedTo !== undefined ? String(body.assignedTo).trim() : undefined,
-      scheduledFor:
-        body.scheduledFor !== undefined ? String(body.scheduledFor).trim() : undefined,
-      type:
-        body.type as "Install" | "Service" | "Maintenance" | "Inspection" | undefined,
-      priority: body.priority as "Low" | "Medium" | "High" | undefined,
-      location:
-        body.location !== undefined ? String(body.location).trim() : undefined,
-      summary: body.summary !== undefined ? String(body.summary).trim() : undefined,
-      notes: body.notes !== undefined ? String(body.notes).trim() : undefined,
-      status:
-        body.status as
-          | "Scheduled"
-          | "In Progress"
-          | "On Hold"
-          | "Completed"
-          | "Cancelled"
-          | undefined,
-    });
+    const { id } = await params;
+    const action = String(body.action ?? "update");
 
-    if (!updated) {
+    if (!JOB_ACTIONS.has(action)) {
       return NextResponse.json(
-        { error: "NOT_FOUND", message: `Job '${id}' not found.`, code: 404 },
-        { status: 404 }
+        {
+          error: "VALIDATION_ERROR",
+          message: "Invalid job action.",
+          code: 400,
+        },
+        { status: 400 },
       );
     }
 
-    if (body.activity && typeof body.activity === "object") {
-      const activity = body.activity as {
-        type?: string;
-        title?: string;
-        description?: string;
-      };
+    const job =
+      action === "status"
+        ? await updateJobStatus(id, readJobStatus(body.status))
+        : action === "note"
+          ? await addJobNote(id, String(body.note ?? ""))
+          : await updateJob(id, {
+              estimateId:
+                body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
+              equipmentBundleId:
+                body.equipmentBundleId !== undefined
+                  ? String(body.equipmentBundleId).trim()
+                  : undefined,
+              title: String(body.title ?? "").trim(),
+              customerName: String(body.customerName ?? "").trim(),
+              propertyName: String(body.propertyName ?? "").trim(),
+              assignedTo: String(body.assignedTo ?? "").trim(),
+              scheduledFor: String(body.scheduledFor ?? "").trim(),
+              type: readJobType(body.type),
+              priority: readJobPriority(body.priority),
+              location: String(body.location ?? "").trim(),
+              summary: String(body.summary ?? "").trim(),
+              notes: String(body.notes ?? "").trim(),
+            });
 
-      if (activity.type && activity.title && activity.description) {
-        await createJobActivity(id, {
-          type: activity.type as
-            | "created"
-            | "edited"
-            | "scheduled"
-            | "assigned"
-            | "status"
-            | "note",
-          title: activity.title,
-          description: activity.description,
-        });
-      }
+    if (!job) {
+      return NextResponse.json(
+        { error: "NOT_FOUND", message: `Job '${id}' not found.`, code: 404 },
+        { status: 404 },
+      );
     }
 
     emitAuditEvent({
@@ -149,16 +138,9 @@ export async function PATCH(
       details: body,
     });
 
-    return NextResponse.json({ job: updated });
+    return NextResponse.json({ job });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message: error instanceof Error ? error.message : "Failed to update job.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }
 
@@ -169,15 +151,14 @@ export async function DELETE(
   const guard = requirePermission(request, "jobs", "delete");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-
   try {
+    const { id } = await params;
     const deleted = await deleteJob(id);
 
     if (!deleted) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Job '${id}' not found.`, code: 404 },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -190,13 +171,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Job deleted.", id });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message: error instanceof Error ? error.message : "Failed to delete job.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }

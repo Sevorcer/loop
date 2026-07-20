@@ -1,8 +1,28 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
 import { createProperty, listProperties } from "@/services/properties";
+
+const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
+const PROPERTY_STATUSES = new Set(["Active", "Pending", "Inactive"]);
+
+function readPropertyType(value: unknown) {
+  const normalized = String(value ?? "Residential");
+  if (!PROPERTY_TYPES.has(normalized)) {
+    throw new Error("Invalid property type.");
+  }
+  return normalized as "Residential" | "Commercial" | "Multi-Family";
+}
+
+function readPropertyStatus(value: unknown) {
+  const normalized = String(value ?? "Active");
+  if (!PROPERTY_STATUSES.has(normalized)) {
+    throw new Error("Invalid property status.");
+  }
+  return normalized as "Active" | "Pending" | "Inactive";
+}
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "properties", "select");
@@ -12,15 +32,7 @@ export async function GET(request: Request) {
     const properties = await listProperties();
     return NextResponse.json({ properties });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to load properties.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }
 
@@ -30,12 +42,9 @@ export async function POST(request: Request) {
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    body = await readJsonObject(request);
   } catch {
-    return NextResponse.json(
-      { error: "INVALID_PAYLOAD", message: "Request body must be valid JSON.", code: 400 },
-      { status: 400 },
-    );
+    return invalidJsonResponse();
   }
 
   try {
@@ -44,10 +53,8 @@ export async function POST(request: Request) {
       customer: String(body.customer ?? "").trim(),
       address: String(body.address ?? "").trim(),
       city: String(body.city ?? "").trim(),
-      type:
-        (body.type as "Residential" | "Commercial" | "Multi-Family") ??
-        "Residential",
-      status: (body.status as "Active" | "Pending" | "Inactive") ?? "Active",
+      type: readPropertyType(body.type),
+      status: readPropertyStatus(body.status),
       primarySystem: String(body.primarySystem ?? "").trim(),
     });
 
@@ -64,17 +71,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { property: result.property, geocodeStatus: result.geocodeStatus },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to create property.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }

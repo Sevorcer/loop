@@ -34,6 +34,8 @@ export interface UpdateJobInput {
 export interface JobsStoreValue {
   jobs: Job[];
   hydrated: boolean;
+  loading: boolean;
+  error: string | null;
   getJobById: (id: string) => Job | undefined;
   getActivityByJobId: (jobId: string) => JobActivity[];
   createJob: (input: CreateJobInput) => Promise<Job>;
@@ -42,10 +44,10 @@ export interface JobsStoreValue {
   addJobNote: (jobId: string, note: string) => Promise<void>;
   assignContractor: (
     jobId: string,
-    contractorId: string
+    contractorId: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
-  removeContractorAssignment: (
-    jobId: string,
-    contractorId: string
-  ) => Promise<void>;
+  removeContractorAssignment: (jobId: string, contractorId: string) => Promise<void>;
+  refreshJobs: () => Promise<void>;
+  loadJobDetails: (jobId: string) => Promise<void>;
+  reload: () => Promise<void>;
 }

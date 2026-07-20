@@ -1,271 +1,286 @@
 import "server-only";
 
-import type { Job, JobStatus } from "@/features/jobs/types/job";
+import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
-import { getSupabaseAdmin, resolveOrgId } from "./supabaseContext";
+import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
+import { resolveCustomerIdByName } from "@/repositories/properties";
+import {
+  countJobs,
+  createJob as createJobRecord,
+  createJobActivity as createJobActivityRecord,
+  deleteJob as deleteJobRecord,
+  getJobById,
+  getJobRowById,
+  listJobActivity as listAllJobActivity,
+  listJobs,
+  toJob,
+  updateJob as updateJobRecord,
+} from "@/repositories/jobs";
+import { syncCustomerCounters } from "@/services/customers";
+import { resolvePropertyIdByName, syncPropertyCounters } from "@/services/properties";
 
-type JobRow = {
-  id: string;
-  job_number: string;
-  estimate_id: string | null;
-  equipment_bundle_id: string | null;
-  title: string;
-  type: Job["type"];
-  status: Job["status"];
-  priority: Job["priority"];
-  customer_name: string;
-  property_name: string;
-  assigned_to: string;
-  scheduled_for: string | null;
-  summary: string;
-  location: string;
-  notes: string;
-  created_at: string;
-};
+const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection"]);
+const JOB_STATUSES = new Set<JobStatus>([
+  "Scheduled",
+  "In Progress",
+  "On Hold",
+  "Completed",
+  "Cancelled",
+]);
+const JOB_PRIORITIES = new Set<JobPriority>(["Low", "Medium", "High"]);
 
-type JobActivityRow = {
-  id: string;
-  job_id: string;
-  type: JobActivity["type"];
-  title: string;
-  description: string;
-  created_at: string;
-};
-
-export interface CreateJobInput {
-  estimateId?: string;
-  equipmentBundleId?: string;
-  title: string;
-  type: Job["type"];
-  priority: Job["priority"];
-  customerName: string;
-  propertyName: string;
-  assignedTo: string;
-  scheduledFor: string;
-  summary: string;
-  location: string;
-  notes: string;
-}
-
-export type UpdateJobInput = Partial<CreateJobInput> & {
-  status?: JobStatus;
-};
-
-function toJob(row: JobRow): Job {
+function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInput | UpdateJobInput {
   return {
-    id: row.id,
-    jobNumber: row.job_number,
-    estimateId: row.estimate_id ?? undefined,
-    equipmentBundleId: row.equipment_bundle_id ?? undefined,
-    title: row.title,
-    type: row.type,
-    status: row.status,
-    priority: row.priority,
-    customerName: row.customer_name,
-    propertyName: row.property_name,
-    assignedTo: row.assigned_to,
-    scheduledFor: row.scheduled_for ?? row.created_at.slice(0, 10),
-    summary: row.summary,
-    location: row.location,
-    notes: row.notes,
+    ...input,
+    estimateId: input.estimateId?.trim() || undefined,
+    equipmentBundleId: input.equipmentBundleId?.trim() || undefined,
+    title: input.title.trim(),
+    customerName: input.customerName.trim(),
+    propertyName: input.propertyName.trim(),
+    assignedTo: input.assignedTo.trim(),
+    scheduledFor: input.scheduledFor,
+    location: input.location.trim(),
+    summary: input.summary.trim(),
+    notes: input.notes.trim(),
   };
 }
 
-function toJobActivity(row: JobActivityRow): JobActivity {
-  return {
-    id: row.id,
-    jobId: row.job_id,
-    type: row.type,
-    title: row.title,
-    description: row.description,
-    timestamp: row.created_at,
-  };
+function validateJobInput(input: CreateJobInput | UpdateJobInput) {
+  if (!input.title) throw new Error("Job title is required.");
+  if (!input.customerName) throw new Error("Customer name is required.");
+  if (!input.propertyName) throw new Error("Property name is required.");
+  if (!input.assignedTo) throw new Error("Assigned technician is required.");
+  if (!input.location) throw new Error("Location is required.");
+  if (!input.summary) throw new Error("Work summary is required.");
+  if (!JOB_TYPES.has(input.type)) throw new Error("Invalid job type.");
+  if (!JOB_PRIORITIES.has(input.priority)) throw new Error("Invalid job priority.");
+  if (Number.isNaN(new Date(input.scheduledFor).getTime())) {
+    throw new Error("Scheduled date is invalid.");
+  }
 }
 
-export async function listJobs(): Promise<Job[]> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("jobs")
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_name,property_name,assigned_to,scheduled_for,summary,location,notes,created_at"
-    )
-    .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+async function syncRelatedCounters(job: Pick<Job, "customerName" | "propertyName" | "status">) {
+  const [customerId, propertyId] = await Promise.all([
+    resolveCustomerIdByName(job.customerName),
+    resolvePropertyIdByName(job.propertyName),
+  ]);
 
-  if (error) {
-    throw new Error(error.message);
+  if (customerId) {
+    await syncCustomerCounters(customerId);
   }
 
-  return ((data ?? []) as JobRow[]).map((row: JobRow) => toJob(row));
+  if (propertyId) {
+    await syncPropertyCounters(propertyId);
+  }
+}
+
+function createJobNumber(index: number) {
+  return `JOB-${1000 + index}`;
+}
+
+export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
+  const [jobs, activity] = await Promise.all([listJobs(), listAllJobActivity()]);
+  return { jobs, activity };
+}
+
+export async function fetchJobById(id: string): Promise<Job | null> {
+  return getJobById(id);
 }
 
 export async function getJob(id: string): Promise<Job | null> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("jobs")
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_name,property_name,assigned_to,scheduled_for,summary,location,notes,created_at"
-    )
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data ? toJob(data as JobRow) : null;
+  return fetchJobById(id);
 }
 
 export async function listJobActivity(jobId: string): Promise<JobActivity[]> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("job_activity")
-    .select("id,job_id,type,title,description,created_at")
-    .eq("org_id", orgId)
-    .eq("job_id", jobId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return ((data ?? []) as JobActivityRow[]).map((row: JobActivityRow) =>
-    toJobActivity(row)
-  );
-}
-
-export async function createJob(input: CreateJobInput): Promise<Job> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const randomSuffix = Math.floor(Math.random() * 90000 + 10000);
-  const jobNumber = `JOB-${randomSuffix}`;
-
-  const { data, error } = await supabase
-    .from("jobs")
-    .insert({
-      org_id: orgId,
-      job_number: jobNumber,
-      estimate_id: input.estimateId || null,
-      equipment_bundle_id: input.equipmentBundleId || null,
-      title: input.title,
-      type: input.type,
-      status: "Scheduled",
-      priority: input.priority,
-      customer_name: input.customerName,
-      property_name: input.propertyName,
-      assigned_to: input.assignedTo,
-      scheduled_for: input.scheduledFor,
-      summary: input.summary,
-      location: input.location,
-      notes: input.notes,
-    })
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_name,property_name,assigned_to,scheduled_for,summary,location,notes,created_at"
-    )
-    .single();
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to create job.");
-  }
-
-  await createJobActivity(data.id as string, {
-    type: "created",
-    title: "Job created",
-    description: `New ${input.type.toLowerCase()} job created from the job form.`,
-  });
-
-  await createJobActivity(data.id as string, {
-    type: "assigned",
-    title: "Technician assigned",
-    description: `${input.assignedTo} assigned to this job.`,
-  });
-
-  await createJobActivity(data.id as string, {
-    type: "scheduled",
-    title: "Schedule confirmed",
-    description: `Job scheduled for ${new Date(input.scheduledFor).toLocaleDateString()}.`,
-  });
-
-  return toJob(data as JobRow);
-}
-
-export async function updateJob(
-  id: string,
-  input: UpdateJobInput
-): Promise<Job | null> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const patch: Record<string, unknown> = {};
-
-  if (input.estimateId !== undefined) patch.estimate_id = input.estimateId || null;
-  if (input.equipmentBundleId !== undefined) {
-    patch.equipment_bundle_id = input.equipmentBundleId || null;
-  }
-  if (input.title !== undefined) patch.title = input.title;
-  if (input.type !== undefined) patch.type = input.type;
-  if (input.status !== undefined) patch.status = input.status;
-  if (input.priority !== undefined) patch.priority = input.priority;
-  if (input.customerName !== undefined) patch.customer_name = input.customerName;
-  if (input.propertyName !== undefined) patch.property_name = input.propertyName;
-  if (input.assignedTo !== undefined) patch.assigned_to = input.assignedTo;
-  if (input.scheduledFor !== undefined) patch.scheduled_for = input.scheduledFor;
-  if (input.summary !== undefined) patch.summary = input.summary;
-  if (input.location !== undefined) patch.location = input.location;
-  if (input.notes !== undefined) patch.notes = input.notes;
-  patch.updated_at = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from("jobs")
-    .update(patch)
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_name,property_name,assigned_to,scheduled_for,summary,location,notes,created_at"
-    )
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data ? toJob(data as JobRow) : null;
-}
-
-export async function deleteJob(id: string): Promise<boolean> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { count, error } = await supabase
-    .from("jobs")
-    .delete({ count: "exact" })
-    .eq("org_id", orgId)
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (count ?? 0) > 0;
+  const activity = await listAllJobActivity();
+  return activity.filter((entry) => entry.jobId === jobId);
 }
 
 export async function createJobActivity(
   jobId: string,
-  activity: Pick<JobActivity, "type" | "title" | "description">
+  activity: Pick<JobActivity, "type" | "title" | "description">,
 ) {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { error } = await supabase.from("job_activity").insert({
-    org_id: orgId,
-    job_id: jobId,
-    type: activity.type,
-    title: activity.title,
-    description: activity.description,
+  return createJobActivityRecord({ jobId, ...activity });
+}
+
+export async function createJob(input: CreateJobInput) {
+  const normalized = normalizeJobInput(input) as CreateJobInput;
+  validateJobInput(normalized);
+
+  const nextIndex = (await countJobs()) + 1;
+  const [customerId, propertyId] = await Promise.all([
+    resolveCustomerIdByName(normalized.customerName),
+    resolvePropertyIdByName(normalized.propertyName),
+  ]);
+
+  const createdJob = await createJobRecord(createJobNumber(nextIndex), {
+    ...normalized,
+    customerId,
+    propertyId,
+    status: "Scheduled",
   });
 
-  if (error) {
-    throw new Error(error.message);
+  await Promise.all([
+    createJobActivityRecord({
+      jobId: createdJob.id,
+      type: "created",
+      title: "Job created",
+      description: `New ${createdJob.type.toLowerCase()} job created from the job form.`,
+    }),
+    createJobActivityRecord({
+      jobId: createdJob.id,
+      type: "assigned",
+      title: "Technician assigned",
+      description: `${createdJob.assignedTo} assigned to this job.`,
+    }),
+    createJobActivityRecord({
+      jobId: createdJob.id,
+      type: "scheduled",
+      title: "Schedule confirmed",
+      description: `Job scheduled for ${new Date(createdJob.scheduledFor).toLocaleDateString()}.`,
+    }),
+  ]);
+
+  await syncRelatedCounters(createdJob);
+  return createdJob;
+}
+
+export async function updateJob(id: string, input: UpdateJobInput) {
+  const existing = await getJobRowById(id);
+
+  if (!existing) {
+    return null;
   }
+
+  const normalized = normalizeJobInput(input) as UpdateJobInput;
+  validateJobInput(normalized);
+
+  const previousJob = toJob(existing);
+  const [customerId, propertyId] = await Promise.all([
+    resolveCustomerIdByName(normalized.customerName),
+    resolvePropertyIdByName(normalized.propertyName),
+  ]);
+
+  const updatedJob = await updateJobRecord(id, {
+    ...normalized,
+    customerId,
+    propertyId,
+    status: existing.status,
+  });
+
+  if (!updatedJob) {
+    return null;
+  }
+
+  const changedFields: string[] = [];
+  if (existing.title !== updatedJob.title) changedFields.push("title");
+  if ((existing.estimate_id ?? "") !== (updatedJob.estimateId ?? "")) changedFields.push("estimate");
+  if ((existing.equipment_bundle_id ?? "") !== (updatedJob.equipmentBundleId ?? "")) {
+    changedFields.push("equipment");
+  }
+  if (existing.customer_name !== updatedJob.customerName) changedFields.push("customer");
+  if (existing.property_name !== updatedJob.propertyName) changedFields.push("property");
+  if (existing.assigned_to !== updatedJob.assignedTo) changedFields.push("assignee");
+  if ((existing.scheduled_for ?? "") !== updatedJob.scheduledFor) changedFields.push("schedule");
+  if (existing.type !== updatedJob.type) changedFields.push("type");
+  if (existing.priority !== updatedJob.priority) changedFields.push("priority");
+  if (existing.location !== updatedJob.location) changedFields.push("location");
+  if (existing.summary !== updatedJob.summary) changedFields.push("summary");
+  if (existing.notes !== updatedJob.notes) changedFields.push("notes");
+
+  if (changedFields.length > 0) {
+    await createJobActivityRecord({
+      jobId: updatedJob.id,
+      type: "edited",
+      title: "Job updated",
+      description: `Updated fields: ${changedFields.join(", ")}.`,
+    });
+  }
+
+  await Promise.all([syncRelatedCounters(previousJob), syncRelatedCounters(updatedJob)]);
+
+  return updatedJob;
+}
+
+export async function updateJobStatus(id: string, status: JobStatus) {
+  if (!JOB_STATUSES.has(status)) {
+    throw new Error("Invalid job status.");
+  }
+
+  const existing = await getJobById(id);
+
+  if (!existing) {
+    return null;
+  }
+
+  const updatedJob = await updateJobRecord(id, { status });
+
+  if (!updatedJob) {
+    return null;
+  }
+
+  const description =
+    status === "In Progress"
+      ? "Job moved to In Progress from the detail view."
+      : status === "On Hold"
+        ? "Job placed On Hold pending follow-up or issue resolution."
+        : status === "Completed"
+          ? "Job marked Completed from the detail view."
+          : status === "Cancelled"
+            ? "Job cancelled from the detail view."
+            : "Job status updated from the detail view.";
+
+  await createJobActivityRecord({
+    jobId: id,
+    type: "status",
+    title: "Status updated",
+    description,
+  });
+
+  if (existing.status !== updatedJob.status) {
+    await syncRelatedCounters(updatedJob);
+  }
+
+  return updatedJob;
+}
+
+export async function addJobNote(id: string, note: string) {
+  const trimmedNote = note.trim();
+
+  if (!trimmedNote) {
+    throw new Error("Note is required.");
+  }
+
+  const existing = await getJobById(id);
+
+  if (!existing) {
+    return null;
+  }
+
+  const nextNotes = existing.notes ? `${existing.notes}\n\n${trimmedNote}` : trimmedNote;
+  const updatedJob = await updateJobRecord(id, { notes: nextNotes });
+
+  if (!updatedJob) {
+    return null;
+  }
+
+  await createJobActivityRecord({
+    jobId: id,
+    type: "note",
+    title: "Note added",
+    description: trimmedNote,
+  });
+
+  return updatedJob;
+}
+
+export async function deleteJob(id: string) {
+  const existing = await getJobById(id);
+  const deleted = await deleteJobRecord(id);
+
+  if (deleted && existing) {
+    await syncRelatedCounters(existing);
+  }
+
+  return deleted;
 }

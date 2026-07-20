@@ -1,162 +1,107 @@
 import "server-only";
 
-import type { Customer } from "@/features/customers/types/customer";
-import { getSupabaseAdmin, resolveOrgId } from "./supabaseContext";
+import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
+import {
+  countOpenJobsForCustomer,
+  countPropertiesForCustomer,
+  createCustomer as createCustomerRecord,
+  deleteCustomer as deleteCustomerRecord,
+  getCustomerById,
+  listCustomers as listCustomerRecords,
+  updateCustomer as updateCustomerRecord,
+} from "@/repositories/customers";
 
-type CustomerRow = {
-  id: string;
-  name: string;
-  primary_contact: string;
-  email: string;
-  phone: string;
-  city: string;
-  status: Customer["status"];
-  property_count: number;
-  open_jobs: number;
-  last_activity: string | null;
-  created_at: string;
-};
-
-export interface CreateCustomerInput {
+export interface CustomerInput {
   name: string;
   primaryContact: string;
   email: string;
   phone: string;
   city: string;
-  status: Customer["status"];
+  status: CustomerStatus;
 }
 
-export type UpdateCustomerInput = Partial<CreateCustomerInput>;
+export type CreateCustomerInput = CustomerInput;
+export type UpdateCustomerInput = Partial<CustomerInput>;
 
-function toCustomer(row: CustomerRow): Customer {
+const CUSTOMER_STATUSES = new Set<CustomerStatus>(["Active", "Prospect", "Inactive"]);
+
+function normalizeCustomerInput(input: CustomerInput): CustomerInput {
   return {
-    id: row.id,
-    name: row.name,
-    primaryContact: row.primary_contact,
-    email: row.email,
-    phone: row.phone,
-    city: row.city,
-    status: row.status,
-    propertyCount: row.property_count,
-    openJobs: row.open_jobs,
-    lastActivity: row.last_activity ?? row.created_at.slice(0, 10),
-    createdAt: row.created_at.slice(0, 10),
+    name: input.name.trim(),
+    primaryContact: input.primaryContact.trim(),
+    email: input.email.trim(),
+    phone: input.phone.trim(),
+    city: input.city.trim(),
+    status: input.status,
   };
 }
 
-export async function listCustomers(): Promise<Customer[]> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("customers")
-    .select(
-      "id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at"
-    )
-    .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+function validateCustomerInput(input: CustomerInput) {
+  if (!input.name) throw new Error("Customer name is required.");
+  if (!input.primaryContact) throw new Error("Primary contact is required.");
+  if (!input.email) throw new Error("Email is required.");
+  if (!input.city) throw new Error("City is required.");
+  if (!CUSTOMER_STATUSES.has(input.status)) throw new Error("Invalid customer status.");
+}
 
-  if (error) {
-    throw new Error(error.message);
-  }
+export async function listCustomers() {
+  return listCustomerRecords();
+}
 
-  return ((data ?? []) as CustomerRow[]).map((row: CustomerRow) =>
-    toCustomer(row)
-  );
+export async function fetchCustomerById(id: string): Promise<Customer | null> {
+  return getCustomerById(id);
 }
 
 export async function getCustomer(id: string): Promise<Customer | null> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("customers")
-    .select(
-      "id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at"
-    )
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data ? toCustomer(data as CustomerRow) : null;
+  return fetchCustomerById(id);
 }
 
-export async function createCustomer(input: CreateCustomerInput): Promise<Customer> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const today = new Date().toISOString().slice(0, 10);
+export async function createCustomer(input: CreateCustomerInput) {
+  const normalized = normalizeCustomerInput(input);
+  validateCustomerInput(normalized);
 
-  const { data, error } = await supabase
-    .from("customers")
-    .insert({
-      org_id: orgId,
-      name: input.name,
-      primary_contact: input.primaryContact,
-      email: input.email,
-      phone: input.phone,
-      city: input.city,
-      status: input.status,
-      last_activity: today,
-    })
-    .select(
-      "id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at"
-    )
-    .single();
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to create customer.");
-  }
-
-  return toCustomer(data as CustomerRow);
+  return createCustomerRecord({
+    ...normalized,
+    propertyCount: 0,
+    openJobs: 0,
+    lastActivity: new Date().toISOString().slice(0, 10),
+  });
 }
 
-export async function updateCustomer(
-  id: string,
-  input: UpdateCustomerInput
-): Promise<Customer | null> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const patch: Record<string, unknown> = {};
+export async function updateCustomer(id: string, input: UpdateCustomerInput) {
+  const existing = await getCustomerById(id);
 
-  if (input.name !== undefined) patch.name = input.name;
-  if (input.primaryContact !== undefined) patch.primary_contact = input.primaryContact;
-  if (input.email !== undefined) patch.email = input.email;
-  if (input.phone !== undefined) patch.phone = input.phone;
-  if (input.city !== undefined) patch.city = input.city;
-  if (input.status !== undefined) patch.status = input.status;
-  patch.updated_at = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from("customers")
-    .update(patch)
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .select(
-      "id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at"
-    )
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
+  if (!existing) {
+    return null;
   }
 
-  return data ? toCustomer(data as CustomerRow) : null;
+  const merged = normalizeCustomerInput({
+    name: input.name ?? existing.name,
+    primaryContact: input.primaryContact ?? existing.primaryContact,
+    email: input.email ?? existing.email,
+    phone: input.phone ?? existing.phone,
+    city: input.city ?? existing.city,
+    status: input.status ?? existing.status,
+  });
+
+  validateCustomerInput(merged);
+
+  return updateCustomerRecord(id, merged);
 }
 
-export async function deleteCustomer(id: string): Promise<boolean> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { error, count } = await supabase
-    .from("customers")
-    .delete({ count: "exact" })
-    .eq("org_id", orgId)
-    .eq("id", id);
+export async function syncCustomerCounters(customerId: string) {
+  const [propertyCount, openJobs] = await Promise.all([
+    countPropertiesForCustomer(customerId),
+    countOpenJobsForCustomer(customerId),
+  ]);
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  return updateCustomerRecord(customerId, {
+    propertyCount,
+    openJobs,
+    lastActivity: new Date().toISOString().slice(0, 10),
+  });
+}
 
-  return (count ?? 0) > 0;
+export async function deleteCustomer(id: string) {
+  return deleteCustomerRecord(id);
 }

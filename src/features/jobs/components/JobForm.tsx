@@ -6,7 +6,10 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
-import { estimateEquipmentBundles, getEstimateEquipmentBundle } from "@/features/installed-systems/utils/installedSystemsUtils";
+import {
+  estimateEquipmentBundles,
+  getEstimateEquipmentBundle,
+} from "@/features/installed-systems/utils/installedSystemsUtils";
 
 import type { JobPriority, JobType } from "../types/job";
 
@@ -71,7 +74,7 @@ interface JobFormProps {
   mode: "create" | "edit";
   cancelHref: string;
   initialValues?: Partial<JobFormValues>;
-  onSubmit: (values: JobFormValues) => Promise<void>;
+  onSubmit: (values: JobFormValues) => Promise<void> | void;
 }
 
 export function JobForm({
@@ -89,13 +92,11 @@ export function JobForm({
 
   function updateField<K extends keyof JobFormValues>(
     key: K,
-    value: JobFormValues[K]
+    value: JobFormValues[K],
   ) {
     setForm((current) => ({
       ...current,
-      ...(key === "type"
-        ? clearEstimateFieldsIfNeeded(value as JobType)
-        : {}),
+      ...(key === "type" ? clearEstimateFieldsIfNeeded(value as JobType) : {}),
       [key]: value,
     }));
     setError(null);
@@ -147,8 +148,7 @@ export function JobForm({
       form.summary.trim().length > 0;
 
     const hasValidDate =
-      form.scheduledFor.length > 0 &&
-      !Number.isNaN(new Date(form.scheduledFor).getTime());
+      form.scheduledFor.length > 0 && !Number.isNaN(new Date(form.scheduledFor).getTime());
 
     return hasRequiredText && hasValidDate;
   }, [form]);
@@ -161,12 +161,15 @@ export function JobForm({
       return;
     }
 
-    setIsSaving(true);
     try {
+      setIsSaving(true);
+      setError(null);
       await onSubmit(normalizeValues(form));
     } catch (nextError) {
       setError(
-        nextError instanceof Error ? nextError.message : "Unable to save job."
+        nextError instanceof Error
+          ? nextError.message
+          : "Failed to save job. Please check your connection and try again.",
       );
     } finally {
       setIsSaving(false);
@@ -193,9 +196,7 @@ export function JobForm({
             </div>
 
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                {formTitle}
-              </h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">{formTitle}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
                 {formDescription}
               </p>
@@ -225,9 +226,7 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Customer Name
-              </label>
+              <label className="text-sm font-medium text-slate-200">Customer Name</label>
               <input
                 value={form.customerName}
                 onChange={(e) => updateField("customerName", e.target.value)}
@@ -238,9 +237,7 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Property Name
-              </label>
+              <label className="text-sm font-medium text-slate-200">Property Name</label>
               <input
                 value={form.propertyName}
                 onChange={(e) => updateField("propertyName", e.target.value)}
@@ -251,9 +248,7 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Assigned Technician
-              </label>
+              <label className="text-sm font-medium text-slate-200">Assigned Technician</label>
               <input
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
@@ -264,9 +259,7 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Scheduled Date
-              </label>
+              <label className="text-sm font-medium text-slate-200">Scheduled Date</label>
               <input
                 type="date"
                 value={form.scheduledFor}
@@ -343,9 +336,7 @@ export function JobForm({
             ) : null}
 
             <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium text-slate-200">
-                Work Summary
-              </label>
+              <label className="text-sm font-medium text-slate-200">Work Summary</label>
               <textarea
                 value={form.summary}
                 onChange={(e) => updateField("summary", e.target.value)}

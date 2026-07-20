@@ -9,19 +9,25 @@ import { Button } from "@/components/ui/button";
 export function JobNoteComposer({
   onAddNote,
 }: {
-  onAddNote: (note: string) => void;
+  onAddNote: (note: string) => Promise<void> | void;
 }) {
   const [note, setNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const value = note.trim();
 
     if (!value) {
       return;
     }
 
-    onAddNote(value);
-    setNote("");
+    try {
+      setIsSaving(true);
+      await onAddNote(value);
+      setNote("");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -51,9 +57,9 @@ export function JobNoteComposer({
           />
 
           <div className="flex justify-end">
-            <Button onClick={handleSubmit} className="gap-2">
+            <Button onClick={() => void handleSubmit()} className="gap-2" disabled={isSaving}>
               <PlusCircle className="h-4 w-4" />
-              Add Note
+              {isSaving ? "Adding..." : "Add Note"}
             </Button>
           </div>
         </div>

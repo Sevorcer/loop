@@ -2,10 +2,10 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
-let adminClient: ReturnType<typeof createClient> | null = null;
+let adminClient: ReturnType<typeof createClient> | null | undefined;
 
-export function createSupabaseAdminClient() {
-  if (adminClient) {
+export function getSupabaseAdminClient(): ReturnType<typeof createClient> | null {
+  if (adminClient !== undefined) {
     return adminClient;
   }
 
@@ -13,9 +13,8 @@ export function createSupabaseAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceRoleKey) {
-    throw new Error(
-      "Missing Supabase admin environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set."
-    );
+    adminClient = null;
+    return adminClient;
   }
 
   adminClient = createClient(url, serviceRoleKey, {
@@ -26,4 +25,16 @@ export function createSupabaseAdminClient() {
   });
 
   return adminClient;
+}
+
+export function createSupabaseAdminClient() {
+  const client = getSupabaseAdminClient();
+
+  if (!client) {
+    throw new Error(
+      "Missing Supabase admin environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.",
+    );
+  }
+
+  return client;
 }

@@ -10,7 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { requestLoopApiJson } from "@/lib/loop-api-client";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 
 import type { Property, PropertyStatus, PropertyType } from "../types/property";
 
@@ -31,42 +32,50 @@ interface PropertiesContextValue {
   properties: Property[];
   getPropertyById: (id: string) => Property | undefined;
   refreshProperties: () => Promise<void>;
+  reload: () => Promise<void>;
   createProperty: (input: CreatePropertyInput) => Promise<Property>;
 }
 
 const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 
 export function PropertiesProvider({ children }: { children: ReactNode }) {
+  const { role } = useCurrentRole();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshProperties = useCallback(async () => {
+    if (!role) {
+      return;
+    }
+
     setLoading(true);
-    setError(null);
     try {
-      const payload = await requestLoopApiJson<{ properties: Property[] }>(
-        "/api/properties"
-      );
-      setProperties(payload.properties);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to load properties."
-      );
+      setError(null);
+      const response = await requestJson<{ properties: Property[] }>("/api/properties", {
+        role,
+        cache: "no-store",
+      });
+      setProperties(response.properties);
+    } catch (loadError) {
+      setProperties([]);
+      setError(loadError instanceof Error ? loadError.message : "Failed to load properties.");
     } finally {
       setLoading(false);
       setHydrated(true);
     }
-  }, []);
+  }, [role]);
 
   useEffect(() => {
+    if (!role) {
+      return;
+    }
+
     queueMicrotask(() => {
       void refreshProperties();
     });
-  }, [refreshProperties]);
+  }, [refreshProperties, role]);
 
   const value = useMemo<PropertiesContextValue>(() => {
     function getPropertyById(id: string) {
@@ -74,16 +83,18 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     }
 
     async function createProperty(input: CreatePropertyInput): Promise<Property> {
-      const payload = await requestLoopApiJson<{ property: Property }>(
-        "/api/properties",
-        {
-          method: "POST",
-          body: JSON.stringify(input),
-        }
-      );
+      const response = await requestJson<{ property: Property }>("/api/properties", {
+        method: "POST",
+        role,
+        body: input,
+      });
 
-      setProperties((current) => [payload.property, ...current]);
-      return payload.property;
+      setProperties((current) => [response.property, ...current]);
+      return response.property;
+    }
+
+    async function reload() {
+      await refreshProperties();
     }
 
     return {
@@ -93,15 +104,12 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       properties,
       getPropertyById,
       refreshProperties,
+      reload,
       createProperty,
     };
-  }, [error, hydrated, loading, properties, refreshProperties]);
+  }, [error, hydrated, loading, properties, refreshProperties, role]);
 
-  return (
-    <PropertiesContext.Provider value={value}>
-      {children}
-    </PropertiesContext.Provider>
-  );
+  return <PropertiesContext.Provider value={value}>{children}</PropertiesContext.Provider>;
 }
 
 export function useProperties() {

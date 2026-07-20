@@ -11,6 +11,9 @@ import { mockPortalProjects } from "@/features/project-portal/data/mockPortalPro
 import { mockProperties } from "@/features/properties/data/mockProperties";
 import { mockPropertyDetails } from "@/features/properties/data/mockPropertyDetails";
 import { mockPerformanceModels } from "@/features/reporting/data/mockReporting";
+import { listCustomers } from "@/services/customers";
+import { listJobsWithActivity } from "@/services/jobs";
+import { listProperties } from "@/services/properties";
 import { PORTAL_ROUTES, ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { SearchRecord } from "./types";
@@ -44,7 +47,7 @@ function sanitizeTokenStrings(value: Array<string | null | undefined>) {
   }, []);
 }
 
-export function getSearchRecords(): SearchRecord[] {
+export function getFallbackSearchRecords(): SearchRecord[] {
   const jobRecords: SearchRecord[] = mockJobs.map((job) => ({
     id: `job-${job.id}`,
     title: `${job.jobNumber} · ${job.title}`,
@@ -81,6 +84,10 @@ export function getSearchRecords(): SearchRecord[] {
     contextRefs: { customerId: customer.id },
   }));
 
+  return buildStaticSearchRecords([...jobRecords, ...propertyRecords, ...customerRecords]);
+}
+
+function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
   const projectRecords: SearchRecord[] = mockPortalProjects.map((project) => ({
     id: `project-${project.id}`,
     title: project.name,
@@ -182,7 +189,7 @@ export function getSearchRecords(): SearchRecord[] {
       recordType: "document" as const,
       tokens: sanitizeTokenStrings([document.title, document.category, document.status, detail.propertyId]),
       contextRefs: { propertyId: detail.propertyId },
-    }))
+    })),
   );
 
   const propertyPhotoRecords: SearchRecord[] = mockPropertyDetails.flatMap((detail) =>
@@ -196,7 +203,7 @@ export function getSearchRecords(): SearchRecord[] {
       recordType: "photo" as const,
       tokens: sanitizeTokenStrings([photo.title, photo.category, photo.status, detail.propertyId]),
       contextRefs: { propertyId: detail.propertyId },
-    }))
+    })),
   );
 
   const portalDocumentRecords: SearchRecord[] = fakeDocumentsProjectionRecords.map((document) => ({
@@ -235,9 +242,7 @@ export function getSearchRecords(): SearchRecord[] {
   }));
 
   return [
-    ...jobRecords,
-    ...propertyRecords,
-    ...customerRecords,
+    ...liveRecords,
     ...projectRecords,
     ...reportRecords,
     ...knowledgeRecords,
@@ -249,4 +254,50 @@ export function getSearchRecords(): SearchRecord[] {
     ...portalPhotoRecords,
     ...navigationRecords,
   ];
+}
+
+export async function getSearchRecords(): Promise<SearchRecord[]> {
+  const [{ jobs }, properties, customers] = await Promise.all([
+    listJobsWithActivity(),
+    listProperties(),
+    listCustomers(),
+  ]);
+
+  const liveRecords: SearchRecord[] = [
+    ...jobs.map((job) => ({
+      id: `job-${job.id}`,
+      title: `${job.jobNumber} · ${job.title}`,
+      subtitle: `${job.propertyName} • ${job.customerName}`,
+      domain: "jobs" as const,
+      sourceLabel: "Jobs",
+      href: ROUTE_BUILDERS.JOB_DETAIL(job.id),
+      recordType: "entity" as const,
+      tokens: sanitizeTokenStrings([job.jobNumber, job.title, job.customerName, job.propertyName, job.location, job.type, job.status]),
+      contextRefs: { jobId: job.id },
+    })),
+    ...properties.map((property) => ({
+      id: `property-${property.id}`,
+      title: property.name,
+      subtitle: `${property.address}, ${property.city}`,
+      domain: "properties" as const,
+      sourceLabel: "Properties",
+      href: ROUTE_BUILDERS.PROPERTY_DETAIL(property.id),
+      recordType: "entity" as const,
+      tokens: sanitizeTokenStrings([property.name, property.customer, property.address, property.city, property.primarySystem]),
+      contextRefs: { propertyId: property.id },
+    })),
+    ...customers.map((customer) => ({
+      id: `customer-${customer.id}`,
+      title: customer.name,
+      subtitle: `${customer.primaryContact} • ${customer.city}`,
+      domain: "customers" as const,
+      sourceLabel: "Customers",
+      href: ROUTE_BUILDERS.CUSTOMER_DETAIL(customer.id),
+      recordType: "entity" as const,
+      tokens: sanitizeTokenStrings([customer.name, customer.primaryContact, customer.city, customer.email, customer.phone]),
+      contextRefs: { customerId: customer.id },
+    })),
+  ];
+
+  return buildStaticSearchRecords(liveRecords);
 }

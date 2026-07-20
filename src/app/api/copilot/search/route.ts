@@ -21,6 +21,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Query is required." }, { status: 400 });
   }
 
-  const result = searchCopilot(query, body.context);
+  const result = await searchCopilot(query, body.context);
   return NextResponse.json(result);
 }

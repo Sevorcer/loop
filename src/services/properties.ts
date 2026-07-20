@@ -1,38 +1,35 @@
 import "server-only";
 
-import type { Property, PropertyLocation } from "@/features/properties/types/property";
+import type {
+  Property,
+  PropertyLocation,
+  PropertyStatus,
+  PropertyType,
+} from "@/features/properties/types/property";
 import { formatPropertyAddress } from "@/features/properties/utils/formatPropertyAddress";
-import { getSupabaseAdmin, resolveOrgId } from "./supabaseContext";
+import {
+  countOpenJobsForProperty,
+  createProperty as createPropertyRecord,
+  deleteProperty as deletePropertyRecord,
+  getPropertyById,
+  listProperties as listPropertyRecords,
+  resolveCustomerIdByName,
+  updateProperty as updatePropertyRecord,
+} from "@/repositories/properties";
+import { syncCustomerCounters } from "@/services/customers";
 
 import { geocodeAddress } from "./geocoding";
-
-type PropertyRow = {
-  id: string;
-  customer_id: string | null;
-  name: string;
-  address: string;
-  city: string;
-  type: Property["type"];
-  status: Property["status"];
-  primary_system: string;
-  open_jobs: number;
-  last_visit: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  formatted_address: string | null;
-  place_id: string | null;
-  created_at: string;
-  customers?: { name: string } | null;
-};
 
 export interface CreatePropertyInput {
   name: string;
   customer: string;
   address: string;
   city: string;
-  type: Property["type"];
-  status: Property["status"];
+  type: PropertyType;
+  status: PropertyStatus;
   primarySystem: string;
+  openJobs?: number;
+  lastVisit?: string;
 }
 
 export type UpdatePropertyInput = Partial<CreatePropertyInput>;
@@ -43,171 +40,145 @@ export type GeocodeStatus =
   | "location_unchanged"
   | "no_location";
 
-function toProperty(row: PropertyRow): Property {
-  const location: PropertyLocation | undefined =
-    row.latitude !== null && row.longitude !== null
-      ? {
-          latitude: Number(row.latitude),
-          longitude: Number(row.longitude),
-          formattedAddress: row.formatted_address ?? undefined,
-          placeId: row.place_id ?? undefined,
-        }
-      : undefined;
+export interface PropertyMutationResult {
+  property: Property;
+  geocodeStatus: GeocodeStatus;
+}
 
+const PROPERTY_TYPES = new Set<PropertyType>([
+  "Residential",
+  "Commercial",
+  "Multi-Family",
+]);
+const PROPERTY_STATUSES = new Set<PropertyStatus>(["Active", "Pending", "Inactive"]);
+
+function normalizePropertyInput(input: CreatePropertyInput): CreatePropertyInput {
   return {
-    id: row.id,
-    name: row.name,
-    customer: row.customers?.name ?? "Unassigned Customer",
-    address: row.address,
-    city: row.city,
-    type: row.type,
-    status: row.status,
-    primarySystem: row.primary_system,
-    openJobs: row.open_jobs,
-    lastVisit: row.last_visit ?? row.created_at.slice(0, 10),
-    createdAt: row.created_at,
-    location,
+    ...input,
+    name: input.name.trim(),
+    customer: input.customer.trim(),
+    address: input.address.trim(),
+    city: input.city.trim(),
+    primarySystem: input.primarySystem.trim(),
+    lastVisit: input.lastVisit?.trim(),
   };
+}
+
+function validatePropertyInput(input: CreatePropertyInput) {
+  if (!input.name) throw new Error("Property name is required.");
+  if (!input.customer) throw new Error("Customer name is required.");
+  if (!input.address) throw new Error("Address is required.");
+  if (!input.city) throw new Error("City is required.");
+  if (!input.primarySystem) throw new Error("Primary system is required.");
+  if (!PROPERTY_TYPES.has(input.type)) throw new Error("Invalid property type.");
+  if (!PROPERTY_STATUSES.has(input.status)) throw new Error("Invalid property status.");
 }
 
 async function resolveLocation(
   address: string,
-  city: string
+  city: string,
 ): Promise<{ location: PropertyLocation | undefined; geocoded: boolean }> {
   const fullAddress = formatPropertyAddress({ address, city });
   const result = await geocodeAddress(fullAddress);
 
   if (!result.success) {
-    console.warn(
-      `[properties] Geocoding failed for "${fullAddress}": ${result.error}`
-    );
+    console.warn(`[properties] Geocoding failed for "${fullAddress}": ${result.error}`);
     return { location: undefined, geocoded: false };
   }
 
   return { location: result.location, geocoded: true };
 }
 
-async function findCustomerIdByName(orgId: string, name: string): Promise<string | null> {
-  const normalized = name.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const supabase = getSupabaseAdmin();
-  const { data } = await supabase
-    .from("customers")
-    .select("id")
-    .eq("org_id", orgId)
-    .ilike("name", normalized)
-    .limit(1)
-    .maybeSingle();
-
-  return (data?.id as string | undefined) ?? null;
+export async function listProperties() {
+  return listPropertyRecords();
 }
 
-export async function listProperties(): Promise<Property[]> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("properties")
-    .select(
-      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
-    )
-    .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return ((data ?? []) as PropertyRow[]).map((row: PropertyRow) =>
-    toProperty(row)
-  );
+export async function fetchPropertyById(id: string): Promise<Property | null> {
+  return getPropertyById(id);
 }
 
 export async function getProperty(id: string): Promise<Property | null> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("properties")
-    .select(
-      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
-    )
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .maybeSingle();
+  return fetchPropertyById(id);
+}
 
-  if (error) {
-    throw new Error(error.message);
+export async function resolvePropertyIdByName(propertyName: string): Promise<string | null> {
+  const properties = await listPropertyRecords();
+  const matched = properties.find(
+    (property) => property.name.toLowerCase() === propertyName.trim().toLowerCase(),
+  );
+  return matched?.id ?? null;
+}
+
+export async function syncPropertyCounters(propertyId: string) {
+  const property = await getPropertyById(propertyId);
+
+  if (!property) {
+    return null;
   }
 
-  return data ? toProperty(data as PropertyRow) : null;
+  return updatePropertyRecord(propertyId, {
+    openJobs: await countOpenJobsForProperty(propertyId),
+    customer: property.customer,
+  });
 }
 
 export async function createProperty(
-  input: CreatePropertyInput
-): Promise<{ property: Property; geocodeStatus: GeocodeStatus }> {
-  const orgId = await resolveOrgId();
-  const customerId = await findCustomerIdByName(orgId, input.customer);
-  const { location, geocoded } = await resolveLocation(input.address, input.city);
-  const supabase = getSupabaseAdmin();
-  const today = new Date().toISOString().slice(0, 10);
+  input: CreatePropertyInput,
+): Promise<PropertyMutationResult> {
+  const normalized = normalizePropertyInput(input);
+  validatePropertyInput(normalized);
 
-  const { data, error } = await supabase
-    .from("properties")
-    .insert({
-      org_id: orgId,
-      customer_id: customerId,
-      name: input.name,
-      address: input.address,
-      city: input.city,
-      type: input.type,
-      status: input.status,
-      primary_system: input.primarySystem,
-      last_visit: today,
-      latitude: location?.latitude ?? null,
-      longitude: location?.longitude ?? null,
-      formatted_address: location?.formattedAddress ?? null,
-      place_id: location?.placeId ?? null,
-    })
-    .select(
-      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
-    )
-    .single();
+  const { location, geocoded } = await resolveLocation(normalized.address, normalized.city);
 
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to create property.");
+  const property = await createPropertyRecord({
+    ...normalized,
+    openJobs: normalized.openJobs ?? 0,
+    lastVisit: normalized.lastVisit ?? new Date().toISOString().slice(0, 10),
+    location,
+  });
+
+  const customerId = await resolveCustomerIdByName(property.customer);
+  if (customerId) {
+    await syncCustomerCounters(customerId);
   }
 
   return {
-    property: toProperty(data as PropertyRow),
+    property,
     geocodeStatus: geocoded ? "geocoded" : "no_location",
   };
 }
 
 export async function updateProperty(
   id: string,
-  changes: UpdatePropertyInput
-): Promise<{ property: Property; geocodeStatus: GeocodeStatus } | null> {
-  const orgId = await resolveOrgId();
-  const existing = await getProperty(id);
+  changes: UpdatePropertyInput,
+): Promise<PropertyMutationResult | null> {
+  const existing = await getPropertyById(id);
 
   if (!existing) {
     return null;
   }
 
-  const addressChanged =
-    (changes.address !== undefined && changes.address !== existing.address) ||
-    (changes.city !== undefined && changes.city !== existing.city);
+  const merged = normalizePropertyInput({
+    name: changes.name ?? existing.name,
+    customer: changes.customer ?? existing.customer,
+    address: changes.address ?? existing.address,
+    city: changes.city ?? existing.city,
+    type: changes.type ?? existing.type,
+    status: changes.status ?? existing.status,
+    primarySystem: changes.primarySystem ?? existing.primarySystem,
+    openJobs: changes.openJobs ?? existing.openJobs,
+    lastVisit: changes.lastVisit ?? existing.lastVisit,
+  });
+
+  validatePropertyInput(merged);
+
+  const addressChanged = merged.address !== existing.address || merged.city !== existing.city;
 
   let location = existing.location;
   let geocodeStatus: GeocodeStatus = "location_unchanged";
 
   if (addressChanged) {
-    const resolved = await resolveLocation(
-      changes.address ?? existing.address,
-      changes.city ?? existing.city
-    );
+    const resolved = await resolveLocation(merged.address, merged.city);
 
     if (resolved.geocoded) {
       location = resolved.location;
@@ -220,64 +191,46 @@ export async function updateProperty(
     }
   }
 
-  const customerId =
-    changes.customer !== undefined
-      ? await findCustomerIdByName(orgId, changes.customer)
-      : null;
+  const property = await updatePropertyRecord(id, {
+    ...merged,
+    location,
+  });
 
-  const patch: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-    latitude: location?.latitude ?? null,
-    longitude: location?.longitude ?? null,
-    formatted_address: location?.formattedAddress ?? null,
-    place_id: location?.placeId ?? null,
-  };
-
-  if (changes.name !== undefined) patch.name = changes.name;
-  if (changes.address !== undefined) patch.address = changes.address;
-  if (changes.city !== undefined) patch.city = changes.city;
-  if (changes.type !== undefined) patch.type = changes.type;
-  if (changes.status !== undefined) patch.status = changes.status;
-  if (changes.primarySystem !== undefined) patch.primary_system = changes.primarySystem;
-  if (changes.customer !== undefined) patch.customer_id = customerId;
-
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("properties")
-    .update(patch)
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .select(
-      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
-    )
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
+  if (!property) {
     return null;
   }
 
+  const [previousCustomerId, nextCustomerId] = await Promise.all([
+    resolveCustomerIdByName(existing.customer),
+    resolveCustomerIdByName(property.customer),
+  ]);
+
+  if (previousCustomerId) {
+    await syncCustomerCounters(previousCustomerId);
+  }
+
+  if (nextCustomerId && nextCustomerId !== previousCustomerId) {
+    await syncCustomerCounters(nextCustomerId);
+  }
+
+  const syncedProperty = await syncPropertyCounters(property.id);
+
   return {
-    property: toProperty(data as PropertyRow),
+    property: syncedProperty ?? property,
     geocodeStatus,
   };
 }
 
-export async function deleteProperty(id: string): Promise<boolean> {
-  const orgId = await resolveOrgId();
-  const supabase = getSupabaseAdmin();
-  const { count, error } = await supabase
-    .from("properties")
-    .delete({ count: "exact" })
-    .eq("org_id", orgId)
-    .eq("id", id);
+export async function deleteProperty(id: string) {
+  const existing = await getPropertyById(id);
+  const deleted = await deletePropertyRecord(id);
 
-  if (error) {
-    throw new Error(error.message);
+  if (deleted && existing) {
+    const customerId = await resolveCustomerIdByName(existing.customer);
+    if (customerId) {
+      await syncCustomerCounters(customerId);
+    }
   }
 
-  return (count ?? 0) > 0;
+  return deleted;
 }

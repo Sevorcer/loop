@@ -1,12 +1,38 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import {
-  deleteProperty,
-  getProperty,
-  updateProperty,
-} from "@/services/properties";
+import { deleteProperty, getProperty, updateProperty } from "@/services/properties";
+
+const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
+const PROPERTY_STATUSES = new Set(["Active", "Pending", "Inactive"]);
+
+function readOptionalPropertyType(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value);
+  if (!PROPERTY_TYPES.has(normalized)) {
+    throw new Error("Invalid property type.");
+  }
+
+  return normalized as "Residential" | "Commercial" | "Multi-Family";
+}
+
+function readOptionalPropertyStatus(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value);
+  if (!PROPERTY_STATUSES.has(normalized)) {
+    throw new Error("Invalid property status.");
+  }
+
+  return normalized as "Active" | "Pending" | "Inactive";
+}
 
 export async function GET(
   request: Request,
@@ -15,30 +41,21 @@ export async function GET(
   const guard = requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-  let property = null;
   try {
-    property = await getProperty(id);
+    const { id } = await params;
+    const property = await getProperty(id);
+
+    if (!property) {
+      return NextResponse.json(
+        { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ property });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to load property.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
-
-  if (!property) {
-    return NextResponse.json(
-      { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
-      { status: 404 },
-    );
-  }
-
-  return NextResponse.json({ property });
 }
 
 export async function PATCH(
@@ -48,39 +65,30 @@ export async function PATCH(
   const guard = requirePermission(request, "properties", "update");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    body = await readJsonObject(request);
   } catch {
-    return NextResponse.json(
-      { error: "INVALID_PAYLOAD", message: "Request body must be valid JSON.", code: 400 },
-      { status: 400 },
-    );
+    return invalidJsonResponse();
   }
 
   try {
+    const { id } = await params;
     const updated = await updateProperty(id, {
       name: body.name !== undefined ? String(body.name).trim() : undefined,
-      customer:
-        body.customer !== undefined ? String(body.customer).trim() : undefined,
-      address:
-        body.address !== undefined ? String(body.address).trim() : undefined,
+      customer: body.customer !== undefined ? String(body.customer).trim() : undefined,
+      address: body.address !== undefined ? String(body.address).trim() : undefined,
       city: body.city !== undefined ? String(body.city).trim() : undefined,
-      type:
-        body.type as "Residential" | "Commercial" | "Multi-Family" | undefined,
-      status: body.status as "Active" | "Pending" | "Inactive" | undefined,
+      type: readOptionalPropertyType(body.type),
+      status: readOptionalPropertyStatus(body.status),
       primarySystem:
-        body.primarySystem !== undefined
-          ? String(body.primarySystem).trim()
-          : undefined,
+        body.primarySystem !== undefined ? String(body.primarySystem).trim() : undefined,
     });
 
     if (!updated) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -89,7 +97,10 @@ export async function PATCH(
       action: "update",
       resource: "properties",
       resourceId: id,
-      details: { geocodeStatus: updated.geocodeStatus },
+      details: {
+        ...body,
+        geocodeStatus: updated.geocodeStatus,
+      },
     });
 
     return NextResponse.json({
@@ -97,15 +108,7 @@ export async function PATCH(
       geocodeStatus: updated.geocodeStatus,
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to update property.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }
 
@@ -116,15 +119,14 @@ export async function DELETE(
   const guard = requirePermission(request, "properties", "delete");
   if (!guard.ok) return guard.response;
 
-  const { id } = await params;
-
   try {
+    const { id } = await params;
     const deleted = await deleteProperty(id);
 
     if (!deleted) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -137,14 +139,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Property deleted.", id });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to delete property.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }

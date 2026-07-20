@@ -62,9 +62,7 @@ function NewJobFormContent() {
     );
   }
 
-  return (
-    <JobForm mode="create" cancelHref="/jobs" onSubmit={handleSubmit} />
-  );
+  return <JobForm mode="create" cancelHref="/jobs" onSubmit={handleSubmit} />;
 }
 
 export function NewJobForm() {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Ban, CheckCircle2, PauseCircle, PlayCircle } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
@@ -19,8 +20,9 @@ export function JobStatusActions({
   onChangeStatus,
 }: {
   status: JobStatus;
-  onChangeStatus: (status: JobStatus) => void;
+  onChangeStatus: (status: JobStatus) => Promise<void> | void;
 }) {
+  const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
   const helperText =
     status === "Scheduled"
       ? "This job is scheduled and ready to be started when the technician is dispatched."
@@ -31,6 +33,15 @@ export function JobStatusActions({
           : status === "Completed"
             ? "This job has been completed and is ready for closeout review or documentation."
             : "This job has been cancelled and is no longer active in the execution workflow.";
+
+  async function handleChange(nextStatus: JobStatus) {
+    try {
+      setPendingStatus(nextStatus);
+      await onChangeStatus(nextStatus);
+    } finally {
+      setPendingStatus(null);
+    }
+  }
 
   return (
     <SurfaceCard>
@@ -50,39 +61,43 @@ export function JobStatusActions({
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Button
-            onClick={() => onChangeStatus("In Progress")}
+            onClick={() => void handleChange("In Progress")}
             className="justify-start gap-2"
             variant="secondary"
+            disabled={pendingStatus !== null}
           >
             <PlayCircle className="h-4 w-4" />
-            Start Job
+            {pendingStatus === "In Progress" ? "Updating..." : "Start Job"}
           </Button>
 
           <Button
-            onClick={() => onChangeStatus("On Hold")}
+            onClick={() => void handleChange("On Hold")}
             className="justify-start gap-2"
             variant="secondary"
+            disabled={pendingStatus !== null}
           >
             <PauseCircle className="h-4 w-4" />
-            Put On Hold
+            {pendingStatus === "On Hold" ? "Updating..." : "Put On Hold"}
           </Button>
 
           <Button
-            onClick={() => onChangeStatus("Completed")}
+            onClick={() => void handleChange("Completed")}
             className="justify-start gap-2"
             variant="secondary"
+            disabled={pendingStatus !== null}
           >
             <CheckCircle2 className="h-4 w-4" />
-            Mark Complete
+            {pendingStatus === "Completed" ? "Updating..." : "Mark Complete"}
           </Button>
 
           <Button
-            onClick={() => onChangeStatus("Cancelled")}
+            onClick={() => void handleChange("Cancelled")}
             className="justify-start gap-2"
             variant="secondary"
+            disabled={pendingStatus !== null}
           >
             <Ban className="h-4 w-4" />
-            Cancel Job
+            {pendingStatus === "Cancelled" ? "Updating..." : "Cancel Job"}
           </Button>
         </div>
       </div>

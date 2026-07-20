@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
 import { createCustomer, listCustomers } from "@/services/customers";
+
+const CUSTOMER_STATUSES = new Set(["Active", "Prospect", "Inactive"]);
+
+function readCustomerStatus(value: unknown) {
+  const normalized = String(value ?? "Active");
+  if (!CUSTOMER_STATUSES.has(normalized)) {
+    throw new Error("Invalid customer status.");
+  }
+  return normalized as "Active" | "Prospect" | "Inactive";
+}
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "customers", "select");
@@ -12,15 +23,7 @@ export async function GET(request: Request) {
     const customers = await listCustomers();
     return NextResponse.json({ customers });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to load customers.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }
 
@@ -30,12 +33,9 @@ export async function POST(request: Request) {
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    body = await readJsonObject(request);
   } catch {
-    return NextResponse.json(
-      { error: "INVALID_PAYLOAD", message: "Request body must be valid JSON.", code: 400 },
-      { status: 400 },
-    );
+    return invalidJsonResponse();
   }
 
   try {
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       email: String(body.email ?? "").trim(),
       phone: String(body.phone ?? "").trim(),
       city: String(body.city ?? "").trim(),
-      status: (body.status as "Active" | "Prospect" | "Inactive") ?? "Active",
+      status: readCustomerStatus(body.status),
     });
 
     emitAuditEvent({
@@ -58,14 +58,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ customer }, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to create customer.",
-        code: 500,
-      },
-      { status: 500 }
-    );
+    return mapRouteError(error);
   }
 }

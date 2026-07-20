@@ -8,6 +8,7 @@ import type {
   CopilotSearchItem,
   CopilotSearchResponse,
 } from "./types";
+import type { SearchRecord } from "./types";
 
 const GROUP_LABELS: Record<CopilotSearchItem["domain"], string> = {
   projects: "Projects",
@@ -43,20 +44,18 @@ function toGroups(items: CopilotSearchItem[]): CopilotSearchGroup[] {
 }
 
 function buildConversationalResponse(query: string) {
-  // Placeholder conversational mode for this sprint.
-  // Sprint 23 guardrails scope conversational output to a lightweight fallback
-  // while retrieval/navigation remains the primary response mode.
   return `I can help retrieve items and route you to the right screen for: ${query}`;
 }
 
-export function searchCopilot(
+export async function searchCopilot(
   query: string,
-  inputContext?: CopilotSearchContextInput
-): CopilotSearchResponse {
+  inputContext?: CopilotSearchContextInput,
+  recordsOverride?: SearchRecord[],
+): Promise<CopilotSearchResponse> {
   const trimmedQuery = query.trim();
   const intent = parseCopilotIntent(trimmedQuery);
   const context = resolveCopilotContext(inputContext);
-  const records = getSearchRecords();
+  const records = recordsOverride ?? (await getSearchRecords());
 
   const scored = records
     .map((record) => ({
