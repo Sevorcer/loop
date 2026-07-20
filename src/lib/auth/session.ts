@@ -20,6 +20,11 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
+import {
+  createCorrelationId,
+  incrementAuthMetric,
+  logAuthEvent,
+} from "@/lib/observability/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ROUTES } from "@/lib/routes";
 import type { Session, User } from "@supabase/supabase-js";
@@ -45,12 +50,25 @@ export interface AuthSession {
  * context per the Supabase SSR docs.
  */
 export async function getAuthSession(): Promise<AuthSession | null> {
+  const requestId = createCorrelationId();
   // Gracefully return null when Supabase env vars are not configured (e.g.
   // during static prerendering at build time or local dev without a project).
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
+    logAuthEvent({
+      event: "session_refresh_failure",
+      outcome: "failure",
+      route: "server:getAuthSession",
+      requestId,
+      correlationId: requestId,
+      statusCode: 401,
+      errorCode: "SUPABASE_ENV_MISSING",
+    });
+    incrementAuthMetric("auth_session_refresh_failure_total", {
+      route: "server:getAuthSession",
+    });
     return null;
   }
 
@@ -61,14 +79,54 @@ export async function getAuthSession(): Promise<AuthSession | null> {
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) return null;
+  if (error || !user) {
+    logAuthEvent({
+      event: "session_refresh_failure",
+      outcome: "failure",
+      route: "server:getAuthSession",
+      requestId,
+      correlationId: requestId,
+      statusCode: 401,
+      errorCode: error?.name ?? "USER_NOT_FOUND",
+      details: { message: error?.message ?? "No authenticated user found." },
+    });
+    incrementAuthMetric("auth_session_refresh_failure_total", {
+      route: "server:getAuthSession",
+    });
+    return null;
+  }
 
   // Re-fetch the full session object after confirming the user is valid.
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  if (!session) return null;
+  if (!session) {
+    logAuthEvent({
+      event: "session_refresh_failure",
+      outcome: "failure",
+      route: "server:getAuthSession",
+      requestId,
+      correlationId: requestId,
+      statusCode: 401,
+      userId: user.id,
+      errorCode: "SESSION_NOT_FOUND",
+    });
+    incrementAuthMetric("auth_session_refresh_failure_total", {
+      route: "server:getAuthSession",
+    });
+    return null;
+  }
+
+  logAuthEvent({
+    event: "session_refresh_success",
+    outcome: "success",
+    route: "server:getAuthSession",
+    requestId,
+    correlationId: requestId,
+    statusCode: 200,
+    userId: user.id,
+  });
 
   return { user, session };
 }

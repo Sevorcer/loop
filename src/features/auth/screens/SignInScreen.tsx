@@ -5,8 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, AlertCircle } from "lucide-react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  createCorrelationId,
+  incrementAuthMetric,
+  logAuthEvent,
+} from "@/lib/observability/auth";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
+
+function getEmailDomain(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  const atIndex = trimmed.lastIndexOf("@");
+  if (atIndex === -1 || atIndex === trimmed.length - 1) return "unknown";
+  return trimmed.slice(atIndex + 1);
+}
 
 export function SignInScreen() {
   const router = useRouter();
@@ -21,7 +33,21 @@ export function SignInScreen() {
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
+      const requestId = createCorrelationId();
+      const normalizedEmail = email.trim();
+      const emailDomain = getEmailDomain(normalizedEmail);
       if (!supabase) {
+        logAuthEvent({
+          event: "sign_in_failure",
+          outcome: "failure",
+          route: ROUTES.SIGN_IN,
+          statusCode: 503,
+          requestId,
+          correlationId: requestId,
+          errorCode: "SUPABASE_NOT_CONFIGURED",
+          details: { emailDomain },
+        });
+        incrementAuthMetric("auth_sign_in_failure_total", { route: ROUTES.SIGN_IN });
         setError("Authentication is not configured. Please contact support.");
         return;
       }
@@ -29,15 +55,39 @@ export function SignInScreen() {
       setError(null);
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: normalizedEmail,
         password,
       });
 
       if (signInError) {
+        logAuthEvent({
+          event: "sign_in_failure",
+          outcome: "failure",
+          route: ROUTES.SIGN_IN,
+          statusCode: 401,
+          requestId,
+          correlationId: requestId,
+          errorCode: signInError.name,
+          details: {
+            message: signInError.message,
+            emailDomain,
+          },
+        });
+        incrementAuthMetric("auth_sign_in_failure_total", { route: ROUTES.SIGN_IN });
         setError(signInError.message);
         setIsLoading(false);
         return;
       }
+
+      logAuthEvent({
+        event: "sign_in_success",
+        outcome: "success",
+        route: ROUTES.SIGN_IN,
+        statusCode: 200,
+        requestId,
+        correlationId: requestId,
+        details: { emailDomain },
+      });
 
       // Redirect to the intended destination (set by middleware) or dashboard.
       const next = searchParams.get("next") ?? ROUTES.DASHBOARD;

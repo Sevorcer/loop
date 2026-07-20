@@ -13,18 +13,55 @@
 
 import { NextResponse } from "next/server";
 
+import {
+  applyTraceHeaders,
+  getRequestTraceContext,
+  logAuthEvent,
+} from "@/lib/observability/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireApiSession } from "@/lib/auth/apiGuard";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const trace = getRequestTraceContext(request);
+
   // Require an authenticated session before accepting a sign-out request.
   // This prevents unauthenticated callers from triggering server-side
   // session teardown against arbitrary cookies.
-  const sessionResult = await requireApiSession();
+  const sessionResult = await requireApiSession(request);
   if (sessionResult.error) return sessionResult.error;
 
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
 
-  return NextResponse.json({ ok: true }, { status: 200 });
+  try {
+    await supabase.auth.signOut();
+    logAuthEvent({
+      event: "sign_out",
+      outcome: "success",
+      route: trace.route,
+      statusCode: 200,
+      requestId: trace.requestId,
+      correlationId: trace.correlationId,
+    });
+    return applyTraceHeaders(NextResponse.json({ ok: true }, { status: 200 }), trace);
+  } catch (error) {
+    logAuthEvent({
+      event: "sign_out",
+      outcome: "failure",
+      route: trace.route,
+      statusCode: 500,
+      requestId: trace.requestId,
+      correlationId: trace.correlationId,
+      errorCode: "SIGN_OUT_FAILED",
+      details: {
+        message: error instanceof Error ? error.message : "Unknown sign-out failure.",
+      },
+    });
+    return applyTraceHeaders(
+      NextResponse.json(
+        { error: "SIGN_OUT_FAILED", message: "Failed to sign out.", code: 500 },
+        { status: 500 },
+      ),
+      trace,
+    );
+  }
 }

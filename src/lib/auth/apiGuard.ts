@@ -23,6 +23,13 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import {
+  applyTraceHeaders,
+  createCorrelationId,
+  getRequestTraceContext,
+  incrementAuthMetric,
+  logAuthEvent,
+} from "@/lib/observability/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -52,7 +59,11 @@ export type ApiSessionResult = ApiSessionSuccess | ApiSessionFailure;
  *     // ... handler logic
  *   }
  */
-export async function requireApiSession(): Promise<ApiSessionResult> {
+export async function requireApiSession(request?: Request): Promise<ApiSessionResult> {
+  const generatedId = createCorrelationId();
+  const trace = request
+    ? getRequestTraceContext(request)
+    : { route: "unknown", requestId: generatedId, correlationId: generatedId };
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -61,14 +72,38 @@ export async function requireApiSession(): Promise<ApiSessionResult> {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
+    logAuthEvent({
+      event: "unauthorized_access_attempt",
+      outcome: "deny",
+      route: trace.route,
+      statusCode: 401,
+      requestId: trace.requestId,
+      correlationId: trace.correlationId,
+      errorCode: error?.name ?? "API_SESSION_MISSING",
+      details: { message: error?.message ?? "No authenticated user found." },
+    });
+    incrementAuthMetric("auth_401_total", { route: trace.route });
     return {
-      error: NextResponse.json(
-        { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
-        { status: 401 }
+      error: applyTraceHeaders(
+        NextResponse.json(
+          { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
+          { status: 401 }
+        ),
+        trace,
       ),
       user: null,
     };
   }
+
+  logAuthEvent({
+    event: "session_refresh_success",
+    outcome: "success",
+    route: trace.route,
+    statusCode: 200,
+    requestId: trace.requestId,
+    correlationId: trace.correlationId,
+    userId: user.id,
+  });
 
   return { error: null, user };
 }

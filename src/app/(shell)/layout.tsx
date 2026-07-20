@@ -17,4 +17,3 @@ export default async function ShellLayout({ children }: { children: ReactNode })
     </AuthProvider>
   );
 }
-
