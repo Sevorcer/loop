@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { DataTable, EmptyState } from "@/components/atlas";
@@ -16,21 +16,12 @@ const PAGE_SIZE = 10;
 
 export function CustomerTable() {
   const router = useRouter();
-  const { customers } = useCustomers();
+  const { customers, hydrated, loading, error, refreshCustomers } = useCustomers();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [cityFilter, setCityFilter] = useState(ALL_FILTER_VALUE);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setIsLoading(false);
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const cityOptions = useMemo(() => {
     return Array.from(
@@ -105,7 +96,7 @@ export function CustomerTable() {
     router.push(`/customers/${customer.id}`);
   }
 
-  if (isLoading) {
+  if (loading || !hydrated) {
     return (
       <div className="space-y-4">
         <CustomerToolbar
@@ -129,6 +120,33 @@ export function CustomerTable() {
             <div className="h-10 animate-pulse rounded-md bg-muted" />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <CustomerToolbar
+          searchValue={searchValue}
+          onSearchChange={handleSearchChange}
+          statusFilter={statusFilter}
+          onStatusChange={handleStatusChange}
+          cityFilter={cityFilter}
+          onCityChange={handleCityChange}
+          cityOptions={cityOptions}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
+        <EmptyState
+          title="Unable to load customers"
+          description={error}
+          action={
+            <Button variant="outline" onClick={() => void refreshCustomers()}>
+              Try again
+            </Button>
+          }
+        />
       </div>
     );
   }

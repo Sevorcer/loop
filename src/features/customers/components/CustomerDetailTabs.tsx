@@ -12,7 +12,6 @@ import {
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { mockCustomerDetails } from "../data/mockCustomerDetails";
 import type { Customer } from "../types/customer";
 import type { CustomerDetails } from "../types/customerDetails";
 
@@ -43,14 +42,6 @@ function formatDate(value: string) {
 }
 
 function getCustomerDetails(customer: Customer): CustomerDetails {
-  const existingDetails = mockCustomerDetails.find(
-    (entry) => entry.customerId === customer.id
-  );
-
-  if (existingDetails) {
-    return existingDetails;
-  }
-
   return {
     customerId: customer.id,
     accountSummary: [

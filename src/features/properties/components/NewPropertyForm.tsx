@@ -64,6 +64,7 @@ function NewPropertyFormContent() {
   const [form, setForm] = useState<PropertyFormValues>(defaultPropertyFormValues);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const canSubmit =
     form.name.trim().length > 0 &&
@@ -83,7 +84,7 @@ function NewPropertyFormContent() {
     setError(null);
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!canSubmit) {
@@ -91,8 +92,19 @@ function NewPropertyFormContent() {
       return;
     }
 
-    createProperty(normalizeValues(form));
-    setIsSubmitted(true);
+    setIsSaving(true);
+    try {
+      await createProperty(normalizeValues(form));
+      setIsSubmitted(true);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to create property."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   if (isSubmitted) {
@@ -273,9 +285,9 @@ function NewPropertyFormContent() {
                 </Button>
               </Link>
 
-              <Button type="submit" className="gap-2" disabled={!canSubmit}>
+              <Button type="submit" className="gap-2" disabled={!canSubmit || isSaving}>
                 <Building2 className="h-4 w-4" />
-                Create Property
+                {isSaving ? "Creating..." : "Create Property"}
               </Button>
             </div>
           </div>

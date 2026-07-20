@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { createRepositoryErrorBody } from "@/lib/repositories/http";
-import { createPropertiesService } from "@/services/domain/propertiesService";
-import type { PropertyWriteInput } from "@/services/repositories/propertiesRepository";
-
-const propertiesService = createPropertiesService();
+import {
+  deleteProperty,
+  getProperty,
+  updateProperty,
+} from "@/services/properties";
 
 export async function GET(
   request: Request,
@@ -16,13 +16,29 @@ export async function GET(
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
-  const result = await propertiesService.getById(id);
-  if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+  let property = null;
+  try {
+    property = await getProperty(id);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "INTERNAL_ERROR",
+        message:
+          error instanceof Error ? error.message : "Failed to load property.",
+        code: 500,
+      },
+      { status: 500 }
+    );
   }
 
-  return NextResponse.json({ property: result.data });
+  if (!property) {
+    return NextResponse.json(
+      { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json({ property });
 }
 
 export async function PATCH(
@@ -44,21 +60,53 @@ export async function PATCH(
     );
   }
 
-  emitAuditEvent({
-    role: guard.ctx.role,
-    action: "update",
-    resource: "properties",
-    resourceId: id,
-    details: body,
-  });
+  try {
+    const updated = await updateProperty(id, {
+      name: body.name !== undefined ? String(body.name).trim() : undefined,
+      customer:
+        body.customer !== undefined ? String(body.customer).trim() : undefined,
+      address:
+        body.address !== undefined ? String(body.address).trim() : undefined,
+      city: body.city !== undefined ? String(body.city).trim() : undefined,
+      type:
+        body.type as "Residential" | "Commercial" | "Multi-Family" | undefined,
+      status: body.status as "Active" | "Pending" | "Inactive" | undefined,
+      primarySystem:
+        body.primarySystem !== undefined
+          ? String(body.primarySystem).trim()
+          : undefined,
+    });
 
-  const result = await propertiesService.update(id, body as PropertyWriteInput);
-  if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+    if (!updated) {
+      return NextResponse.json(
+        { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
+        { status: 404 }
+      );
+    }
+
+    emitAuditEvent({
+      role: guard.ctx.role,
+      action: "update",
+      resource: "properties",
+      resourceId: id,
+      details: { geocodeStatus: updated.geocodeStatus },
+    });
+
+    return NextResponse.json({
+      property: updated.property,
+      geocodeStatus: updated.geocodeStatus,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "INTERNAL_ERROR",
+        message:
+          error instanceof Error ? error.message : "Failed to update property.",
+        code: 500,
+      },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ message: "Property updated.", id });
 }
 
 export async function DELETE(
@@ -70,18 +118,33 @@ export async function DELETE(
 
   const { id } = await params;
 
-  emitAuditEvent({
-    role: guard.ctx.role,
-    action: "delete",
-    resource: "properties",
-    resourceId: id,
-  });
+  try {
+    const deleted = await deleteProperty(id);
 
-  const result = await propertiesService.remove(id);
-  if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+    if (!deleted) {
+      return NextResponse.json(
+        { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
+        { status: 404 }
+      );
+    }
+
+    emitAuditEvent({
+      role: guard.ctx.role,
+      action: "delete",
+      resource: "properties",
+      resourceId: id,
+    });
+
+    return NextResponse.json({ message: "Property deleted.", id });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "INTERNAL_ERROR",
+        message:
+          error instanceof Error ? error.message : "Failed to delete property.",
+        code: 500,
+      },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ message: "Property deleted.", id });
 }

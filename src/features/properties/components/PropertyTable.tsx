@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { DataTable } from "@/components/atlas";
+import { DataTable, EmptyState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
 import { useProperties } from "../state/PropertiesProvider";
@@ -15,21 +15,12 @@ const ALL_FILTER_VALUE = "all";
 
 export function PropertyTable() {
   const router = useRouter();
-  const { hydrated, properties } = useProperties();
+  const { hydrated, loading, error, refreshProperties, properties } = useProperties();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [typeFilter, setTypeFilter] = useState(ALL_FILTER_VALUE);
   const [cityFilter, setCityFilter] = useState(ALL_FILTER_VALUE);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setIsLoading(false);
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const cityOptions = useMemo(() => {
     return Array.from(new Set(properties.map((property) => property.city))).sort();
@@ -77,7 +68,7 @@ export function PropertyTable() {
     router.push(`/properties/${property.id}`);
   }
 
-  if (!hydrated || isLoading) {
+  if (!hydrated || loading) {
     return (
       <div className="space-y-4">
         <PropertyToolbar
@@ -102,6 +93,35 @@ export function PropertyTable() {
             <div className="h-10 animate-pulse rounded-md bg-muted" />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <PropertyToolbar
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          statusFilter={statusFilter}
+          onStatusChange={setStatusFilter}
+          typeFilter={typeFilter}
+          onTypeChange={setTypeFilter}
+          cityFilter={cityFilter}
+          onCityChange={setCityFilter}
+          cityOptions={cityOptions}
+          onClearFilters={handleClearFilters}
+        />
+
+        <EmptyState
+          title="Unable to load properties"
+          description={error}
+          action={
+            <Button variant="outline" onClick={() => void refreshProperties()}>
+              Try again
+            </Button>
+          }
+        />
       </div>
     );
   }

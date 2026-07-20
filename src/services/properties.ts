@@ -1,72 +1,74 @@
-/**
- * Server-only property service.
- *
- * Handles property create and update operations with automatic geocoding.
- * When a property is saved, the address is geocoded and enriched location
- * data (latitude, longitude, formattedAddress, placeId) is stored alongside it.
- *
- * Persistence is currently mocked — replace the mock implementations with
- * real Supabase calls when the database schema is ready.
- */
-
 import "server-only";
 
-import type {
-  Property,
-  PropertyLocation,
-  PropertyStatus,
-  PropertyType,
-} from "@/features/properties/types/property";
+import type { Property, PropertyLocation } from "@/features/properties/types/property";
 import { formatPropertyAddress } from "@/features/properties/utils/formatPropertyAddress";
+import { getSupabaseAdmin, resolveOrgId } from "./supabaseContext";
+
 import { geocodeAddress } from "./geocoding";
 
-// ---------------------------------------------------------------------------
-// Input types — decoupled from the full Property read model so that the
-// write surface is explicit and stable regardless of how the read model evolves.
-// ---------------------------------------------------------------------------
+type PropertyRow = {
+  id: string;
+  customer_id: string | null;
+  name: string;
+  address: string;
+  city: string;
+  type: Property["type"];
+  status: Property["status"];
+  primary_system: string;
+  open_jobs: number;
+  last_visit: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  formatted_address: string | null;
+  place_id: string | null;
+  created_at: string;
+  customers?: { name: string } | null;
+};
 
 export interface CreatePropertyInput {
   name: string;
   customer: string;
   address: string;
   city: string;
-  type: PropertyType;
-  status: PropertyStatus;
+  type: Property["type"];
+  status: Property["status"];
   primarySystem: string;
-  openJobs: number;
-  lastVisit: string;
 }
 
 export type UpdatePropertyInput = Partial<CreatePropertyInput>;
 
-// ---------------------------------------------------------------------------
-// Result types — callers can inspect geocoding status without parsing the
-// returned property or catching exceptions.
-// ---------------------------------------------------------------------------
-
 export type GeocodeStatus =
-  /** Address was geocoded successfully; location reflects new coordinates. */
   | "geocoded"
-  /** Geocoding was attempted but failed; previous location was preserved. */
   | "geocode_failed_location_preserved"
-  /** Address did not change; existing location was kept as-is. */
   | "location_unchanged"
-  /** No previous location existed and geocoding was not attempted or failed with no prior data. */
   | "no_location";
 
-export interface CreatePropertyResult {
-  property: Property;
-  geocodeStatus: GeocodeStatus;
-}
+function toProperty(row: PropertyRow): Property {
+  const location: PropertyLocation | undefined =
+    row.latitude !== null && row.longitude !== null
+      ? {
+          latitude: Number(row.latitude),
+          longitude: Number(row.longitude),
+          formattedAddress: row.formatted_address ?? undefined,
+          placeId: row.place_id ?? undefined,
+        }
+      : undefined;
 
-export interface UpdatePropertyResult {
-  property: Property;
-  geocodeStatus: GeocodeStatus;
+  return {
+    id: row.id,
+    name: row.name,
+    customer: row.customers?.name ?? "Unassigned Customer",
+    address: row.address,
+    city: row.city,
+    type: row.type,
+    status: row.status,
+    primarySystem: row.primary_system,
+    openJobs: row.open_jobs,
+    lastVisit: row.last_visit ?? row.created_at.slice(0, 10),
+    createdAt: row.created_at,
+    location,
+  };
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 async function resolveLocation(
   address: string,
@@ -85,57 +87,115 @@ async function resolveLocation(
   return { location: result.location, geocoded: true };
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
+async function findCustomerIdByName(orgId: string, name: string): Promise<string | null> {
+  const normalized = name.trim();
+  if (!normalized) {
+    return null;
+  }
 
-/**
- * Create a new property with automatic geocoding.
- *
- * If geocoding fails the property is still created — location will be absent
- * and can be populated later when the address is corrected or geocoding recovers.
- *
- * TODO: Replace mock return with a Supabase insert when the schema is ready.
- */
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("org_id", orgId)
+    .ilike("name", normalized)
+    .limit(1)
+    .maybeSingle();
+
+  return (data?.id as string | undefined) ?? null;
+}
+
+export async function listProperties(): Promise<Property[]> {
+  const orgId = await resolveOrgId();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("properties")
+    .select(
+      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
+    )
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as PropertyRow[]).map((row: PropertyRow) =>
+    toProperty(row)
+  );
+}
+
+export async function getProperty(id: string): Promise<Property | null> {
+  const orgId = await resolveOrgId();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("properties")
+    .select(
+      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
+    )
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? toProperty(data as PropertyRow) : null;
+}
+
 export async function createProperty(
   input: CreatePropertyInput
-): Promise<CreatePropertyResult> {
-  const { location, geocoded } = await resolveLocation(
-    input.address,
-    input.city
-  );
+): Promise<{ property: Property; geocodeStatus: GeocodeStatus }> {
+  const orgId = await resolveOrgId();
+  const customerId = await findCustomerIdByName(orgId, input.customer);
+  const { location, geocoded } = await resolveLocation(input.address, input.city);
+  const supabase = getSupabaseAdmin();
+  const today = new Date().toISOString().slice(0, 10);
 
-  const property: Property = {
-    ...input,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-    location,
-  };
+  const { data, error } = await supabase
+    .from("properties")
+    .insert({
+      org_id: orgId,
+      customer_id: customerId,
+      name: input.name,
+      address: input.address,
+      city: input.city,
+      type: input.type,
+      status: input.status,
+      primary_system: input.primarySystem,
+      last_visit: today,
+      latitude: location?.latitude ?? null,
+      longitude: location?.longitude ?? null,
+      formatted_address: location?.formattedAddress ?? null,
+      place_id: location?.placeId ?? null,
+    })
+    .select(
+      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
+    )
+    .single();
 
-  // TODO: persist to Supabase
-  // await supabase.from("properties").insert(property);
+  if (error || !data) {
+    throw new Error(error?.message ?? "Failed to create property.");
+  }
 
   return {
-    property,
+    property: toProperty(data as PropertyRow),
     geocodeStatus: geocoded ? "geocoded" : "no_location",
   };
 }
 
-/**
- * Update an existing property.
- *
- * Re-geocodes automatically when the address or city changes.
- *
- * If re-geocoding fails, the existing location is preserved rather than
- * discarded — a geocoding outage should never silently destroy coordinates
- * that were already stored on the record.
- *
- * TODO: Replace mock return with a Supabase update when the schema is ready.
- */
 export async function updateProperty(
-  existing: Property,
+  id: string,
   changes: UpdatePropertyInput
-): Promise<UpdatePropertyResult> {
+): Promise<{ property: Property; geocodeStatus: GeocodeStatus } | null> {
+  const orgId = await resolveOrgId();
+  const existing = await getProperty(id);
+
+  if (!existing) {
+    return null;
+  }
+
   const addressChanged =
     (changes.address !== undefined && changes.address !== existing.address) ||
     (changes.city !== undefined && changes.city !== existing.city);
@@ -150,13 +210,9 @@ export async function updateProperty(
     );
 
     if (resolved.geocoded) {
-      // New coordinates from fresh geocode.
       location = resolved.location;
       geocodeStatus = "geocoded";
     } else {
-      // Geocoding failed — preserve whatever was stored before rather than
-      // silently nulling out coordinates that techs may be relying on for
-      // navigation. The caller can inspect geocodeStatus to surface a warning.
       location = existing.location;
       geocodeStatus = existing.location
         ? "geocode_failed_location_preserved"
@@ -164,14 +220,64 @@ export async function updateProperty(
     }
   }
 
-  const property: Property = {
-    ...existing,
-    ...changes,
-    location,
+  const customerId =
+    changes.customer !== undefined
+      ? await findCustomerIdByName(orgId, changes.customer)
+      : null;
+
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    latitude: location?.latitude ?? null,
+    longitude: location?.longitude ?? null,
+    formatted_address: location?.formattedAddress ?? null,
+    place_id: location?.placeId ?? null,
   };
 
-  // TODO: persist to Supabase
-  // await supabase.from("properties").update(property).eq("id", existing.id);
+  if (changes.name !== undefined) patch.name = changes.name;
+  if (changes.address !== undefined) patch.address = changes.address;
+  if (changes.city !== undefined) patch.city = changes.city;
+  if (changes.type !== undefined) patch.type = changes.type;
+  if (changes.status !== undefined) patch.status = changes.status;
+  if (changes.primarySystem !== undefined) patch.primary_system = changes.primarySystem;
+  if (changes.customer !== undefined) patch.customer_id = customerId;
 
-  return { property, geocodeStatus };
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("properties")
+    .update(patch)
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .select(
+      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at,customers(name)"
+    )
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    property: toProperty(data as PropertyRow),
+    geocodeStatus,
+  };
+}
+
+export async function deleteProperty(id: string): Promise<boolean> {
+  const orgId = await resolveOrgId();
+  const supabase = getSupabaseAdmin();
+  const { count, error } = await supabase
+    .from("properties")
+    .delete({ count: "exact" })
+    .eq("org_id", orgId)
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (count ?? 0) > 0;
 }

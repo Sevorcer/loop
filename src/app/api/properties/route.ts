@@ -2,23 +2,26 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { createRepositoryErrorBody } from "@/lib/repositories/http";
-import { createPropertiesService } from "@/services/domain/propertiesService";
-import type { PropertyWriteInput } from "@/services/repositories/propertiesRepository";
-
-const propertiesService = createPropertiesService();
+import { createProperty, listProperties } from "@/services/properties";
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
-  const result = await propertiesService.list();
-  if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+  try {
+    const properties = await listProperties();
+    return NextResponse.json({ properties });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "INTERNAL_ERROR",
+        message:
+          error instanceof Error ? error.message : "Failed to load properties.",
+        code: 500,
+      },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ properties: result.data.items });
 }
 
 export async function POST(request: Request) {
@@ -35,18 +38,43 @@ export async function POST(request: Request) {
     );
   }
 
-  emitAuditEvent({
-    role: guard.ctx.role,
-    action: "create",
-    resource: "properties",
-    details: { address: body.address },
-  });
+  try {
+    const result = await createProperty({
+      name: String(body.name ?? "").trim(),
+      customer: String(body.customer ?? "").trim(),
+      address: String(body.address ?? "").trim(),
+      city: String(body.city ?? "").trim(),
+      type:
+        (body.type as "Residential" | "Commercial" | "Multi-Family") ??
+        "Residential",
+      status: (body.status as "Active" | "Pending" | "Inactive") ?? "Active",
+      primarySystem: String(body.primarySystem ?? "").trim(),
+    });
 
-  const result = await propertiesService.create(body as PropertyWriteInput);
-  if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+    emitAuditEvent({
+      role: guard.ctx.role,
+      action: "create",
+      resource: "properties",
+      resourceId: result.property.id,
+      details: {
+        address: result.property.address,
+        geocodeStatus: result.geocodeStatus,
+      },
+    });
+
+    return NextResponse.json(
+      { property: result.property, geocodeStatus: result.geocodeStatus },
+      { status: 201 }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "INTERNAL_ERROR",
+        message:
+          error instanceof Error ? error.message : "Failed to create property.",
+        code: 500,
+      },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ message: "Property created.", property: result.data }, { status: 201 });
 }

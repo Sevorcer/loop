@@ -2,16 +2,16 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
-import { mockJobActivity } from "../data/mockJobActivity";
-import { mockJobs } from "../data/mockJobs";
+import { requestLoopApiJson } from "@/lib/loop-api-client";
+
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type {
@@ -23,82 +23,106 @@ import { applyAssignment, removeAssignment, validateAssignment } from "../utils/
 
 interface JobsContextValue extends JobsStoreValue {
   hydrated: boolean;
+  loading: boolean;
+  error: string | null;
+  refreshJobs: () => Promise<void>;
+  loadJobDetails: (jobId: string) => Promise<void>;
 }
 
 const JobsContext = createContext<JobsContextValue | null>(null);
 
-const JOBS_STORAGE_KEY = "loop.jobs.items";
-const JOB_ACTIVITY_STORAGE_KEY = "loop.jobs.activity";
-const subscribeToHydration = (onStoreChange: () => void) => {
-  void onStoreChange;
-  return () => {};
-};
-
-function createJobNumber(index: number) {
-  return `JOB-${1000 + index}`;
+function statusDescription(status: JobStatus) {
+  return status === "In Progress"
+    ? "Job moved to In Progress from the detail view."
+    : status === "On Hold"
+      ? "Job placed On Hold pending follow-up or issue resolution."
+      : status === "Completed"
+        ? "Job marked Completed from the detail view."
+        : status === "Cancelled"
+          ? "Job cancelled from the detail view."
+          : "Job status updated from the detail view.";
 }
 
-function createJobId(index: number) {
-  return `job-${String(index).padStart(3, "0")}`;
-}
+function deriveContractorIdsFromActivity(activity: JobActivity[]) {
+  const assigned = new Set<string>();
 
-function parseStoredValue<T>(value: string | null, fallback: T): T {
-  if (!value) {
-    return fallback;
+  const ordered = [...activity].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  for (const entry of ordered) {
+    const assignedMatch = entry.description.match(
+      /^Contractor ([\w-]+) assigned to this job\.$/
+    );
+    if (assignedMatch) {
+      assigned.add(assignedMatch[1]);
+    }
+
+    const removedMatch = entry.description.match(
+      /^Contractor ([\w-]+) removed from this job\.$/
+    );
+    if (removedMatch) {
+      assigned.delete(removedMatch[1]);
+    }
   }
 
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
+  return Array.from(assigned);
 }
 
 export function JobsProvider({ children }: { children: ReactNode }) {
-  const [jobs, setJobs] = useState<Job[]>(() => {
-    if (typeof window === "undefined") {
-      return mockJobs;
-    }
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [activity, setActivity] = useState<JobActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    return parseStoredValue<Job[]>(
-      window.localStorage.getItem(JOBS_STORAGE_KEY),
-      mockJobs
-    );
-  });
-  const [activity, setActivity] = useState<JobActivity[]>(() => {
-    if (typeof window === "undefined") {
-      return mockJobActivity;
+  const refreshJobs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = await requestLoopApiJson<{ jobs: Job[] }>("/api/jobs");
+      setJobs(payload.jobs);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to load jobs.");
+    } finally {
+      setLoading(false);
+      setHydrated(true);
     }
+  }, []);
 
-    return parseStoredValue<JobActivity[]>(
-      window.localStorage.getItem(JOB_ACTIVITY_STORAGE_KEY),
-      mockJobActivity
-    );
-  });
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false
-  );
+  const loadJobDetails = useCallback(async (jobId: string) => {
+    try {
+      const payload = await requestLoopApiJson<{
+        job: Job;
+        activity: JobActivity[];
+      }>(
+        `/api/jobs/${jobId}`
+      );
+      const contractorIds = deriveContractorIdsFromActivity(payload.activity);
+      const hydratedJob: Job = { ...payload.job, contractorIds };
+      setJobs((current) =>
+        current.some((job) => job.id === hydratedJob.id)
+          ? current.map((job) => (job.id === hydratedJob.id ? hydratedJob : job))
+          : [hydratedJob, ...current]
+      );
+      setActivity((current) => {
+        const remaining = current.filter((item) => item.jobId !== jobId);
+        return [...payload.activity, ...remaining];
+      });
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to load job details."
+      );
+    }
+  }, []);
 
   useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
-    window.localStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
-  }, [hydrated, jobs]);
-
-  useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
-    window.localStorage.setItem(
-      JOB_ACTIVITY_STORAGE_KEY,
-      JSON.stringify(activity)
-    );
-  }, [activity, hydrated]);
+    queueMicrotask(() => {
+      void refreshJobs();
+    });
+  }, [refreshJobs]);
 
   const value = useMemo<JobsContextValue>(() => {
     function getJobById(id: string) {
@@ -109,197 +133,120 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       return activity
         .filter((item) => item.jobId === jobId)
         .sort(
-          (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
     }
 
-    function createJob(input: CreateJobInput) {
-      const nextIndex = jobs.length + 1;
-      const timestamp = new Date().toISOString();
+    async function createJob(input: CreateJobInput) {
+      const payload = await requestLoopApiJson<{ job: Job }>("/api/jobs", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
 
-      const newJob: Job = {
-        id: createJobId(nextIndex),
-        jobNumber: createJobNumber(nextIndex),
-        estimateId: input.estimateId,
-        equipmentBundleId: input.equipmentBundleId,
-        title: input.title,
-        type: input.type,
-        status: "Scheduled",
-        priority: input.priority,
-        customerName: input.customerName,
-        propertyName: input.propertyName,
-        assignedTo: input.assignedTo,
-        scheduledFor: input.scheduledFor,
-        summary: input.summary,
-        location: input.location,
-        notes: input.notes,
-      };
+      setJobs((current) => [payload.job, ...current]);
+      return payload.job;
+    }
 
-      const createdActivity: JobActivity = {
-        id: `activity-created-${newJob.id}-${Date.now()}`,
-        jobId: newJob.id,
-        type: "created",
-        title: "Job created",
-        description: `New ${newJob.type.toLowerCase()} job created from the job form.`,
-        timestamp,
-      };
+    async function updateJob(jobId: string, input: UpdateJobInput) {
+      const payload = await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          ...input,
+          activity: {
+            type: "edited",
+            title: "Job updated",
+            description: "Job details were updated from the edit form.",
+          },
+        }),
+      });
 
-      const assignedActivity: JobActivity = {
-        id: `activity-assigned-${newJob.id}-${Date.now() + 1}`,
-        jobId: newJob.id,
-        type: "assigned",
-        title: "Technician assigned",
-        description: `${newJob.assignedTo} assigned to this job.`,
-        timestamp,
-      };
-
-      const scheduledActivity: JobActivity = {
-        id: `activity-scheduled-${newJob.id}-${Date.now() + 2}`,
-        jobId: newJob.id,
-        type: "scheduled",
-        title: "Schedule confirmed",
-        description: `Job scheduled for ${new Date(
-          newJob.scheduledFor
-        ).toLocaleDateString()}.`,
-        timestamp,
-      };
-
-      setJobs((current) => [newJob, ...current]);
+      setJobs((current) =>
+        current.map((job) => (job.id === jobId ? payload.job : job))
+      );
       setActivity((current) => [
-        scheduledActivity,
-        assignedActivity,
-        createdActivity,
+        {
+          id: `activity-edit-${jobId}-${Date.now()}`,
+          jobId,
+          type: "edited",
+          title: "Job updated",
+          description: "Job details were updated from the edit form.",
+          timestamp: new Date().toISOString(),
+        },
         ...current,
       ]);
 
-      return newJob;
+      return payload.job;
     }
 
-    function updateJob(jobId: string, input: UpdateJobInput) {
-      const existingJob = jobs.find((job) => job.id === jobId);
+    async function updateJobStatus(jobId: string, status: JobStatus) {
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status,
+          activity: {
+            type: "status",
+            title: "Status updated",
+            description: statusDescription(status),
+          },
+        }),
+      });
 
-      if (!existingJob) {
-        return undefined;
-      }
-
-      const updatedJob: Job = {
-        ...existingJob,
-        estimateId: input.estimateId,
-        equipmentBundleId: input.equipmentBundleId,
-        title: input.title,
-        customerName: input.customerName,
-        propertyName: input.propertyName,
-        assignedTo: input.assignedTo,
-        scheduledFor: input.scheduledFor,
-        type: input.type,
-        priority: input.priority,
-        location: input.location,
-        summary: input.summary,
-        notes: input.notes,
-      };
-
-      const changedFields: string[] = [];
-
-      if (existingJob.title !== updatedJob.title) changedFields.push("title");
-      if (existingJob.estimateId !== updatedJob.estimateId) {
-        changedFields.push("estimate");
-      }
-      if (existingJob.equipmentBundleId !== updatedJob.equipmentBundleId) {
-        changedFields.push("equipment");
-      }
-      if (existingJob.customerName !== updatedJob.customerName) {
-        changedFields.push("customer");
-      }
-      if (existingJob.propertyName !== updatedJob.propertyName) {
-        changedFields.push("property");
-      }
-      if (existingJob.assignedTo !== updatedJob.assignedTo) {
-        changedFields.push("assignee");
-      }
-      if (existingJob.scheduledFor !== updatedJob.scheduledFor) {
-        changedFields.push("schedule");
-      }
-      if (existingJob.type !== updatedJob.type) changedFields.push("type");
-      if (existingJob.priority !== updatedJob.priority) {
-        changedFields.push("priority");
-      }
-      if (existingJob.location !== updatedJob.location) {
-        changedFields.push("location");
-      }
-      if (existingJob.summary !== updatedJob.summary) {
-        changedFields.push("summary");
-      }
-      if (existingJob.notes !== updatedJob.notes) changedFields.push("notes");
-
-      if (changedFields.length === 0) {
-        return existingJob;
-      }
-
-      setJobs((current) =>
-        current.map((job) => (job.id === jobId ? updatedJob : job))
-      );
-
-      const editActivity: JobActivity = {
-        id: `activity-edit-${jobId}-${Date.now()}`,
-        jobId,
-        type: "edited",
-        title: "Job updated",
-        description: `Updated fields: ${changedFields.join(", ")}.`,
-        timestamp: new Date().toISOString(),
-      };
-
-      setActivity((current) => [editActivity, ...current]);
-
-      return updatedJob;
-    }
-
-    function updateJobStatus(jobId: string, status: JobStatus) {
       setJobs((current) =>
         current.map((job) => (job.id === jobId ? { ...job, status } : job))
       );
-
-      const description =
-        status === "In Progress"
-          ? "Job moved to In Progress from the detail view."
-          : status === "On Hold"
-            ? "Job placed On Hold pending follow-up or issue resolution."
-            : status === "Completed"
-              ? "Job marked Completed from the detail view."
-              : status === "Cancelled"
-                ? "Job cancelled from the detail view."
-                : "Job status updated from the detail view.";
-
-      const statusActivity: JobActivity = {
-        id: `activity-status-${jobId}-${Date.now()}`,
-        jobId,
-        type: "status",
-        title: "Status updated",
-        description,
-        timestamp: new Date().toISOString(),
-      };
-
-      setActivity((current) => [statusActivity, ...current]);
+      setActivity((current) => [
+        {
+          id: `activity-status-${jobId}-${Date.now()}`,
+          jobId,
+          type: "status",
+          title: "Status updated",
+          description: statusDescription(status),
+          timestamp: new Date().toISOString(),
+        },
+        ...current,
+      ]);
     }
 
-    function addJobNote(jobId: string, note: string) {
-      const noteActivity: JobActivity = {
-        id: `activity-note-${jobId}-${Date.now()}`,
-        jobId,
-        type: "note",
-        title: "Note added",
-        description: note,
-        timestamp: new Date().toISOString(),
-      };
+    async function addJobNote(jobId: string, note: string) {
+      const job = jobs.find((entry) => entry.id === jobId);
+      const mergedNotes = [job?.notes ?? "", note].filter(Boolean).join("\n\n");
 
-      setActivity((current) => [noteActivity, ...current]);
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          notes: mergedNotes,
+          activity: {
+            type: "note",
+            title: "Note added",
+            description: note,
+          },
+        }),
+      });
+
+      setJobs((current) =>
+        current.map((entry) =>
+          entry.id === jobId ? { ...entry, notes: mergedNotes } : entry
+        )
+      );
+
+      setActivity((current) => [
+        {
+          id: `activity-note-${jobId}-${Date.now()}`,
+          jobId,
+          type: "note",
+          title: "Note added",
+          description: note,
+          timestamp: new Date().toISOString(),
+        },
+        ...current,
+      ]);
     }
 
-    function assignContractor(
+    async function assignContractor(
       jobId: string,
       contractorId: string
-    ): { ok: true } | { ok: false; error: string } {
-      const job = jobs.find((j) => j.id === jobId);
+    ): Promise<{ ok: true } | { ok: false; error: string }> {
+      const job = jobs.find((entry) => entry.id === jobId);
 
       if (!job) {
         return { ok: false, error: "Job not found." };
@@ -312,55 +259,75 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       }
 
       const updated = applyAssignment(job, contractorId);
-
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          activity: {
+            type: "assigned",
+            title: "Contractor assigned",
+            description: `Contractor ${contractorId} assigned to this job.`,
+          },
+        }),
+      });
       setJobs((current) =>
-        current.map((j) => (j.id === jobId ? updated : j))
+        current.map((entry) => (entry.id === jobId ? updated : entry))
       );
-
-      const assignActivity: JobActivity = {
-        id: `activity-contractor-${jobId}-${Date.now()}`,
-        jobId,
-        type: "assigned",
-        title: "Contractor assigned",
-        description: `Contractor ${contractorId} assigned to this job.`,
-        timestamp: new Date().toISOString(),
-      };
-
-      setActivity((current) => [assignActivity, ...current]);
+      setActivity((current) => [
+        {
+          id: `activity-contractor-${jobId}-${Date.now()}`,
+          jobId,
+          type: "assigned",
+          title: "Contractor assigned",
+          description: `Contractor ${contractorId} assigned to this job.`,
+          timestamp: new Date().toISOString(),
+        },
+        ...current,
+      ]);
 
       return { ok: true };
     }
 
-    function removeContractorAssignment(
+    async function removeContractorAssignment(
       jobId: string,
       contractorId: string
-    ): void {
-      const job = jobs.find((j) => j.id === jobId);
+    ) {
+      const job = jobs.find((entry) => entry.id === jobId);
 
       if (!job) {
         return;
       }
 
       const updated = removeAssignment(job, contractorId);
-
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          activity: {
+            type: "edited",
+            title: "Contractor removed",
+            description: `Contractor ${contractorId} removed from this job.`,
+          },
+        }),
+      });
       setJobs((current) =>
-        current.map((j) => (j.id === jobId ? updated : j))
+        current.map((entry) => (entry.id === jobId ? updated : entry))
       );
-
-      const removeActivity: JobActivity = {
-        id: `activity-contractor-remove-${jobId}-${Date.now()}`,
-        jobId,
-        type: "edited",
-        title: "Contractor removed",
-        description: `Contractor ${contractorId} removed from this job.`,
-        timestamp: new Date().toISOString(),
-      };
-
-      setActivity((current) => [removeActivity, ...current]);
+      setActivity((current) => [
+        {
+          id: `activity-contractor-remove-${jobId}-${Date.now()}`,
+          jobId,
+          type: "edited",
+          title: "Contractor removed",
+          description: `Contractor ${contractorId} removed from this job.`,
+          timestamp: new Date().toISOString(),
+        },
+        ...current,
+      ]);
     }
 
     return {
       hydrated,
+      loading,
+      error,
       jobs,
       getJobById,
       getActivityByJobId,
@@ -370,8 +337,10 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       addJobNote,
       assignContractor,
       removeContractorAssignment,
+      refreshJobs,
+      loadJobDetails,
     };
-  }, [activity, hydrated, jobs]);
+  }, [activity, error, hydrated, jobs, loading, loadJobDetails, refreshJobs]);
 
   return <JobsContext.Provider value={value}>{children}</JobsContext.Provider>;
 }
