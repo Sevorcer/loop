@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { requestLoopApiJson } from "@/lib/loop-api-client";
+
 import type { Property, PropertyStatus, PropertyType } from "../types/property";
 
 interface CreatePropertyInput {
@@ -34,36 +36,6 @@ interface PropertiesContextValue {
 
 const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 
-function getDevRole() {
-  if (typeof window === "undefined") {
-    return "owner";
-  }
-
-  return window.localStorage.getItem("loop_dev_role") ?? "owner";
-}
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "x-loop-role": getDevRole(),
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  const payload = (await response.json()) as T & {
-    error?: string;
-    message?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Request failed.");
-  }
-
-  return payload;
-}
-
 export function PropertiesProvider({ children }: { children: ReactNode }) {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +46,9 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const payload = await requestJson<{ properties: Property[] }>("/api/properties");
+      const payload = await requestLoopApiJson<{ properties: Property[] }>(
+        "/api/properties"
+      );
       setProperties(payload.properties);
     } catch (nextError) {
       setError(
@@ -89,7 +63,9 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshProperties();
+    queueMicrotask(() => {
+      void refreshProperties();
+    });
   }, [refreshProperties]);
 
   const value = useMemo<PropertiesContextValue>(() => {
@@ -98,10 +74,13 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     }
 
     async function createProperty(input: CreatePropertyInput): Promise<Property> {
-      const payload = await requestJson<{ property: Property }>("/api/properties", {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
+      const payload = await requestLoopApiJson<{ property: Property }>(
+        "/api/properties",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        }
+      );
 
       setProperties((current) => [payload.property, ...current]);
       return payload.property;

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Property, PropertyLocation } from "@/features/properties/types/property";
 import { formatPropertyAddress } from "@/features/properties/utils/formatPropertyAddress";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseAdmin, resolveOrgId } from "./supabaseContext";
 
 import { geocodeAddress } from "./geocoding";
 
@@ -43,27 +43,6 @@ export type GeocodeStatus =
   | "location_unchanged"
   | "no_location";
 
-const DEV_ORG_ID = process.env.LOOP_DEV_ORG_ID ?? null;
-
-async function resolveOrgId() {
-  if (DEV_ORG_ID) {
-    return DEV_ORG_ID;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("id")
-    .limit(1)
-    .single();
-
-  if (error || !data?.id) {
-    throw new Error(error?.message ?? "Unable to resolve organization id.");
-  }
-
-  return data.id as string;
-}
-
 function toProperty(row: PropertyRow): Property {
   const location: PropertyLocation | undefined =
     row.latitude !== null && row.longitude !== null
@@ -99,6 +78,9 @@ async function resolveLocation(
   const result = await geocodeAddress(fullAddress);
 
   if (!result.success) {
+    console.warn(
+      `[properties] Geocoding failed for "${fullAddress}": ${result.error}`
+    );
     return { location: undefined, geocoded: false };
   }
 
@@ -111,7 +93,7 @@ async function findCustomerIdByName(orgId: string, name: string): Promise<string
     return null;
   }
 
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("customers")
     .select("id")
@@ -125,7 +107,7 @@ async function findCustomerIdByName(orgId: string, name: string): Promise<string
 
 export async function listProperties(): Promise<Property[]> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("properties")
     .select(
@@ -138,12 +120,14 @@ export async function listProperties(): Promise<Property[]> {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((row) => toProperty(row as PropertyRow));
+  return ((data ?? []) as PropertyRow[]).map((row: PropertyRow) =>
+    toProperty(row)
+  );
 }
 
 export async function getProperty(id: string): Promise<Property | null> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("properties")
     .select(
@@ -166,7 +150,7 @@ export async function createProperty(
   const orgId = await resolveOrgId();
   const customerId = await findCustomerIdByName(orgId, input.customer);
   const { location, geocoded } = await resolveLocation(input.address, input.city);
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const today = new Date().toISOString().slice(0, 10);
 
   const { data, error } = await supabase
@@ -229,6 +213,7 @@ export async function updateProperty(
       location = resolved.location;
       geocodeStatus = "geocoded";
     } else {
+      location = existing.location;
       geocodeStatus = existing.location
         ? "geocode_failed_location_preserved"
         : "no_location";
@@ -256,7 +241,7 @@ export async function updateProperty(
   if (changes.primarySystem !== undefined) patch.primary_system = changes.primarySystem;
   if (changes.customer !== undefined) patch.customer_id = customerId;
 
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("properties")
     .update(patch)
@@ -283,7 +268,7 @@ export async function updateProperty(
 
 export async function deleteProperty(id: string): Promise<boolean> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { count, error } = await supabase
     .from("properties")
     .delete({ count: "exact" })

@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { requestLoopApiJson } from "@/lib/loop-api-client";
+
 import type { Customer, CustomerStatus } from "../types/customer";
 
 export interface CreateCustomerInput {
@@ -33,36 +35,6 @@ interface CustomersContextValue {
 
 const CustomersContext = createContext<CustomersContextValue | null>(null);
 
-function getDevRole() {
-  if (typeof window === "undefined") {
-    return "owner";
-  }
-
-  return window.localStorage.getItem("loop_dev_role") ?? "owner";
-}
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "x-loop-role": getDevRole(),
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  const payload = (await response.json()) as T & {
-    error?: string;
-    message?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Request failed.");
-  }
-
-  return payload;
-}
-
 export function CustomersProvider({ children }: { children: ReactNode }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +45,9 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const payload = await requestJson<{ customers: Customer[] }>("/api/customers");
+      const payload = await requestLoopApiJson<{ customers: Customer[] }>(
+        "/api/customers"
+      );
       setCustomers(payload.customers);
     } catch (nextError) {
       setError(
@@ -88,7 +62,9 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshCustomers();
+    queueMicrotask(() => {
+      void refreshCustomers();
+    });
   }, [refreshCustomers]);
 
   const value = useMemo<CustomersContextValue>(() => {
@@ -97,10 +73,13 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
     }
 
     async function createCustomer(input: CreateCustomerInput): Promise<Customer> {
-      const payload = await requestJson<{ customer: Customer }>("/api/customers", {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
+      const payload = await requestLoopApiJson<{ customer: Customer }>(
+        "/api/customers",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        }
+      );
 
       setCustomers((current) => [payload.customer, ...current]);
       return payload.customer;

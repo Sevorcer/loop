@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Job, JobStatus } from "@/features/jobs/types/job";
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseAdmin, resolveOrgId } from "./supabaseContext";
 
 type JobRow = {
   id: string;
@@ -51,27 +51,6 @@ export type UpdateJobInput = Partial<CreateJobInput> & {
   status?: JobStatus;
 };
 
-const DEV_ORG_ID = process.env.LOOP_DEV_ORG_ID ?? null;
-
-async function resolveOrgId() {
-  if (DEV_ORG_ID) {
-    return DEV_ORG_ID;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("id")
-    .limit(1)
-    .single();
-
-  if (error || !data?.id) {
-    throw new Error(error?.message ?? "Unable to resolve organization id.");
-  }
-
-  return data.id as string;
-}
-
 function toJob(row: JobRow): Job {
   return {
     id: row.id,
@@ -105,7 +84,7 @@ function toJobActivity(row: JobActivityRow): JobActivity {
 
 export async function listJobs(): Promise<Job[]> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("jobs")
     .select(
@@ -118,12 +97,12 @@ export async function listJobs(): Promise<Job[]> {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((row) => toJob(row as JobRow));
+  return ((data ?? []) as JobRow[]).map((row: JobRow) => toJob(row));
 }
 
 export async function getJob(id: string): Promise<Job | null> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("jobs")
     .select(
@@ -142,7 +121,7 @@ export async function getJob(id: string): Promise<Job | null> {
 
 export async function listJobActivity(jobId: string): Promise<JobActivity[]> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("job_activity")
     .select("id,job_id,type,title,description,created_at")
@@ -154,22 +133,16 @@ export async function listJobActivity(jobId: string): Promise<JobActivity[]> {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((row) => toJobActivity(row as JobActivityRow));
+  return ((data ?? []) as JobActivityRow[]).map((row: JobActivityRow) =>
+    toJobActivity(row)
+  );
 }
 
 export async function createJob(input: CreateJobInput): Promise<Job> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
-  const { count, error: countError } = await supabase
-    .from("jobs")
-    .select("id", { head: true, count: "exact" })
-    .eq("org_id", orgId);
-
-  if (countError) {
-    throw new Error(countError.message);
-  }
-
-  const jobNumber = `JOB-${1000 + (count ?? 0) + 1}`;
+  const supabase = getSupabaseAdmin();
+  const randomSuffix = Math.floor(Math.random() * 90000 + 10000);
+  const jobNumber = `JOB-${randomSuffix}`;
 
   const { data, error } = await supabase
     .from("jobs")
@@ -225,7 +198,7 @@ export async function updateJob(
   input: UpdateJobInput
 ): Promise<Job | null> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const patch: Record<string, unknown> = {};
 
   if (input.estimateId !== undefined) patch.estimate_id = input.estimateId || null;
@@ -264,7 +237,7 @@ export async function updateJob(
 
 export async function deleteJob(id: string): Promise<boolean> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { count, error } = await supabase
     .from("jobs")
     .delete({ count: "exact" })
@@ -283,7 +256,7 @@ export async function createJobActivity(
   activity: Pick<JobActivity, "type" | "title" | "description">
 ) {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { error } = await supabase.from("job_activity").insert({
     org_id: orgId,
     job_id: jobId,

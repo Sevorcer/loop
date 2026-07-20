@@ -41,7 +41,17 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
     setError(null);
     setSuccess(null);
 
-    const result = await assignContractor(jobId, selectedId);
+    let result: { ok: true } | { ok: false; error: string };
+    try {
+      result = await assignContractor(jobId, selectedId);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to assign contractor."
+      );
+      return;
+    }
 
     if (!result.ok) {
       setError(result.error);
@@ -58,7 +68,15 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
   async function handleRemove(contractorId: string) {
     setError(null);
     setSuccess(null);
-    await removeContractorAssignment(jobId, contractorId);
+    try {
+      await removeContractorAssignment(jobId, contractorId);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to remove contractor."
+      );
+    }
   }
 
   return (

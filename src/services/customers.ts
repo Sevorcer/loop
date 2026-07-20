@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Customer } from "@/features/customers/types/customer";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseAdmin, resolveOrgId } from "./supabaseContext";
 
 type CustomerRow = {
   id: string;
@@ -28,27 +28,6 @@ export interface CreateCustomerInput {
 
 export type UpdateCustomerInput = Partial<CreateCustomerInput>;
 
-const DEV_ORG_ID = process.env.LOOP_DEV_ORG_ID ?? null;
-
-async function resolveOrgId() {
-  if (DEV_ORG_ID) {
-    return DEV_ORG_ID;
-  }
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("id")
-    .limit(1)
-    .single();
-
-  if (error || !data?.id) {
-    throw new Error(error?.message ?? "Unable to resolve organization id.");
-  }
-
-  return data.id as string;
-}
-
 function toCustomer(row: CustomerRow): Customer {
   return {
     id: row.id,
@@ -67,7 +46,7 @@ function toCustomer(row: CustomerRow): Customer {
 
 export async function listCustomers(): Promise<Customer[]> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("customers")
     .select(
@@ -80,12 +59,14 @@ export async function listCustomers(): Promise<Customer[]> {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((row) => toCustomer(row as CustomerRow));
+  return ((data ?? []) as CustomerRow[]).map((row: CustomerRow) =>
+    toCustomer(row)
+  );
 }
 
 export async function getCustomer(id: string): Promise<Customer | null> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("customers")
     .select(
@@ -104,7 +85,7 @@ export async function getCustomer(id: string): Promise<Customer | null> {
 
 export async function createCustomer(input: CreateCustomerInput): Promise<Customer> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const today = new Date().toISOString().slice(0, 10);
 
   const { data, error } = await supabase
@@ -136,7 +117,7 @@ export async function updateCustomer(
   input: UpdateCustomerInput
 ): Promise<Customer | null> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const patch: Record<string, unknown> = {};
 
   if (input.name !== undefined) patch.name = input.name;
@@ -166,7 +147,7 @@ export async function updateCustomer(
 
 export async function deleteCustomer(id: string): Promise<boolean> {
   const orgId = await resolveOrgId();
-  const supabase = createSupabaseAdminClient();
+  const supabase = getSupabaseAdmin();
   const { error, count } = await supabase
     .from("customers")
     .delete({ count: "exact" })

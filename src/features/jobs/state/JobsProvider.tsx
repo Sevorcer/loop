@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { requestLoopApiJson } from "@/lib/loop-api-client";
+
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type {
@@ -29,36 +31,6 @@ interface JobsContextValue extends JobsStoreValue {
 
 const JobsContext = createContext<JobsContextValue | null>(null);
 
-function getDevRole() {
-  if (typeof window === "undefined") {
-    return "owner";
-  }
-
-  return window.localStorage.getItem("loop_dev_role") ?? "owner";
-}
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "x-loop-role": getDevRole(),
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  const payload = (await response.json()) as T & {
-    error?: string;
-    message?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Request failed.");
-  }
-
-  return payload;
-}
-
 function statusDescription(status: JobStatus) {
   return status === "In Progress"
     ? "Job moved to In Progress from the detail view."
@@ -69,6 +41,32 @@ function statusDescription(status: JobStatus) {
         : status === "Cancelled"
           ? "Job cancelled from the detail view."
           : "Job status updated from the detail view.";
+}
+
+function deriveContractorIdsFromActivity(activity: JobActivity[]) {
+  const assigned = new Set<string>();
+
+  const ordered = [...activity].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  for (const entry of ordered) {
+    const assignedMatch = entry.description.match(
+      /^Contractor ([\w-]+) assigned to this job\.$/
+    );
+    if (assignedMatch) {
+      assigned.add(assignedMatch[1]);
+    }
+
+    const removedMatch = entry.description.match(
+      /^Contractor ([\w-]+) removed from this job\.$/
+    );
+    if (removedMatch) {
+      assigned.delete(removedMatch[1]);
+    }
+  }
+
+  return Array.from(assigned);
 }
 
 export function JobsProvider({ children }: { children: ReactNode }) {
@@ -82,7 +80,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const payload = await requestJson<{ jobs: Job[] }>("/api/jobs");
+      const payload = await requestLoopApiJson<{ jobs: Job[] }>("/api/jobs");
       setJobs(payload.jobs);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to load jobs.");
@@ -94,25 +92,36 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
   const loadJobDetails = useCallback(async (jobId: string) => {
     try {
-      const payload = await requestJson<{ job: Job; activity: JobActivity[] }>(
+      const payload = await requestLoopApiJson<{
+        job: Job;
+        activity: JobActivity[];
+      }>(
         `/api/jobs/${jobId}`
       );
+      const contractorIds = deriveContractorIdsFromActivity(payload.activity);
+      const hydratedJob: Job = { ...payload.job, contractorIds };
       setJobs((current) =>
-        current.some((job) => job.id === payload.job.id)
-          ? current.map((job) => (job.id === payload.job.id ? payload.job : job))
-          : [payload.job, ...current]
+        current.some((job) => job.id === hydratedJob.id)
+          ? current.map((job) => (job.id === hydratedJob.id ? hydratedJob : job))
+          : [hydratedJob, ...current]
       );
       setActivity((current) => {
         const remaining = current.filter((item) => item.jobId !== jobId);
         return [...payload.activity, ...remaining];
       });
-    } catch {
-      // per-page error handling owns failures for detail fetches
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to load job details."
+      );
     }
   }, []);
 
   useEffect(() => {
-    void refreshJobs();
+    queueMicrotask(() => {
+      void refreshJobs();
+    });
   }, [refreshJobs]);
 
   const value = useMemo<JobsContextValue>(() => {
@@ -129,7 +138,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     }
 
     async function createJob(input: CreateJobInput) {
-      const payload = await requestJson<{ job: Job }>("/api/jobs", {
+      const payload = await requestLoopApiJson<{ job: Job }>("/api/jobs", {
         method: "POST",
         body: JSON.stringify(input),
       });
@@ -139,7 +148,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     }
 
     async function updateJob(jobId: string, input: UpdateJobInput) {
-      const payload = await requestJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+      const payload = await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
         method: "PATCH",
         body: JSON.stringify({
           ...input,
@@ -170,7 +179,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     }
 
     async function updateJobStatus(jobId: string, status: JobStatus) {
-      await requestJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
         method: "PATCH",
         body: JSON.stringify({
           status,
@@ -202,7 +211,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       const job = jobs.find((entry) => entry.id === jobId);
       const mergedNotes = [job?.notes ?? "", note].filter(Boolean).join("\n\n");
 
-      await requestJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
         method: "PATCH",
         body: JSON.stringify({
           notes: mergedNotes,
@@ -250,6 +259,16 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       }
 
       const updated = applyAssignment(job, contractorId);
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          activity: {
+            type: "assigned",
+            title: "Contractor assigned",
+            description: `Contractor ${contractorId} assigned to this job.`,
+          },
+        }),
+      });
       setJobs((current) =>
         current.map((entry) => (entry.id === jobId ? updated : entry))
       );
@@ -279,6 +298,16 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       }
 
       const updated = removeAssignment(job, contractorId);
+      await requestLoopApiJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          activity: {
+            type: "edited",
+            title: "Contractor removed",
+            description: `Contractor ${contractorId} removed from this job.`,
+          },
+        }),
+      });
       setJobs((current) =>
         current.map((entry) => (entry.id === jobId ? updated : entry))
       );

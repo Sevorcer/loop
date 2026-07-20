@@ -60,14 +60,6 @@ export async function PATCH(
     );
   }
 
-  emitAuditEvent({
-    role: guard.ctx.role,
-    action: "update",
-    resource: "customers",
-    resourceId: id,
-    details: body,
-  });
-
   try {
     const customer = await updateCustomer(id, {
       name:
@@ -88,6 +80,14 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    emitAuditEvent({
+      role: guard.ctx.role,
+      action: "update",
+      resource: "customers",
+      resourceId: id,
+      details: body,
+    });
 
     return NextResponse.json({ customer });
   } catch (error) {
