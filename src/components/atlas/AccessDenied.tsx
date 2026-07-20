@@ -22,7 +22,7 @@ interface AccessDeniedProps {
  */
 export function AccessDenied({
   title = "Access Denied",
-  description = "You don\u2019t have permission to access this area. Contact your administrator if you believe this is an error.",
+  description = "You don't have permission to access this area. Contact your administrator if you believe this is an error.",
   showHomeLink = true,
 }: AccessDeniedProps) {
   return (

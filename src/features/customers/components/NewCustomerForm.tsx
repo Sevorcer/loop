@@ -4,12 +4,10 @@ import { useState } from "react";
 import { CheckCircle2, ClipboardPlus, UserPlus } from "lucide-react";
 import Link from "next/link";
 
-import { AccessDenied } from "@/components/atlas";
+import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
-import { useSession } from "@/features/auth";
 import { ROUTES } from "@/lib/routes";
-import { hasPermission } from "@/services/authorization";
 
 import { useCustomers } from "../state/CustomersProvider";
 import type { CustomerStatus } from "../types/customer";
@@ -46,24 +44,23 @@ function normalizeValues(values: CustomerFormValues): CustomerFormValues {
 }
 
 export function NewCustomerForm() {
+  return (
+    <RoutePermissionGuard
+      table="customers"
+      action="insert"
+      deniedDescription="You don't have permission to create customers."
+    >
+      <NewCustomerFormContent />
+    </RoutePermissionGuard>
+  );
+}
+
+function NewCustomerFormContent() {
   const { createCustomer } = useCustomers();
-  const { role, loading } = useSession();
 
   const [form, setForm] = useState<CustomerFormValues>(defaultCustomerFormValues);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
-  if (loading) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!role || !hasPermission(role, "customers", "insert")) {
-    return <AccessDenied description="You don't have permission to create customers." />;
-  }
 
   const canSubmit =
     form.name.trim().length > 0 &&

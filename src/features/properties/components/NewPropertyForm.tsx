@@ -4,12 +4,10 @@ import { useState } from "react";
 import { Building2, CheckCircle2, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
 
-import { AccessDenied } from "@/components/atlas";
+import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
-import { useSession } from "@/features/auth";
 import { ROUTES } from "@/lib/routes";
-import { hasPermission } from "@/services/authorization";
 
 import { useProperties } from "../state/PropertiesProvider";
 import type { PropertyStatus, PropertyType } from "../types/property";
@@ -49,24 +47,23 @@ function normalizeValues(values: PropertyFormValues): PropertyFormValues {
 }
 
 export function NewPropertyForm() {
+  return (
+    <RoutePermissionGuard
+      table="properties"
+      action="insert"
+      deniedDescription="You don't have permission to create properties."
+    >
+      <NewPropertyFormContent />
+    </RoutePermissionGuard>
+  );
+}
+
+function NewPropertyFormContent() {
   const { createProperty } = useProperties();
-  const { role, loading } = useSession();
 
   const [form, setForm] = useState<PropertyFormValues>(defaultPropertyFormValues);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
-  if (loading) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!role || !hasPermission(role, "properties", "insert")) {
-    return <AccessDenied description="You don't have permission to create properties." />;
-  }
 
   const canSubmit =
     form.name.trim().length > 0 &&

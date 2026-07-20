@@ -4,6 +4,7 @@ export { EmptyState } from "./EmptyState";
 export { KPICard } from "./KPICard";
 export { PageHeader } from "./PageHeader";
 export { PermissionGuard } from "./PermissionGuard";
+export { RoutePermissionGuard } from "./RoutePermissionGuard";
 export { SectionCard } from "./SectionCard";
 export { StatusBadge } from "./StatusBadge";
 export { AtlasTabs } from "./Tabs";
