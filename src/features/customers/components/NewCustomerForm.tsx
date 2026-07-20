@@ -61,6 +61,7 @@ function NewCustomerFormContent() {
   const [form, setForm] = useState<CustomerFormValues>(defaultCustomerFormValues);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const canSubmit =
     form.name.trim().length > 0 &&
@@ -79,7 +80,7 @@ function NewCustomerFormContent() {
     setError(null);
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!canSubmit) {
@@ -87,8 +88,19 @@ function NewCustomerFormContent() {
       return;
     }
 
-    createCustomer(normalizeValues(form));
-    setIsSubmitted(true);
+    setIsSaving(true);
+    try {
+      await createCustomer(normalizeValues(form));
+      setIsSubmitted(true);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to create customer."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   if (isSubmitted) {
@@ -257,9 +269,9 @@ function NewCustomerFormContent() {
                 </Button>
               </Link>
 
-              <Button type="submit" className="gap-2" disabled={!canSubmit}>
+              <Button type="submit" className="gap-2" disabled={!canSubmit || isSaving}>
                 <UserPlus className="h-4 w-4" />
-                Create Customer
+                {isSaving ? "Creating..." : "Create Customer"}
               </Button>
             </div>
           </div>

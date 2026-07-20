@@ -2,13 +2,25 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { emitAuditEvent } from "@/lib/audit";
-import { mockJobs } from "@/features/jobs/data/mockJobs";
+import { createJob, listJobs } from "@/services/jobs";
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
-  return NextResponse.json({ jobs: mockJobs });
+  try {
+    const jobs = await listJobs();
+    return NextResponse.json({ jobs });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "INTERNAL_ERROR",
+        message: error instanceof Error ? error.message : "Failed to load jobs.",
+        code: 500,
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -25,13 +37,45 @@ export async function POST(request: Request) {
     );
   }
 
-  emitAuditEvent({
-    role: guard.ctx.role,
-    action: "create",
-    resource: "jobs",
-    details: { title: body.title, type: body.type },
-  });
+  try {
+    const job = await createJob({
+      estimateId:
+        body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
+      equipmentBundleId:
+        body.equipmentBundleId !== undefined
+          ? String(body.equipmentBundleId).trim()
+          : undefined,
+      title: String(body.title ?? "").trim(),
+      type:
+        (body.type as "Install" | "Service" | "Maintenance" | "Inspection") ??
+        "Service",
+      priority: (body.priority as "Low" | "Medium" | "High") ?? "Medium",
+      customerName: String(body.customerName ?? "").trim(),
+      propertyName: String(body.propertyName ?? "").trim(),
+      assignedTo: String(body.assignedTo ?? "").trim(),
+      scheduledFor: String(body.scheduledFor ?? "").trim(),
+      summary: String(body.summary ?? "").trim(),
+      location: String(body.location ?? "").trim(),
+      notes: String(body.notes ?? "").trim(),
+    });
 
-  // TODO: persist to Supabase when wired
-  return NextResponse.json({ message: "Job created.", job: body }, { status: 201 });
+    emitAuditEvent({
+      role: guard.ctx.role,
+      action: "create",
+      resource: "jobs",
+      resourceId: job.id,
+      details: { title: job.title, type: job.type },
+    });
+
+    return NextResponse.json({ job }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "INTERNAL_ERROR",
+        message: error instanceof Error ? error.message : "Failed to create job.",
+        code: 500,
+      },
+      { status: 500 }
+    );
+  }
 }

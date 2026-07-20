@@ -19,8 +19,8 @@ function NewJobFormContent() {
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
 
-  function handleSubmit(values: JobFormValues) {
-    const job = createJob(values);
+  async function handleSubmit(values: JobFormValues) {
+    const job = await createJob(values);
     setSubmittedJobId(job.id);
     setCreatedFromEstimate(Boolean(job.estimateId && job.equipmentBundleId));
   }

@@ -33,7 +33,7 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  function handleAssign() {
+  async function handleAssign() {
     if (!selectedId) {
       return;
     }
@@ -41,7 +41,7 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
     setError(null);
     setSuccess(null);
 
-    const result = assignContractor(jobId, selectedId);
+    const result = await assignContractor(jobId, selectedId);
 
     if (!result.ok) {
       setError(result.error);
@@ -55,10 +55,10 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
     setSelectedId("");
   }
 
-  function handleRemove(contractorId: string) {
+  async function handleRemove(contractorId: string) {
     setError(null);
     setSuccess(null);
-    removeContractorAssignment(jobId, contractorId);
+    await removeContractorAssignment(jobId, contractorId);
   }
 
   return (
@@ -91,7 +91,7 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
                 </div>
 
                 <button
-                  onClick={() => handleRemove(c.id)}
+                  onClick={() => void handleRemove(c.id)}
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-red-300"
                   aria-label={`Remove ${c.companyName}`}
                 >
@@ -132,7 +132,7 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
               </select>
 
               <Button
-                onClick={handleAssign}
+                onClick={() => void handleAssign()}
                 disabled={!selectedId}
                 className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700 disabled:opacity-50"
               >

@@ -20,7 +20,6 @@ import {
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { mockPropertyDetails } from "../data/mockPropertyDetails";
 import type { Property } from "../types/property";
 import type {
   PropertyDetails,
@@ -68,14 +67,6 @@ function getTimelineIcon(icon: PropertyTimelineEvent["icon"]) {
 }
 
 function getPropertyDetails(property: Property): PropertyDetails {
-  const existingDetails = mockPropertyDetails.find(
-    (entry) => entry.propertyId === property.id
-  );
-
-  if (existingDetails) {
-    return existingDetails;
-  }
-
   return {
     propertyId: property.id,
     beforeYouGoItems: [
