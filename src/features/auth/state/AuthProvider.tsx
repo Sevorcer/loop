@@ -12,6 +12,7 @@ import {
 
 import { useRouter } from "next/navigation";
 
+import { createCorrelationId, logAuthEvent } from "@/lib/observability/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
@@ -79,9 +80,37 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
   const signOut = useCallback(async () => {
     if (!supabase) return;
     setIsLoading(true);
-    await supabase.auth.signOut();
-    // `onAuthStateChange` will fire and handle the redirect.
-  }, [supabase]);
+    const requestId = createCorrelationId();
+
+    try {
+      await supabase.auth.signOut();
+      logAuthEvent({
+        event: "sign_out",
+        outcome: "success",
+        route: ROUTES.SIGN_IN,
+        requestId,
+        correlationId: requestId,
+        statusCode: 200,
+        userId: user?.id,
+      });
+      // `onAuthStateChange` will fire and handle the redirect.
+    } catch (error) {
+      logAuthEvent({
+        event: "sign_out",
+        outcome: "failure",
+        route: ROUTES.SIGN_IN,
+        requestId,
+        correlationId: requestId,
+        statusCode: 500,
+        userId: user?.id,
+        errorCode: "CLIENT_SIGN_OUT_FAILED",
+        details: {
+          message: error instanceof Error ? error.message : "Unknown sign-out failure.",
+        },
+      });
+      setIsLoading(false);
+    }
+  }, [supabase, user?.id]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, session, isLoading, signOut }),
