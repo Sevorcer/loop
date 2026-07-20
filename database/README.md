@@ -12,6 +12,7 @@ Migrations and policies are designed to be applied sequentially via the Supabase
 database/
   migrations/      — table definitions; apply in numeric order
   policies/        — RLS baseline and per-role allow policies; apply after migrations
+  fixtures/        — deterministic baseline + golden-path seed fixtures
 ```
 
 ---
@@ -59,3 +60,15 @@ For the full permission matrix, see [`docs/architecture/security/rls-role-matrix
 4. Add per-role ALLOW policies to `policies/002_role_policies.sql` (or a new role extension file).
 5. Update `docs/architecture/rls-role-matrix.md` with the new table row.
 6. Add tests to `src/services/__tests__/authorization.test.ts` covering the new table.
+
+---
+
+## Deterministic Seeds
+
+Deterministic operational fixtures live in `database/fixtures/` and are applied via:
+
+- `npm run db:seed`
+- `npm run db:reset`
+- `npm run db:reseed`
+
+See [`docs/database-seeding.md`](../docs/database-seeding.md) for fixture conventions, safety guardrails, and CI usage.
