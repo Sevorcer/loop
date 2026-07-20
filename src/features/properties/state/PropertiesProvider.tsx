@@ -67,7 +67,9 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void loadProperties();
+    queueMicrotask(() => {
+      void loadProperties();
+    });
   }, [loadProperties, role]);
 
   const value = useMemo<PropertiesContextValue>(() => {

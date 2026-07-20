@@ -22,7 +22,7 @@ import type {
 } from "../types/jobStore";
 import { applyAssignment, removeAssignment, validateAssignment } from "../utils/assignmentUtils";
 
-interface JobsContextValue extends JobsStoreValue {}
+type JobsContextValue = JobsStoreValue;
 
 const JobsContext = createContext<JobsContextValue | null>(null);
 
@@ -71,7 +71,9 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void loadJobs();
+    queueMicrotask(() => {
+      void loadJobs();
+    });
   }, [loadJobs, role]);
 
   const value = useMemo<JobsContextValue>(() => {

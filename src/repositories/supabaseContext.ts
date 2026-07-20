@@ -2,12 +2,13 @@ import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DEFAULT_DEVELOPMENT_ORG_ID = "00000000-0000-4000-8000-000000000001";
 
 export interface RepositoryContext {
   orgId: string;
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> | ReturnType<typeof getSupabaseAdminClient>;
+  supabase: SupabaseClient;
   mode: "session" | "development";
 }
 

@@ -3,8 +3,8 @@ import "server-only";
 import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
-import { countOpenJobsForCustomer, syncCustomerCounters } from "@/services/customers";
-import { countOpenJobsForProperty, resolveCustomerIdByName } from "@/repositories/properties";
+import { syncCustomerCounters } from "@/services/customers";
+import { resolveCustomerIdByName } from "@/repositories/properties";
 import { syncPropertyCounters, resolvePropertyIdByName } from "@/services/properties";
 import {
   countJobs,
@@ -28,8 +28,6 @@ const JOB_STATUSES = new Set<JobStatus>([
   "Cancelled",
 ]);
 const JOB_PRIORITIES = new Set<JobPriority>(["Low", "Medium", "High"]);
-const CLOSED_STATUSES = new Set<JobStatus>(["Completed", "Cancelled"]);
-
 function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInput | UpdateJobInput {
   return {
     ...input,

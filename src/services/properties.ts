@@ -22,7 +22,7 @@ import {
   resolveCustomerIdByName,
   updateProperty as updatePropertyRecord,
 } from "@/repositories/properties";
-import { countPropertiesForCustomer, syncCustomerCounters } from "@/services/customers";
+import { syncCustomerCounters } from "@/services/customers";
 
 import { geocodeAddress } from "./geocoding";
 

@@ -66,7 +66,9 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void loadCustomers();
+    queueMicrotask(() => {
+      void loadCustomers();
+    });
   }, [loadCustomers, role]);
 
   const value = useMemo<CustomersContextValue>(() => {

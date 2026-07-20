@@ -8,6 +8,21 @@ vi.mock("next/headers", () => ({
 }));
 
 // Authenticated by default — vi.mock factories are hoisted, so inline the value.
+vi.mock("@/features/copilot/domainData", () => ({
+  getSearchRecords: vi.fn().mockResolvedValue([
+    {
+      id: "navigation-/dispatch",
+      title: "Dispatch",
+      subtitle: "Navigate to Dispatch",
+      domain: "navigation",
+      sourceLabel: "Navigation",
+      href: "/dispatch",
+      recordType: "navigation",
+      tokens: ["dispatch", "schedule"],
+    },
+  ]),
+}));
+
 vi.mock("@/lib/auth/apiGuard", () => ({
   requireApiSession: vi.fn().mockResolvedValue({
     error: null,
