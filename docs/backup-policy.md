@@ -63,7 +63,7 @@ environment tier.
 | Staging     | 1 hour              | 2 hours            |
 | Production  | 15 minutes          | 1 hour             |
 
-These are **targets**. See `docs/drill-report.md` for observed outcomes from drills.
+These are **targets**. See `docs/drill-report-template.md` and completed reports in `docs/drills/` for observed outcomes from drills.
 
 ---
 
