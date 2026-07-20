@@ -1,6 +1,7 @@
 export { AccessDenied } from "./AccessDenied";
 export { DataTable } from "./data-table";
 export { EmptyState } from "./EmptyState";
+export { ErrorState } from "./ErrorState";
 export { KPICard } from "./KPICard";
 export { LoadingState } from "./LoadingState";
 export { PageHeader } from "./PageHeader";

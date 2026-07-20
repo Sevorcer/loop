@@ -35,8 +35,6 @@ export {
 
 // ─── Adapters ────────────────────────────────────────────────────────────────
 export { buildProjection, computeFreshness, deduplicateEvents } from "./adapters/eventProjection";
-export { createMockPortalAdapters } from "./adapters/mockAdapters";
-export { createFakePortalAdapters } from "./adapters/fakeAdapters";
 export type {
   ChangeOrdersAdapter,
   ChangeOrdersProjectionRecord,
