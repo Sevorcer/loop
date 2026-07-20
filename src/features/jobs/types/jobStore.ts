@@ -34,15 +34,17 @@ export interface UpdateJobInput {
 export interface JobsStoreValue {
   jobs: Job[];
   hydrated: boolean;
+  error: string | null;
   getJobById: (id: string) => Job | undefined;
   getActivityByJobId: (jobId: string) => JobActivity[];
-  createJob: (input: CreateJobInput) => Job;
-  updateJob: (jobId: string, input: UpdateJobInput) => Job | undefined;
-  updateJobStatus: (jobId: string, status: JobStatus) => void;
-  addJobNote: (jobId: string, note: string) => void;
+  createJob: (input: CreateJobInput) => Promise<Job>;
+  updateJob: (jobId: string, input: UpdateJobInput) => Promise<Job | undefined>;
+  updateJobStatus: (jobId: string, status: JobStatus) => Promise<void>;
+  addJobNote: (jobId: string, note: string) => Promise<void>;
   assignContractor: (
     jobId: string,
-    contractorId: string
+    contractorId: string,
   ) => { ok: true } | { ok: false; error: string };
   removeContractorAssignment: (jobId: string, contractorId: string) => void;
+  reload: () => Promise<void>;
 }

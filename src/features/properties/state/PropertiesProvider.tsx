@@ -2,15 +2,17 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
-import { mockProperties } from "../data/mockProperties";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
+
 import type { Property, PropertyStatus, PropertyType } from "../types/property";
 
 interface CreatePropertyInput {
@@ -26,90 +28,77 @@ interface CreatePropertyInput {
 interface PropertiesContextValue {
   hydrated: boolean;
   properties: Property[];
+  error: string | null;
   getPropertyById: (id: string) => Property | undefined;
-  createProperty: (input: CreatePropertyInput) => Property;
-}
-
-const PROPERTIES_STORAGE_KEY = "loop.properties.items";
-const subscribeToHydration = (onStoreChange: () => void) => {
-  void onStoreChange;
-  return () => {};
-};
-
-function parseStoredValue<T>(value: string | null, fallback: T): T {
-  if (!value) {
-    return fallback;
-  }
-
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
+  createProperty: (input: CreatePropertyInput) => Promise<Property>;
+  reload: () => Promise<void>;
 }
 
 const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 
 export function PropertiesProvider({ children }: { children: ReactNode }) {
-  const [properties, setProperties] = useState<Property[]>(() => {
-    if (typeof window === "undefined") {
-      return mockProperties;
-    }
+  const { role } = useCurrentRole();
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    return parseStoredValue<Property[]>(
-      window.localStorage.getItem(PROPERTIES_STORAGE_KEY),
-      mockProperties
-    );
-  });
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false
-  );
-
-  useEffect(() => {
-    if (!hydrated) {
+  const loadProperties = useCallback(async () => {
+    if (!role) {
       return;
     }
 
-    window.localStorage.setItem(
-      PROPERTIES_STORAGE_KEY,
-      JSON.stringify(properties)
-    );
-  }, [hydrated, properties]);
+    try {
+      setError(null);
+      const response = await requestJson<{ properties: Property[] }>("/api/properties", {
+        role,
+        cache: "no-store",
+      });
+      setProperties(response.properties);
+    } catch (loadError) {
+      setProperties([]);
+      setError(loadError instanceof Error ? loadError.message : "Failed to load properties.");
+    } finally {
+      setHydrated(true);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (!role) {
+      return;
+    }
+
+    void loadProperties();
+  }, [loadProperties, role]);
 
   const value = useMemo<PropertiesContextValue>(() => {
     function getPropertyById(id: string) {
       return properties.find((property) => property.id === id);
     }
-    function createProperty(input: CreatePropertyInput) {
-      const timestamp = new Date().toISOString();
 
-      const newProperty: Property = {
-        id: crypto.randomUUID(),
-        name: input.name,
-        customer: input.customer,
-        address: input.address,
-        city: input.city,
-        type: input.type,
-        status: input.status,
-        primarySystem: input.primarySystem,
-        openJobs: 0,
-        lastVisit: timestamp.slice(0, 10),
-        createdAt: timestamp,
-      };
+    async function createProperty(input: CreatePropertyInput) {
+      const response = await requestJson<{ property: Property }>("/api/properties", {
+        method: "POST",
+        role,
+        body: input,
+      });
 
-      setProperties((current) => [newProperty, ...current]);
-      return newProperty;
+      setProperties((current) => [response.property, ...current]);
+      return response.property;
+    }
+
+    async function reload() {
+      await loadProperties();
     }
 
     return {
       hydrated,
       properties,
+      error,
       getPropertyById,
       createProperty,
+      reload,
     };
-  }, [hydrated, properties]);
+  }, [error, hydrated, loadProperties, properties, role]);
 
   return (
     <PropertiesContext.Provider value={value}>

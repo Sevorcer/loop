@@ -71,7 +71,7 @@ interface JobFormProps {
   mode: "create" | "edit";
   cancelHref: string;
   initialValues?: Partial<JobFormValues>;
-  onSubmit: (values: JobFormValues) => void;
+  onSubmit: (values: JobFormValues) => Promise<void> | void;
 }
 
 export function JobForm({
@@ -85,10 +85,11 @@ export function JobForm({
     ...initialValues,
   });
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   function updateField<K extends keyof JobFormValues>(
     key: K,
-    value: JobFormValues[K]
+    value: JobFormValues[K],
   ) {
     setForm((current) => ({
       ...current,
@@ -152,7 +153,7 @@ export function JobForm({
     return hasRequiredText && hasValidDate;
   }, [form]);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!canSubmit) {
@@ -160,7 +161,17 @@ export function JobForm({
       return;
     }
 
-    onSubmit(normalizeValues(form));
+    try {
+      setIsSaving(true);
+      setError(null);
+      await onSubmit(normalizeValues(form));
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error ? submitError.message : "Failed to save job.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   const isCreateMode = mode === "create";
@@ -371,9 +382,9 @@ export function JobForm({
                 </Button>
               </Link>
 
-              <Button type="submit" className="gap-2" disabled={!canSubmit}>
+              <Button type="submit" className="gap-2" disabled={!canSubmit || isSaving}>
                 <FormBadgeIcon className="h-4 w-4" />
-                {submitLabel}
+                {isSaving ? "Saving..." : submitLabel}
               </Button>
             </div>
           </div>

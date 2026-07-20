@@ -2,15 +2,17 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
-import { mockCustomers } from "../data/mockCustomers";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
+
 import type { Customer, CustomerStatus } from "../types/customer";
 
 export interface CreateCustomerInput {
@@ -25,93 +27,77 @@ export interface CreateCustomerInput {
 interface CustomersContextValue {
   hydrated: boolean;
   customers: Customer[];
+  error: string | null;
   getCustomerById: (id: string) => Customer | undefined;
-  createCustomer: (input: CreateCustomerInput) => Customer;
-}
-
-const CUSTOMERS_STORAGE_KEY = "loop.customers.items";
-
-const subscribeToHydration = (onStoreChange: () => void) => {
-  void onStoreChange;
-  return () => {};
-};
-
-function parseStoredValue<T>(value: string | null, fallback: T): T {
-  if (!value) {
-    return fallback;
-  }
-
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
+  createCustomer: (input: CreateCustomerInput) => Promise<Customer>;
+  reload: () => Promise<void>;
 }
 
 const CustomersContext = createContext<CustomersContextValue | null>(null);
 
 export function CustomersProvider({ children }: { children: ReactNode }) {
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    if (typeof window === "undefined") {
-      return mockCustomers;
-    }
+  const { role } = useCurrentRole();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    return parseStoredValue<Customer[]>(
-      window.localStorage.getItem(CUSTOMERS_STORAGE_KEY),
-      mockCustomers
-    );
-  });
-
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false
-  );
-
-  useEffect(() => {
-    if (!hydrated) {
+  const loadCustomers = useCallback(async () => {
+    if (!role) {
       return;
     }
 
-    window.localStorage.setItem(
-      CUSTOMERS_STORAGE_KEY,
-      JSON.stringify(customers)
-    );
-  }, [hydrated, customers]);
+    try {
+      setError(null);
+      const response = await requestJson<{ customers: Customer[] }>("/api/customers", {
+        role,
+        cache: "no-store",
+      });
+      setCustomers(response.customers);
+    } catch (loadError) {
+      setCustomers([]);
+      setError(loadError instanceof Error ? loadError.message : "Failed to load customers.");
+    } finally {
+      setHydrated(true);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (!role) {
+      return;
+    }
+
+    void loadCustomers();
+  }, [loadCustomers, role]);
 
   const value = useMemo<CustomersContextValue>(() => {
     function getCustomerById(id: string) {
-      return customers.find((c) => c.id === id);
+      return customers.find((customer) => customer.id === id);
     }
 
-    function createCustomer(input: CreateCustomerInput): Customer {
-      const timestamp = new Date().toISOString();
+    async function createCustomer(input: CreateCustomerInput) {
+      const response = await requestJson<{ customer: Customer }>("/api/customers", {
+        method: "POST",
+        role,
+        body: input,
+      });
 
-      const newCustomer: Customer = {
-        id: crypto.randomUUID(),
-        name: input.name,
-        primaryContact: input.primaryContact,
-        email: input.email,
-        phone: input.phone,
-        city: input.city,
-        status: input.status,
-        propertyCount: 0,
-        openJobs: 0,
-        lastActivity: timestamp.slice(0, 10),
-        createdAt: timestamp.slice(0, 10),
-      };
+      setCustomers((current) => [response.customer, ...current]);
+      return response.customer;
+    }
 
-      setCustomers((current) => [newCustomer, ...current]);
-      return newCustomer;
+    async function reload() {
+      await loadCustomers();
     }
 
     return {
       hydrated,
       customers,
+      error,
       getCustomerById,
       createCustomer,
+      reload,
     };
-  }, [hydrated, customers]);
+  }, [customers, error, hydrated, loadCustomers, role]);
 
   return (
     <CustomersContext.Provider value={value}>

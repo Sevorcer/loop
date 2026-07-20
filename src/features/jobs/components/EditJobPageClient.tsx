@@ -44,8 +44,8 @@ function EditJobFormContent({ id }: { id: string }) {
         summary: job.summary,
         notes: job.notes,
       }}
-      onSubmit={(values) => {
-        const updatedJob = updateJob(job.id, values);
+      onSubmit={async (values) => {
+        const updatedJob = await updateJob(job.id, values);
 
         if (!updatedJob) {
           notFound();

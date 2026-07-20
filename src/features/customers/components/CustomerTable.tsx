@@ -16,7 +16,7 @@ const PAGE_SIZE = 10;
 
 export function CustomerTable() {
   const router = useRouter();
-  const { customers } = useCustomers();
+  const { customers, hydrated } = useCustomers();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
@@ -34,7 +34,7 @@ export function CustomerTable() {
 
   const cityOptions = useMemo(() => {
     return Array.from(
-      new Set(customers.map((customer) => customer.city))
+      new Set(customers.map((customer) => customer.city)),
     ).sort();
   }, [customers]);
 
@@ -105,7 +105,7 @@ export function CustomerTable() {
     router.push(`/customers/${customer.id}`);
   }
 
-  if (isLoading) {
+  if (!hydrated || isLoading) {
     return (
       <div className="space-y-4">
         <CustomerToolbar

@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import { mockCustomers } from "@/features/customers/data/mockCustomers";
+import { createCustomer, listCustomers } from "@/services/customers";
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "customers", "select");
   if (!guard.ok) return guard.response;
 
-  return NextResponse.json({ customers: mockCustomers });
+  try {
+    return NextResponse.json({ customers: await listCustomers() });
+  } catch (error) {
+    return mapRouteError(error);
+  }
 }
 
 export async function POST(request: Request) {
@@ -17,21 +22,31 @@ export async function POST(request: Request) {
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    body = await readJsonObject(request);
   } catch {
-    return NextResponse.json(
-      { error: "INVALID_PAYLOAD", message: "Request body must be valid JSON.", code: 400 },
-      { status: 400 },
-    );
+    return invalidJsonResponse();
   }
 
-  emitAuditEvent({
-    role: guard.ctx.role,
-    action: "create",
-    resource: "customers",
-    details: { name: body.name },
-  });
+  try {
+    const customer = await createCustomer({
+      name: String(body.name ?? ""),
+      primaryContact: String(body.primaryContact ?? ""),
+      email: String(body.email ?? ""),
+      phone: String(body.phone ?? ""),
+      city: String(body.city ?? ""),
+      status: String(body.status ?? "Active") as "Active" | "Prospect" | "Inactive",
+    });
 
-  // TODO: persist to Supabase when wired
-  return NextResponse.json({ message: "Customer created.", customer: body }, { status: 201 });
+    emitAuditEvent({
+      role: guard.ctx.role,
+      action: "create",
+      resource: "customers",
+      resourceId: customer.id,
+      details: { name: customer.name },
+    });
+
+    return NextResponse.json({ message: "Customer created.", customer }, { status: 201 });
+  } catch (error) {
+    return mapRouteError(error);
+  }
 }
