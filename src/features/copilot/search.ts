@@ -43,6 +43,9 @@ function toGroups(items: CopilotSearchItem[]): CopilotSearchGroup[] {
 }
 
 function buildConversationalResponse(query: string) {
+  // Placeholder conversational mode for this sprint.
+  // Sprint 23 guardrails scope conversational output to a lightweight fallback
+  // while retrieval/navigation remains the primary response mode.
   return `I can help retrieve items and route you to the right screen for: ${query}`;
 }
 

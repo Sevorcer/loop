@@ -173,7 +173,7 @@ export default function Header({
             type="button"
             variant="ghost"
             size="icon"
-            aria-label="Open command bar"
+            aria-label="Open command bar (Cmd/Ctrl+K)"
             onClick={onOpenCommandBar}
             className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
           >
@@ -277,7 +277,7 @@ export default function Header({
               type="button"
               variant="ghost"
               size="icon"
-              aria-label="Open command bar"
+              aria-label="Open command bar (Cmd/Ctrl+K)"
               onClick={onOpenCommandBar}
               className="border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
             >

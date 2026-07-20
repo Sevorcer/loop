@@ -10,6 +10,28 @@ function cleanSegments(pathname: string) {
     .filter(Boolean);
 }
 
+function hydrateEntityContext(
+  resolved: CopilotResolvedContext,
+  segments: string[],
+  config: {
+    domain: string;
+    idField: "jobId" | "propertyId" | "customerId" | "installedSystemId" | "projectId";
+    skipSegment?: string;
+  }
+) {
+  if (segments[0] !== config.domain) {
+    return false;
+  }
+
+  if (!segments[1] || segments[1] === config.skipSegment) {
+    return false;
+  }
+
+  resolved[config.idField] = resolved[config.idField] ?? segments[1];
+  resolved.stage = segments[2];
+  return true;
+}
+
 export function resolveCopilotContext(
   context: CopilotSearchContextInput | undefined
 ): CopilotResolvedContext {
@@ -26,33 +48,52 @@ export function resolveCopilotContext(
     customerId: context?.customerId,
   };
 
-  if (segments[0] === "jobs" && segments[1] && segments[1] !== "new") {
-    resolved.jobId = resolved.jobId ?? segments[1];
-    resolved.stage = segments[2];
+  if (
+    hydrateEntityContext(resolved, segments, {
+      domain: "jobs",
+      idField: "jobId",
+      skipSegment: "new",
+    })
+  ) {
     return resolved;
   }
 
-  if (segments[0] === "properties" && segments[1] && segments[1] !== "new") {
-    resolved.propertyId = resolved.propertyId ?? segments[1];
-    resolved.stage = segments[2];
+  if (
+    hydrateEntityContext(resolved, segments, {
+      domain: "properties",
+      idField: "propertyId",
+      skipSegment: "new",
+    })
+  ) {
     return resolved;
   }
 
-  if (segments[0] === "customers" && segments[1] && segments[1] !== "new") {
-    resolved.customerId = resolved.customerId ?? segments[1];
-    resolved.stage = segments[2];
+  if (
+    hydrateEntityContext(resolved, segments, {
+      domain: "customers",
+      idField: "customerId",
+      skipSegment: "new",
+    })
+  ) {
     return resolved;
   }
 
-  if (segments[0] === "installed-systems" && segments[1]) {
-    resolved.installedSystemId = resolved.installedSystemId ?? segments[1];
-    resolved.stage = segments[2];
+  if (
+    hydrateEntityContext(resolved, segments, {
+      domain: "installed-systems",
+      idField: "installedSystemId",
+    })
+  ) {
     return resolved;
   }
 
-  if (segments[0] === "portal" && segments[1] && segments[1] !== "error") {
-    resolved.projectId = resolved.projectId ?? segments[1];
-    resolved.stage = segments[2];
+  if (
+    hydrateEntityContext(resolved, segments, {
+      domain: "portal",
+      idField: "projectId",
+      skipSegment: "error",
+    })
+  ) {
     return resolved;
   }
 

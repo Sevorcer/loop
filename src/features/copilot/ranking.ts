@@ -30,19 +30,19 @@ function scoreByTokens(query: string, record: SearchRecord): number {
 }
 
 function scoreByIntent(intent: CopilotIntent, record: SearchRecord): number {
-  if (intent === "navigation" && record.kind === "navigation") {
+  if (intent === "navigation" && record.recordType === "navigation") {
     return 12;
   }
 
-  if (intent === "manual_lookup" && record.kind === "manual") {
+  if (intent === "manual_lookup" && record.recordType === "manual") {
     return 12;
   }
 
-  if (intent === "photo_lookup" && record.kind === "photo") {
+  if (intent === "photo_lookup" && record.recordType === "photo") {
     return 12;
   }
 
-  if (intent === "search" && record.kind === "entity") {
+  if (intent === "search" && record.recordType === "entity") {
     return 2;
   }
 

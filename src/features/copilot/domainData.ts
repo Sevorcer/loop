@@ -29,8 +29,19 @@ const NAVIGATION_TARGETS: Array<{ label: string; href: string; aliases: string[]
   { label: "Project Portal", href: PORTAL_ROUTES.ROOT, aliases: ["portal", "projects"] },
 ];
 
-function compact(value: Array<string | undefined>) {
-  return value.filter((entry): entry is string => Boolean(entry && entry.trim())).map((entry) => entry.trim());
+function sanitizeTokenStrings(value: Array<string | null | undefined>) {
+  return value.reduce<string[]>((result, entry) => {
+    if (!entry) {
+      return result;
+    }
+
+    const trimmed = entry.trim();
+    if (trimmed) {
+      result.push(trimmed);
+    }
+
+    return result;
+  }, []);
 }
 
 export function getSearchRecords(): SearchRecord[] {
@@ -41,8 +52,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "jobs",
     sourceLabel: "Jobs",
     href: ROUTE_BUILDERS.JOB_DETAIL(job.id),
-    kind: "entity",
-    tokens: compact([job.jobNumber, job.title, job.customerName, job.propertyName, job.location, job.type, job.status]),
+    recordType: "entity",
+    tokens: sanitizeTokenStrings([job.jobNumber, job.title, job.customerName, job.propertyName, job.location, job.type, job.status]),
     contextRefs: { jobId: job.id },
   }));
 
@@ -53,8 +64,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "properties",
     sourceLabel: "Properties",
     href: ROUTE_BUILDERS.PROPERTY_DETAIL(property.id),
-    kind: "entity",
-    tokens: compact([property.name, property.customer, property.address, property.city, property.primarySystem]),
+    recordType: "entity",
+    tokens: sanitizeTokenStrings([property.name, property.customer, property.address, property.city, property.primarySystem]),
     contextRefs: { propertyId: property.id },
   }));
 
@@ -65,20 +76,20 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "customers",
     sourceLabel: "Customers",
     href: ROUTE_BUILDERS.CUSTOMER_DETAIL(customer.id),
-    kind: "entity",
-    tokens: compact([customer.name, customer.primaryContact, customer.city, customer.email, customer.phone]),
+    recordType: "entity",
+    tokens: sanitizeTokenStrings([customer.name, customer.primaryContact, customer.city, customer.email, customer.phone]),
     contextRefs: { customerId: customer.id },
   }));
 
   const projectRecords: SearchRecord[] = mockPortalProjects.map((project) => ({
     id: `project-${project.id}`,
     title: project.name,
-    subtitle: `${project.status.replace("_", " ")} • ${project.projectManager}`,
+    subtitle: `${project.status.replaceAll("_", " ")} • ${project.projectManager}`,
     domain: "projects",
     sourceLabel: "Project Portal",
     href: PORTAL_ROUTES.PROJECT(project.id),
-    kind: "entity",
-    tokens: compact([project.name, project.address, project.projectManager, project.nextMilestone]),
+    recordType: "entity",
+    tokens: sanitizeTokenStrings([project.name, project.address, project.projectManager, project.nextMilestone]),
     contextRefs: { projectId: project.id },
   }));
 
@@ -89,8 +100,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "reports",
     sourceLabel: "Reporting",
     href: ROUTES.REPORTING,
-    kind: "report",
-    tokens: compact([model.title, model.description, ...model.relatedDomains]),
+    recordType: "report",
+    tokens: sanitizeTokenStrings([model.title, model.description, ...model.relatedDomains]),
   }));
 
   const knowledgeRecords: SearchRecord[] = mockKnowledgeItems.map((item) => ({
@@ -100,8 +111,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "company_brain",
     sourceLabel: "Company Brain",
     href: ROUTES.COMPANY_BRAIN,
-    kind: "document",
-    tokens: compact([item.title, item.summary, item.body, ...item.tags, ...item.relatedDomains]),
+    recordType: "document",
+    tokens: sanitizeTokenStrings([item.title, item.summary, item.body, ...item.tags, ...item.relatedDomains]),
   }));
 
   const manualRecords: SearchRecord[] = equipmentCatalog.flatMap((entry) => {
@@ -116,8 +127,8 @@ export function getSearchRecords(): SearchRecord[] {
         domain: "documents" as const,
         sourceLabel: "Installed Systems",
         href: ROUTES.INSTALLED_SYSTEMS,
-        kind: "manual" as const,
-        tokens: compact([
+        recordType: "manual" as const,
+        tokens: sanitizeTokenStrings([
           entry.documents.manual,
           entry.manufacturer,
           entry.modelNumber,
@@ -132,8 +143,8 @@ export function getSearchRecords(): SearchRecord[] {
         domain: "documents" as const,
         sourceLabel: "Installed Systems",
         href: ROUTES.INSTALLED_SYSTEMS,
-        kind: "manual" as const,
-        tokens: compact([
+        recordType: "manual" as const,
+        tokens: sanitizeTokenStrings([
           entry.documents.submittal,
           entry.manufacturer,
           entry.modelNumber,
@@ -151,8 +162,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "installed_systems",
     sourceLabel: "Installed Systems",
     href: ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id),
-    kind: "entity",
-    tokens: compact([system.systemName, system.customerName, system.propertyName, system.location, ...(system.serialNumbers ?? [])]),
+    recordType: "entity",
+    tokens: sanitizeTokenStrings([system.systemName, system.customerName, system.propertyName, system.location, ...(system.serialNumbers ?? [])]),
     contextRefs: {
       installedSystemId: system.id,
       propertyId: system.propertyId,
@@ -168,8 +179,8 @@ export function getSearchRecords(): SearchRecord[] {
       domain: "documents" as const,
       sourceLabel: "Properties",
       href: ROUTE_BUILDERS.PROPERTY_DETAIL(detail.propertyId),
-      kind: "document" as const,
-      tokens: compact([document.title, document.category, document.status, detail.propertyId]),
+      recordType: "document" as const,
+      tokens: sanitizeTokenStrings([document.title, document.category, document.status, detail.propertyId]),
       contextRefs: { propertyId: detail.propertyId },
     }))
   );
@@ -182,8 +193,8 @@ export function getSearchRecords(): SearchRecord[] {
       domain: "photos" as const,
       sourceLabel: "Properties",
       href: ROUTE_BUILDERS.PROPERTY_DETAIL(detail.propertyId),
-      kind: "photo" as const,
-      tokens: compact([photo.title, photo.category, photo.status, detail.propertyId]),
+      recordType: "photo" as const,
+      tokens: sanitizeTokenStrings([photo.title, photo.category, photo.status, detail.propertyId]),
       contextRefs: { propertyId: detail.propertyId },
     }))
   );
@@ -195,8 +206,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "documents",
     sourceLabel: "Project Portal",
     href: PORTAL_ROUTES.DOCUMENTS(document.projectId),
-    kind: "document",
-    tokens: compact([document.title, document.category, document.visibility, document.projectId]),
+    recordType: "document",
+    tokens: sanitizeTokenStrings([document.title, document.category, document.visibility, document.projectId]),
     contextRefs: { projectId: document.projectId },
   }));
 
@@ -207,8 +218,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "photos",
     sourceLabel: "Project Portal",
     href: PORTAL_ROUTES.PHOTOS(photo.projectId),
-    kind: "photo",
-    tokens: compact([photo.caption, photo.projectId, photo.customerVisible ? "customer" : "internal"]),
+    recordType: "photo",
+    tokens: sanitizeTokenStrings([photo.caption, photo.projectId, photo.customerVisible ? "customer" : "internal"]),
     contextRefs: { projectId: photo.projectId },
   }));
 
@@ -219,8 +230,8 @@ export function getSearchRecords(): SearchRecord[] {
     domain: "navigation",
     sourceLabel: "Navigation",
     href: target.href,
-    kind: "navigation",
-    tokens: compact([target.label, ...target.aliases]),
+    recordType: "navigation",
+    tokens: sanitizeTokenStrings([target.label, ...target.aliases]),
   }));
 
   return [

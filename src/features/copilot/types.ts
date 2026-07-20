@@ -76,7 +76,13 @@ export interface SearchRecord {
   sourceLabel: string;
   href: string;
   tokens: string[];
-  kind: "entity" | "manual" | "document" | "photo" | "report" | "navigation";
+  recordType:
+    | "entity"
+    | "manual"
+    | "document"
+    | "photo"
+    | "report"
+    | "navigation";
   contextRefs?: {
     projectId?: string;
     propertyId?: string;

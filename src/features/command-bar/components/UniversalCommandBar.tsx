@@ -2,7 +2,7 @@
 
 import { Command, Search, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
@@ -11,6 +11,8 @@ import type { CopilotSearchItem, CopilotSearchResponse } from "@/features/copilo
 import { isCloseShortcut, isOpenShortcut } from "../utils/shortcut";
 
 const RECENT_STORAGE_KEY = "loop.command-bar.recent";
+const MAX_RECENT_ENTRIES = 5;
+const SEARCH_DEBOUNCE_MS = 180;
 
 type RecentEntry = Pick<CopilotSearchItem, "id" | "title" | "subtitle" | "domain" | "sourceLabel" | "href">;
 
@@ -44,17 +46,6 @@ const SUGGESTED: RecentEntry[] = [
 interface UniversalCommandBarProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-function normalizeRecent(item: CopilotSearchItem): RecentEntry {
-  return {
-    id: item.id,
-    title: item.title,
-    subtitle: item.subtitle,
-    domain: item.domain,
-    sourceLabel: item.sourceLabel,
-    href: item.href,
-  };
 }
 
 function RecentSection({
@@ -95,7 +86,23 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
   const [groups, setGroups] = useState<CopilotSearchResponse["groups"]>([]);
   const [mode, setMode] = useState<CopilotSearchResponse["mode"]>("structured");
   const [expandedResponse, setExpandedResponse] = useState<string | undefined>();
-  const [recent, setRecent] = useState<RecentEntry[]>([]);
+  const [recent, setRecent] = useState<RecentEntry[]>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    try {
+      const raw = localStorage.getItem(RECENT_STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw) as RecentEntry[];
+      return Array.isArray(parsed) ? parsed.slice(0, MAX_RECENT_ENTRIES) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -128,32 +135,12 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
   }, [open]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(RECENT_STORAGE_KEY);
-      if (!raw) {
-        return;
-      }
-
-      const parsed = JSON.parse(raw) as RecentEntry[];
-      if (Array.isArray(parsed)) {
-        setRecent(parsed.slice(0, 5));
-      }
-    } catch {
-      setRecent([]);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!open) {
       return;
     }
 
     const trimmed = query.trim();
     if (!trimmed) {
-      setGroups([]);
-      setMode("structured");
-      setExpandedResponse(undefined);
-      setLoading(false);
       return;
     }
 
@@ -186,7 +173,7 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
       } finally {
         setLoading(false);
       }
-    }, 180);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
   }, [open, pathname, query]);
@@ -195,9 +182,12 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
   const firstItem = groups[0]?.items[0];
 
   const onSelect = (item: RecentEntry | CopilotSearchItem) => {
-    const normalized = "domain" in item ? item : item;
+    const normalized = item;
     setRecent((previous) => {
-      const deduped = [normalized, ...previous.filter((entry) => entry.id !== normalized.id)].slice(0, 5);
+      const deduped = [normalized, ...previous.filter((entry) => entry.id !== normalized.id)].slice(
+        0,
+        MAX_RECENT_ENTRIES
+      );
       localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(deduped));
       return deduped;
     });
@@ -206,8 +196,6 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
     onOpenChange(false);
     router.push(normalized.href);
   };
-
-  const desktopTooltipLabel = useMemo(() => "Ask Copilot", []);
 
   return (
     <>
@@ -224,7 +212,7 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
             <Command className="h-4 w-4" />
           </Button>
           <span className="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-slate-900 px-2 py-1 text-xs text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-            {desktopTooltipLabel}
+            Ask Copilot
           </span>
         </div>
       </div>
