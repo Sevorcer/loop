@@ -94,14 +94,14 @@ export function getNavItemsForRole(
   role: AppRole | string | null | undefined,
   groups: NavGroup[]
 ): NavGroup[] {
-  const baselineGroups = groups.filter((group) => group.items.length > 0);
+  const nonEmptyGroups = groups.filter((group) => group.items.length > 0);
 
   if (role === "portal") {
     return [];
   }
 
   if (!isAppRole(role)) {
-    return baselineGroups;
+    return nonEmptyGroups;
   }
 
   return groups

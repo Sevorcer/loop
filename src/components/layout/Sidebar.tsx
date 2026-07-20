@@ -86,8 +86,8 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
   const { role, loading } = useSession();
 
   const filteredGroups = getNavItemsForRole(role, navGroups);
-  const shouldFallbackToBaseline = !loading && role !== "portal" && filteredGroups.length === 0;
-  const visibleGroups = shouldFallbackToBaseline ? navGroups : filteredGroups;
+  const shouldBypassRoleFilter = !loading && role !== "portal" && filteredGroups.length === 0;
+  const visibleGroups = shouldBypassRoleFilter ? navGroups : filteredGroups;
 
   return (
     <aside

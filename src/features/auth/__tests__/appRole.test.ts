@@ -28,8 +28,11 @@ describe("resolveAuthUserRole", () => {
     ).toBe("office");
   });
 
-  it("returns null for missing or invalid role metadata", () => {
+  it("returns null when user metadata is missing", () => {
     expect(resolveAuthUserRole(null)).toBeNull();
+  });
+
+  it("returns null for invalid role metadata", () => {
     expect(
       resolveAuthUserRole({
         app_metadata: { role: "superadmin" },

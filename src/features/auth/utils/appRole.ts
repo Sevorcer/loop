@@ -20,7 +20,7 @@ export function isAppRole(value: unknown): value is AppRole {
   return typeof value === "string" && VALID_APP_ROLES.has(value as AppRole);
 }
 
-function readRoleFromMetadata(metadata: unknown): AppRole | null {
+function extractRoleFromMetadata(metadata: unknown): AppRole | null {
   if (!metadata || typeof metadata !== "object") {
     return null;
   }
@@ -38,10 +38,22 @@ function readRoleFromMetadata(metadata: unknown): AppRole | null {
   return null;
 }
 
+/**
+ * Resolves the application role from Supabase user metadata.
+ *
+ * Fallback order:
+ * 1. `app_metadata.role`
+ * 2. `app_metadata.app_role`
+ * 3. `user_metadata.role`
+ * 4. `user_metadata.app_role`
+ */
 export function resolveAuthUserRole(
   user: Pick<AuthUser, "app_metadata" | "user_metadata"> | null | undefined
 ): AppRole | null {
-  return readRoleFromMetadata(user?.app_metadata) ?? readRoleFromMetadata(user?.user_metadata);
+  return (
+    extractRoleFromMetadata(user?.app_metadata) ??
+    extractRoleFromMetadata(user?.user_metadata)
+  );
 }
 
 export function readStoredDevRole(): AppRole | null {

@@ -49,6 +49,7 @@ function useDerivedSessionValue(): SessionContextValue {
       return null;
     }
 
+    // Fallback order: dev override → hydrated auth session/user metadata → owner.
     return devRole ?? resolveAuthUserRole(session?.user ?? user) ?? DEFAULT_APP_ROLE;
   }, [devRole, isLoading, session, user]);
 
