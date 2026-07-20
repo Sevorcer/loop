@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Building2, CheckCircle2, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
 
+import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
@@ -46,6 +47,18 @@ function normalizeValues(values: PropertyFormValues): PropertyFormValues {
 }
 
 export function NewPropertyForm() {
+  return (
+    <RoutePermissionGuard
+      table="properties"
+      action="insert"
+      deniedDescription="You don't have permission to create properties."
+    >
+      <NewPropertyFormContent />
+    </RoutePermissionGuard>
+  );
+}
+
+function NewPropertyFormContent() {
   const { createProperty } = useProperties();
 
   const [form, setForm] = useState<PropertyFormValues>(defaultPropertyFormValues);

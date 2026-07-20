@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { StatusBadge } from "@/components/atlas";
+import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/features/auth";
@@ -69,11 +69,19 @@ export function JobDetailScreen({ job }: { job: Job }) {
           </Button>
         </Link>
 
+<<<<<<< HEAD
+        <PermissionGuard table="jobs" action="update">
+          <Link href={`/jobs/${currentJob.id}/edit`}>
+            <Button variant="secondary">Edit Job</Button>
+          </Link>
+        </PermissionGuard>
+=======
         <PermissionGate table="jobs" action="update">
           <Link href={`/jobs/${currentJob.id}/edit`}>
             <Button variant="secondary">Edit Job</Button>
           </Link>
         </PermissionGate>
+>>>>>>> origin/main
       </div>
 
       <SurfaceCard className="overflow-hidden">
@@ -190,14 +198,22 @@ export function JobDetailScreen({ job }: { job: Job }) {
             </div>
           </SurfaceCard>
 
+<<<<<<< HEAD
+          <PermissionGuard table="jobs" action="update">
+=======
           <PermissionGate table="jobs" action="update">
+>>>>>>> origin/main
             <JobStatusActions
               status={currentJob.status}
               onChangeStatus={(nextStatus) =>
                 updateJobStatus(currentJob.id, nextStatus)
               }
             />
+<<<<<<< HEAD
+          </PermissionGuard>
+=======
           </PermissionGate>
+>>>>>>> origin/main
 
           <AssignContractorPanel jobId={currentJob.id} />
 

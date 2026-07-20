@@ -21,21 +21,12 @@ import {
   Globe,
 } from "lucide-react";
 
+import { useSession, getNavItemsForRole } from "@/features/auth";
+import type { NavGroup } from "@/features/auth";
 import { ROUTES, PORTAL_ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 import { UserDisplay } from "@/features/auth/components/UserDisplay";
-
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ size?: number }>;
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
 
 const navGroups: NavGroup[] = [
   {
@@ -90,6 +81,9 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+/** Total number of nav items across all groups — used to size the loading skeleton. */
+const NAV_SKELETON_ROWS = navGroups.reduce((sum, g) => sum + g.items.length, 0);
+
 interface SidebarProps {
   id?: string;
   className?: string;
@@ -98,6 +92,9 @@ interface SidebarProps {
 
 export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
+  const { role, loading } = useSession();
+
+  const visibleGroups = getNavItemsForRole(role, navGroups);
 
   return (
     <aside
@@ -131,60 +128,76 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        <nav className="space-y-5">
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                {group.label}
-              </p>
+        <nav
+          className="space-y-5"
+          aria-busy={loading}
+          aria-label="Main navigation"
+        >
+          {loading ? (
+            /* Skeleton rows — prevent flash of nav before role resolves */
+            <div className="space-y-1 px-3" aria-hidden="true">
+              {Array.from({ length: NAV_SKELETON_ROWS }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-9 animate-pulse rounded-lg bg-white/5"
+                />
+              ))}
+            </div>
+          ) : (
+            visibleGroups.map((group) => (
+              <div key={group.label}>
+                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  {group.label}
+                </p>
 
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== ROUTES.DASHBOARD &&
-                      pathname.startsWith(`${item.href}/`));
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive =
+                      pathname === item.href ||
+                      (item.href !== ROUTES.DASHBOARD &&
+                        pathname.startsWith(`${item.href}/`));
 
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={onNavigate}
-                      className={[
-                        "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
-                        isActive
-                          ? "bg-gradient-to-r from-red-600/20 via-blue-500/10 to-transparent text-white ring-1 ring-red-500/30"
-                          : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
-                      ].join(" ")}
-                    >
-                      <span
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={onNavigate}
                         className={[
-                          "absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-r-full transition-all",
+                          "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                           isActive
-                            ? "bg-gradient-to-b from-red-500 to-blue-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]"
-                            : "bg-transparent",
-                        ].join(" ")}
-                      />
-
-                      <div
-                        className={[
-                          "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all",
-                          isActive
-                            ? "bg-white/10 text-white ring-1 ring-white/10"
-                            : "text-slate-400 group-hover:text-slate-200",
+                            ? "bg-gradient-to-r from-red-600/20 via-blue-500/10 to-transparent text-white ring-1 ring-red-500/30"
+                            : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
                         ].join(" ")}
                       >
-                        <Icon size={15} />
-                      </div>
+                        <span
+                          className={[
+                            "absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-r-full transition-all",
+                            isActive
+                              ? "bg-gradient-to-b from-red-500 to-blue-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]"
+                              : "bg-transparent",
+                          ].join(" ")}
+                        />
 
-                      <span className="relative z-10 truncate">{item.name}</span>
-                    </Link>
-                  );
-                })}
+                        <div
+                          className={[
+                            "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all",
+                            isActive
+                              ? "bg-white/10 text-white ring-1 ring-white/10"
+                              : "text-slate-400 group-hover:text-slate-200",
+                          ].join(" ")}
+                        >
+                          <Icon size={15} />
+                        </div>
+
+                        <span className="relative z-10 truncate">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </nav>
       </div>
 

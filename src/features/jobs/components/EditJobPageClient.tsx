@@ -3,10 +3,12 @@
 import { useMemo } from "react";
 import { notFound, useRouter } from "next/navigation";
 
+import { RoutePermissionGuard } from "@/components/atlas";
+
 import { JobForm } from "./JobForm";
 import { useJobs } from "../state/JobsProvider";
 
-export function EditJobPageClient({ id }: { id: string }) {
+function EditJobFormContent({ id }: { id: string }) {
   const router = useRouter();
   const { hydrated, getJobById, updateJob } = useJobs();
 
@@ -52,5 +54,17 @@ export function EditJobPageClient({ id }: { id: string }) {
         router.push(`/jobs/${job.id}`);
       }}
     />
+  );
+}
+
+export function EditJobPageClient({ id }: { id: string }) {
+  return (
+    <RoutePermissionGuard
+      table="jobs"
+      action="update"
+      deniedDescription="You don't have permission to edit jobs."
+    >
+      <EditJobFormContent id={id} />
+    </RoutePermissionGuard>
   );
 }

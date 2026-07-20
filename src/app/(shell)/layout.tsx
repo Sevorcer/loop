@@ -1,9 +1,17 @@
 import type { ReactNode } from "react";
 
+import { SessionProvider } from "@/features/auth";
 import AppShell from "@/components/layout/AppShell";
 import { AuthProvider, RoleProvider } from "@/features/auth";
 import { getAuthSession } from "@/lib/auth/session";
 
+<<<<<<< HEAD
+export default function ShellLayout({ children }: { children: ReactNode }) {
+  return (
+    <SessionProvider>
+      <AppShell>{children}</AppShell>
+    </SessionProvider>
+=======
 export default async function ShellLayout({ children }: { children: ReactNode }) {
   // Resolve session server-side so AuthProvider can hydrate without a loading
   // flash. The middleware already validated the session, so this is safe.
@@ -15,6 +23,7 @@ export default async function ShellLayout({ children }: { children: ReactNode })
         <AppShell>{children}</AppShell>
       </RoleProvider>
     </AuthProvider>
+>>>>>>> origin/main
   );
 }
 

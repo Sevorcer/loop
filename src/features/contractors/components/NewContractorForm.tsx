@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, HardHat } from "lucide-react";
 import Link from "next/link";
 
+import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
@@ -48,6 +49,18 @@ function normalizeValues(v: ContractorFormValues): ContractorFormValues {
 }
 
 export function NewContractorForm() {
+  return (
+    <RoutePermissionGuard
+      table="contractors"
+      action="insert"
+      deniedDescription="You don't have permission to add contractors."
+    >
+      <NewContractorFormContent />
+    </RoutePermissionGuard>
+  );
+}
+
+function NewContractorFormContent() {
   const { createContractor } = useContractors();
 
   const [form, setForm] = useState<ContractorFormValues>(defaultValues);

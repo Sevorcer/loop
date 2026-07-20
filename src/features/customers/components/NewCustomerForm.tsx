@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, ClipboardPlus, UserPlus } from "lucide-react";
 import Link from "next/link";
 
+import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
@@ -43,6 +44,18 @@ function normalizeValues(values: CustomerFormValues): CustomerFormValues {
 }
 
 export function NewCustomerForm() {
+  return (
+    <RoutePermissionGuard
+      table="customers"
+      action="insert"
+      deniedDescription="You don't have permission to create customers."
+    >
+      <NewCustomerFormContent />
+    </RoutePermissionGuard>
+  );
+}
+
+function NewCustomerFormContent() {
   const { createCustomer } = useCustomers();
 
   const [form, setForm] = useState<CustomerFormValues>(defaultCustomerFormValues);

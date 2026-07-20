@@ -5,13 +5,14 @@ import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 
 import { JobForm, type JobFormValues } from "./JobForm";
 import { useJobs } from "../state/JobsProvider";
 
-export function NewJobForm() {
+function NewJobFormContent() {
   const router = useRouter();
   const { createJob } = useJobs();
 
@@ -63,5 +64,17 @@ export function NewJobForm() {
 
   return (
     <JobForm mode="create" cancelHref="/jobs" onSubmit={handleSubmit} />
+  );
+}
+
+export function NewJobForm() {
+  return (
+    <RoutePermissionGuard
+      table="jobs"
+      action="insert"
+      deniedDescription="You don't have permission to create jobs."
+    >
+      <NewJobFormContent />
+    </RoutePermissionGuard>
   );
 }
