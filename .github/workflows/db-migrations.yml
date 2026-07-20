@@ -8,8 +8,6 @@ name: Database Migrations
 #   SUPABASE_PROJECT_REF    — Project reference ID (e.g. "abcdefghijklmnop")
 #   SUPABASE_DB_PASSWORD    — Database password for the linked project
 #
-# Required GitHub variables (optional, defaults shown):
-#   SUPABASE_DB_URL         — Full postgres connection string (overrides project-ref approach)
 
 on:
   pull_request:
@@ -61,6 +59,7 @@ jobs:
 
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     steps:
       - name: Checkout
