@@ -2,6 +2,8 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 
+import { UniversalCommandBar } from "@/features/command-bar";
+
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
@@ -11,6 +13,7 @@ type AppShellProps = {
 
 export default function AppShell({ children }: AppShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
 
   useEffect(() => {
     if (!isMobileNavOpen) {
@@ -61,6 +64,7 @@ export default function AppShell({ children }: AppShellProps) {
         <Header
           isMobileNavOpen={isMobileNavOpen}
           onMenuToggle={() => setIsMobileNavOpen((open) => !open)}
+          onOpenCommandBar={() => setIsCommandBarOpen(true)}
         />
 
         <main className="relative z-10 flex-1">
@@ -69,6 +73,11 @@ export default function AppShell({ children }: AppShellProps) {
           </div>
         </main>
       </div>
+
+      <UniversalCommandBar
+        open={isCommandBarOpen}
+        onOpenChange={setIsCommandBarOpen}
+      />
     </div>
   );
 }

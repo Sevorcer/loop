@@ -16,6 +16,15 @@ export const ROUTES = {
   SETTINGS: "/settings",
 } as const;
 
+export const ROUTE_BUILDERS = {
+  JOB_DETAIL: (jobId: string) => `${ROUTES.JOBS}/${jobId}`,
+  JOB_EDIT: (jobId: string) => `${ROUTES.JOBS}/${jobId}/edit`,
+  PROPERTY_DETAIL: (propertyId: string) => `${ROUTES.PROPERTIES}/${propertyId}`,
+  CUSTOMER_DETAIL: (customerId: string) => `${ROUTES.CUSTOMERS}/${customerId}`,
+  INSTALLED_SYSTEM_DETAIL: (installedSystemId: string) =>
+    `${ROUTES.INSTALLED_SYSTEMS}/${installedSystemId}`,
+} as const;
+
 // ─── Project Portal Routes ────────────────────────────────────────────────────
 
 export const PORTAL_BASE = "/portal";
