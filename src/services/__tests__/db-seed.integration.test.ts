@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { DB_SEED_FIXTURE_IDS } from "@/testing/dbSeedFixtures";
 
-const repoRoot = path.resolve(__dirname, "../../../..");
+const repoRoot = path.resolve(__dirname, "../../..");
 
 function read(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
