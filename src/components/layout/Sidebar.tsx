@@ -23,6 +23,8 @@ import {
 
 import { ROUTES, PORTAL_ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { SignOutButton } from "@/features/auth/components/SignOutButton";
+import { UserDisplay } from "@/features/auth/components/UserDisplay";
 
 interface NavItem {
   name: string;
@@ -186,11 +188,10 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
         </nav>
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-slate-800 px-4 py-3">
-        <p className="text-[11px] leading-5 text-slate-500">
-          Climate Control Ops · HVAC Field Execution
-        </p>
+      {/* Footer — user identity + sign out */}
+      <div className="border-t border-slate-800 px-1 py-2">
+        <UserDisplay />
+        <SignOutButton />
       </div>
     </aside>
   );
