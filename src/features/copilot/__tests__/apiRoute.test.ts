@@ -1,4 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Mock server-only and the auth guard so tests run without a live Supabase
+// session. The session guard is integration-tested separately in auth-flow.test.ts.
+vi.mock("server-only", () => ({}));
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({ getAll: () => [], set: vi.fn() }),
+}));
+
+// Authenticated by default — vi.mock factories are hoisted, so inline the value.
+vi.mock("@/lib/auth/apiGuard", () => ({
+  requireApiSession: vi.fn().mockResolvedValue({
+    error: null,
+    user: {
+      id: "test-user",
+      email: "test@loop.com",
+      aud: "authenticated",
+      role: "authenticated",
+      app_metadata: {},
+      user_metadata: {},
+      created_at: new Date().toISOString(),
+    },
+  }),
+}));
 
 import { POST } from "@/app/api/copilot/search/route";
 
