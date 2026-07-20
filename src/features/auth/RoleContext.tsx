@@ -3,16 +3,9 @@
 /**
  * RoleContext — current user role provider for the LOOP application shell.
  *
- * Role resolution follows the same localStorage pattern used by the other
- * application providers (ContractorsProvider, JobsProvider, etc.):
- *
- *   - Server render: returns `null` (loading) so no restricted UI flashes
- *     before the client knows the real role.
- *   - Client: reads `loop_dev_role` from localStorage (default: `owner`).
- *
- * In production, replace the localStorage read in the `useState` initializer
- * with a JWT claim extraction from the Supabase session. The consumer API
- * (`useCurrentRole`, `PermissionGate`) does not change.
+ * Role resolution follows the hydrated auth session so server render and client
+ * hydration agree in production. A dev localStorage override still wins when
+ * present so role simulation continues to work.
  *
  * Development helper: open the browser console and call
  *   `localStorage.setItem("loop_dev_role", "tech"); location.reload()`
@@ -29,27 +22,13 @@ import {
 } from "react";
 
 import type { AppRole } from "@/services/authorization";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const DEV_ROLE_KEY = "loop_dev_role";
-const DEFAULT_ROLE: AppRole = "owner";
-
-const VALID_ROLES: ReadonlySet<string> = new Set<AppRole>([
-  "owner",
-  "manager",
-  "dispatch",
-  "tech",
-  "office",
-  "sales",
-  "portal",
-]);
-
-function isAppRole(value: string): value is AppRole {
-  return VALID_ROLES.has(value);
-}
+import { useAuth } from "./state/AuthProvider";
+import {
+  DEV_ROLE_KEY,
+  DEFAULT_APP_ROLE,
+  readStoredDevRole,
+  resolveAuthUserRole,
+} from "./utils/appRole";
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -73,21 +52,25 @@ const RoleContext = createContext<RoleContextValue | null>(null);
  * feature screen can access the current role without prop drilling.
  */
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<AppRole | null>(() => {
-    // Server-side: window is unavailable; return null so the client hydration
-    // matches the server render. The client snapshot takes over immediately.
-    if (typeof window === "undefined") return null;
+  const { session, user, isLoading } = useAuth();
+  const [devRoleOverride, setDevRoleOverride] = useState<AppRole | null>(() =>
+    readStoredDevRole()
+  );
+  const authUser = session?.user ?? user;
 
-    const stored = window.localStorage.getItem(DEV_ROLE_KEY);
-    if (stored !== null && isAppRole(stored)) return stored;
-    return DEFAULT_ROLE;
-  });
+  const role = useMemo<AppRole | null>(() => {
+    if (isLoading) {
+      return null;
+    }
+
+    return devRoleOverride ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+  }, [authUser, devRoleOverride, isLoading]);
 
   const setDevRole = useCallback((next: AppRole) => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(DEV_ROLE_KEY, next);
     }
-    setRole(next);
+    setDevRoleOverride(next);
   }, []);
 
   const value = useMemo<RoleContextValue>(
@@ -114,4 +97,3 @@ export function useCurrentRole(): RoleContextValue {
   }
   return ctx;
 }
-

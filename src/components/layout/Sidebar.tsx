@@ -85,10 +85,9 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { role, loading } = useSession();
 
-  // Filter by role, but fail open to full nav if filtering unexpectedly returns empty.
   const filteredGroups = getNavItemsForRole(role, navGroups);
-  const visibleGroups =
-    !loading && filteredGroups.length === 0 ? navGroups : filteredGroups;
+  const shouldBypassRoleFilter = !loading && role !== "portal" && filteredGroups.length === 0;
+  const visibleGroups = shouldBypassRoleFilter ? navGroups : filteredGroups;
 
   return (
     <aside

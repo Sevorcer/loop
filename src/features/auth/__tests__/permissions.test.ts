@@ -67,11 +67,20 @@ function canSee(role: AppRole | null, href: string): boolean {
   return allVisibleHrefs(role).includes(href);
 }
 
-// ─── Null / portal — must see nothing ─────────────────────────────────────────
+// ─── Null / unknown / portal ───────────────────────────────────────────────────
 
 describe("null role (loading state)", () => {
-  it("returns empty nav — no content before session resolves", () => {
-    expect(getNavItemsForRole(null, ALL_NAV_GROUPS)).toHaveLength(0);
+  it("returns baseline nav instead of a blank sidebar", () => {
+    expect(allVisibleHrefs(null)).toContain(ROUTES.DASHBOARD);
+    expect(allVisibleHrefs(null)).toContain(ROUTES.JOBS);
+  });
+});
+
+describe("unknown role", () => {
+  it("returns baseline nav instead of an unusable empty result", () => {
+    const hrefs = allVisibleHrefs("invalid-role" as AppRole);
+    expect(hrefs).toContain(ROUTES.DASHBOARD);
+    expect(hrefs).toContain(ROUTES.SETTINGS);
   });
 });
 

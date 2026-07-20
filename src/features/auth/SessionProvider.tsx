@@ -3,21 +3,29 @@
 /**
  * SessionProvider — dev/mock session context for Sprint 25.
  *
- * Resolves the active role from localStorage key `loop_dev_role` (default:
- * "owner") so any role can be simulated in the browser without a real auth
- * backend.
- *
- * TODO: Replace the localStorage resolver with a real Supabase session hook
- * once auth is integrated. The context shape and hook API are stable.
+ * Resolves the active role from the hydrated auth session first, then falls
+ * back to the localStorage dev override and finally the default internal role.
  *
  * Security note: This is a UX-only guard. All sensitive operations are
  * enforced server-side via `assertPermission` in src/services/authorization.ts
  * and Supabase RLS policies in database/policies/.
  */
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import type { AppRole } from "@/services/authorization";
+import { useAuth } from "./state/AuthProvider";
+import {
+  DEFAULT_APP_ROLE,
+  readStoredDevRole,
+  resolveAuthUserRole,
+} from "./utils/appRole";
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -30,42 +38,23 @@ interface SessionContextValue {
   loading: boolean;
 }
 
-const SessionContext = createContext<SessionContextValue>({
-  role: null,
-  loading: true,
-});
+const SessionContext = createContext<SessionContextValue | null>(null);
 
-// ---------------------------------------------------------------------------
-// DEV_ROLE_KEY
-//
-// In development, set this localStorage key to any AppRole value to simulate
-// a different role without requiring a real auth flow.
-//
-// Example (browser console): localStorage.setItem("loop_dev_role", "tech")
-// ---------------------------------------------------------------------------
-const DEV_ROLE_KEY = "loop_dev_role";
-const DEFAULT_ROLE: AppRole = "owner";
+function useDerivedSessionValue(): SessionContextValue {
+  const { session, user, isLoading } = useAuth();
+  const [devRole] = useState<AppRole | null>(() => readStoredDevRole());
+  const authUser = session?.user ?? user;
 
-const VALID_ROLES: ReadonlySet<string> = new Set<AppRole>([
-  "owner",
-  "manager",
-  "dispatch",
-  "tech",
-  "office",
-  "sales",
-  "portal",
-]);
-
-function resolveDevRole(): AppRole {
-  try {
-    const stored = localStorage.getItem(DEV_ROLE_KEY);
-    if (stored && VALID_ROLES.has(stored)) {
-      return stored as AppRole;
+  const role = useMemo<AppRole | null>(() => {
+    if (isLoading) {
+      return null;
     }
-  } catch {
-    // localStorage unavailable (e.g. SSR or privacy mode)
-  }
-  return DEFAULT_ROLE;
+
+    // Fallback order: dev override → hydrated auth session/user metadata → owner.
+    return devRole ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+  }, [authUser, devRole, isLoading]);
+
+  return { role, loading: isLoading };
 }
 
 // ---------------------------------------------------------------------------
@@ -73,25 +62,10 @@ function resolveDevRole(): AppRole {
 // ---------------------------------------------------------------------------
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Defer resolution by a microtask so the loading skeleton renders at least
-    // once before the role is applied, preventing any flash of unauthorized
-    // content even on fast devices. A real implementation would await a
-    // Supabase getSession() call here.
-    queueMicrotask(() => {
-      const resolved = resolveDevRole();
-      setRole(resolved);
-      setLoading(false);
-    });
-  }, []);
+  const value = useDerivedSessionValue();
 
   return (
-    <SessionContext.Provider value={{ role, loading }}>
-      {children}
-    </SessionContext.Provider>
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
   );
 }
 
@@ -106,5 +80,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
  * null (no flash of unauthorized content).
  */
 export function useSession(): SessionContextValue {
-  return useContext(SessionContext);
+  const contextValue = useContext(SessionContext);
+  const derivedValue = useDerivedSessionValue();
+  // Sidebar and other legacy callers still consume this hook without mounting
+  // SessionProvider, so fall back to the auth-derived value instead of hanging
+  // in the default loading state from an uninitialized context.
+  return contextValue ?? derivedValue;
 }
