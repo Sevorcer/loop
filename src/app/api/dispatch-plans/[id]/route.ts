@@ -12,7 +12,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import {
-  assignCrewToplan,
+  assignCrewToPlan,
   emitDispatchEvent,
   schedulePlan,
 } from "@/services/dispatch";
@@ -47,7 +47,7 @@ export async function PATCH(
         const jobId = body.jobId as string | undefined;
         const history = (body.reassignmentHistory as import("@/features/dispatch/types/dispatch").ReassignmentRecord[]) ?? [];
 
-        const result = await assignCrewToplan(id, crewId, crewName, leadInstaller, supporting, jobId, history as never);
+        const result = await assignCrewToPlan(id, crewId, crewName, leadInstaller, supporting, jobId, history as never);
         if (!result.ok) {
           return NextResponse.json(
             { error: result.error.code, message: result.error.message },

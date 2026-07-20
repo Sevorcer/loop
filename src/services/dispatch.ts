@@ -24,7 +24,7 @@ export async function createPlan(input: DispatchPlanWriteInput) {
   return createDispatchPlan(input);
 }
 
-export async function assignCrewToplan(
+export async function assignCrewToPlan(
   planId: string,
   crewId: string,
   crewName: string,
