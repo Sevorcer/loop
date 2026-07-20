@@ -5,6 +5,25 @@ import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/ro
 import { emitAuditEvent } from "@/lib/audit";
 import { createJob, listJobsWithActivity } from "@/services/jobs";
 
+const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
+const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
+
+function readJobType(value: unknown) {
+  const normalized = String(value ?? "Service");
+  if (!JOB_TYPES.has(normalized)) {
+    throw new Error("Invalid job type.");
+  }
+  return normalized as "Install" | "Service" | "Maintenance" | "Inspection";
+}
+
+function readJobPriority(value: unknown) {
+  const normalized = String(value ?? "Medium");
+  if (!JOB_PRIORITIES.has(normalized)) {
+    throw new Error("Invalid job priority.");
+  }
+  return normalized as "Low" | "Medium" | "High";
+}
+
 export async function GET(request: Request) {
   const guard = requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
@@ -30,25 +49,21 @@ export async function POST(request: Request) {
 
   try {
     const job = await createJob({
-      estimateId: body.estimateId === undefined ? undefined : String(body.estimateId),
+      estimateId: body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
       equipmentBundleId:
-        body.equipmentBundleId === undefined
-          ? undefined
-          : String(body.equipmentBundleId),
-      title: String(body.title ?? ""),
-      customerName: String(body.customerName ?? ""),
-      propertyName: String(body.propertyName ?? ""),
-      assignedTo: String(body.assignedTo ?? ""),
-      scheduledFor: String(body.scheduledFor ?? ""),
-      type: String(body.type ?? "Service") as
-        | "Install"
-        | "Service"
-        | "Maintenance"
-        | "Inspection",
-      priority: String(body.priority ?? "Medium") as "Low" | "Medium" | "High",
-      location: String(body.location ?? ""),
-      summary: String(body.summary ?? ""),
-      notes: String(body.notes ?? ""),
+        body.equipmentBundleId !== undefined
+          ? String(body.equipmentBundleId).trim()
+          : undefined,
+      title: String(body.title ?? "").trim(),
+      customerName: String(body.customerName ?? "").trim(),
+      propertyName: String(body.propertyName ?? "").trim(),
+      assignedTo: String(body.assignedTo ?? "").trim(),
+      scheduledFor: String(body.scheduledFor ?? "").trim(),
+      type: readJobType(body.type),
+      priority: readJobPriority(body.priority),
+      location: String(body.location ?? "").trim(),
+      summary: String(body.summary ?? "").trim(),
+      notes: String(body.notes ?? "").trim(),
     });
 
     emitAuditEvent({
@@ -59,7 +74,7 @@ export async function POST(request: Request) {
       details: { title: job.title, type: job.type },
     });
 
-    return NextResponse.json({ message: "Job created.", job }, { status: 201 });
+    return NextResponse.json({ job }, { status: 201 });
   } catch (error) {
     return mapRouteError(error);
   }

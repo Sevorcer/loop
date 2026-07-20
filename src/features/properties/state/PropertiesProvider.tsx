@@ -27,11 +27,13 @@ interface CreatePropertyInput {
 
 interface PropertiesContextValue {
   hydrated: boolean;
-  properties: Property[];
+  loading: boolean;
   error: string | null;
+  properties: Property[];
   getPropertyById: (id: string) => Property | undefined;
-  createProperty: (input: CreatePropertyInput) => Promise<Property>;
+  refreshProperties: () => Promise<void>;
   reload: () => Promise<void>;
+  createProperty: (input: CreatePropertyInput) => Promise<Property>;
 }
 
 const PropertiesContext = createContext<PropertiesContextValue | null>(null);
@@ -39,14 +41,16 @@ const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 export function PropertiesProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
   const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadProperties = useCallback(async () => {
+  const refreshProperties = useCallback(async () => {
     if (!role) {
       return;
     }
 
+    setLoading(true);
     try {
       setError(null);
       const response = await requestJson<{ properties: Property[] }>("/api/properties", {
@@ -58,6 +62,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       setProperties([]);
       setError(loadError instanceof Error ? loadError.message : "Failed to load properties.");
     } finally {
+      setLoading(false);
       setHydrated(true);
     }
   }, [role]);
@@ -68,16 +73,16 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     }
 
     queueMicrotask(() => {
-      void loadProperties();
+      void refreshProperties();
     });
-  }, [loadProperties, role]);
+  }, [refreshProperties, role]);
 
   const value = useMemo<PropertiesContextValue>(() => {
     function getPropertyById(id: string) {
       return properties.find((property) => property.id === id);
     }
 
-    async function createProperty(input: CreatePropertyInput) {
+    async function createProperty(input: CreatePropertyInput): Promise<Property> {
       const response = await requestJson<{ property: Property }>("/api/properties", {
         method: "POST",
         role,
@@ -89,24 +94,22 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     }
 
     async function reload() {
-      await loadProperties();
+      await refreshProperties();
     }
 
     return {
       hydrated,
-      properties,
+      loading,
       error,
+      properties,
       getPropertyById,
-      createProperty,
+      refreshProperties,
       reload,
+      createProperty,
     };
-  }, [error, hydrated, loadProperties, properties, role]);
+  }, [error, hydrated, loading, properties, refreshProperties, role]);
 
-  return (
-    <PropertiesContext.Provider value={value}>
-      {children}
-    </PropertiesContext.Provider>
-  );
+  return <PropertiesContext.Provider value={value}>{children}</PropertiesContext.Provider>;
 }
 
 export function useProperties() {

@@ -3,7 +3,36 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import { deleteProperty, fetchPropertyById, updateProperty } from "@/services/properties";
+import { deleteProperty, getProperty, updateProperty } from "@/services/properties";
+
+const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
+const PROPERTY_STATUSES = new Set(["Active", "Pending", "Inactive"]);
+
+function readOptionalPropertyType(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value);
+  if (!PROPERTY_TYPES.has(normalized)) {
+    throw new Error("Invalid property type.");
+  }
+
+  return normalized as "Residential" | "Commercial" | "Multi-Family";
+}
+
+function readOptionalPropertyStatus(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value);
+  if (!PROPERTY_STATUSES.has(normalized)) {
+    throw new Error("Invalid property status.");
+  }
+
+  return normalized as "Active" | "Pending" | "Inactive";
+}
 
 export async function GET(
   request: Request,
@@ -14,7 +43,7 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const property = await fetchPropertyById(id);
+    const property = await getProperty(id);
 
     if (!property) {
       return NextResponse.json(
@@ -45,44 +74,38 @@ export async function PATCH(
 
   try {
     const { id } = await params;
-    const existing = await fetchPropertyById(id);
+    const updated = await updateProperty(id, {
+      name: body.name !== undefined ? String(body.name).trim() : undefined,
+      customer: body.customer !== undefined ? String(body.customer).trim() : undefined,
+      address: body.address !== undefined ? String(body.address).trim() : undefined,
+      city: body.city !== undefined ? String(body.city).trim() : undefined,
+      type: readOptionalPropertyType(body.type),
+      status: readOptionalPropertyStatus(body.status),
+      primarySystem:
+        body.primarySystem !== undefined ? String(body.primarySystem).trim() : undefined,
+    });
 
-    if (!existing) {
+    if (!updated) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Property '${id}' not found.`, code: 404 },
         { status: 404 },
       );
     }
 
-    const result = await updateProperty(existing, {
-      name: body.name === undefined ? undefined : String(body.name),
-      customer: body.customer === undefined ? undefined : String(body.customer),
-      address: body.address === undefined ? undefined : String(body.address),
-      city: body.city === undefined ? undefined : String(body.city),
-      type:
-        body.type === undefined
-          ? undefined
-          : (String(body.type) as "Residential" | "Commercial" | "Multi-Family"),
-      status:
-        body.status === undefined
-          ? undefined
-          : (String(body.status) as "Active" | "Pending" | "Inactive"),
-      primarySystem:
-        body.primarySystem === undefined ? undefined : String(body.primarySystem),
-    });
-
     emitAuditEvent({
       role: guard.ctx.role,
       action: "update",
       resource: "properties",
       resourceId: id,
-      details: body,
+      details: {
+        ...body,
+        geocodeStatus: updated.geocodeStatus,
+      },
     });
 
     return NextResponse.json({
-      message: "Property updated.",
-      property: result.property,
-      geocodeStatus: result.geocodeStatus,
+      property: updated.property,
+      geocodeStatus: updated.geocodeStatus,
     });
   } catch (error) {
     return mapRouteError(error);

@@ -3,21 +3,21 @@ import "server-only";
 import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
-import { syncCustomerCounters } from "@/services/customers";
 import { resolveCustomerIdByName } from "@/repositories/properties";
-import { syncPropertyCounters, resolvePropertyIdByName } from "@/services/properties";
 import {
   countJobs,
   createJob as createJobRecord,
-  createJobActivity,
+  createJobActivity as createJobActivityRecord,
   deleteJob as deleteJobRecord,
   getJobById,
   getJobRowById,
-  listJobActivity,
+  listJobActivity as listAllJobActivity,
   listJobs,
-  updateJob as updateJobRecord,
   toJob,
+  updateJob as updateJobRecord,
 } from "@/repositories/jobs";
+import { syncCustomerCounters } from "@/services/customers";
+import { resolvePropertyIdByName, syncPropertyCounters } from "@/services/properties";
 
 const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection"]);
 const JOB_STATUSES = new Set<JobStatus>([
@@ -28,6 +28,7 @@ const JOB_STATUSES = new Set<JobStatus>([
   "Cancelled",
 ]);
 const JOB_PRIORITIES = new Set<JobPriority>(["Low", "Medium", "High"]);
+
 function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInput | UpdateJobInput {
   return {
     ...input,
@@ -78,12 +79,28 @@ function createJobNumber(index: number) {
 }
 
 export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
-  const [jobs, activity] = await Promise.all([listJobs(), listJobActivity()]);
+  const [jobs, activity] = await Promise.all([listJobs(), listAllJobActivity()]);
   return { jobs, activity };
 }
 
-export async function fetchJobById(id: string) {
+export async function fetchJobById(id: string): Promise<Job | null> {
   return getJobById(id);
+}
+
+export async function getJob(id: string): Promise<Job | null> {
+  return fetchJobById(id);
+}
+
+export async function listJobActivity(jobId: string): Promise<JobActivity[]> {
+  const activity = await listAllJobActivity();
+  return activity.filter((entry) => entry.jobId === jobId);
+}
+
+export async function createJobActivity(
+  jobId: string,
+  activity: Pick<JobActivity, "type" | "title" | "description">,
+) {
+  return createJobActivityRecord({ jobId, ...activity });
 }
 
 export async function createJob(input: CreateJobInput) {
@@ -104,19 +121,19 @@ export async function createJob(input: CreateJobInput) {
   });
 
   await Promise.all([
-    createJobActivity({
+    createJobActivityRecord({
       jobId: createdJob.id,
       type: "created",
       title: "Job created",
       description: `New ${createdJob.type.toLowerCase()} job created from the job form.`,
     }),
-    createJobActivity({
+    createJobActivityRecord({
       jobId: createdJob.id,
       type: "assigned",
       title: "Technician assigned",
       description: `${createdJob.assignedTo} assigned to this job.`,
     }),
-    createJobActivity({
+    createJobActivityRecord({
       jobId: createdJob.id,
       type: "scheduled",
       title: "Schedule confirmed",
@@ -158,7 +175,9 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   const changedFields: string[] = [];
   if (existing.title !== updatedJob.title) changedFields.push("title");
   if ((existing.estimate_id ?? "") !== (updatedJob.estimateId ?? "")) changedFields.push("estimate");
-  if ((existing.equipment_bundle_id ?? "") !== (updatedJob.equipmentBundleId ?? "")) changedFields.push("equipment");
+  if ((existing.equipment_bundle_id ?? "") !== (updatedJob.equipmentBundleId ?? "")) {
+    changedFields.push("equipment");
+  }
   if (existing.customer_name !== updatedJob.customerName) changedFields.push("customer");
   if (existing.property_name !== updatedJob.propertyName) changedFields.push("property");
   if (existing.assigned_to !== updatedJob.assignedTo) changedFields.push("assignee");
@@ -170,7 +189,7 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   if (existing.notes !== updatedJob.notes) changedFields.push("notes");
 
   if (changedFields.length > 0) {
-    await createJobActivity({
+    await createJobActivityRecord({
       jobId: updatedJob.id,
       type: "edited",
       title: "Job updated",
@@ -178,10 +197,7 @@ export async function updateJob(id: string, input: UpdateJobInput) {
     });
   }
 
-  await Promise.all([
-    syncRelatedCounters(previousJob),
-    syncRelatedCounters(updatedJob),
-  ]);
+  await Promise.all([syncRelatedCounters(previousJob), syncRelatedCounters(updatedJob)]);
 
   return updatedJob;
 }
@@ -214,7 +230,7 @@ export async function updateJobStatus(id: string, status: JobStatus) {
             ? "Job cancelled from the detail view."
             : "Job status updated from the detail view.";
 
-  await createJobActivity({
+  await createJobActivityRecord({
     jobId: id,
     type: "status",
     title: "Status updated",
@@ -244,7 +260,11 @@ export async function addJobNote(id: string, note: string) {
   const nextNotes = existing.notes ? `${existing.notes}\n\n${trimmedNote}` : trimmedNote;
   const updatedJob = await updateJobRecord(id, { notes: nextNotes });
 
-  await createJobActivity({
+  if (!updatedJob) {
+    return null;
+  }
+
+  await createJobActivityRecord({
     jobId: id,
     type: "note",
     title: "Note added",

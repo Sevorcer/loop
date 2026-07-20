@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import { deleteCustomer, fetchCustomerById, updateCustomer } from "@/services/customers";
+import { deleteCustomer, getCustomer, updateCustomer } from "@/services/customers";
 
 export async function GET(
   request: Request,
@@ -14,7 +14,7 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const customer = await fetchCustomerById(id);
+    const customer = await getCustomer(id);
 
     if (!customer) {
       return NextResponse.json(
@@ -46,16 +46,13 @@ export async function PATCH(
   try {
     const { id } = await params;
     const customer = await updateCustomer(id, {
-      name: body.name === undefined ? undefined : String(body.name),
+      name: body.name !== undefined ? String(body.name).trim() : undefined,
       primaryContact:
-        body.primaryContact === undefined ? undefined : String(body.primaryContact),
-      email: body.email === undefined ? undefined : String(body.email),
-      phone: body.phone === undefined ? undefined : String(body.phone),
-      city: body.city === undefined ? undefined : String(body.city),
-      status:
-        body.status === undefined
-          ? undefined
-          : (String(body.status) as "Active" | "Prospect" | "Inactive"),
+        body.primaryContact !== undefined ? String(body.primaryContact).trim() : undefined,
+      email: body.email !== undefined ? String(body.email).trim() : undefined,
+      phone: body.phone !== undefined ? String(body.phone).trim() : undefined,
+      city: body.city !== undefined ? String(body.city).trim() : undefined,
+      status: body.status as "Active" | "Prospect" | "Inactive" | undefined,
     });
 
     if (!customer) {
@@ -73,7 +70,7 @@ export async function PATCH(
       details: body,
     });
 
-    return NextResponse.json({ message: "Customer updated.", customer });
+    return NextResponse.json({ customer });
   } catch (error) {
     return mapRouteError(error);
   }

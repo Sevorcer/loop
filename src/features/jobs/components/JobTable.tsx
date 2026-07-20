@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Funnel } from "lucide-react";
 
-import { DataTable } from "@/components/atlas";
+import { DataTable, EmptyState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
 import { Button } from "@/components/ui/button";
 
@@ -38,7 +38,7 @@ const priorityOptions: Array<JobPriority | "All"> = [
 
 export function JobTable() {
   const router = useRouter();
-  const { jobs } = useJobs();
+  const { jobs, loading, hydrated, error, refreshJobs } = useJobs();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "All">("All");
@@ -71,6 +71,30 @@ export function JobTable() {
     statusFilter !== "All" ||
     typeFilter !== "All" ||
     priorityFilter !== "All";
+
+  if (loading || !hydrated) {
+    return (
+      <div className="rounded-[28px] border border-white/10 bg-white/[0.02] p-6 text-sm text-slate-400">
+        Loading jobs...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-[28px] border border-white/10 bg-white/[0.02] p-6">
+        <EmptyState
+          title="Unable to load jobs"
+          description={error}
+          action={
+            <Button variant="outline" onClick={() => void refreshJobs()}>
+              Try again
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.02]">

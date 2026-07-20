@@ -3,14 +3,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import {
-  addJobNote,
-  deleteJob,
-  fetchJobById,
-  listJobsWithActivity,
-  updateJob,
-  updateJobStatus,
-} from "@/services/jobs";
+import { addJobNote, deleteJob, getJob, listJobActivity, updateJob, updateJobStatus } from "@/services/jobs";
 
 const JOB_ACTIONS = new Set(["update", "status", "note"]);
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
@@ -52,6 +45,22 @@ function readJobStatus(value: unknown) {
     | "Cancelled";
 }
 
+function resolveJobAction(body: Record<string, unknown>) {
+  if (body.action !== undefined) {
+    return String(body.action);
+  }
+
+  if (body.note !== undefined && Object.keys(body).length === 1) {
+    return "note";
+  }
+
+  if (body.status !== undefined && Object.keys(body).length === 1) {
+    return "status";
+  }
+
+  return "update";
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -61,7 +70,7 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const job = await fetchJobById(id);
+    const job = await getJob(id);
 
     if (!job) {
       return NextResponse.json(
@@ -70,11 +79,8 @@ export async function GET(
       );
     }
 
-    const { activity } = await listJobsWithActivity();
-    return NextResponse.json({
-      job,
-      activity: activity.filter((entry) => entry.jobId === id),
-    });
+    const activity = await listJobActivity(id);
+    return NextResponse.json({ job, activity });
   } catch (error) {
     return mapRouteError(error);
   }
@@ -96,7 +102,7 @@ export async function PATCH(
 
   try {
     const { id } = await params;
-    const action = String(body.action ?? "update");
+    const action = resolveJobAction(body);
 
     if (!JOB_ACTIONS.has(action)) {
       return NextResponse.json(
@@ -116,21 +122,21 @@ export async function PATCH(
           ? await addJobNote(id, String(body.note ?? ""))
           : await updateJob(id, {
               estimateId:
-                body.estimateId === undefined ? undefined : String(body.estimateId),
+                body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
               equipmentBundleId:
-                body.equipmentBundleId === undefined
-                  ? undefined
-                  : String(body.equipmentBundleId),
-              title: String(body.title ?? ""),
-              customerName: String(body.customerName ?? ""),
-              propertyName: String(body.propertyName ?? ""),
-              assignedTo: String(body.assignedTo ?? ""),
-              scheduledFor: String(body.scheduledFor ?? ""),
+                body.equipmentBundleId !== undefined
+                  ? String(body.equipmentBundleId).trim()
+                  : undefined,
+              title: String(body.title ?? "").trim(),
+              customerName: String(body.customerName ?? "").trim(),
+              propertyName: String(body.propertyName ?? "").trim(),
+              assignedTo: String(body.assignedTo ?? "").trim(),
+              scheduledFor: String(body.scheduledFor ?? "").trim(),
               type: readJobType(body.type),
               priority: readJobPriority(body.priority),
-              location: String(body.location ?? ""),
-              summary: String(body.summary ?? ""),
-              notes: String(body.notes ?? ""),
+              location: String(body.location ?? "").trim(),
+              summary: String(body.summary ?? "").trim(),
+              notes: String(body.notes ?? "").trim(),
             });
 
     if (!job) {
@@ -148,7 +154,7 @@ export async function PATCH(
       details: body,
     });
 
-    return NextResponse.json({ message: "Job updated.", job });
+    return NextResponse.json({ job });
   } catch (error) {
     return mapRouteError(error);
   }

@@ -29,7 +29,8 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    return NextResponse.json({ properties: await listProperties() });
+    const properties = await listProperties();
+    return NextResponse.json({ properties });
   } catch (error) {
     return mapRouteError(error);
   }
@@ -48,13 +49,13 @@ export async function POST(request: Request) {
 
   try {
     const result = await createProperty({
-      name: String(body.name ?? ""),
-      customer: String(body.customer ?? ""),
-      address: String(body.address ?? ""),
-      city: String(body.city ?? ""),
+      name: String(body.name ?? "").trim(),
+      customer: String(body.customer ?? "").trim(),
+      address: String(body.address ?? "").trim(),
+      city: String(body.city ?? "").trim(),
       type: readPropertyType(body.type),
       status: readPropertyStatus(body.status),
-      primarySystem: String(body.primarySystem ?? ""),
+      primarySystem: String(body.primarySystem ?? "").trim(),
     });
 
     emitAuditEvent({
@@ -62,11 +63,14 @@ export async function POST(request: Request) {
       action: "create",
       resource: "properties",
       resourceId: result.property.id,
-      details: { address: result.property.address },
+      details: {
+        address: result.property.address,
+        geocodeStatus: result.geocodeStatus,
+      },
     });
 
     return NextResponse.json(
-      { message: "Property created.", property: result.property, geocodeStatus: result.geocodeStatus },
+      { property: result.property, geocodeStatus: result.geocodeStatus },
       { status: 201 },
     );
   } catch (error) {

@@ -193,7 +193,7 @@ export function JobDetailScreen({ job }: { job: Job }) {
             <JobStatusActions
               status={currentJob.status}
               onChangeStatus={(nextStatus) =>
-                updateJobStatus(currentJob.id, nextStatus)
+                void updateJobStatus(currentJob.id, nextStatus)
               }
             />
           </PermissionGuard>
@@ -202,7 +202,7 @@ export function JobDetailScreen({ job }: { job: Job }) {
 
           <JobInstalledSystemsPanel jobId={currentJob.id} />
 
-          <JobNoteComposer onAddNote={(note) => addJobNote(currentJob.id, note)} />
+          <JobNoteComposer onAddNote={(note) => void addJobNote(currentJob.id, note)} />
         </div>
       </div>
 

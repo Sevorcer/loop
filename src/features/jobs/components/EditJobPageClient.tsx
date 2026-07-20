@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { notFound, useRouter } from "next/navigation";
 
 import { RoutePermissionGuard } from "@/components/atlas";
@@ -10,14 +10,28 @@ import { useJobs } from "../state/JobsProvider";
 
 function EditJobFormContent({ id }: { id: string }) {
   const router = useRouter();
-  const { hydrated, getJobById, updateJob } = useJobs();
+  const { hydrated, loading, error, getJobById, updateJob, loadJobDetails } = useJobs();
 
   const job = useMemo(() => getJobById(id), [getJobById, id]);
 
-  if (!hydrated) {
+  useEffect(() => {
+    if (!job) {
+      void loadJobDetails(id);
+    }
+  }, [id, job, loadJobDetails]);
+
+  if (!hydrated || loading) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
         Loading job details...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-3xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
+        {error}
       </div>
     );
   }

@@ -1,9 +1,3 @@
-/**
- * Server-only property service.
- *
- * Handles property create and update operations with automatic geocoding.
- */
-
 import "server-only";
 
 import type {
@@ -46,12 +40,7 @@ export type GeocodeStatus =
   | "location_unchanged"
   | "no_location";
 
-export interface CreatePropertyResult {
-  property: Property;
-  geocodeStatus: GeocodeStatus;
-}
-
-export interface UpdatePropertyResult {
+export interface PropertyMutationResult {
   property: Property;
   geocodeStatus: GeocodeStatus;
 }
@@ -93,9 +82,7 @@ async function resolveLocation(
   const result = await geocodeAddress(fullAddress);
 
   if (!result.success) {
-    console.warn(
-      `[properties] Geocoding failed for "${fullAddress}": ${result.error}`,
-    );
+    console.warn(`[properties] Geocoding failed for "${fullAddress}": ${result.error}`);
     return { location: undefined, geocoded: false };
   }
 
@@ -106,8 +93,12 @@ export async function listProperties() {
   return listPropertyRecords();
 }
 
-export async function fetchPropertyById(id: string) {
+export async function fetchPropertyById(id: string): Promise<Property | null> {
   return getPropertyById(id);
+}
+
+export async function getProperty(id: string): Promise<Property | null> {
+  return fetchPropertyById(id);
 }
 
 export async function resolvePropertyIdByName(propertyName: string): Promise<string | null> {
@@ -133,14 +124,11 @@ export async function syncPropertyCounters(propertyId: string) {
 
 export async function createProperty(
   input: CreatePropertyInput,
-): Promise<CreatePropertyResult> {
+): Promise<PropertyMutationResult> {
   const normalized = normalizePropertyInput(input);
   validatePropertyInput(normalized);
 
-  const { location, geocoded } = await resolveLocation(
-    normalized.address,
-    normalized.city,
-  );
+  const { location, geocoded } = await resolveLocation(normalized.address, normalized.city);
 
   const property = await createPropertyRecord({
     ...normalized,
@@ -161,9 +149,15 @@ export async function createProperty(
 }
 
 export async function updateProperty(
-  existing: Property,
+  id: string,
   changes: UpdatePropertyInput,
-): Promise<UpdatePropertyResult> {
+): Promise<PropertyMutationResult | null> {
+  const existing = await getPropertyById(id);
+
+  if (!existing) {
+    return null;
+  }
+
   const merged = normalizePropertyInput({
     name: changes.name ?? existing.name,
     customer: changes.customer ?? existing.customer,
@@ -178,18 +172,13 @@ export async function updateProperty(
 
   validatePropertyInput(merged);
 
-  const addressChanged =
-    (changes.address !== undefined && changes.address !== existing.address) ||
-    (changes.city !== undefined && changes.city !== existing.city);
+  const addressChanged = merged.address !== existing.address || merged.city !== existing.city;
 
   let location = existing.location;
   let geocodeStatus: GeocodeStatus = "location_unchanged";
 
   if (addressChanged) {
-    const resolved = await resolveLocation(
-      changes.address ?? existing.address,
-      changes.city ?? existing.city,
-    );
+    const resolved = await resolveLocation(merged.address, merged.city);
 
     if (resolved.geocoded) {
       location = resolved.location;
@@ -202,13 +191,13 @@ export async function updateProperty(
     }
   }
 
-  const property = await updatePropertyRecord(existing.id, {
+  const property = await updatePropertyRecord(id, {
     ...merged,
     location,
   });
 
   if (!property) {
-    throw new Error(`Property '${existing.id}' not found.`);
+    return null;
   }
 
   const [previousCustomerId, nextCustomerId] = await Promise.all([
@@ -224,9 +213,12 @@ export async function updateProperty(
     await syncCustomerCounters(nextCustomerId);
   }
 
-  await syncPropertyCounters(property.id);
+  const syncedProperty = await syncPropertyCounters(property.id);
 
-  return { property, geocodeStatus };
+  return {
+    property: syncedProperty ?? property,
+    geocodeStatus,
+  };
 }
 
 export async function deleteProperty(id: string) {

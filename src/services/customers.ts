@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { CustomerStatus } from "@/features/customers/types/customer";
+import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 import {
   countOpenJobsForCustomer,
   countPropertiesForCustomer,
@@ -19,6 +19,9 @@ export interface CustomerInput {
   city: string;
   status: CustomerStatus;
 }
+
+export type CreateCustomerInput = CustomerInput;
+export type UpdateCustomerInput = Partial<CustomerInput>;
 
 const CUSTOMER_STATUSES = new Set<CustomerStatus>(["Active", "Prospect", "Inactive"]);
 
@@ -45,11 +48,15 @@ export async function listCustomers() {
   return listCustomerRecords();
 }
 
-export async function fetchCustomerById(id: string) {
+export async function fetchCustomerById(id: string): Promise<Customer | null> {
   return getCustomerById(id);
 }
 
-export async function createCustomer(input: CustomerInput) {
+export async function getCustomer(id: string): Promise<Customer | null> {
+  return fetchCustomerById(id);
+}
+
+export async function createCustomer(input: CreateCustomerInput) {
   const normalized = normalizeCustomerInput(input);
   validateCustomerInput(normalized);
 
@@ -61,7 +68,7 @@ export async function createCustomer(input: CustomerInput) {
   });
 }
 
-export async function updateCustomer(id: string, input: Partial<CustomerInput>) {
+export async function updateCustomer(id: string, input: UpdateCustomerInput) {
   const existing = await getCustomerById(id);
 
   if (!existing) {

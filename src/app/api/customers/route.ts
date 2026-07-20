@@ -10,7 +10,8 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    return NextResponse.json({ customers: await listCustomers() });
+    const customers = await listCustomers();
+    return NextResponse.json({ customers });
   } catch (error) {
     return mapRouteError(error);
   }
@@ -29,12 +30,12 @@ export async function POST(request: Request) {
 
   try {
     const customer = await createCustomer({
-      name: String(body.name ?? ""),
-      primaryContact: String(body.primaryContact ?? ""),
-      email: String(body.email ?? ""),
-      phone: String(body.phone ?? ""),
-      city: String(body.city ?? ""),
-      status: String(body.status ?? "Active") as "Active" | "Prospect" | "Inactive",
+      name: String(body.name ?? "").trim(),
+      primaryContact: String(body.primaryContact ?? "").trim(),
+      email: String(body.email ?? "").trim(),
+      phone: String(body.phone ?? "").trim(),
+      city: String(body.city ?? "").trim(),
+      status: (body.status as "Active" | "Prospect" | "Inactive") ?? "Active",
     });
 
     emitAuditEvent({
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       details: { name: customer.name },
     });
 
-    return NextResponse.json({ message: "Customer created.", customer }, { status: 201 });
+    return NextResponse.json({ customer }, { status: 201 });
   } catch (error) {
     return mapRouteError(error);
   }

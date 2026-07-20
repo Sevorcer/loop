@@ -10,19 +10,31 @@ export function getSupabaseAdminClient(): ReturnType<typeof createClient> | null
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !key) {
+  if (!url || !serviceRoleKey) {
     adminClient = null;
     return adminClient;
   }
 
-  adminClient = createClient(url, key, {
+  adminClient = createClient(url, serviceRoleKey, {
     auth: {
-      autoRefreshToken: false,
       persistSession: false,
+      autoRefreshToken: false,
     },
   });
 
   return adminClient;
+}
+
+export function createSupabaseAdminClient() {
+  const client = getSupabaseAdminClient();
+
+  if (!client) {
+    throw new Error(
+      "Missing Supabase admin environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.",
+    );
+  }
+
+  return client;
 }

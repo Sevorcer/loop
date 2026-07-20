@@ -26,11 +26,13 @@ export interface CreateCustomerInput {
 
 interface CustomersContextValue {
   hydrated: boolean;
-  customers: Customer[];
+  loading: boolean;
   error: string | null;
+  customers: Customer[];
   getCustomerById: (id: string) => Customer | undefined;
-  createCustomer: (input: CreateCustomerInput) => Promise<Customer>;
+  refreshCustomers: () => Promise<void>;
   reload: () => Promise<void>;
+  createCustomer: (input: CreateCustomerInput) => Promise<Customer>;
 }
 
 const CustomersContext = createContext<CustomersContextValue | null>(null);
@@ -38,14 +40,16 @@ const CustomersContext = createContext<CustomersContextValue | null>(null);
 export function CustomersProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCustomers = useCallback(async () => {
+  const refreshCustomers = useCallback(async () => {
     if (!role) {
       return;
     }
 
+    setLoading(true);
     try {
       setError(null);
       const response = await requestJson<{ customers: Customer[] }>("/api/customers", {
@@ -57,6 +61,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       setCustomers([]);
       setError(loadError instanceof Error ? loadError.message : "Failed to load customers.");
     } finally {
+      setLoading(false);
       setHydrated(true);
     }
   }, [role]);
@@ -67,16 +72,16 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
     }
 
     queueMicrotask(() => {
-      void loadCustomers();
+      void refreshCustomers();
     });
-  }, [loadCustomers, role]);
+  }, [refreshCustomers, role]);
 
   const value = useMemo<CustomersContextValue>(() => {
     function getCustomerById(id: string) {
       return customers.find((customer) => customer.id === id);
     }
 
-    async function createCustomer(input: CreateCustomerInput) {
+    async function createCustomer(input: CreateCustomerInput): Promise<Customer> {
       const response = await requestJson<{ customer: Customer }>("/api/customers", {
         method: "POST",
         role,
@@ -88,24 +93,22 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
     }
 
     async function reload() {
-      await loadCustomers();
+      await refreshCustomers();
     }
 
     return {
       hydrated,
-      customers,
+      loading,
       error,
+      customers,
       getCustomerById,
-      createCustomer,
+      refreshCustomers,
       reload,
+      createCustomer,
     };
-  }, [customers, error, hydrated, loadCustomers, role]);
+  }, [customers, error, hydrated, loading, refreshCustomers, role]);
 
-  return (
-    <CustomersContext.Provider value={value}>
-      {children}
-    </CustomersContext.Provider>
-  );
+  return <CustomersContext.Provider value={value}>{children}</CustomersContext.Provider>;
 }
 
 export function useCustomers() {

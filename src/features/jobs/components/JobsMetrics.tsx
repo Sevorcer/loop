@@ -1,8 +1,9 @@
+"use client";
+
 import { AlertTriangle, CalendarClock, ClipboardList, Wrench } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
-
-import { mockJobs } from "../data/mockJobs";
+import { useJobs } from "../state/JobsProvider";
 
 function MetricCard({
   title,
@@ -37,10 +38,12 @@ function MetricCard({
 }
 
 export function JobsMetrics() {
-  const totalJobs = mockJobs.length;
-  const inProgressJobs = mockJobs.filter((job) => job.status === "In Progress").length;
-  const scheduledJobs = mockJobs.filter((job) => job.status === "Scheduled").length;
-  const highPriorityJobs = mockJobs.filter((job) => job.priority === "High").length;
+  const { jobs } = useJobs();
+
+  const totalJobs = jobs.length;
+  const inProgressJobs = jobs.filter((job) => job.status === "In Progress").length;
+  const scheduledJobs = jobs.filter((job) => job.status === "Scheduled").length;
+  const highPriorityJobs = jobs.filter((job) => job.priority === "High").length;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

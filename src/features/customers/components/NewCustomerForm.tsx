@@ -93,10 +93,10 @@ function NewCustomerFormContent() {
       setError(null);
       await createCustomer(normalizeValues(form));
       setIsSubmitted(true);
-    } catch (submitError) {
+    } catch (nextError) {
       setError(
-        submitError instanceof Error
-          ? submitError.message
+        nextError instanceof Error
+          ? nextError.message
           : "Failed to create customer. Please check the form and try again.",
       );
     } finally {
@@ -174,9 +174,7 @@ function NewCustomerFormContent() {
         <SurfaceCard>
           <div className="grid gap-6 p-6 lg:grid-cols-2">
             <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium text-slate-200">
-                Account Name
-              </label>
+              <label className="text-sm font-medium text-slate-200">Account Name</label>
               <input
                 value={form.name}
                 onChange={(e) => updateField("name", e.target.value)}
@@ -187,9 +185,7 @@ function NewCustomerFormContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Primary Contact
-              </label>
+              <label className="text-sm font-medium text-slate-200">Primary Contact</label>
               <input
                 value={form.primaryContact}
                 onChange={(e) => updateField("primaryContact", e.target.value)}
@@ -211,9 +207,7 @@ function NewCustomerFormContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Email Address
-              </label>
+              <label className="text-sm font-medium text-slate-200">Email Address</label>
               <input
                 type="email"
                 value={form.email}
@@ -225,9 +219,7 @@ function NewCustomerFormContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Phone Number
-              </label>
+              <label className="text-sm font-medium text-slate-200">Phone Number</label>
               <input
                 type="tel"
                 value={form.phone}
@@ -238,14 +230,10 @@ function NewCustomerFormContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
-                Account Status
-              </label>
+              <label className="text-sm font-medium text-slate-200">Account Status</label>
               <select
                 value={form.status}
-                onChange={(e) =>
-                  updateField("status", e.target.value as CustomerStatus)
-                }
+                onChange={(e) => updateField("status", e.target.value as CustomerStatus)}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
               >
                 {customerStatuses.map((option) => (

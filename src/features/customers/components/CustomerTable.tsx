@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { DataTable, EmptyState } from "@/components/atlas";
@@ -16,26 +16,15 @@ const PAGE_SIZE = 10;
 
 export function CustomerTable() {
   const router = useRouter();
-  const { customers, hydrated } = useCustomers();
+  const { customers, hydrated, loading, error, refreshCustomers } = useCustomers();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [cityFilter, setCityFilter] = useState(ALL_FILTER_VALUE);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setIsLoading(false);
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const cityOptions = useMemo(() => {
-    return Array.from(
-      new Set(customers.map((customer) => customer.city)),
-    ).sort();
+    return Array.from(new Set(customers.map((customer) => customer.city))).sort();
   }, [customers]);
 
   const filteredCustomers = useMemo(() => {
@@ -53,8 +42,7 @@ export function CustomerTable() {
       const matchesStatus =
         statusFilter === ALL_FILTER_VALUE || customer.status === statusFilter;
 
-      const matchesCity =
-        cityFilter === ALL_FILTER_VALUE || customer.city === cityFilter;
+      const matchesCity = cityFilter === ALL_FILTER_VALUE || customer.city === cityFilter;
 
       return matchesSearch && matchesStatus && matchesCity;
     });
@@ -67,15 +55,14 @@ export function CustomerTable() {
   const paginatedCustomers = useMemo(() => {
     const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
     return filteredCustomers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [safeCurrentPage, filteredCustomers]);
+  }, [filteredCustomers, safeCurrentPage]);
 
   const hasActiveFilters =
     searchValue.trim().length > 0 ||
     statusFilter !== ALL_FILTER_VALUE ||
     cityFilter !== ALL_FILTER_VALUE;
 
-  const showingFrom =
-    totalCustomers === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const showingFrom = totalCustomers === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
   const showingTo =
     totalCustomers === 0 ? 0 : Math.min(safeCurrentPage * PAGE_SIZE, totalCustomers);
 
@@ -105,7 +92,7 @@ export function CustomerTable() {
     router.push(`/customers/${customer.id}`);
   }
 
-  if (!hydrated || isLoading) {
+  if (loading || !hydrated) {
     return (
       <div className="space-y-4">
         <CustomerToolbar
@@ -129,6 +116,33 @@ export function CustomerTable() {
             <div className="h-10 animate-pulse rounded-md bg-muted" />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <CustomerToolbar
+          searchValue={searchValue}
+          onSearchChange={handleSearchChange}
+          statusFilter={statusFilter}
+          onStatusChange={handleStatusChange}
+          cityFilter={cityFilter}
+          onCityChange={handleCityChange}
+          cityOptions={cityOptions}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
+        <EmptyState
+          title="Unable to load customers"
+          description={error}
+          action={
+            <Button variant="outline" onClick={() => void refreshCustomers()}>
+              Try again
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -210,9 +224,7 @@ export function CustomerTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() =>
-              setCurrentPage((page) => Math.min(totalPages, page + 1))
-            }
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
             disabled={safeCurrentPage === totalPages}
           >
             Next
@@ -220,11 +232,7 @@ export function CustomerTable() {
         </div>
       </div>
 
-      <DataTable
-        columns={customerColumns}
-        data={paginatedCustomers}
-        onRowClick={handleRowClick}
-      />
+      <DataTable columns={customerColumns} data={paginatedCustomers} onRowClick={handleRowClick} />
     </div>
   );
 }

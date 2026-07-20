@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,16 +16,10 @@ import { requestJson } from "@/lib/api/client";
 
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
-import type {
-  CreateJobInput,
-  JobsStoreValue,
-  UpdateJobInput,
-} from "../types/jobStore";
+import type { CreateJobInput, JobsStoreValue, UpdateJobInput } from "../types/jobStore";
 import { applyAssignment, removeAssignment, validateAssignment } from "../utils/assignmentUtils";
 
-type JobsContextValue = JobsStoreValue;
-
-const JobsContext = createContext<JobsContextValue | null>(null);
+const JobsContext = createContext<JobsStoreValue | null>(null);
 
 function mergeContractorAssignments(
   jobs: Job[],
@@ -40,31 +35,77 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activity, setActivity] = useState<JobActivity[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contractorAssignments, setContractorAssignments] = useState<Record<string, string[]>>({});
+  const contractorAssignmentsRef = useRef<Record<string, string[]>>({});
 
-  const loadJobs = useCallback(async () => {
+  useEffect(() => {
+    contractorAssignmentsRef.current = contractorAssignments;
+  }, [contractorAssignments]);
+
+  const refreshJobs = useCallback(async () => {
     if (!role) {
       return;
     }
 
+    setLoading(true);
     try {
       setError(null);
       const response = await requestJson<{ jobs: Job[]; activity: JobActivity[] }>("/api/jobs", {
         role,
         cache: "no-store",
       });
-      setJobs(mergeContractorAssignments(response.jobs, contractorAssignments));
+      setJobs(mergeContractorAssignments(response.jobs, contractorAssignmentsRef.current));
       setActivity(response.activity);
     } catch (loadError) {
       setJobs([]);
       setActivity([]);
       setError(loadError instanceof Error ? loadError.message : "Failed to load jobs.");
     } finally {
+      setLoading(false);
       setHydrated(true);
     }
-  }, [contractorAssignments, role]);
+  }, [role]);
+
+  const loadJobDetails = useCallback(
+    async (jobId: string) => {
+      if (!role) {
+        return;
+      }
+
+      try {
+        setError(null);
+        const response = await requestJson<{ job: Job; activity: JobActivity[] }>(
+          `/api/jobs/${jobId}`,
+          {
+            role,
+            cache: "no-store",
+          },
+        );
+
+        const hydratedJob: Job = {
+          ...response.job,
+          contractorIds:
+            contractorAssignmentsRef.current[jobId] ?? response.job.contractorIds,
+        };
+
+        setJobs((current) =>
+          current.some((job) => job.id === hydratedJob.id)
+            ? current.map((job) => (job.id === hydratedJob.id ? hydratedJob : job))
+            : [hydratedJob, ...current],
+        );
+        setActivity((current) => {
+          const remaining = current.filter((item) => item.jobId !== jobId);
+          return [...response.activity, ...remaining];
+        });
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Failed to load job details.");
+      }
+    },
+    [role],
+  );
 
   useEffect(() => {
     if (!role) {
@@ -72,11 +113,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     }
 
     queueMicrotask(() => {
-      void loadJobs();
+      void refreshJobs();
     });
-  }, [loadJobs, role]);
+  }, [refreshJobs, role]);
 
-  const value = useMemo<JobsContextValue>(() => {
+  const value = useMemo<JobsStoreValue>(() => {
     function getJobById(id: string) {
       return jobs.find((job) => job.id === id);
     }
@@ -84,14 +125,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     function getActivityByJobId(jobId: string) {
       return activity
         .filter((item) => item.jobId === jobId)
-        .sort(
-          (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-        );
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
 
     async function reload() {
-      await loadJobs();
+      await refreshJobs();
     }
 
     async function createJob(input: CreateJobInput) {
@@ -101,7 +139,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: input,
       });
 
-      await reload();
+      await refreshJobs();
       return response.job;
     }
 
@@ -112,7 +150,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: input,
       });
 
-      await reload();
+      await refreshJobs();
       return response.job;
     }
 
@@ -123,7 +161,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: { action: "status", status },
       });
 
-      await reload();
+      await refreshJobs();
     }
 
     async function addJobNote(jobId: string, note: string) {
@@ -133,14 +171,14 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: { action: "note", note },
       });
 
-      await reload();
+      await refreshJobs();
     }
 
-    function assignContractor(
+    async function assignContractor(
       jobId: string,
       contractorId: string,
-    ): { ok: true } | { ok: false; error: string } {
-      const job = jobs.find((j) => j.id === jobId);
+    ): Promise<{ ok: true } | { ok: false; error: string }> {
+      const job = jobs.find((entry) => entry.id === jobId);
 
       if (!job) {
         return { ok: false, error: "Job not found." };
@@ -158,15 +196,13 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         ...current,
         [jobId]: updated.contractorIds ?? [],
       }));
-      setJobs((current) =>
-        current.map((item) => (item.id === jobId ? updated : item)),
-      );
+      setJobs((current) => current.map((item) => (item.id === jobId ? updated : item)));
 
       return { ok: true };
     }
 
-    function removeContractorAssignment(jobId: string, contractorId: string): void {
-      const job = jobs.find((j) => j.id === jobId);
+    async function removeContractorAssignment(jobId: string, contractorId: string) {
+      const job = jobs.find((entry) => entry.id === jobId);
 
       if (!job) {
         return;
@@ -178,14 +214,13 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         ...current,
         [jobId]: updated.contractorIds ?? [],
       }));
-      setJobs((current) =>
-        current.map((item) => (item.id === jobId ? updated : item)),
-      );
+      setJobs((current) => current.map((item) => (item.id === jobId ? updated : item)));
     }
 
     return {
-      hydrated,
       jobs,
+      hydrated,
+      loading,
       error,
       getJobById,
       getActivityByJobId,
@@ -195,9 +230,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       addJobNote,
       assignContractor,
       removeContractorAssignment,
+      refreshJobs,
+      loadJobDetails,
       reload,
     };
-  }, [activity, error, hydrated, jobs, loadJobs, role]);
+  }, [activity, error, hydrated, jobs, loadJobDetails, loading, refreshJobs, role]);
 
   return <JobsContext.Provider value={value}>{children}</JobsContext.Provider>;
 }
