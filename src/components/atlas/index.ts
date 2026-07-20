@@ -1,7 +1,9 @@
+export { AccessDenied } from "./AccessDenied";
 export { DataTable } from "./data-table";
 export { EmptyState } from "./EmptyState";
 export { KPICard } from "./KPICard";
 export { PageHeader } from "./PageHeader";
+export { PermissionGuard } from "./PermissionGuard";
 export { SectionCard } from "./SectionCard";
 export { StatusBadge } from "./StatusBadge";
 export { AtlasTabs } from "./Tabs";

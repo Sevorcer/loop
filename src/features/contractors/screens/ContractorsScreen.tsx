@@ -1,6 +1,7 @@
 import { HardHat, UserPlus } from "lucide-react";
 import Link from "next/link";
 
+import { PermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
@@ -29,12 +30,14 @@ export function ContractorsScreen() {
             </div>
           </div>
 
-          <Link href={`${ROUTES.CONTRACTORS}/new`} className="w-full sm:w-auto">
-            <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700">
-              <UserPlus className="h-4 w-4" />
-              Add Contractor
-            </Button>
-          </Link>
+          <PermissionGuard table="contractors" action="insert">
+            <Link href={`${ROUTES.CONTRACTORS}/new`} className="w-full sm:w-auto">
+              <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700">
+                <UserPlus className="h-4 w-4" />
+                Add Contractor
+              </Button>
+            </Link>
+          </PermissionGuard>
         </div>
       </SurfaceCard>
 

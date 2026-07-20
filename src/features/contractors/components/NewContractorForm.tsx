@@ -4,9 +4,12 @@ import { useState } from "react";
 import { CheckCircle2, HardHat } from "lucide-react";
 import Link from "next/link";
 
+import { AccessDenied } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/features/auth";
 import { ROUTES } from "@/lib/routes";
+import { hasPermission } from "@/services/authorization";
 
 import { useContractors } from "../state/ContractorsProvider";
 import type { ContractorTrade, CreateContractorInput } from "../types/contractor";
@@ -49,10 +52,23 @@ function normalizeValues(v: ContractorFormValues): ContractorFormValues {
 
 export function NewContractorForm() {
   const { createContractor } = useContractors();
+  const { role, loading } = useSession();
 
   const [form, setForm] = useState<ContractorFormValues>(defaultValues);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!role || !hasPermission(role, "contractors", "insert")) {
+    return <AccessDenied description="You don't have permission to add contractors." />;
+  }
 
   const canSubmit =
     form.companyName.trim().length > 0 &&

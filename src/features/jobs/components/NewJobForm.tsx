@@ -5,8 +5,11 @@ import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { AccessDenied } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/features/auth";
+import { hasPermission } from "@/services/authorization";
 
 import { JobForm, type JobFormValues } from "./JobForm";
 import { useJobs } from "../state/JobsProvider";
@@ -14,9 +17,22 @@ import { useJobs } from "../state/JobsProvider";
 export function NewJobForm() {
   const router = useRouter();
   const { createJob } = useJobs();
+  const { role, loading } = useSession();
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!role || !hasPermission(role, "jobs", "insert")) {
+    return <AccessDenied description="You don't have permission to create jobs." />;
+  }
 
   function handleSubmit(values: JobFormValues) {
     const job = createJob(values);
