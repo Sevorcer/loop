@@ -5,6 +5,25 @@ import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/ro
 import { emitAuditEvent } from "@/lib/audit";
 import { createProperty, listProperties } from "@/services/properties";
 
+const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
+const PROPERTY_STATUSES = new Set(["Active", "Pending", "Inactive"]);
+
+function readPropertyType(value: unknown) {
+  const normalized = String(value ?? "Residential");
+  if (!PROPERTY_TYPES.has(normalized)) {
+    throw new Error("Invalid property type.");
+  }
+  return normalized as "Residential" | "Commercial" | "Multi-Family";
+}
+
+function readPropertyStatus(value: unknown) {
+  const normalized = String(value ?? "Active");
+  if (!PROPERTY_STATUSES.has(normalized)) {
+    throw new Error("Invalid property status.");
+  }
+  return normalized as "Active" | "Pending" | "Inactive";
+}
+
 export async function GET(request: Request) {
   const guard = requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
@@ -33,11 +52,8 @@ export async function POST(request: Request) {
       customer: String(body.customer ?? ""),
       address: String(body.address ?? ""),
       city: String(body.city ?? ""),
-      type: String(body.type ?? "Residential") as
-        | "Residential"
-        | "Commercial"
-        | "Multi-Family",
-      status: String(body.status ?? "Active") as "Active" | "Pending" | "Inactive",
+      type: readPropertyType(body.type),
+      status: readPropertyStatus(body.status),
       primarySystem: String(body.primarySystem ?? ""),
     });
 

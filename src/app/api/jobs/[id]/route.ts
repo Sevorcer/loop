@@ -12,6 +12,46 @@ import {
   updateJobStatus,
 } from "@/services/jobs";
 
+const JOB_ACTIONS = new Set(["update", "status", "note"]);
+const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
+const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
+const JOB_STATUSES = new Set([
+  "Scheduled",
+  "In Progress",
+  "On Hold",
+  "Completed",
+  "Cancelled",
+]);
+
+function readJobType(value: unknown) {
+  const normalized = String(value ?? "Service");
+  if (!JOB_TYPES.has(normalized)) {
+    throw new Error("Invalid job type.");
+  }
+  return normalized as "Install" | "Service" | "Maintenance" | "Inspection";
+}
+
+function readJobPriority(value: unknown) {
+  const normalized = String(value ?? "Medium");
+  if (!JOB_PRIORITIES.has(normalized)) {
+    throw new Error("Invalid job priority.");
+  }
+  return normalized as "Low" | "Medium" | "High";
+}
+
+function readJobStatus(value: unknown) {
+  const normalized = String(value ?? "Scheduled");
+  if (!JOB_STATUSES.has(normalized)) {
+    throw new Error("Invalid job status.");
+  }
+  return normalized as
+    | "Scheduled"
+    | "In Progress"
+    | "On Hold"
+    | "Completed"
+    | "Cancelled";
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -57,17 +97,21 @@ export async function PATCH(
   try {
     const { id } = await params;
     const action = String(body.action ?? "update");
+
+    if (!JOB_ACTIONS.has(action)) {
+      return NextResponse.json(
+        {
+          error: "VALIDATION_ERROR",
+          message: "Invalid job action.",
+          code: 400,
+        },
+        { status: 400 },
+      );
+    }
+
     const job =
       action === "status"
-        ? await updateJobStatus(
-            id,
-            String(body.status ?? "Scheduled") as
-              | "Scheduled"
-              | "In Progress"
-              | "On Hold"
-              | "Completed"
-              | "Cancelled",
-          )
+        ? await updateJobStatus(id, readJobStatus(body.status))
         : action === "note"
           ? await addJobNote(id, String(body.note ?? ""))
           : await updateJob(id, {
@@ -82,15 +126,8 @@ export async function PATCH(
               propertyName: String(body.propertyName ?? ""),
               assignedTo: String(body.assignedTo ?? ""),
               scheduledFor: String(body.scheduledFor ?? ""),
-              type: String(body.type ?? "Service") as
-                | "Install"
-                | "Service"
-                | "Maintenance"
-                | "Inspection",
-              priority: String(body.priority ?? "Medium") as
-                | "Low"
-                | "Medium"
-                | "High",
+              type: readJobType(body.type),
+              priority: readJobPriority(body.priority),
               location: String(body.location ?? ""),
               summary: String(body.summary ?? ""),
               notes: String(body.notes ?? ""),

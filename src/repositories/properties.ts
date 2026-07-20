@@ -54,6 +54,10 @@ function mapLocation(row: PropertyRow): PropertyLocation | undefined {
   };
 }
 
+function resolveCustomerName(customerId: string | null, customerNames: Map<string, string>) {
+  return customerNames.get(customerId ?? "") ?? UNLINKED_CUSTOMER_LABEL;
+}
+
 function mapProperty(row: PropertyRow, customerName: string): Property {
   return {
     id: row.id,
@@ -132,7 +136,7 @@ export async function listProperties(): Promise<Property[]> {
     rows.map((property) => property.customer_id ?? ""),
   );
 
-  return rows.map((row) => mapProperty(row, customerNames.get(row.customer_id ?? "") ?? UNLINKED_CUSTOMER_LABEL));
+  return rows.map((row) => mapProperty(row, resolveCustomerName(row.customer_id, customerNames)));
 }
 
 export async function getPropertyById(id: string): Promise<Property | null> {
@@ -154,11 +158,9 @@ export async function getPropertyById(id: string): Promise<Property | null> {
     return null;
   }
 
-  const customerNames = await getCustomerNameMap([(data as PropertyRow).customer_id ?? ""]);
-  return mapProperty(
-    data as PropertyRow,
-    customerNames.get((data as PropertyRow).customer_id ?? "") ?? UNLINKED_CUSTOMER_LABEL,
-  );
+  const row = data as PropertyRow;
+  const customerNames = await getCustomerNameMap([row.customer_id ?? ""]);
+  return mapProperty(row, resolveCustomerName(row.customer_id, customerNames));
 }
 
 export async function createProperty(input: PropertyWriteInput): Promise<Property> {
@@ -240,12 +242,14 @@ export async function updateProperty(
     return null;
   }
 
+  const row = data as PropertyRow;
+
   if (!customerName) {
-    const customerNames = await getCustomerNameMap([(data as PropertyRow).customer_id ?? ""]);
-    customerName = customerNames.get((data as PropertyRow).customer_id ?? "") ?? UNLINKED_CUSTOMER_LABEL;
+    const customerNames = await getCustomerNameMap([row.customer_id ?? ""]);
+    customerName = resolveCustomerName(row.customer_id, customerNames);
   }
 
-  return mapProperty(data as PropertyRow, customerName);
+  return mapProperty(row, customerName);
 }
 
 export async function deleteProperty(id: string): Promise<boolean> {

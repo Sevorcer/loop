@@ -4,7 +4,9 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const DEFAULT_DEVELOPMENT_ORG_ID = "00000000-0000-4000-8000-000000000001";
+// Deterministic local-development org used by seeded fixtures when no authenticated
+// Supabase session is available but a service-role client is configured.
+export const DEFAULT_DEVELOPMENT_ORG_ID = "00000000-0000-4000-8000-000000000001";
 
 export interface RepositoryContext {
   orgId: string;
