@@ -90,6 +90,8 @@ PREV_FILE=""
 for FILE in "${FILES[@]}"; do
   BASENAME="$(basename "$FILE")"
   TIMESTAMP="${BASENAME:0:14}"
+  # Lexicographic comparison is intentional: YYYYMMDDHHMMSS is zero-padded
+  # fixed-width, so lexicographic order is identical to numeric/chronological order.
   if [[ -n "$PREV_TS" && "$TIMESTAMP" < "$PREV_TS" ]]; then
     fail "Out-of-order migration: $BASENAME (timestamp $TIMESTAMP) comes after $PREV_FILE ($PREV_TS)"
   else
