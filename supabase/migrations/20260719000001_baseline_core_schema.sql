@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Idempotent column additions for pre-existing user_profiles tables.
+-- ADD COLUMN IF NOT EXISTS is a no-op when the column already exists (fresh install).
+-- NOT NULL constraints on org_id/app_role are enforced by CREATE TABLE for new installs;
+-- for pre-existing tables the application layer enforces them at write time.
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS org_id     uuid REFERENCES organizations(id);
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS full_name  text;
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS app_role   text CHECK (app_role IN ('owner','manager','dispatch','tech','office','sales','portal'));
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS user_profiles_org_id_idx ON user_profiles(id, org_id);
 
 -- ---------------------------------------------------------------------------
