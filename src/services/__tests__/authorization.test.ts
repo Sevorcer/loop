@@ -44,6 +44,8 @@ describe("owner role", () => {
     const tables: CoreTable[] = [
       "customers",
       "properties",
+      "property_documents",
+      "property_photos",
       "contractors",
       "jobs",
       "portal_users",
@@ -64,14 +66,28 @@ describe("owner role", () => {
 
 describe("manager role", () => {
   it("can read/write customers, properties, contractors, jobs", () => {
-    const tables: CoreTable[] = ["customers", "properties", "contractors", "jobs"];
+    const tables: CoreTable[] = [
+      "customers",
+      "properties",
+      "property_documents",
+      "property_photos",
+      "contractors",
+      "jobs",
+    ];
     for (const table of tables) {
       expectAllowed("manager", table, ["select", "insert", "update"]);
     }
   });
 
   it("cannot delete customers, properties, contractors, or jobs", () => {
-    const tables: CoreTable[] = ["customers", "properties", "contractors", "jobs"];
+    const tables: CoreTable[] = [
+      "customers",
+      "properties",
+      "property_documents",
+      "property_photos",
+      "contractors",
+      "jobs",
+    ];
     for (const table of tables) {
       expectDenied("manager", table, ["delete"]);
     }
@@ -98,6 +114,8 @@ describe("dispatch role", () => {
   it("can read customers, properties, contractors, jobs, job_activity", () => {
     expectAllowed("dispatch", "customers", ["select"]);
     expectAllowed("dispatch", "properties", ["select"]);
+    expectAllowed("dispatch", "property_documents", ["select"]);
+    expectAllowed("dispatch", "property_photos", ["select"]);
     expectAllowed("dispatch", "contractors", ["select"]);
     expectAllowed("dispatch", "jobs", ["select"]);
     expectAllowed("dispatch", "job_activity", ["select"]);
@@ -115,6 +133,8 @@ describe("dispatch role", () => {
   it("cannot mutate customers or properties", () => {
     expectDenied("dispatch", "customers", ["insert", "update", "delete"]);
     expectDenied("dispatch", "properties", ["insert", "update", "delete"]);
+    expectDenied("dispatch", "property_documents", ["insert", "update", "delete"]);
+    expectDenied("dispatch", "property_photos", ["insert", "update", "delete"]);
   });
 
   it("cannot mutate contractors", () => {
@@ -132,6 +152,8 @@ describe("dispatch role", () => {
 describe("tech role", () => {
   it("can read properties and contractors", () => {
     expectAllowed("tech", "properties", ["select"]);
+    expectAllowed("tech", "property_documents", ["select"]);
+    expectAllowed("tech", "property_photos", ["select"]);
     expectAllowed("tech", "contractors", ["select"]);
   });
 
@@ -153,6 +175,8 @@ describe("tech role", () => {
 
   it("cannot mutate properties or contractors", () => {
     expectDenied("tech", "properties", ["insert", "update", "delete"]);
+    expectDenied("tech", "property_documents", ["insert", "update", "delete"]);
+    expectDenied("tech", "property_photos", ["insert", "update", "delete"]);
     expectDenied("tech", "contractors", ["insert", "update", "delete"]);
   });
 
@@ -172,6 +196,8 @@ describe("office role", () => {
   it("can read/write customers and properties", () => {
     expectAllowed("office", "customers", ["select", "insert", "update"]);
     expectAllowed("office", "properties", ["select", "insert", "update"]);
+    expectAllowed("office", "property_documents", ["select", "insert", "update"]);
+    expectAllowed("office", "property_photos", ["select", "insert", "update"]);
   });
 
   it("can create and read jobs", () => {
@@ -189,6 +215,8 @@ describe("office role", () => {
   it("cannot delete customers or properties", () => {
     expectDenied("office", "customers", ["delete"]);
     expectDenied("office", "properties", ["delete"]);
+    expectDenied("office", "property_documents", ["delete"]);
+    expectDenied("office", "property_photos", ["delete"]);
   });
 
   it("has no access to contractors", () => {
@@ -207,6 +235,8 @@ describe("sales role", () => {
   it("can read/write customers and properties", () => {
     expectAllowed("sales", "customers", ["select", "insert", "update"]);
     expectAllowed("sales", "properties", ["select", "insert", "update"]);
+    expectAllowed("sales", "property_documents", ["select", "insert", "update"]);
+    expectAllowed("sales", "property_photos", ["select", "insert", "update"]);
   });
 
   it("can read jobs", () => {
@@ -220,6 +250,8 @@ describe("sales role", () => {
   it("cannot delete customers or properties", () => {
     expectDenied("sales", "customers", ["delete"]);
     expectDenied("sales", "properties", ["delete"]);
+    expectDenied("sales", "property_documents", ["delete"]);
+    expectDenied("sales", "property_photos", ["delete"]);
   });
 
   it("has no access to contractors", () => {
@@ -242,6 +274,8 @@ describe("portal role — isolation from internal tables", () => {
   const internalTables: CoreTable[] = [
     "customers",
     "properties",
+    "property_documents",
+    "property_photos",
     "contractors",
     "jobs",
     "job_activity",
@@ -279,7 +313,15 @@ describe("portal role — isolation from internal tables", () => {
 
 describe("privilege escalation — denied paths", () => {
   it("dispatch cannot delete any core table", () => {
-    const tables: CoreTable[] = ["customers", "properties", "contractors", "jobs", "job_activity"];
+    const tables: CoreTable[] = [
+      "customers",
+      "properties",
+      "property_documents",
+      "property_photos",
+      "contractors",
+      "jobs",
+      "job_activity",
+    ];
     for (const table of tables) {
       expect(
         hasPermission("dispatch", table, "delete"),
@@ -291,6 +333,7 @@ describe("privilege escalation — denied paths", () => {
   it("tech cannot delete any table", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
+      "property_documents", "property_photos",
       "job_activity", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
@@ -304,6 +347,7 @@ describe("privilege escalation — denied paths", () => {
   it("office cannot delete any table", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
+      "property_documents", "property_photos",
       "job_activity", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
@@ -317,6 +361,7 @@ describe("privilege escalation — denied paths", () => {
   it("sales cannot delete any table", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
+      "property_documents", "property_photos",
       "job_activity", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
@@ -330,6 +375,7 @@ describe("privilege escalation — denied paths", () => {
   it("portal cannot delete any table", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
+      "property_documents", "property_photos",
       "job_activity", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
