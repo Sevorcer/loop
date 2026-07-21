@@ -7,4 +7,5 @@ import {
 
 export async function getInstalledSystemsSnapshot(): Promise<InstalledSystemsRepositorySnapshot> {
   return loadInstalledSystemsSnapshot();
+}>>>>>>> origin/main
 }
