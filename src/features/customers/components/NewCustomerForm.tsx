@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { CheckCircle2, ClipboardPlus, UserPlus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
@@ -58,7 +57,6 @@ export function NewCustomerForm() {
 }
 
 function NewCustomerFormContent() {
-  const router = useRouter();
   const { role } = useCurrentRole();
 
   const [form, setForm] = useState<CustomerFormValues>(defaultCustomerFormValues);
@@ -130,12 +128,7 @@ function NewCustomerFormContent() {
 
           <div className="flex justify-center gap-3">
             <Link href={ROUTES.CUSTOMERS}>
-              <Button
-                variant="secondary"
-                onClick={() => router.refresh()}
-              >
-                View Customer Directory
-              </Button>
+              <Button variant="secondary">View Customer Directory</Button>
             </Link>
 
             <Button
