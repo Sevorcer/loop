@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 
 import {
   buildProjection,
@@ -11,9 +11,19 @@ import type { PortalEventEnvelope, MilestoneCompletedPayload } from "../types/po
 // ─── computeFreshness ─────────────────────────────────────────────────────────
 
 describe("computeFreshness", () => {
+  const FIXED_NOW = "2026-07-19T12:00:00.000Z";
+
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(FIXED_NOW));
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
   it("returns 'fresh' when last sync was less than 5 minutes ago", () => {
-    const now = new Date();
-    const twoMinAgo = new Date(now.getTime() - 2 * 60_000).toISOString();
+    const twoMinAgo = new Date(Date.now() - 2 * 60_000).toISOString();
     const result = computeFreshness(twoMinAgo);
     expect(result.state).toBe("fresh");
     expect(result.minutesSinceSync).toBeLessThan(5);
@@ -34,8 +44,7 @@ describe("computeFreshness", () => {
   it("includes correct minutesSinceSync value", () => {
     const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
     const result = computeFreshness(tenMinAgo);
-    expect(result.minutesSinceSync).toBeGreaterThanOrEqual(9);
-    expect(result.minutesSinceSync).toBeLessThanOrEqual(11);
+    expect(result.minutesSinceSync).toBe(10);
   });
 });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 
 import { computeFreshness } from "../adapters/eventProjection";
 
@@ -10,6 +10,17 @@ import { computeFreshness } from "../adapters/eventProjection";
  * stale banner behavior — covering all threshold boundaries.
  */
 describe("stale banner logic (computeFreshness thresholds)", () => {
+  const FIXED_NOW = "2026-07-19T12:00:00.000Z";
+
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(FIXED_NOW));
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
   it("state=fresh when 0 minutes since sync", () => {
     const now = new Date().toISOString();
     expect(computeFreshness(now).state).toBe("fresh");
@@ -48,8 +59,7 @@ describe("stale banner logic (computeFreshness thresholds)", () => {
   it("includes accurate minutesSinceSync in result", () => {
     const sevenMinAgo = new Date(Date.now() - 7 * 60_000).toISOString();
     const result = computeFreshness(sevenMinAgo);
-    expect(result.minutesSinceSync).toBeGreaterThanOrEqual(6);
-    expect(result.minutesSinceSync).toBeLessThanOrEqual(8);
+    expect(result.minutesSinceSync).toBe(7);
   });
 
   it("preserves lastSynchronizedAt in result", () => {
