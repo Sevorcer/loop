@@ -22,6 +22,7 @@ export const ROUTE_BUILDERS = {
   JOB_EDIT: (jobId: string) => `${ROUTES.JOBS}/${jobId}/edit`,
   PROPERTY_DETAIL: (propertyId: string) => `${ROUTES.PROPERTIES}/${propertyId}`,
   CUSTOMER_DETAIL: (customerId: string) => `${ROUTES.CUSTOMERS}/${customerId}`,
+  CUSTOMER_EDIT: (customerId: string) => `${ROUTES.CUSTOMERS}/${customerId}/edit`,
   INSTALLED_SYSTEM_DETAIL: (installedSystemId: string) =>
     `${ROUTES.INSTALLED_SYSTEMS}/${installedSystemId}`,
 } as const;

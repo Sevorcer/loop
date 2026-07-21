@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 
 import {
@@ -11,21 +11,16 @@ import {
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCurrentRole } from "@/features/auth";
-import { requestJson } from "@/lib/api/client";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { Customer } from "../types/customer";
 import type {
   CustomerContactItem,
-  CustomerDetails,
   CustomerJobItem,
   CustomerNoteItem,
   CustomerPropertyItem,
   CustomerTimelineItem,
 } from "../types/customerDetails";
-import type { Property } from "@/features/properties/types/property";
-import type { Job } from "@/features/jobs/types/job";
 
 type CustomerDetailTabKey =
   | "overview"
@@ -53,51 +48,44 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
 }
 
-function buildStaticDetails(customer: Customer): Omit<CustomerDetails, "properties" | "jobs"> {
-  return {
-    customerId: customer.id,
-    accountSummary: [
-      "Customer profile is active and ready for deeper service relationship tracking.",
-      "No additional account intelligence has been recorded yet.",
-    ],
-    contacts: [
-      {
-        id: `${customer.id}-primary-contact`,
-        name: customer.primaryContact,
-        role: "Primary Contact",
-        phone: customer.phone,
-        email: customer.email,
-        preference: "Not recorded",
-      },
-    ],
-    timeline: [
-      {
-        id: `${customer.id}-timeline-created`,
-        title: "Customer created in LOOP",
-        date: customer.createdAt,
-        description: "Customer account was added and made available for operations.",
-      },
-      {
-        id: `${customer.id}-timeline-activity`,
-        title: "Latest recorded activity",
-        date: customer.lastActivity,
-        description: "Latest account activity recorded for historical visibility.",
-      },
-    ],
-    notes: [
-      {
-        id: `${customer.id}-note-default`,
-        body: "No account notes have been recorded yet.",
-      },
-    ],
-  };
+function buildDerivedDetails(customer: Customer) {
+  const contacts: CustomerContactItem[] = [
+    {
+      id: `${customer.id}-primary-contact`,
+      name: customer.primaryContact,
+      role: "Primary Contact",
+      phone: customer.phone,
+      email: customer.email,
+      preference: "Not recorded",
+    },
+  ];
+
+  const timeline: CustomerTimelineItem[] = [
+    {
+      id: `${customer.id}-timeline-created`,
+      title: "Customer created in LOOP",
+      date: customer.createdAt,
+      description: "Customer account was added and made available for operations.",
+    },
+    {
+      id: `${customer.id}-timeline-activity`,
+      title: "Latest recorded activity",
+      date: customer.lastActivity,
+      description: "Latest account activity recorded for historical visibility.",
+    },
+  ];
+
+  const notes: CustomerNoteItem[] = [
+    {
+      id: `${customer.id}-note-default`,
+      body: "No account notes have been recorded yet.",
+    },
+  ];
+
+  return { contacts, timeline, notes };
 }
 
-function OverviewSection({
-  accountSummary,
-}: {
-  accountSummary: string[];
-}) {
+function OverviewSection({ customer }: { customer: Customer }) {
   return (
     <Card>
       <CardHeader>
@@ -106,35 +94,29 @@ function OverviewSection({
 
       <CardContent>
         <ul className="space-y-4 text-sm text-muted-foreground">
-          {accountSummary.map((item) => (
-            <li key={item} className="flex items-start gap-3">
-              <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-              <span>{item}</span>
-            </li>
-          ))}
+          <li className="flex items-start gap-3">
+            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+            <span>Customer profile is active and ready for service relationship tracking.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+            <span>
+              {customer.propertyCount} propert{customer.propertyCount === 1 ? "y" : "ies"} linked
+              — {customer.openJobs} open job{customer.openJobs === 1 ? "" : "s"} across the
+              portfolio.
+            </span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+            <span>Last activity recorded on {formatDate(customer.lastActivity)}.</span>
+          </li>
         </ul>
       </CardContent>
     </Card>
   );
 }
 
-function PropertiesSection({
-  properties,
-  loading,
-}: {
-  properties: CustomerPropertyItem[];
-  loading: boolean;
-}) {
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
-        ))}
-      </div>
-    );
-  }
-
+function PropertiesSection({ properties }: { properties: CustomerPropertyItem[] }) {
   if (properties.length === 0) {
     return (
       <EmptyState
@@ -184,23 +166,7 @@ function PropertiesSection({
   );
 }
 
-function JobsSection({
-  jobs,
-  loading,
-}: {
-  jobs: CustomerJobItem[];
-  loading: boolean;
-}) {
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
-        ))}
-      </div>
-    );
-  }
-
+function JobsSection({ jobs }: { jobs: CustomerJobItem[] }) {
   if (jobs.length === 0) {
     return (
       <EmptyState
@@ -301,7 +267,7 @@ function TimelineSection({ timeline }: { timeline: CustomerTimelineItem[] }) {
         date: formatDate(event.date),
         description: event.description,
       })),
-    [timeline]
+    [timeline],
   );
 
   return (
@@ -338,105 +304,35 @@ function NotesSection({ notes }: { notes: CustomerNoteItem[] }) {
   );
 }
 
-export function CustomerDetailTabs({ customer }: { customer: Customer }) {
-  const { role } = useCurrentRole();
+interface CustomerDetailTabsProps {
+  customer: Customer;
+  properties: CustomerPropertyItem[];
+  jobs: CustomerJobItem[];
+}
+
+export function CustomerDetailTabs({ customer, properties, jobs }: CustomerDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<CustomerDetailTabKey>("overview");
 
-  const [properties, setProperties] = useState<CustomerPropertyItem[]>([]);
-  const [propertiesFetched, setPropertiesFetched] = useState(false);
-
-  const [jobs, setJobs] = useState<CustomerJobItem[]>([]);
-  const [jobsFetched, setJobsFetched] = useState(false);
-
-  const staticDetails = useMemo(() => buildStaticDetails(customer), [customer]);
-
-  // Derive loading from whether the tab is active and the data hasn't been fetched yet
-  const propertiesLoading = activeTab === "properties" && !propertiesFetched && Boolean(role);
-  const jobsLoading = activeTab === "jobs" && !jobsFetched && Boolean(role);
-
-  useEffect(() => {
-    if (activeTab !== "properties" || propertiesFetched || !role) {
-      return;
-    }
-
-    requestJson<{ properties: Property[] }>(
-      `/api/customers/${customer.id}/properties`,
-      { role, cache: "no-store" },
-    )
-      .then((response) => {
-        setProperties(
-          response.properties.map((p) => ({
-            id: p.id,
-            name: p.name,
-            address: p.address,
-            city: p.city,
-            status: p.status,
-            primarySystem: p.primarySystem,
-          })),
-        );
-        setPropertiesFetched(true);
-      })
-      .catch(() => {
-        setPropertiesFetched(true);
-      });
-  }, [activeTab, customer.id, propertiesFetched, role]);
-
-  useEffect(() => {
-    if (activeTab !== "jobs" || jobsFetched || !role) {
-      return;
-    }
-
-    requestJson<{ jobs: Job[] }>(
-      `/api/customers/${customer.id}/jobs`,
-      { role, cache: "no-store" },
-    )
-      .then((response) => {
-        setJobs(
-          response.jobs.map((j) => ({
-            id: j.id,
-            title: j.title,
-            status: j.status,
-            scheduledFor: j.scheduledFor,
-            propertyName: j.propertyName,
-          })),
-        );
-        setJobsFetched(true);
-      })
-      .catch(() => {
-        setJobsFetched(true);
-      });
-  }, [activeTab, customer.id, jobsFetched, role]);
+  const { contacts, timeline, notes } = useMemo(
+    () => buildDerivedDetails(customer),
+    [customer],
+  );
 
   return (
     <div className="space-y-6">
-      <AtlasTabs
-        items={tabs}
-        value={activeTab}
-        onChange={setActiveTab}
-        sticky
-      />
+      <AtlasTabs items={tabs} value={activeTab} onChange={setActiveTab} sticky />
 
-      {activeTab === "overview" ? (
-        <OverviewSection accountSummary={staticDetails.accountSummary} />
-      ) : null}
+      {activeTab === "overview" ? <OverviewSection customer={customer} /> : null}
 
-      {activeTab === "properties" ? (
-        <PropertiesSection properties={properties} loading={propertiesLoading} />
-      ) : null}
+      {activeTab === "properties" ? <PropertiesSection properties={properties} /> : null}
 
-      {activeTab === "jobs" ? (
-        <JobsSection jobs={jobs} loading={jobsLoading} />
-      ) : null}
+      {activeTab === "jobs" ? <JobsSection jobs={jobs} /> : null}
 
-      {activeTab === "contacts" ? (
-        <ContactsSection contacts={staticDetails.contacts} />
-      ) : null}
+      {activeTab === "contacts" ? <ContactsSection contacts={contacts} /> : null}
 
-      {activeTab === "timeline" ? (
-        <TimelineSection timeline={staticDetails.timeline} />
-      ) : null}
+      {activeTab === "timeline" ? <TimelineSection timeline={timeline} /> : null}
 
-      {activeTab === "notes" ? <NotesSection notes={staticDetails.notes} /> : null}
+      {activeTab === "notes" ? <NotesSection notes={notes} /> : null}
     </div>
   );
 }

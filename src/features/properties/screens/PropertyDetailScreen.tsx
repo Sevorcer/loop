@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Building2,
   Heart,
@@ -6,6 +7,7 @@ import {
 
 import { StatusBadge } from "@/components/atlas";
 import { Card, CardContent } from "@/components/ui/card";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Property } from "../types/property";
 import { MapViewCard } from "../components/MapViewCard";
 import { PropertyDetailTabs } from "../components/PropertyDetailTabs";
@@ -18,6 +20,7 @@ interface PropertyDetailScreenProps {
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
 }
+
 
 export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
   const statusVariant =
@@ -92,9 +95,18 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
                 {property.type}
               </span>
 
-              <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                Customer: {property.customer}
-              </span>
+              {property.customerId ? (
+                <Link
+                  href={ROUTE_BUILDERS.CUSTOMER_DETAIL(property.customerId)}
+                  className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
+                >
+                  Customer: {property.customer}
+                </Link>
+              ) : (
+                <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                  Customer: {property.customer}
+                </span>
+              )}
             </div>
           </div>
 

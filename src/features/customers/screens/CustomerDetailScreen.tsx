@@ -1,13 +1,20 @@
-import { Heart, Mail, Phone, Users } from "lucide-react";
+import { Heart, Mail, Pencil, Phone, Users } from "lucide-react";
+import Link from "next/link";
 
-import { StatusBadge } from "@/components/atlas";
+import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
+import { CustomerDeleteButton } from "../components/CustomerDeleteButton";
 import { CustomerDetailTabs } from "../components/CustomerDetailTabs";
 import type { Customer } from "../types/customer";
+import type { CustomerJobItem, CustomerPropertyItem } from "../types/customerDetails";
 
 interface CustomerDetailScreenProps {
   customer: Customer;
+  properties: CustomerPropertyItem[];
+  jobs: CustomerJobItem[];
 }
 
 function formatDate(value: string) {
@@ -16,6 +23,8 @@ function formatDate(value: string) {
 
 export function CustomerDetailScreen({
   customer,
+  properties,
+  jobs,
 }: CustomerDetailScreenProps) {
   const statusVariant =
     customer.status === "Active"
@@ -66,56 +75,74 @@ export function CustomerDetailScreen({
             </div>
           </div>
 
-          <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:min-w-[360px]">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Account Health
-                </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-green-500" />
-                  <p className="text-lg font-semibold">
-                    {customer.status === "Inactive" ? "Needs Review" : "Good"}
+          <div className="flex shrink-0 flex-col gap-4">
+            <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:min-w-[360px]">
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Account Health
                   </p>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Heart className="h-4 w-4 text-green-500" />
+                    <p className="text-lg font-semibold">
+                      {customer.status === "Inactive" ? "Needs Review" : "Good"}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Last Activity
-                </p>
-                <p className="mt-2 text-lg font-semibold">
-                  {formatDate(customer.lastActivity)}
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Last Activity
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">
+                    {formatDate(customer.lastActivity)}
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Properties
-                </p>
-                <p className="mt-2 text-lg font-semibold">
-                  {customer.propertyCount}
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Properties
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">{customer.propertyCount}</p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Open Jobs
-                </p>
-                <p className="mt-2 text-lg font-semibold">{customer.openJobs}</p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Open Jobs
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">{customer.openJobs}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <PermissionGuard table="customers" action="update">
+                <Link href={ROUTE_BUILDERS.CUSTOMER_EDIT(customer.id)}>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                </Link>
+              </PermissionGuard>
+
+              <PermissionGuard table="customers" action="delete">
+                <CustomerDeleteButton
+                  customerId={customer.id}
+                  customerName={customer.name}
+                />
+              </PermissionGuard>
+            </div>
           </div>
         </div>
       </div>
 
-      <CustomerDetailTabs customer={customer} />
+      <CustomerDetailTabs customer={customer} properties={properties} jobs={jobs} />
     </div>
   );
 }

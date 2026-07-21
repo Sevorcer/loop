@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
+import type { CustomerJobItem, CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import {
   countOpenJobsForCustomer,
   countPropertiesForCustomer,
@@ -10,6 +11,8 @@ import {
   listCustomers as listCustomerRecords,
   updateCustomer as updateCustomerRecord,
 } from "@/repositories/customers";
+import { listPropertiesByCustomerId } from "@/repositories/properties";
+import { listJobsByCustomerId } from "@/repositories/jobs";
 
 export interface CustomerInput {
   name: string;
@@ -104,4 +107,27 @@ export async function syncCustomerCounters(customerId: string) {
 
 export async function deleteCustomer(id: string) {
   return deleteCustomerRecord(id);
+}
+
+export async function getCustomerProperties(customerId: string): Promise<CustomerPropertyItem[]> {
+  const properties = await listPropertiesByCustomerId(customerId);
+  return properties.map((p) => ({
+    id: p.id,
+    name: p.name,
+    address: p.address,
+    city: p.city,
+    status: p.status,
+    primarySystem: p.primarySystem,
+  }));
+}
+
+export async function getCustomerJobs(customerId: string): Promise<CustomerJobItem[]> {
+  const jobs = await listJobsByCustomerId(customerId);
+  return jobs.map((j) => ({
+    id: j.id,
+    title: j.title,
+    status: j.status,
+    scheduledFor: j.scheduledFor,
+    propertyName: j.propertyName,
+  }));
 }

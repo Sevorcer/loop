@@ -1,5 +1,3 @@
-"use client";
-
 import {
   AlertTriangle,
   CalendarDays,
@@ -7,60 +5,38 @@ import {
   Clock,
   Send,
   Users,
-  XCircle,
 } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import type { Job } from "@/features/jobs/types/job";
 
-import { DispatchBoardCard } from "../components/DispatchBoardCard";
 import { CrewScheduleCard } from "../components/CrewScheduleCard";
-import { useDispatch } from "../state/DispatchProvider";
-import type { DispatchPlan } from "../types/dispatch";
-import { getCrewAssignmentForPlan, getDispatchBoardGroup, getLocalTodayISO } from "../utils/dispatchUtils";
-
-// ------------------------------------------------------------------
-// Board group definitions
-// ------------------------------------------------------------------
-
-const BOARD_GROUPS: {
-  key: "active" | "ready" | "scheduled" | "blocked";
-  label: string;
-  emptyMessage: string;
-}[] = [
-  {
-    key: "active",
-    label: "In Progress",
-    emptyMessage: "No jobs currently in progress.",
-  },
-  {
-    key: "ready",
-    label: "Ready to Schedule",
-    emptyMessage: "No jobs ready to schedule.",
-  },
-  {
-    key: "scheduled",
-    label: "Scheduled",
-    emptyMessage: "No jobs currently scheduled.",
-  },
-  {
-    key: "blocked",
-    label: "Waiting",
-    emptyMessage: "No jobs waiting on conditions.",
-  },
-];
+import { DispatchJobBoard } from "../components/DispatchJobBoard";
+import type { DispatchEvent, DispatchEventType, DispatchSnapshot } from "../types/dispatch";
+import { getLocalTodayISO } from "../utils/dispatchUtils";
 
 // ------------------------------------------------------------------
 // Dispatch Screen
 // ------------------------------------------------------------------
 
-export function DispatchScreen() {
-  const { snapshot } = useDispatch();
-  const { metrics } = snapshot;
+interface DispatchScreenProps {
+  jobs: Job[];
+  snapshot: DispatchSnapshot;
+}
 
+export function DispatchScreen({ jobs, snapshot }: DispatchScreenProps) {
   const todayStr = getLocalTodayISO();
   const todayBlocks = snapshot.scheduleBlocks.filter(
     (b) => b.scheduledDate === todayStr
   );
+
+  // Compute metrics from live job statuses
+  const activeCount = jobs.filter((j) => j.status === "In Progress").length;
+  const scheduledCount = jobs.filter((j) => j.status === "Scheduled").length;
+  const blockedCount = jobs.filter((j) => j.status === "On Hold").length;
+  const totalActive = jobs.filter(
+    (j) => j.status !== "Completed" && j.status !== "Cancelled"
+  ).length;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -75,76 +51,40 @@ export function DispatchScreen() {
 
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
-                Dispatch Planning
+                Dispatch Board
               </h2>
               <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-slate-400 sm:block">
-                Dispatch coordinates the right crew, at the right time, with the
-                right work, using the right materials. A job becomes
-                dispatchable only when all four readiness conditions are true:{" "}
-                <span className="font-medium text-slate-200">
-                  materials, technical truth, customer confirmation, and crew.
-                </span>
+                Live view of all active work. Jobs are grouped by operational
+                status — start work, hold, or complete directly from this board.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
-              icon={CheckCircle2}
-              value={String(metrics.readyToSchedule)}
-              label="Ready to schedule"
-              variant="success"
-            />
-            <MetricCard
-              icon={CalendarDays}
-              value={String(metrics.scheduled)}
-              label="Scheduled"
-              variant="info"
-            />
-            <MetricCard
               icon={Clock}
-              value={String(metrics.inProgress)}
+              value={String(activeCount)}
               label="In progress"
               variant="active"
             />
             <MetricCard
+              icon={CalendarDays}
+              value={String(scheduledCount)}
+              label="Scheduled"
+              variant="info"
+            />
+            <MetricCard
               icon={AlertTriangle}
-              value={String(
-                metrics.awaitingMaterials +
-                  metrics.awaitingCustomer +
-                  metrics.awaitingCrew
-              )}
-              label="Waiting"
+              value={String(blockedCount)}
+              label="On hold"
               variant="warning"
             />
-          </div>
-        </div>
-      </SurfaceCard>
-
-      {/* ── Architecture Note ── */}
-      <SurfaceCard>
-        <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
-          <div>
-            <h3 className="text-base font-semibold text-white sm:text-lg">
-              Dispatch Plan is the aggregate root
-            </h3>
-            <p className="mt-1.5 hidden text-sm leading-6 text-slate-400 sm:block">
-              Dispatch does not own jobs, materials, or installed systems — it
-              coordinates them. A Dispatch Plan is the single source of
-              scheduling truth. Crew Assignments, Schedule Blocks, and Dispatch
-              Events all reference the Dispatch Plan, not each other. The
-              calendar renders Dispatch Plans; it does not define them.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
-            <ol className="space-y-2 text-sm text-slate-300">
-              <li>1. Estimate accepted → job created</li>
-              <li>2. Material + Technical + Customer readiness confirmed</li>
-              <li>3. Dispatch Plan created</li>
-              <li>4. Crew assigned → Schedule Block placed</li>
-              <li>5. Crew dispatched → work begins</li>
-            </ol>
+            <MetricCard
+              icon={CheckCircle2}
+              value={String(totalActive)}
+              label="Active jobs"
+              variant="success"
+            />
           </div>
         </div>
       </SurfaceCard>
@@ -153,13 +93,13 @@ export function DispatchScreen() {
       <div>
         <div className="mb-4 flex items-center gap-3">
           <Send className="h-5 w-5 text-slate-400" />
-          <h3 className="text-lg font-semibold text-white">Dispatch Board</h3>
+          <h3 className="text-lg font-semibold text-white">Job Board</h3>
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs text-slate-400">
-            {snapshot.dispatchPlans.length} plans
+            {totalActive} active
           </span>
         </div>
 
-        <DispatchBoard plans={snapshot.dispatchPlans} />
+        <DispatchJobBoard initialJobs={jobs} />
       </div>
 
       {/* ── Crew Schedule — Today ── */}
@@ -193,13 +133,15 @@ export function DispatchScreen() {
       </div>
 
       {/* ── Dispatch Events ── */}
-      <div>
-        <div className="mb-4 flex items-center gap-3">
-          <Clock className="h-5 w-5 text-slate-400" />
-          <h3 className="text-lg font-semibold text-white">Recent Events</h3>
+      {snapshot.dispatchEvents.length > 0 && (
+        <div>
+          <div className="mb-4 flex items-center gap-3">
+            <Clock className="h-5 w-5 text-slate-400" />
+            <h3 className="text-lg font-semibold text-white">Recent Events</h3>
+          </div>
+          <DispatchEventLog events={snapshot.dispatchEvents} />
         </div>
-        <DispatchEventLog />
-      </div>
+      )}
 
       {/* ── Dispatchability Model ── */}
       <SurfaceCard>
@@ -249,91 +191,11 @@ export function DispatchScreen() {
 }
 
 // ------------------------------------------------------------------
-// Dispatch Board
-// ------------------------------------------------------------------
-
-function DispatchBoard({ plans }: { plans: DispatchPlan[] }) {
-  const { snapshot, crews, assignCrew, schedulePlan } = useDispatch();
-
-  const availableCrews = crews.filter(
-    (c) => c.availability === "available" || c.availability === "partially_available"
-  );
-
-  return (
-    <div className="space-y-6">
-      {BOARD_GROUPS.map((group) => {
-        const groupPlans = plans.filter(
-          (p) => getDispatchBoardGroup(p.dispatchStatus) === group.key
-        );
-
-        return (
-          <div key={group.key}>
-            <div className="mb-3 flex items-center gap-2">
-              <BoardGroupIcon groupKey={group.key} />
-              <h4 className="text-sm font-semibold text-slate-300">
-                {group.label}
-              </h4>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-500">
-                {groupPlans.length}
-              </span>
-            </div>
-
-            {groupPlans.length === 0 ? (
-              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-5 text-sm text-slate-600">
-                {group.emptyMessage}
-              </div>
-            ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {groupPlans.map((plan) => {
-                  const assignment = getCrewAssignmentForPlan(
-                    snapshot.crewAssignments,
-                    plan.id
-                  );
-                  return (
-                    <DispatchBoardCard
-                      key={plan.id}
-                      plan={plan}
-                      crewName={assignment?.crewName}
-                      availableCrews={availableCrews}
-                      onAssignCrew={assignCrew}
-                      onSchedulePlan={schedulePlan}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function BoardGroupIcon({
-  groupKey,
-}: {
-  groupKey: "active" | "ready" | "scheduled" | "blocked";
-}) {
-  switch (groupKey) {
-    case "active":
-      return <Clock className="h-4 w-4 text-violet-400" />;
-    case "ready":
-      return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
-    case "scheduled":
-      return <CalendarDays className="h-4 w-4 text-blue-400" />;
-    case "blocked":
-      return <XCircle className="h-4 w-4 text-amber-400" />;
-  }
-}
-
-// ------------------------------------------------------------------
 // Dispatch Event Log
 // ------------------------------------------------------------------
 
-function DispatchEventLog() {
-  const { snapshot } = useDispatch();
-
-  const recentEvents = [...snapshot.dispatchEvents]
+function DispatchEventLog({ events }: { events: DispatchEvent[] }) {
+  const recentEvents = [...events]
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, 8);
 
@@ -341,9 +203,6 @@ function DispatchEventLog() {
     <SurfaceCard>
       <div className="divide-y divide-white/5">
         {recentEvents.map((event) => {
-          const plan = snapshot.dispatchPlans.find(
-            (p) => p.id === event.dispatchPlanId
-          );
           const time = new Date(event.timestamp).toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
@@ -359,11 +218,6 @@ function DispatchEventLog() {
               <EventTypeIndicator type={event.type} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-slate-200">{event.description}</p>
-                {plan && (
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {plan.jobNumber} · {plan.customerName}
-                  </p>
-                )}
               </div>
               <div className="flex-shrink-0 text-right">
                 <p className="text-xs text-slate-400">{time}</p>
@@ -377,12 +231,8 @@ function DispatchEventLog() {
   );
 }
 
-function EventTypeIndicator({
-  type,
-}: {
-  type: import("../types/dispatch").DispatchEventType;
-}) {
-  const colorMap: Record<typeof type, string> = {
+function EventTypeIndicator({ type }: { type: DispatchEventType }) {
+  const colorMap: Record<DispatchEventType, string> = {
     job_scheduled: "bg-blue-500",
     crew_assigned: "bg-emerald-500",
     schedule_changed: "bg-amber-500",
