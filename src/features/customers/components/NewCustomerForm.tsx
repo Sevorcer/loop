@@ -3,14 +3,16 @@
 import { useState } from "react";
 import { CheckCircle2, ClipboardPlus, UserPlus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 import { ROUTES } from "@/lib/routes";
 
-import { useCustomers } from "../state/CustomersProvider";
-import type { CustomerStatus } from "../types/customer";
+import type { Customer, CustomerStatus } from "../types/customer";
 
 const customerStatuses: CustomerStatus[] = ["Active", "Prospect", "Inactive"];
 
@@ -56,7 +58,8 @@ export function NewCustomerForm() {
 }
 
 function NewCustomerFormContent() {
-  const { createCustomer } = useCustomers();
+  const router = useRouter();
+  const { role } = useCurrentRole();
 
   const [form, setForm] = useState<CustomerFormValues>(defaultCustomerFormValues);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +94,11 @@ function NewCustomerFormContent() {
     try {
       setIsSaving(true);
       setError(null);
-      await createCustomer(normalizeValues(form));
+      await requestJson<{ customer: Customer }>("/api/customers", {
+        method: "POST",
+        role,
+        body: normalizeValues(form),
+      });
       setIsSubmitted(true);
     } catch (nextError) {
       setError(
@@ -123,7 +130,12 @@ function NewCustomerFormContent() {
 
           <div className="flex justify-center gap-3">
             <Link href={ROUTES.CUSTOMERS}>
-              <Button variant="secondary">View Customer Directory</Button>
+              <Button
+                variant="secondary"
+                onClick={() => router.refresh()}
+              >
+                View Customer Directory
+              </Button>
             </Link>
 
             <Button
