@@ -77,7 +77,7 @@ function StatusIcon({ status }: { status: JobStatus }) {
 function formatScheduledDate(iso: string): string {
   if (!iso) return "—";
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
+  if (isNaN(date.getTime())) return iso;
   return date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",

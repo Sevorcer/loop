@@ -68,6 +68,12 @@ function BoardGroupIcon({
   }
 }
 
+// Pre-computed set of statuses that belong to explicit board groups.
+// Used by the "ready" group to capture any jobs that don't fall into a named group.
+const EXPLICIT_STATUSES = new Set<JobStatus>(
+  BOARD_GROUPS.flatMap((g) => g.statuses)
+);
+
 // ---------------------------------------------------------------------------
 // DispatchJobBoard
 // ---------------------------------------------------------------------------
@@ -85,7 +91,8 @@ export function DispatchJobBoard({ initialJobs }: DispatchJobBoardProps) {
     async (jobId: string, newStatus: JobStatus) => {
       if (!role) return;
 
-      // Optimistic update
+      // Snapshot current state for rollback before applying optimistic update
+      const snapshot = jobs;
       setJobs((prev) =>
         prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
       );
@@ -98,8 +105,8 @@ export function DispatchJobBoard({ initialJobs }: DispatchJobBoardProps) {
           body: { action: "status", status: newStatus },
         });
       } catch {
-        // Revert on failure
-        setJobs(initialJobs);
+        // Revert to the snapshot taken before the optimistic update
+        setJobs(snapshot);
       } finally {
         setUpdatingIds((prev) => {
           const next = new Set(prev);
@@ -108,7 +115,7 @@ export function DispatchJobBoard({ initialJobs }: DispatchJobBoardProps) {
         });
       }
     },
-    [role, initialJobs]
+    [role, jobs]
   );
 
   // Group jobs that aren't completed or cancelled
@@ -122,9 +129,7 @@ export function DispatchJobBoard({ initialJobs }: DispatchJobBoardProps) {
         const groupJobs =
           group.statuses.length > 0
             ? activeJobs.filter((j) => group.statuses.includes(j.status))
-            : activeJobs.filter(
-                (j) => !BOARD_GROUPS.flatMap((g) => g.statuses).includes(j.status)
-              );
+            : activeJobs.filter((j) => !EXPLICIT_STATUSES.has(j.status));
 
         return (
           <div key={group.key}>
