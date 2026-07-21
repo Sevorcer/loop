@@ -67,37 +67,37 @@ export function DeactivateOrganizationDialog({
         aria-hidden="true"
       />
 
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-900 p-6 shadow-2xl">
+      <div className="relative z-10 w-full max-w-md rounded-atlas-2xl border border-default bg-surface p-6 shadow-atlas-lg">
         <button
           type="button"
           onClick={onClose}
           disabled={isSubmitting}
           aria-label="Close dialog"
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-50"
+          className="absolute right-4 top-4 rounded-atlas-md p-1.5 text-muted transition-colors hover:bg-white/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border)] disabled:opacity-50"
         >
           <X size={16} />
         </button>
 
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15 text-red-400">
+        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-atlas-xl status-danger">
           <AlertTriangle size={20} />
         </div>
 
         <h2
           id="deactivate-org-dialog-title"
-          className="text-base font-semibold text-slate-100"
+          className="text-base font-semibold text-primary"
         >
           Deactivate organization?
         </h2>
 
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          <span className="font-medium text-slate-200">{organization.name}</span> will be
+        <p className="mt-2 text-sm leading-6 text-muted">
+          <span className="font-medium text-primary">{organization.name}</span> will be
           deactivated. This is reversible — contact a platform administrator to restore it.
         </p>
 
         {error ? (
           <div
             role="alert"
-            className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300"
+            className="status-danger mt-4 rounded-atlas-md px-3 py-2.5 text-sm"
           >
             {error}
           </div>
@@ -118,7 +118,7 @@ export function DeactivateOrganizationDialog({
             onClick={handleDeactivate}
             disabled={isSubmitting}
             aria-busy={isSubmitting}
-            className="w-full bg-red-600 text-white hover:bg-red-500 sm:w-auto"
+            className="btn-destructive w-full sm:w-auto"
           >
             {isSubmitting ? "Deactivating…" : "Deactivate"}
           </Button>

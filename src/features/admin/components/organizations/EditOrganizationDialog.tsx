@@ -80,19 +80,19 @@ export function EditOrganizationDialog({
         aria-hidden="true"
       />
 
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-900 p-6 shadow-2xl">
+      <div className="relative z-10 w-full max-w-md rounded-atlas-2xl border border-default bg-surface p-6 shadow-atlas-lg">
         <button
           type="button"
           onClick={onClose}
           aria-label="Close dialog"
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="absolute right-4 top-4 rounded-atlas-md p-1.5 text-muted transition-colors hover:bg-white/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border)]"
         >
           <X size={16} />
         </button>
 
         <h2
           id="edit-org-dialog-title"
-          className="mb-5 text-base font-semibold text-slate-100"
+          className="mb-5 text-base font-semibold text-primary"
         >
           Edit Organization
         </h2>
@@ -110,7 +110,7 @@ export function EditOrganizationDialog({
               autoFocus
               aria-describedby={nameErrors.length ? "edit-org-name-error" : undefined}
               aria-invalid={nameErrors.length > 0}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full rounded-atlas-md border border-default bg-surface-elevated px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
             />
             <AdminFieldError fieldId="edit-org-name" errors={nameErrors} />
           </AdminFieldWrapper>

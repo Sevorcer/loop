@@ -165,7 +165,7 @@ export function OrganizationsClient() {
         <div className="relative max-w-sm">
           <Search
             size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
             aria-hidden="true"
           />
           <input
@@ -173,7 +173,7 @@ export function OrganizationsClient() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search organizations…"
-            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 py-2 pl-9 pr-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full rounded-atlas-md border border-default bg-surface-elevated/50 py-2 pl-9 pr-3 text-sm text-primary placeholder:text-muted focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
           />
         </div>
 
@@ -181,7 +181,7 @@ export function OrganizationsClient() {
         {loadError ? (
           <div
             role="alert"
-            className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+            className="status-danger rounded-atlas-md px-4 py-3 text-sm"
           >
             {loadError}
           </div>
@@ -193,7 +193,7 @@ export function OrganizationsClient() {
             {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="h-12 animate-pulse rounded-lg bg-slate-800/60"
+                className="h-12 animate-pulse rounded-atlas-md bg-surface-elevated/60"
               />
             ))}
           </div>
@@ -214,19 +214,19 @@ export function OrganizationsClient() {
 
         {/* Table */}
         {!isLoading && !loadError && organizations.length > 0 ? (
-          <div className="overflow-hidden rounded-xl border border-slate-800">
+          <div className="overflow-hidden rounded-atlas-xl border border-default">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/60">
+                <tr className="border-b border-default bg-surface/60">
                   <th
                     scope="col"
-                    className="px-4 py-3 text-left font-medium text-slate-400"
+                    className="px-4 py-3 text-left font-medium text-muted"
                   >
                     Name
                   </th>
                   <th
                     scope="col"
-                    className="hidden px-4 py-3 text-left font-medium text-slate-400 sm:table-cell"
+                    className="hidden px-4 py-3 text-left font-medium text-muted sm:table-cell"
                   >
                     Created
                   </th>
@@ -235,16 +235,16 @@ export function OrganizationsClient() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[var(--border)]/60">
                 {organizations.map((org) => (
                   <tr
                     key={org.id}
-                    className="bg-slate-900 transition-colors hover:bg-slate-800/50"
+                    className="bg-surface transition-colors hover:bg-surface-elevated/50"
                   >
-                    <td className="px-4 py-3 font-medium text-slate-100">
+                    <td className="px-4 py-3 font-medium text-primary">
                       {org.name}
                     </td>
-                    <td className="hidden px-4 py-3 text-slate-400 sm:table-cell">
+                    <td className="hidden px-4 py-3 text-muted sm:table-cell">
                       {formatDate(org.createdAt)}
                     </td>
                     <td className="px-4 py-3">
@@ -255,7 +255,7 @@ export function OrganizationsClient() {
                             setEditTarget({ id: org.id, name: org.name })
                           }
                           aria-label={`Edit ${org.name}`}
-                          className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                          className="flex items-center gap-1.5 rounded-atlas-md px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-elevated hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border)]"
                         >
                           <Pencil size={12} aria-hidden="true" />
                           Edit
@@ -266,7 +266,7 @@ export function OrganizationsClient() {
                             setDeactivateTarget({ id: org.id, name: org.name })
                           }
                           aria-label={`Deactivate ${org.name}`}
-                          className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                          className="flex items-center gap-1.5 rounded-atlas-md px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--danger)]"
                         >
                           <PowerOff size={12} aria-hidden="true" />
                           Deactivate
@@ -282,7 +282,7 @@ export function OrganizationsClient() {
 
         {/* Pagination */}
         {!isLoading && !loadError && totalPages > 1 ? (
-          <div className="flex items-center justify-between text-sm text-slate-400">
+          <div className="flex items-center justify-between text-sm text-muted">
             <span>
               {total === 1 ? "1 organization" : `${total} organizations`}
             </span>
@@ -291,7 +291,7 @@ export function OrganizationsClient() {
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="rounded-md px-3 py-1.5 transition-colors hover:bg-slate-800 hover:text-slate-100 disabled:pointer-events-none disabled:opacity-40"
+                className="rounded-atlas-md px-3 py-1.5 transition-colors hover:bg-surface-elevated hover:text-primary disabled:pointer-events-none disabled:opacity-40"
               >
                 Previous
               </button>
@@ -302,7 +302,7 @@ export function OrganizationsClient() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="rounded-md px-3 py-1.5 transition-colors hover:bg-slate-800 hover:text-slate-100 disabled:pointer-events-none disabled:opacity-40"
+                className="rounded-atlas-md px-3 py-1.5 transition-colors hover:bg-surface-elevated hover:text-primary disabled:pointer-events-none disabled:opacity-40"
               >
                 Next
               </button>
