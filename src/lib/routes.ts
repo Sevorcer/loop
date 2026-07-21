@@ -26,6 +26,18 @@ export const ROUTE_BUILDERS = {
     `${ROUTES.INSTALLED_SYSTEMS}/${installedSystemId}`,
 } as const;
 
+// ─── Admin Routes ─────────────────────────────────────────────────────────────
+
+export const ADMIN_BASE = "/admin";
+
+export const ADMIN_ROUTES = {
+  ROOT: ADMIN_BASE,
+  ORGANIZATIONS: `${ADMIN_BASE}/organizations`,
+  CUSTOMERS: `${ADMIN_BASE}/customers`,
+  PROPERTIES: `${ADMIN_BASE}/properties`,
+  JOBS: `${ADMIN_BASE}/jobs`,
+} as const;
+
 // ─── Project Portal Routes ────────────────────────────────────────────────────
 
 export const PORTAL_BASE = "/portal";

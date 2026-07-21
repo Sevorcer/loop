@@ -32,6 +32,7 @@ import {
 /** Shell routes that require an authenticated internal user. */
 function isShellRoute(pathname: string): boolean {
   const shellPrefixes = [
+    "/admin",
     "/dashboard",
     "/jobs",
     "/properties",
