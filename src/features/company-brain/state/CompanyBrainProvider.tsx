@@ -3,13 +3,12 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 
-import { mockKnowledgeItems } from "../data/mockKnowledgeItems";
-import { mockKnowledgeRelationships } from "../data/mockKnowledgeRelationships";
-import { mockKnowledgeUsage } from "../data/mockKnowledgeUsage";
 import type {
   KnowledgeItem,
   KnowledgeRelationship,
@@ -27,6 +26,7 @@ import {
 
 interface CompanyBrainContextValue {
   snapshot: KnowledgeSnapshot;
+  loading: boolean;
   getKnowledgeItemById: (id: string) => KnowledgeItem | undefined;
   getRelationshipsForItem: (knowledgeItemId: string) => KnowledgeRelationship[];
   getUsageForItem: (knowledgeItemId: string) => KnowledgeUsage[];
@@ -36,18 +36,46 @@ interface CompanyBrainContextValue {
   ) => KnowledgeItem[];
 }
 
+const EMPTY_SNAPSHOT: KnowledgeSnapshot = assembleKnowledgeSnapshot([], [], []);
+
 const CompanyBrainContext = createContext<CompanyBrainContextValue | null>(null);
 
 export function CompanyBrainProvider({ children }: { children: ReactNode }) {
-  const snapshot = useMemo(
-    () =>
-      assembleKnowledgeSnapshot(
-        mockKnowledgeItems,
-        mockKnowledgeRelationships,
-        mockKnowledgeUsage
-      ),
-    []
-  );
+  const [snapshot, setSnapshot] = useState<KnowledgeSnapshot>(EMPTY_SNAPSHOT);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchSnapshot() {
+      try {
+        const res = await fetch("/api/knowledge-items", {
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!res.ok) {
+          // Non-2xx: leave empty snapshot in place (graceful degradation)
+          return;
+        }
+
+        const json = (await res.json()) as { snapshot?: KnowledgeSnapshot };
+
+        if (!cancelled && json.snapshot) {
+          setSnapshot(json.snapshot);
+        }
+      } catch {
+        // Network error — leave empty snapshot in place
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void fetchSnapshot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const value = useMemo<CompanyBrainContextValue>(() => {
     function getKnowledgeItemById(id: string) {
@@ -74,13 +102,14 @@ export function CompanyBrainProvider({ children }: { children: ReactNode }) {
 
     return {
       snapshot,
+      loading,
       getKnowledgeItemById,
       getRelationshipsForItem: getRelationshipsForItemFn,
       getUsageForItem: getUsageForItemFn,
       searchKnowledge,
       getItemsForDomain: getItemsForDomainFn,
     };
-  }, [snapshot]);
+  }, [snapshot, loading]);
 
   return (
     <CompanyBrainContext.Provider value={value}>

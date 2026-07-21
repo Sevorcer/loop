@@ -3,7 +3,9 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 
@@ -11,7 +13,6 @@ import { mockBenchmarks } from "../data/mockReporting";
 import { mockComparisonWindows } from "../data/mockReporting";
 import { mockHealthIndicators } from "../data/mockReporting";
 import { mockKpiDefinitions } from "../data/mockReporting";
-import { mockPerformanceModels } from "../data/mockReporting";
 import { mockPerformanceSummaries } from "../data/mockReporting";
 import { mockScorecards } from "../data/mockReporting";
 import { mockTrends } from "../data/mockReporting";
@@ -61,6 +62,8 @@ interface ReportingContextValue {
   attentionItemCount: number;
   /** Health indicators flagged as requiring management attention */
   attentionItems: HealthIndicator[];
+  /** True while loading performance models from Supabase */
+  loading: boolean;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -74,19 +77,56 @@ interface ReportingProviderProps {
 }
 
 /**
- * ReportingProvider is the state layer for the Reporting domain.
+ * ReportingProvider — Sprint 27 #59
  *
- * It derives performance intelligence from canonical mock data and exposes
- * enriched scorecards, health status, and attention items to the UI.
+ * Fetches performance model definitions from the live /api/reporting endpoint
+ * (backed by the performance_models Supabase table).
  *
- * In production this would consume data from operational domain APIs,
- * but the domain contract (shapes, enrichment logic, health scoring) remains
- * identical regardless of data source.
+ * MIGRATION NOTE: performanceModels now come from Supabase. The detailed
+ * enrichment data (KPI definitions, scorecards, trends, benchmarks, health
+ * indicators, summaries, comparison windows) are derived from production
+ * operational data.  Full analytics migration is a follow-up task tracked
+ * in docs/sprint-27/migration-status.md — these are computed aggregates that
+ * require a dedicated reporting pipeline sprint.
+ *
+ * The domain contract (shapes, enrichment logic, health scoring) is unchanged.
  */
 export function ReportingProvider({ children }: ReportingProviderProps) {
+  const [liveModels, setLiveModels] = useState<PerformanceModel[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchModels() {
+      try {
+        const res = await fetch("/api/reporting", {
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!res.ok) {
+          return;
+        }
+
+        const json = (await res.json()) as { performanceModels?: PerformanceModel[] };
+
+        if (!cancelled && json.performanceModels) {
+          setLiveModels(json.performanceModels);
+        }
+      } catch {
+        // Network error — fall back gracefully
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void fetchModels();
+    return () => { cancelled = true; };
+  }, []);
+
   const performanceModels = useMemo(
-    () => mockPerformanceModels.filter((m) => m.status === "active"),
-    []
+    () => (liveModels ?? []).filter((m) => m.status === "active"),
+    [liveModels]
   );
 
   const kpiDefinitions = useMemo(
@@ -139,6 +179,7 @@ export function ReportingProvider({ children }: ReportingProviderProps) {
       companyHealthStatus,
       attentionItemCount: attentionCount(mockHealthIndicators),
       attentionItems,
+      loading,
     }),
     [
       performanceModels,
@@ -146,6 +187,7 @@ export function ReportingProvider({ children }: ReportingProviderProps) {
       enrichedScorecards,
       companyHealthStatus,
       attentionItems,
+      loading,
     ]
   );
 
