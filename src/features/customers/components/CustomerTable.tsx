@@ -3,10 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { DataTable, EmptyState, ErrorState } from "@/components/atlas";
+import { DataTable, EmptyState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
-import { useCustomers } from "../state/CustomersProvider";
 import type { Customer } from "../types/customer";
 import { customerColumns } from "./CustomerColumns";
 import { CustomerToolbar } from "./CustomerToolbar";
@@ -14,9 +13,12 @@ import { CustomerToolbar } from "./CustomerToolbar";
 const ALL_FILTER_VALUE = "all";
 const PAGE_SIZE = 10;
 
-export function CustomerTable() {
+interface CustomerTableProps {
+  customers: Customer[];
+}
+
+export function CustomerTable({ customers }: CustomerTableProps) {
   const router = useRouter();
-  const { customers, hydrated, loading, error, refreshCustomers } = useCustomers();
 
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
@@ -92,61 +94,6 @@ export function CustomerTable() {
     router.push(`/customers/${customer.id}`);
   }
 
-  if (loading || !hydrated) {
-    return (
-      <div className="space-y-4">
-        <CustomerToolbar
-          searchValue={searchValue}
-          onSearchChange={handleSearchChange}
-          statusFilter={statusFilter}
-          onStatusChange={handleStatusChange}
-          cityFilter={cityFilter}
-          onCityChange={handleCityChange}
-          cityOptions={cityOptions}
-          onClearFilters={handleClearFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
-
-        <div className="rounded-lg border bg-card">
-          <div className="space-y-3 p-4">
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-            <div className="h-10 animate-pulse rounded-md bg-muted" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <CustomerToolbar
-          searchValue={searchValue}
-          onSearchChange={handleSearchChange}
-          statusFilter={statusFilter}
-          onStatusChange={handleStatusChange}
-          cityFilter={cityFilter}
-          onCityChange={handleCityChange}
-          cityOptions={cityOptions}
-          onClearFilters={handleClearFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
-        <ErrorState
-          title="Unable to load customers"
-          description={error}
-          action={
-            <Button variant="outline" onClick={() => void refreshCustomers()}>
-              Try again
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
-
   if (filteredCustomers.length === 0) {
     return (
       <div className="space-y-4">
@@ -166,7 +113,7 @@ export function CustomerTable() {
           title="No customers found"
           description={
             hasActiveFilters
-              ? "We couldn&apos;t find any customers matching your current search and filter settings."
+              ? "We couldn't find any customers matching your current search and filter settings."
               : "There are no customers to display yet."
           }
           action={

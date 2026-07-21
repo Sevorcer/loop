@@ -7,10 +7,11 @@ import Link from "next/link";
 import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 import { ROUTES } from "@/lib/routes";
 
-import { useCustomers } from "../state/CustomersProvider";
-import type { CustomerStatus } from "../types/customer";
+import type { Customer, CustomerStatus } from "../types/customer";
 
 const customerStatuses: CustomerStatus[] = ["Active", "Prospect", "Inactive"];
 
@@ -56,7 +57,7 @@ export function NewCustomerForm() {
 }
 
 function NewCustomerFormContent() {
-  const { createCustomer } = useCustomers();
+  const { role } = useCurrentRole();
 
   const [form, setForm] = useState<CustomerFormValues>(defaultCustomerFormValues);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +92,11 @@ function NewCustomerFormContent() {
     try {
       setIsSaving(true);
       setError(null);
-      await createCustomer(normalizeValues(form));
+      await requestJson<{ customer: Customer }>("/api/customers", {
+        method: "POST",
+        role,
+        body: normalizeValues(form),
+      });
       setIsSubmitted(true);
     } catch (nextError) {
       setError(
