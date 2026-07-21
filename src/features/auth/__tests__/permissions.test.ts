@@ -1,70 +1,24 @@
 import { describe, it, expect } from "vitest";
 
-import { ROUTES, PORTAL_ROUTES } from "@/lib/routes";
+import { ADMIN_ROUTES, ROUTES, PORTAL_ROUTES } from "@/lib/routes";
+import { SHELL_NAV_GROUPS } from "@/components/layout/sidebarNav";
 import type { AppRole } from "@/services/authorization";
 import { getNavItemsForRole, NAV_ROUTE_ROLES } from "../utils/navPermissions";
-import type { NavGroup } from "../utils/navPermissions";
-
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-/** Minimal stand-in for an icon component — only the href matters for tests. */
-const FakeIcon = {} as React.ComponentType<{ size?: number }>;
-
-const ALL_NAV_GROUPS: NavGroup[] = [
-  {
-    label: "Overview",
-    items: [{ name: "Dashboard", href: ROUTES.DASHBOARD, icon: FakeIcon }],
-  },
-  {
-    label: "Operations",
-    items: [
-      { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: FakeIcon },
-      { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: FakeIcon },
-      { name: "Dispatch", href: ROUTES.DISPATCH, icon: FakeIcon },
-    ],
-  },
-  {
-    label: "Field",
-    items: [
-      { name: "Jobs", href: ROUTES.JOBS, icon: FakeIcon },
-      { name: "Properties", href: ROUTES.PROPERTIES, icon: FakeIcon },
-      { name: "Contractors", href: ROUTES.CONTRACTORS, icon: FakeIcon },
-      { name: "Customers", href: ROUTES.CUSTOMERS, icon: FakeIcon },
-      { name: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS, icon: FakeIcon },
-      { name: "Vehicle Alerts", href: ROUTES.VEHICLE_ALERTS, icon: FakeIcon },
-    ],
-  },
-  {
-    label: "Resources",
-    items: [
-      { name: "Inventory", href: ROUTES.INVENTORY, icon: FakeIcon },
-      { name: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: FakeIcon },
-    ],
-  },
-  {
-    label: "Insights",
-    items: [{ name: "Reporting", href: ROUTES.REPORTING, icon: FakeIcon }],
-  },
-  {
-    label: "External",
-    items: [{ name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: FakeIcon }],
-  },
-  {
-    label: "Workspace",
-    items: [{ name: "Settings", href: ROUTES.SETTINGS, icon: FakeIcon }],
-  },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function allVisibleHrefs(role: AppRole | null): string[] {
-  return getNavItemsForRole(role, ALL_NAV_GROUPS)
+  return getNavItemsForRole(role, SHELL_NAV_GROUPS)
     .flatMap((g) => g.items)
     .map((i) => i.href);
 }
 
 function canSee(role: AppRole | null, href: string): boolean {
   return allVisibleHrefs(role).includes(href);
+}
+
+function findGroup(role: AppRole | null, label: string) {
+  return getNavItemsForRole(role, SHELL_NAV_GROUPS).find((group) => group.label === label);
 }
 
 // ─── Null / unknown / portal ───────────────────────────────────────────────────
@@ -86,7 +40,28 @@ describe("unknown role", () => {
 
 describe("portal role — ops shell isolation", () => {
   it("returns empty nav — portal users must not see the operations shell", () => {
-    expect(getNavItemsForRole("portal", ALL_NAV_GROUPS)).toHaveLength(0);
+    expect(getNavItemsForRole("portal", SHELL_NAV_GROUPS)).toHaveLength(0);
+  });
+});
+
+describe("Administration section", () => {
+  it('shows "Administration" with Organizations for admin-authorized roles', () => {
+    const administration = findGroup("owner", "Administration");
+    expect(administration).toBeDefined();
+    expect(administration?.items.map((item) => item.name)).toEqual(["Organizations"]);
+    expect(administration?.items[0]?.href).toBe(ADMIN_ROUTES.ORGANIZATIONS);
+  });
+
+  it("does not place Jobs, Customers, or Properties under Administration", () => {
+    const administration = findGroup("owner", "Administration");
+    const names = administration?.items.map((item) => item.name) ?? [];
+    expect(names).not.toContain("Jobs");
+    expect(names).not.toContain("Customers");
+    expect(names).not.toContain("Properties");
+  });
+
+  it("is hidden for non-admin roles", () => {
+    expect(findGroup("dispatch", "Administration")).toBeUndefined();
   });
 });
 
@@ -221,7 +196,7 @@ describe("NAV_ROUTE_ROLES map", () => {
   });
 
   it("groups are always non-empty after filtering for owner", () => {
-    const groups = getNavItemsForRole("owner", ALL_NAV_GROUPS);
+    const groups = getNavItemsForRole("owner", SHELL_NAV_GROUPS);
     for (const group of groups) {
       expect(group.items.length).toBeGreaterThan(0);
     }
