@@ -51,6 +51,27 @@ describe("GET /api/installed-systems", () => {
     expect(body.error).toBe("FORBIDDEN");
     expect(body.code).toBe(403);
   });
+
+  it("returns 200 with snapshot payload for an allowed role", async () => {
+    getInstalledSystemsSnapshotMock.mockResolvedValue({
+      installedSystems: [{ id: "sys-1", systemName: "Heat Pump" }],
+      technicalProfiles: [{ id: "tp-1", systemName: "Heat Pump" }],
+    });
+
+    const response = await getInstalledSystems(
+      new Request("http://localhost/api/installed-systems", {
+        headers: { "x-loop-role": "tech" },
+      }),
+    );
+    const body = (await response.json()) as {
+      installedSystems: Array<{ id: string }>;
+      technicalProfiles: Array<{ id: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.installedSystems[0]?.id).toBe("sys-1");
+    expect(body.technicalProfiles[0]?.id).toBe("tp-1");
+  });
 });
 
 describe("GET /api/installed-systems/[id]", () => {
@@ -91,5 +112,23 @@ describe("GET /api/installed-systems/[id]", () => {
     expect(response.status).toBe(401);
     expect(body.error).toBe("UNAUTHORIZED");
     expect(body.code).toBe(401);
+  });
+
+  it("returns 200 with installed system for a successful lookup", async () => {
+    getInstalledSystemByIdMock.mockResolvedValue({
+      ok: true,
+      data: { id: "sys-200", systemName: "Furnace" },
+    });
+
+    const response = await getInstalledSystemById(
+      new Request("http://localhost/api/installed-systems/sys-200", {
+        headers: { "x-loop-role": "owner" },
+      }),
+      { params: Promise.resolve({ id: "sys-200" }) },
+    );
+    const body = (await response.json()) as { installedSystem: { id: string } };
+
+    expect(response.status).toBe(200);
+    expect(body.installedSystem.id).toBe("sys-200");
   });
 });

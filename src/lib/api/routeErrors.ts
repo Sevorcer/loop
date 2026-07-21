@@ -39,7 +39,7 @@ export async function readJsonObject(request: Request): Promise<Record<string, u
 
 export function mapRouteError(error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown server error.";
-  const normalizedMessage = message.toLowerCase();
+  const lowerMessage = message.toLowerCase();
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
     return createApiErrorResponse(
@@ -52,25 +52,25 @@ export function mapRouteError(error: unknown) {
   if (
     message === "SUPABASE_SESSION_REQUIRED" ||
     message === "USER_PROFILE_NOT_FOUND" ||
-    normalizedMessage.includes("unauthorized") ||
-    normalizedMessage.includes("authentication")
+    lowerMessage.includes("unauthorized") ||
+    lowerMessage.includes("authentication")
   ) {
     return createApiErrorResponse("UNAUTHORIZED", "A valid session is required.", 401);
   }
 
   if (
-    normalizedMessage.includes("permission") ||
-    normalizedMessage.includes("forbidden") ||
-    normalizedMessage.includes("denied")
+    lowerMessage.includes("permission") ||
+    lowerMessage.includes("forbidden") ||
+    lowerMessage.includes("denied")
   ) {
     return createApiErrorResponse("FORBIDDEN", message, 403);
   }
 
-  if (normalizedMessage.includes("not found")) {
+  if (lowerMessage.includes("not found")) {
     return createApiErrorResponse("NOT_FOUND", message, 404);
   }
 
-  if (normalizedMessage.includes("required") || normalizedMessage.includes("invalid")) {
+  if (lowerMessage.includes("required") || lowerMessage.includes("invalid")) {
     return createApiErrorResponse("VALIDATION_ERROR", message, 400);
   }
 
