@@ -63,6 +63,7 @@ function mapProperty(row: PropertyRow, customerName: string): Property {
     id: row.id,
     name: row.name,
     customer: customerName,
+    customerId: row.customer_id ?? undefined,
     address: row.address,
     city: row.city,
     type: row.type,

@@ -1,12 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  ArrowUpRight,
   Building2,
   ClipboardList,
   FileText,
   HardHat,
   ImageIcon,
+  Mail,
+  Phone,
   ShieldCheck,
   Users,
   Wrench,
@@ -19,6 +23,8 @@ import {
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ROUTE_BUILDERS } from "@/lib/routes";
+import { useCustomerSnapshot } from "../hooks/useCustomerSnapshot";
 
 import type { Property } from "../types/property";
 import type {
@@ -452,37 +458,132 @@ function PhotosSection({ details }: { details: PropertyDetails }) {
   );
 }
 
-function ContactsSection({ details }: { details: PropertyDetails }) {
+function ContactsSection({
+  details,
+  property,
+}: {
+  details: PropertyDetails;
+  property: Property;
+}) {
+  const { customer, loading } = useCustomerSnapshot(property.customerId);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {details.contacts.map((contact) => (
-        <Card key={contact.id}>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <CardTitle>{contact.name}</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {contact.role}
-                </p>
+    <div className="space-y-6">
+      {/* Linked customer account card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Customer Account</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Linked customer record for this property
+              </p>
+            </div>
+            <Users className="h-5 w-5 text-muted-foreground" />
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading customer details…</p>
+          ) : customer ? (
+            <>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">Name</span>
+                <span className="font-medium">{customer.name}</span>
               </div>
 
-              <Users className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
+              {customer.phone ? (
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Phone</span>
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Phone className="h-3.5 w-3.5" />
+                    {customer.phone}
+                  </span>
+                </div>
+              ) : null}
 
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Phone</span>
-              <span className="font-medium">{contact.phone}</span>
-            </div>
+              {customer.email ? (
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Mail className="h-3.5 w-3.5" />
+                    {customer.email}
+                  </span>
+                </div>
+              ) : null}
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Arrival Preference</span>
-              <span className="font-medium">{contact.preference}</span>
+              {customer.primaryContact ? (
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Primary Contact</span>
+                  <span className="font-medium">{customer.primaryContact}</span>
+                </div>
+              ) : null}
+
+              {property.customerId ? (
+                <div className="pt-2">
+                  <Link
+                    href={ROUTE_BUILDERS.CUSTOMER_DETAIL(property.customerId)}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+                  >
+                    View Full Customer Profile
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">Name</span>
+                <span className="font-medium">{property.customer}</span>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                A customer name is recorded, but no linked customer profile was found.
+                Full contact details will appear here once the customer record is linked.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Additional property-level contacts (excludes the primary customer shown above) */}
+      {(() => {
+        const extraContacts = details.contacts.filter((c) => c.role !== "Primary Customer");
+        if (extraContacts.length === 0) return null;
+
+        return (
+          <div className="grid gap-6 lg:grid-cols-2">
+            {extraContacts.map((contact) => (
+              <Card key={contact.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <CardTitle>{contact.name}</CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">{contact.role}</p>
+                    </div>
+
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Phone</span>
+                    <span className="font-medium">{contact.phone}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Arrival Preference</span>
+                    <span className="font-medium">{contact.preference}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -584,7 +685,7 @@ export function PropertyDetailTabs({ property }: { property: Property }) {
       {activeTab === "photos" ? <PhotosSection details={details} /> : null}
 
       {activeTab === "contacts" ? (
-        <ContactsSection details={details} />
+        <ContactsSection details={details} property={property} />
       ) : null}
 
       {activeTab === "warranty" ? (

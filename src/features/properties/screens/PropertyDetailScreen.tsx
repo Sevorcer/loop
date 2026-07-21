@@ -1,15 +1,16 @@
+import Link from "next/link";
 import {
   Building2,
-  ClipboardList,
   Heart,
   MapPin,
-  Wrench,
 } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Property } from "../types/property";
 import { MapViewCard } from "../components/MapViewCard";
+import { PropertyDetailTabs } from "../components/PropertyDetailTabs";
 import { formatPropertyAddress } from "../utils/formatPropertyAddress";
 
 interface PropertyDetailScreenProps {
@@ -20,23 +21,6 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
 }
 
-const beforeYouGoItems = [
-  "Confirm property access and parking before arrival.",
-  "Review latest visit notes and open job context.",
-  "Verify equipment match before starting work.",
-];
-
-const homeIntelligenceItems = [
-  "Outdoor equipment located on the west side of the property.",
-  "Preferred customer contact is text message before arrival.",
-  "Filter size noted for future service preparation.",
-];
-
-const recentJobStories = (lastVisit: string) => [
-  { date: formatDate(lastVisit), title: "Annual maintenance completed" },
-  { date: "2/10/2026", title: "Warranty follow-up and system adjustment" },
-  { date: "11/18/2025", title: "Initial startup and commissioning" },
-];
 
 export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
   const statusVariant =
@@ -81,8 +65,6 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
     ? rawAddress
     : location?.formattedAddress || rawAddress;
 
-  const stories = recentJobStories(property.lastVisit);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -113,9 +95,18 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
                 {property.type}
               </span>
 
-              <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                Customer: {property.customer}
-              </span>
+              {property.customerId ? (
+                <Link
+                  href={ROUTE_BUILDERS.CUSTOMER_DETAIL(property.customerId)}
+                  className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
+                >
+                  Customer: {property.customer}
+                </Link>
+              ) : (
+                <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                  Customer: {property.customer}
+                </span>
+              )}
             </div>
           </div>
 
@@ -175,89 +166,8 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
         propertyName={property.name}
       />
 
-      {/* Content grid */}
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Job Stories</CardTitle>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              {stories.map((story) => (
-                <div
-                  key={`${story.date}-${story.title}`}
-                  className="flex items-start justify-between gap-4 border-b pb-4 last:border-b-0 last:pb-0"
-                >
-                  <div className="space-y-1">
-                    <p className="font-medium">{story.title}</p>
-                    <p className="text-sm text-muted-foreground">{story.date}</p>
-                  </div>
-
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Before You Go</CardTitle>
-            </CardHeader>
-
-            <CardContent className="pt-0">
-              <ul className="space-y-4 text-sm text-muted-foreground">
-                {beforeYouGoItems.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Active Systems</CardTitle>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium">{property.primarySystem}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Primary installed equipment for this property.
-                    </p>
-                  </div>
-
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Home Intelligence</CardTitle>
-            </CardHeader>
-
-            <CardContent>
-              <ul className="space-y-3 text-sm text-muted-foreground">
-                {homeIntelligenceItems.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      {/* Tabbed workspace */}
+      <PropertyDetailTabs property={property} />
     </div>
   );
 }
