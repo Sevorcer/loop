@@ -19,6 +19,8 @@ import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import { useJobs } from "../state/JobsProvider";
 import type { Job, JobStatus } from "../types/job";
+import type { JobActivity } from "../types/jobActivity";
+import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
 import { AssignContractorPanel } from "./AssignContractorPanel";
 import { JobNoteComposer } from "./JobNoteComposer";
@@ -43,11 +45,20 @@ function getPriorityVariant(priority: Job["priority"]) {
   return "neutral" as const;
 }
 
-export function JobDetailScreen({ job }: { job: Job }) {
+export function JobDetailScreen({
+  job,
+  initialActivity = [],
+}: {
+  job: Job;
+  initialActivity?: JobActivity[];
+}) {
   const { getJobById, getActivityByJobId, updateJobStatus, addJobNote } = useJobs();
 
   const currentJob = getJobById(job.id) ?? job;
-  const activity = getActivityByJobId(job.id);
+  const activity = useMemo(() => {
+    const liveActivity = getActivityByJobId(job.id);
+    return liveActivity.length > 0 ? sortJobActivity(liveActivity) : sortJobActivity(initialActivity);
+  }, [getActivityByJobId, initialActivity, job.id]);
 
   const badges = useMemo(
     () => ({
@@ -56,6 +67,8 @@ export function JobDetailScreen({ job }: { job: Job }) {
     }),
     [currentJob.priority, currentJob.status]
   );
+
+  const statusIntent = getJobStatusIntent(currentJob.status);
 
   return (
     <div className="space-y-6">
@@ -106,6 +119,13 @@ export function JobDetailScreen({ job }: { job: Job }) {
               </StatusBadge>
               <StatusBadge variant="neutral">{currentJob.type}</StatusBadge>
             </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Operational intent
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{statusIntent}</p>
+            </div>
           </div>
 
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-red-500/15 to-blue-500/10 ring-1 ring-white/10">
@@ -125,7 +145,7 @@ export function JobDetailScreen({ job }: { job: Job }) {
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="text-sm font-semibold text-white">Notes</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                {currentJob.notes}
+                {currentJob.notes || "No notes have been captured for this job yet."}
               </p>
             </div>
           </div>
@@ -134,7 +154,7 @@ export function JobDetailScreen({ job }: { job: Job }) {
         <div className="space-y-6">
           <SurfaceCard>
             <div className="p-6">
-              <h2 className="text-lg font-semibold text-white">Job Info</h2>
+              <h2 className="text-lg font-semibold text-white">Operational Context</h2>
 
               <div className="mt-5 space-y-4">
                 <div className="flex items-start gap-3">
@@ -144,7 +164,7 @@ export function JobDetailScreen({ job }: { job: Job }) {
                       Assigned To
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {currentJob.assignedTo}
+                      {currentJob.assignedTo || "No technician assigned"}
                     </p>
                   </div>
                 </div>
@@ -156,7 +176,9 @@ export function JobDetailScreen({ job }: { job: Job }) {
                       Scheduled For
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {formatDate(currentJob.scheduledFor)}
+                      {currentJob.scheduledFor
+                        ? formatDate(currentJob.scheduledFor)
+                        : "No schedule set"}
                     </p>
                   </div>
                 </div>
@@ -189,22 +211,53 @@ export function JobDetailScreen({ job }: { job: Job }) {
                       </Link>
                     ) : (
                       <p className="mt-1 text-sm text-slate-200">
-                        {currentJob.customerName}
+                        {currentJob.customerName || "No customer linked"}
                       </p>
                     )}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {currentJob.customerId
+                        ? "Linked customer record"
+                        : "Reference only — no linked customer record"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Property
+                    </p>
                     {currentJob.propertyId ? (
                       <Link
                         href={ROUTE_BUILDERS.PROPERTY_DETAIL(currentJob.propertyId)}
-                        className="mt-1 inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 hover:underline"
+                        className="mt-1 inline-flex items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
                       >
                         {currentJob.propertyName}
-                        <ExternalLink className="h-2.5 w-2.5" />
+                        <ExternalLink className="h-3 w-3" />
                       </Link>
                     ) : (
-                      <p className="mt-1 text-xs text-slate-400">
-                        {currentJob.propertyName}
+                      <p className="mt-1 text-sm text-slate-200">
+                        {currentJob.propertyName || "No property linked"}
                       </p>
                     )}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {currentJob.propertyId
+                        ? "Linked property record"
+                        : "Reference only — no linked property record"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Wrench className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Status Intent
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-200">
+                      {statusIntent}
+                    </p>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,3 @@
-import { listJobs } from "@/repositories/jobs";
 import { loadDispatchSnapshot } from "@/services/dispatch";
 import { DispatchScreen } from "@/features/dispatch";
 import type { DispatchSnapshot } from "@/features/dispatch/types/dispatch";
@@ -14,6 +13,7 @@ const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
     scheduled: 0,
     inProgress: 0,
     awaitingMaterials: 0,
+    awaitingTechnicalReadiness: 0,
     awaitingCustomer: 0,
     awaitingCrew: 0,
     totalPlans: 0,
@@ -21,10 +21,7 @@ const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
 };
 
 export default async function DispatchPage() {
-  const [jobs, snapshot] = await Promise.all([
-    listJobs().catch(() => []),
-    loadDispatchSnapshot().catch(() => null),
-  ]);
+  const snapshot = await loadDispatchSnapshot().catch(() => null);
 
   // loadDispatchSnapshot returns DispatchRepositorySnapshot (plans/assignments/etc.)
   // Map to the DispatchSnapshot shape expected by DispatchScreen.
@@ -39,5 +36,5 @@ export default async function DispatchPage() {
       }
     : EMPTY_DISPATCH_SNAPSHOT;
 
-  return <DispatchScreen jobs={jobs} snapshot={dispatchSnapshot} />;
+  return <DispatchScreen snapshot={dispatchSnapshot} />;
 }

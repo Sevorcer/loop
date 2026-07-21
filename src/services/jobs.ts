@@ -11,6 +11,7 @@ import {
   deleteJob as deleteJobRecord,
   getJobById,
   getJobRowById,
+  listActivityByJobId,
   listJobActivity as listAllJobActivity,
   listJobs,
   listJobsByCustomerId,
@@ -102,8 +103,7 @@ export async function getJob(id: string): Promise<Job | null> {
 }
 
 export async function listJobActivity(jobId: string): Promise<JobActivity[]> {
-  const activity = await listAllJobActivity();
-  return activity.filter((entry) => entry.jobId === jobId);
+  return listActivityByJobId(jobId);
 }
 
 export async function createJobActivity(

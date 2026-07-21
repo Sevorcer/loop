@@ -6,6 +6,7 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 
 import type { JobStatus } from "../types/job";
+import { getJobStatusIntent } from "../utils/jobWorkspace";
 
 function getStatusVariant(status: JobStatus) {
   if (status === "Completed") return "success" as const;
@@ -23,16 +24,7 @@ export function JobStatusActions({
   onChangeStatus: (status: JobStatus) => Promise<void> | void;
 }) {
   const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
-  const helperText =
-    status === "Scheduled"
-      ? "This job is scheduled and ready to be started when the technician is dispatched."
-      : status === "In Progress"
-        ? "This job is actively being worked and should be monitored for completion or blockers."
-        : status === "On Hold"
-          ? "This job is currently paused and may require approval, parts, or customer follow-up."
-          : status === "Completed"
-            ? "This job has been completed and is ready for closeout review or documentation."
-            : "This job has been cancelled and is no longer active in the execution workflow.";
+  const helperText = getJobStatusIntent(status);
 
   async function handleChange(nextStatus: JobStatus) {
     try {
