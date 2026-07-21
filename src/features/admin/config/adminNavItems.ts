@@ -26,6 +26,9 @@ export interface AdminNavItem {
  */
 export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { name: "Organizations", href: ADMIN_ROUTES.ORGANIZATIONS },
+  { name: "Import Customers", href: ADMIN_ROUTES.IMPORT_CUSTOMERS },
+  { name: "Import Properties", href: ADMIN_ROUTES.IMPORT_PROPERTIES },
+  { name: "Import Jobs", href: ADMIN_ROUTES.IMPORT_JOBS },
 ] as const;
 
 // ─── Planned governance modules (displayed as placeholders on the landing) ───
