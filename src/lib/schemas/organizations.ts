@@ -17,6 +17,8 @@ export const CreateOrganizationSchema = z.object({
 });
 
 export const UpdateOrganizationSchema = z.object({
+  // `name` is optional (omitting it is a no-op).  When provided it must be
+  // non-empty — the API does not support clearing the organization name.
   name: z
     .string()
     .trim()
