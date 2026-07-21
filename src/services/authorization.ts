@@ -49,7 +49,11 @@ export type CoreTable =
   | "installed_systems"
   | "knowledge_items"
   | "portal_projects"
-  | "performance_models";
+  | "performance_models"
+  // Sprint 29 — admin CRUD tables
+  // Organizations are platform-level; mutations restricted to `owner` until
+  // the S29-002 `platform_admin` role is introduced.
+  | "organizations";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -183,6 +187,17 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager"]),
     update: new Set<AppRole>(["owner", "manager"]),
     delete: new Set<AppRole>(["owner", "manager"]),
+  },
+
+  // ── Sprint 29 — admin CRUD tables ─────────────────────────────────────────
+  // Organizations are platform-level records. Until the `platform_admin` role
+  // is introduced in S29-002, `owner` stands in as the most privileged role.
+  // All other roles may read; only `owner` may mutate.
+  organizations: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner"]),
+    update: new Set<AppRole>(["owner"]),
+    delete: new Set<AppRole>(["owner"]),
   },
 };
 

@@ -29,7 +29,8 @@ export type AuditResource =
   | "contractors"
   | "job_activity"
   | "portal_users"
-  | "portal_memberships";
+  | "portal_memberships"
+  | "organizations";
 
 export interface AuditEvent {
   /** The role that performed the action. */
