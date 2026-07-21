@@ -13,7 +13,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { Customer } from "../types/customer";
-import type { CustomerDetails } from "../types/customerDetails";
+import type {
+  CustomerContactItem,
+  CustomerJobItem,
+  CustomerNoteItem,
+  CustomerPropertyItem,
+  CustomerTimelineItem,
+} from "../types/customerDetails";
 
 type CustomerDetailTabKey =
   | "overview"
@@ -41,53 +47,44 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
 }
 
-function getCustomerDetails(customer: Customer): CustomerDetails {
-  return {
-    customerId: customer.id,
-    accountSummary: [
-      "Customer profile is active and ready for deeper service relationship tracking.",
-      "No additional account intelligence has been recorded yet.",
-    ],
-    properties: [],
-    jobs: [],
-    contacts: [
-      {
-        id: `${customer.id}-primary-contact`,
-        name: customer.primaryContact,
-        role: "Primary Contact",
-        phone: customer.phone,
-        email: customer.email,
-        preference: "Not recorded",
-      },
-    ],
-    timeline: [
-      {
-        id: `${customer.id}-timeline-created`,
-        title: "Customer created in LOOP",
-        date: customer.createdAt,
-        description: "Customer account was added and made available for operations.",
-      },
-      {
-        id: `${customer.id}-timeline-activity`,
-        title: "Latest recorded activity",
-        date: customer.lastActivity,
-        description: "Latest account activity recorded for historical visibility.",
-      },
-    ],
-    notes: [
-      {
-        id: `${customer.id}-note-default`,
-        body: "No account notes have been recorded yet.",
-      },
-    ],
-  };
+function buildDerivedDetails(customer: Customer) {
+  const contacts: CustomerContactItem[] = [
+    {
+      id: `${customer.id}-primary-contact`,
+      name: customer.primaryContact,
+      role: "Primary Contact",
+      phone: customer.phone,
+      email: customer.email,
+      preference: "Not recorded",
+    },
+  ];
+
+  const timeline: CustomerTimelineItem[] = [
+    {
+      id: `${customer.id}-timeline-created`,
+      title: "Customer created in LOOP",
+      date: customer.createdAt,
+      description: "Customer account was added and made available for operations.",
+    },
+    {
+      id: `${customer.id}-timeline-activity`,
+      title: "Latest recorded activity",
+      date: customer.lastActivity,
+      description: "Latest account activity recorded for historical visibility.",
+    },
+  ];
+
+  const notes: CustomerNoteItem[] = [
+    {
+      id: `${customer.id}-note-default`,
+      body: "No account notes have been recorded yet.",
+    },
+  ];
+
+  return { contacts, timeline, notes };
 }
 
-function OverviewSection({
-  accountSummary,
-}: {
-  accountSummary: string[];
-}) {
+function OverviewSection({ customer }: { customer: Customer }) {
   return (
     <Card>
       <CardHeader>
@@ -96,20 +93,30 @@ function OverviewSection({
 
       <CardContent>
         <ul className="space-y-4 text-sm text-muted-foreground">
-          {accountSummary.map((item) => (
-            <li key={item} className="flex items-start gap-3">
-              <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-              <span>{item}</span>
-            </li>
-          ))}
+          <li className="flex items-start gap-3">
+            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+            <span>Customer profile is active and ready for service relationship tracking.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+            <span>
+              {customer.propertyCount} propert{customer.propertyCount === 1 ? "y" : "ies"} linked
+              — {customer.openJobs} open job{customer.openJobs === 1 ? "" : "s"} across the
+              portfolio.
+            </span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+            <span>Last activity recorded on {formatDate(customer.lastActivity)}.</span>
+          </li>
         </ul>
       </CardContent>
     </Card>
   );
 }
 
-function PropertiesSection({ details }: { details: CustomerDetails }) {
-  if (details.properties.length === 0) {
+function PropertiesSection({ properties }: { properties: CustomerPropertyItem[] }) {
+  if (properties.length === 0) {
     return (
       <EmptyState
         title="No linked properties yet"
@@ -120,7 +127,7 @@ function PropertiesSection({ details }: { details: CustomerDetails }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {details.properties.map((property) => (
+      {properties.map((property) => (
         <Link key={property.id} href={`/properties/${property.id}`} className="block">
           <Card className="hover-lift h-full transition-atlas hover:border-primary/40">
             <CardHeader>
@@ -158,8 +165,8 @@ function PropertiesSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-function JobsSection({ details }: { details: CustomerDetails }) {
-  if (details.jobs.length === 0) {
+function JobsSection({ jobs }: { jobs: CustomerJobItem[] }) {
+  if (jobs.length === 0) {
     return (
       <EmptyState
         title="No jobs linked yet"
@@ -175,7 +182,7 @@ function JobsSection({ details }: { details: CustomerDetails }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {details.jobs.map((job) => (
+        {jobs.map((job) => (
           <div key={job.id} className="rounded-xl border bg-muted/20 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -183,9 +190,7 @@ function JobsSection({ details }: { details: CustomerDetails }) {
                 <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
               </div>
 
-              <StatusBadge
-                variant={job.status === "Completed" ? "success" : "warning"}
-              >
+              <StatusBadge variant={job.status === "Completed" ? "success" : "warning"}>
                 {job.status}
               </StatusBadge>
             </div>
@@ -193,16 +198,12 @@ function JobsSection({ details }: { details: CustomerDetails }) {
             <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
               <div>
                 <p className="text-xs uppercase tracking-wide">Scheduled For</p>
-                <p className="mt-1 font-medium text-foreground">
-                  {formatDate(job.scheduledFor)}
-                </p>
+                <p className="mt-1 font-medium text-foreground">{formatDate(job.scheduledFor)}</p>
               </div>
 
               <div>
                 <p className="text-xs uppercase tracking-wide">Property</p>
-                <p className="mt-1 font-medium text-foreground">
-                  {job.propertyName}
-                </p>
+                <p className="mt-1 font-medium text-foreground">{job.propertyName}</p>
               </div>
             </div>
           </div>
@@ -212,10 +213,10 @@ function JobsSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-function ContactsSection({ details }: { details: CustomerDetails }) {
+function ContactsSection({ contacts }: { contacts: CustomerContactItem[] }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {details.contacts.map((contact) => (
+      {contacts.map((contact) => (
         <Card key={contact.id}>
           <CardHeader>
             <CardTitle>{contact.name}</CardTitle>
@@ -248,16 +249,16 @@ function ContactsSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-function TimelineSection({ details }: { details: CustomerDetails }) {
+function TimelineSection({ timeline }: { timeline: CustomerTimelineItem[] }) {
   const timelineItems = useMemo(
     () =>
-      details.timeline.map((event) => ({
+      timeline.map((event) => ({
         id: event.id,
         title: event.title,
         date: formatDate(event.date),
         description: event.description,
       })),
-    [details.timeline]
+    [timeline],
   );
 
   return (
@@ -273,7 +274,7 @@ function TimelineSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-function NotesSection({ details }: { details: CustomerDetails }) {
+function NotesSection({ notes }: { notes: CustomerNoteItem[] }) {
   return (
     <Card>
       <CardHeader>
@@ -281,7 +282,7 @@ function NotesSection({ details }: { details: CustomerDetails }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {details.notes.map((note) => (
+        {notes.map((note) => (
           <div
             key={note.id}
             className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground"
@@ -294,40 +295,35 @@ function NotesSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-export function CustomerDetailTabs({ customer }: { customer: Customer }) {
-  const [activeTab, setActiveTab] =
-    useState<CustomerDetailTabKey>("overview");
+interface CustomerDetailTabsProps {
+  customer: Customer;
+  properties: CustomerPropertyItem[];
+  jobs: CustomerJobItem[];
+}
 
-  const details = useMemo(() => getCustomerDetails(customer), [customer]);
+export function CustomerDetailTabs({ customer, properties, jobs }: CustomerDetailTabsProps) {
+  const [activeTab, setActiveTab] = useState<CustomerDetailTabKey>("overview");
+
+  const { contacts, timeline, notes } = useMemo(
+    () => buildDerivedDetails(customer),
+    [customer],
+  );
 
   return (
     <div className="space-y-6">
-      <AtlasTabs
-        items={tabs}
-        value={activeTab}
-        onChange={setActiveTab}
-        sticky
-      />
+      <AtlasTabs items={tabs} value={activeTab} onChange={setActiveTab} sticky />
 
-      {activeTab === "overview" ? (
-        <OverviewSection accountSummary={details.accountSummary} />
-      ) : null}
+      {activeTab === "overview" ? <OverviewSection customer={customer} /> : null}
 
-      {activeTab === "properties" ? (
-        <PropertiesSection details={details} />
-      ) : null}
+      {activeTab === "properties" ? <PropertiesSection properties={properties} /> : null}
 
-      {activeTab === "jobs" ? <JobsSection details={details} /> : null}
+      {activeTab === "jobs" ? <JobsSection jobs={jobs} /> : null}
 
-      {activeTab === "contacts" ? (
-        <ContactsSection details={details} />
-      ) : null}
+      {activeTab === "contacts" ? <ContactsSection contacts={contacts} /> : null}
 
-      {activeTab === "timeline" ? (
-        <TimelineSection details={details} />
-      ) : null}
+      {activeTab === "timeline" ? <TimelineSection timeline={timeline} /> : null}
 
-      {activeTab === "notes" ? <NotesSection details={details} /> : null}
+      {activeTab === "notes" ? <NotesSection notes={notes} /> : null}
     </div>
   );
 }
