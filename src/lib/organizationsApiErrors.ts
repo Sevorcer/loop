@@ -6,25 +6,12 @@ interface AdminErrorResponse {
   error: AdminApiError;
 }
 
-const SUPPORTED_STATUSES: readonly AdminHttpStatus[] = [400, 401, 403, 404, 409, 500];
-
-function normalizeStatus(status: number): AdminHttpStatus {
-  if (SUPPORTED_STATUSES.includes(status as AdminHttpStatus)) {
-    return status as AdminHttpStatus;
-  }
-  return 500;
-}
-
-function normalizeFieldErrors(
+export function normalizeFieldErrors(
   fieldErrors: Record<string, string[] | undefined>,
 ): Record<string, string[]> {
-  const normalized = Object.entries(fieldErrors).reduce<Record<string, string[]>>(
+  return Object.entries(fieldErrors).reduce<Record<string, string[]>>(
     (acc, [field, errors]) => {
-      if (!errors || errors.length === 0) {
-        return acc;
-      }
-
-      const messages = errors.filter((message) => Boolean(message));
+      const messages = (errors ?? []).filter(Boolean);
       if (messages.length > 0) {
         acc[field] = messages;
       }
@@ -32,14 +19,10 @@ function normalizeFieldErrors(
     },
     {},
   );
-
-  return normalized;
 }
 
 export function organizationPermissionDenied(status: number): AdminErrorResponse {
-  const normalizedStatus = normalizeStatus(status);
-
-  if (normalizedStatus === 401) {
+  if (status === 401) {
     return {
       status: 401,
       error: buildAdminApiError(401, "Authentication required."),
@@ -70,7 +53,6 @@ export function organizationNotFound(id: string): AdminErrorResponse {
 
 export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   const message = error instanceof Error ? error.message : "Unknown server error.";
-  const lowerMessage = message.toLowerCase();
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
     return {
@@ -82,14 +64,16 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   if (
     message === "SUPABASE_SESSION_REQUIRED" ||
     message === "USER_PROFILE_NOT_FOUND" ||
-    lowerMessage.includes("unauthorized") ||
-    lowerMessage.includes("authentication")
+    message.toLowerCase().includes("unauthorized") ||
+    message.toLowerCase().includes("authentication")
   ) {
     return {
       status: 401,
       error: buildAdminApiError(401, "A valid session is required."),
     };
   }
+
+  const lowerMessage = message.toLowerCase();
 
   if (
     lowerMessage.includes("permission") ||

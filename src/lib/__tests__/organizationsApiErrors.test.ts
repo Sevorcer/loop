@@ -2,10 +2,35 @@ import { describe, expect, it } from "vitest";
 
 import {
   mapOrganizationRouteError,
+  normalizeFieldErrors,
   organizationNotFound,
   organizationPermissionDenied,
   organizationValidationFailed,
 } from "@/lib/organizationsApiErrors";
+
+describe("normalizeFieldErrors", () => {
+  it("drops undefined and empty error arrays", () => {
+    const result = normalizeFieldErrors({
+      name: ["Name is required."],
+      empty: [],
+      unknown: undefined,
+    });
+
+    expect(result).toEqual({
+      name: ["Name is required."],
+    });
+  });
+
+  it("drops falsy messages from arrays", () => {
+    const result = normalizeFieldErrors({
+      name: ["", "Name is required.", " "],
+    });
+
+    expect(result).toEqual({
+      name: ["Name is required.", " "],
+    });
+  });
+});
 
 describe("organizationPermissionDenied", () => {
   it("maps 401 to unauthenticated contract", () => {
@@ -16,6 +41,12 @@ describe("organizationPermissionDenied", () => {
 
   it("maps non-401 to forbidden contract", () => {
     const result = organizationPermissionDenied(403);
+    expect(result.status).toBe(403);
+    expect(result.error.code).toBe("forbidden");
+  });
+
+  it("maps unexpected statuses to forbidden contract", () => {
+    const result = organizationPermissionDenied(418);
     expect(result.status).toBe(403);
     expect(result.error.code).toBe("forbidden");
   });

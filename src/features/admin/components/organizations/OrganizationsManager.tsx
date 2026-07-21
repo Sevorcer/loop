@@ -35,9 +35,17 @@ interface ParsedApiError {
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+const PAGE_SIZE_OPTION_SET = new Set<number>(PAGE_SIZE_OPTIONS);
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
+}
+
+function getPaginationLabel(page: number, pageSize: number, total: number): string {
+  if (total === 0) return "0 results";
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+  return `${start}-${end} of ${total}`;
 }
 
 async function parseApiError(response: Response): Promise<ParsedApiError> {
@@ -92,6 +100,7 @@ export function OrganizationsManager() {
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string[]>>({});
   const [editError, setEditError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
   const hasOrganizations = organizations.length > 0;
@@ -147,14 +156,12 @@ export function OrganizationsManager() {
   }, [getHeaders, includeDeleted, page, pageSize, search, selectPermission.allowed]);
 
   useEffect(() => {
-    void loadOrganizations();
+    // loadOrganizations performs immediate loading-state updates; deferring to
+    // a microtask avoids synchronous setState in the effect body.
+    queueMicrotask(() => {
+      void loadOrganizations();
+    });
   }, [loadOrganizations]);
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
 
   function resetCreateState() {
     setCreateName("");
@@ -250,10 +257,6 @@ export function OrganizationsManager() {
 
   async function deleteOrganization(id: string) {
     if (!deletePermission.allowed || deletingId) return;
-    const confirmed = window.confirm(
-      "Delete this organization? This is a soft delete and can affect linked records.",
-    );
-    if (!confirmed) return;
 
     setDeletingId(id);
     try {
@@ -269,6 +272,7 @@ export function OrganizationsManager() {
       }
 
       await loadOrganizations();
+      setConfirmingDeleteId(null);
     } catch {
       setListError("Failed to delete organization.");
     } finally {
@@ -315,7 +319,7 @@ export function OrganizationsManager() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search organizations"
-                className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               />
             </AdminFieldWrapper>
           </div>
@@ -325,10 +329,14 @@ export function OrganizationsManager() {
               id="organization-page-size"
               value={pageSize}
               onChange={(event) => {
+                const nextSize = Number(event.target.value);
+                if (!PAGE_SIZE_OPTION_SET.has(nextSize)) {
+                  return;
+                }
                 setPage(1);
-                setPageSize(Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+                setPageSize(nextSize as (typeof PAGE_SIZE_OPTIONS)[number]);
               }}
-              className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+              className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -368,7 +376,7 @@ export function OrganizationsManager() {
                 value={createName}
                 onChange={(event) => setCreateName(event.target.value)}
                 placeholder="Example: Northwest HVAC Group"
-                className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               />
               <AdminFieldError fieldId="organization-create-name" errors={createFieldErrors.name} />
             </AdminFieldWrapper>
@@ -391,7 +399,7 @@ export function OrganizationsManager() {
                 id="organization-edit-name"
                 value={editName}
                 onChange={(event) => setEditName(event.target.value)}
-                className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                className="w-full rounded-lg border border-default bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               />
               <AdminFieldError fieldId="organization-edit-name" errors={editFieldErrors.name} />
             </AdminFieldWrapper>
@@ -472,14 +480,35 @@ export function OrganizationsManager() {
                           </Button>
                         ) : null}
                         {deletePermission.allowed ? (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={Boolean(organization.deletedAt) || deletingId === organization.id}
-                            onClick={() => void deleteOrganization(organization.id)}
-                          >
-                            {deletingId === organization.id ? "Deleting..." : "Delete"}
-                          </Button>
+                          confirmingDeleteId === organization.id ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={deletingId === organization.id}
+                                onClick={() => void deleteOrganization(organization.id)}
+                              >
+                                {deletingId === organization.id ? "Deleting..." : "Confirm"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={deletingId === organization.id}
+                                onClick={() => setConfirmingDeleteId(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={Boolean(organization.deletedAt)}
+                              onClick={() => setConfirmingDeleteId(organization.id)}
+                            >
+                              Delete
+                            </Button>
+                          )
                         ) : null}
                       </div>
                     </td>
@@ -490,9 +519,7 @@ export function OrganizationsManager() {
         </div>
 
         <div className="mt-4 flex items-center justify-between text-sm text-muted">
-          <span>
-            {total === 0 ? "0 results" : `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} of ${total}`}
-          </span>
+          <span>{getPaginationLabel(page, pageSize, total)}</span>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
