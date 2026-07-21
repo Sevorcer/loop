@@ -1,0 +1,345 @@
+sprint:
+  id: 30
+  name: "Operational Workspace Foundation"
+  timeframe: "1 sprint"
+  status: "planned"
+  owner: "Sevorcer"
+  updated_at: "2026-07-21"
+
+goal:
+  summary: >
+    Connect the core operational screens (Jobs, Customers, Properties, Dispatch)
+    to live Supabase data, establish Operations Home as the real-time company
+    orientation layer, and deliver the seed-to-UI bridge with CSV import so
+    teams can work entirely from the live workspace — no direct SQL or file edits.
+  success_metrics:
+    - "All primary operational screens read and write from Supabase (no mock state)"
+    - "Operations Home reflects live KPI data pulled from backend"
+    - "CSV import pipeline functional with dry-run preview and error reporting"
+    - "Seed fixture data visible in UI without manual SQL intervention"
+    - "No localStorage/provider-backed mock state remaining in core operational features"
+
+scope:
+  in_scope:
+    - "Operations Home wired to live Supabase KPI and summary queries"
+    - "Jobs list + detail screens reading from Supabase repository layer"
+    - "Customers list + detail screens reading from Supabase repository layer"
+    - "Properties list + detail screens reading from Supabase repository layer"
+    - "Dispatch board reading live job records"
+    - "Seed-to-UI bridge: golden_path fixtures visible in operational screens"
+    - "CSV import API with dry-run mode, row-level error reporting, and commit flow"
+    - "Unified empty and loading states across operational screens"
+    - "Server Component data-fetching refactor for list screens (eliminate client-side fetches where possible)"
+  out_of_scope:
+    - "Advanced job workflow orchestration and status transitions (Sprint 31)"
+    - "Release and migration automation (Sprint 31)"
+    - "Daily Plans and Live Operations Supabase wiring (Sprint 31)"
+    - "Data governance, history views, duplicate detection (Sprint 32)"
+    - "Real-time subscriptions / WebSocket push (post-Sprint 32)"
+    - "Photo and document upload UX improvements (future)"
+
+operational_domains:
+  notes:
+    - "Sprint 30 is primarily about connecting Operations Home and Work Orders domains to live data."
+    - "Daily Plans and Live Operations wiring is deferred to Sprint 31 to keep scope manageable."
+  primary_domain: "Operations Home + Work Orders"
+  supporting_domains:
+    - "Customers"
+    - "Properties"
+    - "Dispatch"
+  constitution_alignment: >
+    Operations Home is the orientation layer of LOOP. It should answer: what kind of day is
+    this, what requires attention first, where is risk building? Sprint 30 gives it the live
+    data to answer those questions. Work Orders (Jobs) are the operational engine. Sprint 30
+    replaces every mock seam with a real repository call so the platform reflects operational
+    truth.
+
+data_migration:
+  seed_to_ui_bridge:
+    description: >
+      The golden_path fixture dataset (database/fixtures/golden_path/) must surface correctly
+      in the operational screens after db:reseed without any manual intervention.
+    requirements:
+      - "Run db:reseed and verify Jobs, Customers, Properties screens show fixture data"
+      - "Ensure soft-deleted records are hidden by default in all list queries"
+      - "Audit fields (created_at, updated_at) display correctly in detail views"
+  csv_import:
+    description: >
+      Import pipeline for Jobs, Customers, and Properties to allow operators to onboard
+      existing data without direct SQL access.
+    requirements:
+      - "POST /api/import/:entity accepts multipart CSV upload"
+      - "Dry-run mode validates all rows without writing; returns per-row error report"
+      - "Commit mode inserts validated rows transactionally; partial success not allowed"
+      - "Import results returned as structured JSON: total, inserted, skipped, errors[]"
+      - "Admin UI: import page per entity with file picker, dry-run preview table, and commit button"
+      - "Zod schema reused from admin CRUD validation layer"
+      - "Authorization: ops_admin or platform_admin required"
+
+operations_home:
+  description: >
+    Operations Home (dashboard) becomes the real company orientation layer when wired to
+    live data. KPI values and summary panels must reflect actual Supabase state.
+  live_data_requirements:
+    - "Active jobs count (status: dispatched | in_progress)"
+    - "Jobs completed today"
+    - "Jobs scheduled for today"
+    - "Blocked / at-risk jobs count"
+    - "Unassigned jobs count"
+    - "Customers created this month"
+    - "Properties in portfolio"
+  implementation_notes:
+    - "Expose a summary query in src/repositories/dashboard.ts"
+    - "Wire via a Server Component data-fetch in DashboardScreen or a route handler"
+    - "KPI cards show '--' skeleton during loading, not 0"
+    - "No client-side polling in this sprint; static Server Component fetch is sufficient"
+
+api_contract:
+  import_endpoint:
+    path: "POST /api/import/:entity"
+    supported_entities:
+      - "customers"
+      - "properties"
+      - "jobs"
+    query_params:
+      - name: "mode"
+        values: ["dry_run", "commit"]
+        default: "dry_run"
+    response_shape:
+      fields:
+        - "mode"
+        - "entity"
+        - "total"
+        - "inserted"
+        - "skipped"
+        - "errors: [{ row, field, message }]"
+    http_mapping:
+      "200": "dry_run completed or commit succeeded"
+      "400": "validation_failure or malformed CSV"
+      "401": "unauthenticated"
+      "403": "forbidden"
+      "422": "all rows failed validation"
+      "500": "internal_error"
+  authorization:
+    library: "existing src/lib/api-auth.ts"
+    note: "Import endpoints use requirePermission following Sprint 29 contract."
+
+work_breakdown:
+  execution_order:
+    - "Operations Home wiring"
+    - "Jobs operational screen wiring"
+    - "Customers + Properties operational screen wiring"
+    - "Dispatch board wiring"
+    - "Seed-to-UI bridge verification"
+    - "CSV import pipeline"
+    - "Hardening + QA"
+  epics:
+    - id: "S30-E1"
+      name: "Operations Home — Live Data"
+      priority: "P0"
+      items:
+        - id: "S30-001"
+          title: "Create dashboard summary repository query"
+          estimate_points: 3
+          depends_on: []
+          acceptance:
+            - "src/repositories/dashboard.ts exposes getDashboardSummary()"
+            - "Returns live KPI counts from Supabase"
+            - "Excludes soft-deleted records"
+        - id: "S30-002"
+          title: "Wire Operations Home KPI cards to live data"
+          estimate_points: 3
+          depends_on: ["S30-001"]
+          acceptance:
+            - "DashboardScreen fetches live KPIs via Server Component"
+            - "KPI cards show real values from database"
+            - "No mock data or hardcoded numbers remain in dashboard"
+
+    - id: "S30-E2"
+      name: "Jobs Operational Screen — Live Data"
+      priority: "P0"
+      items:
+        - id: "S30-010"
+          title: "Refactor JobsScreen to fetch from Supabase repository"
+          estimate_points: 5
+          depends_on: []
+          acceptance:
+            - "JobsScreen is a Server Component rendering live jobs list"
+            - "JobTable reads from API route or direct server fetch"
+            - "Filters (status, type, date) work against live data"
+            - "No mock data provider remains"
+        - id: "S30-011"
+          title: "Wire job detail screen to Supabase"
+          estimate_points: 3
+          depends_on: ["S30-010"]
+          acceptance:
+            - "Job detail page fetches single job + activity log from Supabase"
+            - "Edit and status mutation flows write through existing API route"
+            - "404 handled correctly for missing records"
+
+    - id: "S30-E3"
+      name: "Customers + Properties Operational Screens — Live Data"
+      priority: "P0"
+      items:
+        - id: "S30-020"
+          title: "Refactor CustomersScreen to fetch from Supabase"
+          estimate_points: 3
+          depends_on: []
+          acceptance:
+            - "CustomerTable reads live data"
+            - "New/edit/delete flows write through API routes"
+            - "LocalStorage-backed CustomersProvider removed or isolated behind feature flag"
+        - id: "S30-021"
+          title: "Refactor PropertiesScreen to fetch from Supabase"
+          estimate_points: 3
+          depends_on: []
+          acceptance:
+            - "Properties list reads live data"
+            - "Property detail reads live data including artifacts"
+            - "No mock data remains in primary read paths"
+
+    - id: "S30-E4"
+      name: "Dispatch Board — Live Data"
+      priority: "P1"
+      items:
+        - id: "S30-030"
+          title: "Wire Dispatch board to live job records"
+          estimate_points: 5
+          depends_on: ["S30-010"]
+          acceptance:
+            - "DispatchScreen reads jobs from Supabase via API or server fetch"
+            - "Board groups (active, ready, scheduled, blocked) reflect live job statuses"
+            - "DispatchProvider replaced or delegated to repository layer"
+
+    - id: "S30-E5"
+      name: "Seed-to-UI Bridge"
+      priority: "P0"
+      items:
+        - id: "S30-040"
+          title: "Verify golden_path fixtures visible in all operational screens"
+          estimate_points: 3
+          depends_on: ["S30-010", "S30-020", "S30-021"]
+          acceptance:
+            - "db:reseed followed by app start shows seeded data in Jobs, Customers, Properties"
+            - "No manual SQL required after reseed"
+            - "Soft-deleted records absent from list views"
+            - "Documented in docs/database-seeding.md"
+
+    - id: "S30-E6"
+      name: "CSV Import Pipeline"
+      priority: "P1"
+      items:
+        - id: "S30-050"
+          title: "CSV import API for Customers, Properties, Jobs"
+          estimate_points: 8
+          depends_on: ["S30-020", "S30-021", "S30-010"]
+          acceptance:
+            - "POST /api/import/customers, /api/import/properties, /api/import/jobs"
+            - "Dry-run returns per-row error report without writing"
+            - "Commit mode transactional — full success or full rollback"
+            - "Reuses Zod schemas from Sprint 29 admin CRUD layer"
+            - "Authorization enforced (ops_admin / platform_admin)"
+        - id: "S30-051"
+          title: "Admin import UI pages"
+          estimate_points: 5
+          depends_on: ["S30-050"]
+          acceptance:
+            - "Import page per entity under /admin/{entity}/import"
+            - "File picker, dry-run preview table with error highlighting, commit button"
+            - "Import summary (total / inserted / skipped / errors) displayed after commit"
+            - "Navigation from entity list page to import page"
+
+    - id: "S30-E7"
+      name: "Shared UX Patterns + QA Hardening"
+      priority: "P0"
+      items:
+        - id: "S30-060"
+          title: "Unified empty and loading states across operational screens"
+          estimate_points: 3
+          depends_on: ["S30-010", "S30-020", "S30-021"]
+          acceptance:
+            - "EmptyState ATLAS component used consistently on all list screens"
+            - "LoadingState rendered during async fetch on all operational screens"
+            - "No spinner-less blank states remain"
+        - id: "S30-061"
+          title: "Integration regression pack for live data paths"
+          estimate_points: 5
+          depends_on: ["S30-001", "S30-010", "S30-020", "S30-021", "S30-050"]
+          acceptance:
+            - "Tests cover live-data fetch paths for Jobs, Customers, Properties"
+            - "Import dry-run + commit flows covered"
+            - "Seed visibility assertion documented"
+
+priority_plan:
+  p0_must_ship:
+    - "S30-001"
+    - "S30-002"
+    - "S30-010"
+    - "S30-011"
+    - "S30-020"
+    - "S30-021"
+    - "S30-040"
+    - "S30-060"
+    - "S30-061"
+  p1_should_ship:
+    - "S30-030"
+    - "S30-050"
+    - "S30-051"
+  p2_if_time:
+    - "Daily Plans Supabase wiring (preview)"
+    - "Live Operations Supabase wiring (preview)"
+    - "Saved filter state persistence"
+
+definition_of_done:
+  functional:
+    - "Operational screens show live Supabase data with no mock fallback in primary paths"
+    - "Operations Home KPIs reflect real database counts"
+    - "db:reseed followed by app start shows golden_path data in all screens"
+    - "CSV import pipeline functional in dry-run and commit modes"
+  quality:
+    - "npm run build succeeds with zero TypeScript errors"
+    - "npm run lint passes"
+    - "Integration tests cover live data paths and import pipeline"
+    - "No unused mock providers or hardcoded arrays in operational screens"
+  architecture:
+    - "Server Components used for list and detail data-fetching where possible"
+    - "Repository layer (src/repositories/) is the single data-access boundary"
+    - "No business logic in page.tsx files"
+    - "ATLAS components (EmptyState, LoadingState) used consistently"
+  operational:
+    - "database-seeding.md updated to confirm seed-to-UI bridge"
+    - "Import workflow documented in docs/"
+
+risks_and_mitigations:
+  - risk: "Mock provider removal breaks features that aren't fully wired yet"
+    mitigation: >
+      Remove mock providers last, after live fetch paths are verified.
+      Use feature-flag pattern (env var) if a screen needs a safe fallback during transition.
+  - risk: "CSV import scope expands due to edge-case data quality"
+    mitigation: >
+      Treat import as append-only in Sprint 30. Deduplication and conflict resolution
+      are deferred to Sprint 32 data governance sprint.
+  - risk: "Dispatch board complexity delays P0 work"
+    mitigation: >
+      Dispatch board is P1. If P0 work runs long, defer S30-030 to Sprint 31
+      which already covers Live Operations wiring.
+  - risk: "Server Component refactor causes hydration mismatches"
+    mitigation: >
+      Isolate 'use client' boundaries carefully. Test each screen in both dev and
+      production build modes before marking complete.
+
+immediate_first_backlog_this_week:
+  - "Create src/repositories/dashboard.ts with getDashboardSummary()"
+  - "Refactor JobsScreen to Server Component with live Supabase fetch"
+  - "Refactor CustomersScreen and PropertiesScreen to live fetch"
+  - "Scaffold /api/import/customers, /api/import/properties, /api/import/jobs with dry-run"
+  - "Run db:reseed and verify seed data appears in all three screens"
+
+carryover_preview:
+  sprint_31:
+    - "Daily Plans and Live Operations Supabase wiring"
+    - "Job workflow orchestration and status transition rules"
+    - "Release and migration automation + cross-platform CI lanes"
+  sprint_32:
+    - "Data governance: history views, duplicate detection, permissions refinement"
+    - "Advanced import: deduplication, conflict resolution, partial success modes"
