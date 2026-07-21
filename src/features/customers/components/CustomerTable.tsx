@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { DataTable, EmptyState } from "@/components/atlas";
+import { DataTable, EmptyState, ErrorState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
 import { useCustomers } from "../state/CustomersProvider";
@@ -134,7 +134,7 @@ export function CustomerTable() {
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
-        <EmptyState
+        <ErrorState
           title="Unable to load customers"
           description={error}
           action={

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Funnel } from "lucide-react";
 
-import { DataTable, EmptyState } from "@/components/atlas";
+import { DataTable, ErrorState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
 import { Button } from "@/components/ui/button";
 
@@ -74,25 +74,29 @@ export function JobTable() {
 
   if (loading || !hydrated) {
     return (
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.02] p-6 text-sm text-slate-400">
-        Loading jobs...
+      <div className="rounded-lg border bg-card">
+        <div className="space-y-3 p-4">
+          <div className="h-10 animate-pulse rounded-md bg-muted" />
+          <div className="h-10 animate-pulse rounded-md bg-muted" />
+          <div className="h-10 animate-pulse rounded-md bg-muted" />
+          <div className="h-10 animate-pulse rounded-md bg-muted" />
+          <div className="h-10 animate-pulse rounded-md bg-muted" />
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.02] p-6">
-        <EmptyState
-          title="Unable to load jobs"
-          description={error}
-          action={
-            <Button variant="outline" onClick={() => void refreshJobs()}>
-              Try again
-            </Button>
-          }
-        />
-      </div>
+      <ErrorState
+        title="Unable to load jobs"
+        description={error}
+        action={
+          <Button variant="outline" onClick={() => void refreshJobs()}>
+            Try again
+          </Button>
+        }
+      />
     );
   }
 

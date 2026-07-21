@@ -25,7 +25,7 @@ export type DocumentsListQuery = RepositoryQuery<
   DocumentsSortField
 >;
 
-const mockDocuments: PortalDocumentAccess[] = [];
+const inMemoryDocuments: PortalDocumentAccess[] = [];
 
 export type DocumentsRepository = CrudRepository<
   PortalDocumentAccess,
@@ -38,7 +38,7 @@ export type DocumentsRepository = CrudRepository<
 
 export const documentsRepository: DocumentsRepository = {
   async list(query) {
-    const filtered = mockDocuments.filter((document) =>
+    const filtered = inMemoryDocuments.filter((document) =>
       isFilterMatch(document, query?.filters)
     );
     const sorted = applySort(filtered, query?.sort);
@@ -50,7 +50,7 @@ export const documentsRepository: DocumentsRepository = {
   },
 
   async getById(id) {
-    const document = mockDocuments.find((item) => item.id === id);
+    const document = inMemoryDocuments.find((item) => item.id === id);
 
     if (!document) {
       return {
@@ -77,7 +77,7 @@ export const documentsRepository: DocumentsRepository = {
   },
 
   async update(id, input) {
-    const existing = mockDocuments.find((item) => item.id === id);
+    const existing = inMemoryDocuments.find((item) => item.id === id);
     if (!existing) {
       return {
         ok: false,

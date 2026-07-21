@@ -10,20 +10,17 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { createRepositoryErrorBody } from "@/lib/repositories/http";
-import { createJobsService } from "@/services/domain/jobsService";
-
-const jobsService = createJobsService();
+import { mapRouteError } from "@/lib/api/routeErrors";
+import { listJobsWithActivity } from "@/services/jobs";
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
-  const result = await jobsService.list();
-  if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+  try {
+    const { jobs } = await listJobsWithActivity();
+    return NextResponse.json({ jobs });
+  } catch (error) {
+    return mapRouteError(error);
   }
-
-  return NextResponse.json({ jobs: result.data.items });
 }

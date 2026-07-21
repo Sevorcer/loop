@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { DataTable, EmptyState } from "@/components/atlas";
+import { DataTable, ErrorState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
 import { useProperties } from "../state/PropertiesProvider";
@@ -113,7 +113,7 @@ export function PropertyTable() {
           onClearFilters={handleClearFilters}
         />
 
-        <EmptyState
+        <ErrorState
           title="Unable to load properties"
           description={error}
           action={
