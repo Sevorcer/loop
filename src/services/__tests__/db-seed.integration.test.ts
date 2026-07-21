@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -10,16 +10,28 @@ function read(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
+function runSeedDryRun(): string {
+  const bashPath = process.env.BASH_PATH;
+
+  if (bashPath) {
+    return execFileSync(bashPath, ["scripts/db/seed.sh", "--dry-run"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  }
+
+  return execSync("bash scripts/db/seed.sh --dry-run", {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+}
+
 describe("db seed fixtures", () => {
   it("produce deterministic dry-run output with idempotent upserts", () => {
-    const first = execSync("bash scripts/db/seed.sh --dry-run", {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
-    const second = execSync("bash scripts/db/seed.sh --dry-run", {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
+    const first = runSeedDryRun();
+    const second = runSeedDryRun();
 
     expect(first).toBe(second);
     expect(first).toContain("ON CONFLICT (id) DO UPDATE");
