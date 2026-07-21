@@ -8,6 +8,8 @@ import {
 import { StatusBadge } from "@/components/atlas";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROUTE_BUILDERS } from "@/lib/routes";
+import type { Customer } from "@/features/customers/types/customer";
+import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import type { Property } from "../types/property";
 import { MapViewCard } from "../components/MapViewCard";
 import { PropertyDetailTabs } from "../components/PropertyDetailTabs";
@@ -15,6 +17,8 @@ import { formatPropertyAddress } from "../utils/formatPropertyAddress";
 
 interface PropertyDetailScreenProps {
   property: Property;
+  customer?: Customer | null;
+  customerProperties?: CustomerPropertyItem[];
 }
 
 function formatDate(value: string) {
@@ -22,7 +26,11 @@ function formatDate(value: string) {
 }
 
 
-export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
+export function PropertyDetailScreen({
+  property,
+  customer = null,
+  customerProperties = [],
+}: PropertyDetailScreenProps) {
   const statusVariant =
     property.status === "Active"
       ? "success"
@@ -167,7 +175,11 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
       />
 
       {/* Property detail tabs — equipment, jobs, timeline, documents, and more */}
-      <PropertyDetailTabs property={property} />
+      <PropertyDetailTabs
+        property={property}
+        customer={customer}
+        customerProperties={customerProperties}
+      />
     </div>
   );
 }

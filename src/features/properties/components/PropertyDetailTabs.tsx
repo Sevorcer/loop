@@ -26,7 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 import { ROUTE_BUILDERS } from "@/lib/routes";
-import { useCustomerSnapshot } from "../hooks/useCustomerSnapshot";
+import type { Customer } from "@/features/customers/types/customer";
+import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 
 import type { Job } from "@/features/jobs/types/job";
 import type { Property } from "../types/property";
@@ -44,7 +45,7 @@ type PropertyDetailTabKey =
   | "timeline"
   | "documents"
   | "photos"
-  | "contacts"
+  | "customer"
   | "warranty"
   | "notes";
 
@@ -60,7 +61,7 @@ const tabs: PropertyDetailTab[] = [
   { key: "timeline", label: "Timeline" },
   { key: "documents", label: "Documents" },
   { key: "photos", label: "Photos" },
-  { key: "contacts", label: "Contacts" },
+  { key: "customer", label: "Customer" },
   { key: "warranty", label: "Warranty" },
   { key: "notes", label: "Notes" },
 ];
@@ -501,25 +502,46 @@ function PhotosSection({ details }: { details: PropertyDetails }) {
   );
 }
 
-function ContactsSection({
-  details,
+function CustomerHubSection({
   property,
+  customer,
+  customerProperties,
 }: {
-  details: PropertyDetails;
   property: Property;
+  customer: Customer | null;
+  customerProperties: CustomerPropertyItem[];
 }) {
-  const { customer, loading } = useCustomerSnapshot(property.customerId);
+  if (!customer) {
+    return (
+      <div className="space-y-6">
+        <EmptyState
+          title="No linked customer"
+          description="This property has no linked customer record. Assign a customer to unlock the full customer hub."
+        />
+      </div>
+    );
+  }
+
+  const statusVariant =
+    customer.status === "Active"
+      ? "success"
+      : customer.status === "Prospect"
+        ? "warning"
+        : "neutral";
+
+  // Sibling properties: other properties owned by this customer, excluding the current one
+  const siblingProperties = customerProperties.filter((p) => p.id !== property.id);
 
   return (
     <div className="space-y-6">
-      {/* Linked customer account card */}
+      {/* Customer profile card */}
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <CardTitle>Customer Account</CardTitle>
+              <CardTitle>{customer.name}</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Linked customer record for this property
+                Linked customer account
               </p>
             </div>
             <Users className="h-5 w-5 text-muted-foreground" />
@@ -527,106 +549,125 @@ function ContactsSection({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading customer details…</p>
-          ) : customer ? (
-            <>
-              <div className="flex items-center justify-between gap-4 text-sm">
-                <span className="text-muted-foreground">Name</span>
-                <span className="font-medium">{customer.name}</span>
-              </div>
+          <div className="flex items-center justify-between gap-4 text-sm">
+            <span className="text-muted-foreground">Status</span>
+            <StatusBadge variant={statusVariant}>{customer.status}</StatusBadge>
+          </div>
 
-              {customer.phone ? (
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-muted-foreground">Phone</span>
-                  <span className="inline-flex items-center gap-1.5 font-medium">
-                    <Phone className="h-3.5 w-3.5" />
-                    {customer.phone}
-                  </span>
-                </div>
-              ) : null}
-
-              {customer.email ? (
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-muted-foreground">Email</span>
-                  <span className="inline-flex items-center gap-1.5 font-medium">
-                    <Mail className="h-3.5 w-3.5" />
-                    {customer.email}
-                  </span>
-                </div>
-              ) : null}
-
-              {customer.primaryContact ? (
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-muted-foreground">Primary Contact</span>
-                  <span className="font-medium">{customer.primaryContact}</span>
-                </div>
-              ) : null}
-
-              {property.customerId ? (
-                <div className="pt-2">
-                  <Link
-                    href={ROUTE_BUILDERS.CUSTOMER_DETAIL(property.customerId)}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
-                  >
-                    View Full Customer Profile
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-4 text-sm">
-                <span className="text-muted-foreground">Name</span>
-                <span className="font-medium">{property.customer}</span>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                A customer name is recorded, but no linked customer profile was found.
-                Full contact details will appear here once the customer record is linked.
-              </p>
+          {customer.primaryContact ? (
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-muted-foreground">Primary Contact</span>
+              <span className="font-medium">{customer.primaryContact}</span>
             </div>
-          )}
+          ) : null}
+
+          {customer.phone ? (
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-muted-foreground">Phone</span>
+              <span className="inline-flex items-center gap-1.5 font-medium">
+                <Phone className="h-3.5 w-3.5" />
+                {customer.phone}
+              </span>
+            </div>
+          ) : null}
+
+          {customer.email ? (
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-muted-foreground">Email</span>
+              <span className="inline-flex items-center gap-1.5 font-medium">
+                <Mail className="h-3.5 w-3.5" />
+                {customer.email}
+              </span>
+            </div>
+          ) : null}
+
+          {customer.city ? (
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-muted-foreground">City</span>
+              <span className="font-medium">{customer.city}</span>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between gap-4 text-sm">
+            <span className="text-muted-foreground">Portfolio</span>
+            <span className="font-medium">
+              {customer.propertyCount} {customer.propertyCount === 1 ? "property" : "properties"},{" "}
+              {customer.openJobs} open {customer.openJobs === 1 ? "job" : "jobs"}
+            </span>
+          </div>
+
+          <div className="pt-2 border-t">
+            <Link
+              href={ROUTE_BUILDERS.CUSTOMER_DETAIL(customer.id)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+            >
+              View Full Customer Profile
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Additional property-level contacts (excludes the primary customer shown above) */}
-      {(() => {
-        const extraContacts = details.contacts.filter((c) => c.role !== "Primary Customer");
-        if (extraContacts.length === 0) return null;
+      {/* Customer portfolio: sibling properties */}
+      {siblingProperties.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Other Properties in Portfolio</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Additional properties linked to {customer.name}
+                </p>
+              </div>
+              <Building2 className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
 
-        return (
-          <div className="grid gap-6 lg:grid-cols-2">
-            {extraContacts.map((contact) => (
-              <Card key={contact.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <CardTitle>{contact.name}</CardTitle>
-                      <p className="mt-1 text-sm text-muted-foreground">{contact.role}</p>
+          <CardContent>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {siblingProperties.map((sibling) => (
+                <Link
+                  key={sibling.id}
+                  href={ROUTE_BUILDERS.PROPERTY_DETAIL(sibling.id)}
+                  className="block"
+                >
+                  <div className="rounded-xl border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/30">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="font-medium">{sibling.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {sibling.address}, {sibling.city}
+                        </p>
+                      </div>
+                      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
 
-                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <div className="mt-3 flex items-center gap-3 text-sm">
+                      <StatusBadge
+                        variant={sibling.status === "Active" ? "success" : "warning"}
+                      >
+                        {sibling.status}
+                      </StatusBadge>
+                      <span className="text-muted-foreground">{sibling.primarySystem}</span>
+                    </div>
                   </div>
-                </CardHeader>
-
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Phone</span>
-                    <span className="font-medium">{contact.phone}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Arrival Preference</span>
-                    <span className="font-medium">{contact.preference}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        );
-      })()}
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Other Properties in Portfolio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              This is the only property linked to {customer.name}.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -674,7 +715,17 @@ function NotesSection({ details }: { details: PropertyDetails }) {
   );
 }
 
-export function PropertyDetailTabs({ property }: { property: Property }) {
+interface PropertyDetailTabsProps {
+  property: Property;
+  customer: Customer | null;
+  customerProperties: CustomerPropertyItem[];
+}
+
+export function PropertyDetailTabs({
+  property,
+  customer,
+  customerProperties,
+}: PropertyDetailTabsProps) {
   const { role } = useCurrentRole();
   const [activeTab, setActiveTab] = useState<PropertyDetailTabKey>("overview");
 
@@ -741,8 +792,12 @@ export function PropertyDetailTabs({ property }: { property: Property }) {
 
       {activeTab === "photos" ? <PhotosSection details={details} /> : null}
 
-      {activeTab === "contacts" ? (
-        <ContactsSection details={details} property={property} />
+      {activeTab === "customer" ? (
+        <CustomerHubSection
+          property={property}
+          customer={customer}
+          customerProperties={customerProperties}
+        />
       ) : null}
 
       {activeTab === "warranty" ? (
