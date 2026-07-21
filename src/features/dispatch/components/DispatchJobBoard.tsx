@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
   Clock,
+  Send,
   XCircle,
 } from "lucide-react";
 
+import { EmptyState } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 import type { Job, JobStatus } from "@/features/jobs/types/job";
@@ -84,6 +87,7 @@ interface DispatchJobBoardProps {
 
 export function DispatchJobBoard({ initialJobs }: DispatchJobBoardProps) {
   const { role } = useCurrentRole();
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
 
@@ -104,6 +108,8 @@ export function DispatchJobBoard({ initialJobs }: DispatchJobBoardProps) {
           method: "PATCH",
           body: { action: "status", status: newStatus },
         });
+        // Sync server state so the page reflects the committed change
+        router.refresh();
       } catch {
         // Revert to the snapshot taken before the optimistic update
         setJobs(snapshot);
@@ -115,13 +121,23 @@ export function DispatchJobBoard({ initialJobs }: DispatchJobBoardProps) {
         });
       }
     },
-    [role, jobs]
+    [role, jobs, router]
   );
 
   // Group jobs that aren't completed or cancelled
   const activeJobs = jobs.filter(
     (j) => j.status !== "Completed" && j.status !== "Cancelled"
   );
+
+  if (activeJobs.length === 0) {
+    return (
+      <EmptyState
+        icon={<Send className="h-5 w-5" />}
+        title="No active jobs"
+        description="All jobs have been completed, cancelled, or none have been created yet. Create a new job to get started."
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
