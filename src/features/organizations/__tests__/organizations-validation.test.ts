@@ -51,6 +51,14 @@ describe("CreateOrganizationSchema", () => {
     const result = CreateOrganizationSchema.safeParse({ name: "a".repeat(255) });
     expect(result.success).toBe(true);
   });
+
+  it("rejects unknown fields", () => {
+    const result = CreateOrganizationSchema.safeParse({
+      name: "Acme Corp",
+      spoofed: "x",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -86,6 +94,14 @@ describe("UpdateOrganizationSchema", () => {
 
   it("rejects name exceeding 255 characters", () => {
     const result = UpdateOrganizationSchema.safeParse({ name: "b".repeat(256) });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects unknown fields", () => {
+    const result = UpdateOrganizationSchema.safeParse({
+      name: "Acme Corp",
+      created_at: "spoofed",
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -141,5 +157,10 @@ describe("ListOrganizationsQuerySchema", () => {
     const result = ListOrganizationsQuerySchema.safeParse({ search: "acme" });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.search).toBe("acme");
+  });
+
+  it("rejects unknown query parameters", () => {
+    const result = ListOrganizationsQuerySchema.safeParse({ page: "1", badParam: "true" });
+    expect(result.success).toBe(false);
   });
 });

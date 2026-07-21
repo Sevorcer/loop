@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import {
-  createApiErrorResponse,
-  invalidJsonResponse,
-  mapRouteError,
   readJsonObject,
 } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import {
+  mapOrganizationRouteError,
+  organizationPermissionDenied,
+  organizationValidationFailed,
+} from "@/lib/organizationsApiErrors";
 import {
   CreateOrganizationSchema,
   ListOrganizationsQuerySchema,
@@ -17,51 +19,51 @@ import {
 
 export async function GET(request: Request) {
   const guard = requirePermission(request, "organizations", "select");
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {
+    const denied = organizationPermissionDenied(guard.response.status);
+    return NextResponse.json(denied.error, { status: denied.status });
+  }
 
   const url = new URL(request.url);
   const rawParams = Object.fromEntries(url.searchParams.entries());
   const parsed = ListOrganizationsQuerySchema.safeParse(rawParams);
 
   if (!parsed.success) {
-    return createApiErrorResponse(
-      "VALIDATION_ERROR",
-      "Invalid query parameters.",
-      400,
-    );
+    const validation = organizationValidationFailed(parsed.error.flatten().fieldErrors);
+    return NextResponse.json(validation.error, { status: validation.status });
   }
 
   try {
     const result = await listOrganizations(parsed.data);
     return NextResponse.json(result);
   } catch (error) {
-    return mapRouteError(error);
+    const mapped = mapOrganizationRouteError(error);
+    return NextResponse.json(mapped.error, { status: mapped.status });
   }
 }
 
 export async function POST(request: Request) {
   const guard = requirePermission(request, "organizations", "insert");
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {
+    const denied = organizationPermissionDenied(guard.response.status);
+    return NextResponse.json(denied.error, { status: denied.status });
+  }
 
   let body: Record<string, unknown>;
   try {
     body = await readJsonObject(request);
   } catch {
-    return invalidJsonResponse();
+    const validation = organizationValidationFailed({
+      _root: ["Request body must be valid JSON."],
+    });
+    return NextResponse.json(validation.error, { status: validation.status });
   }
 
   const parsed = CreateOrganizationSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "VALIDATION_ERROR",
-        message: "Validation failed.",
-        fieldErrors: parsed.error.flatten().fieldErrors,
-        code: 400,
-      },
-      { status: 400 },
-    );
+    const validation = organizationValidationFailed(parsed.error.flatten().fieldErrors);
+    return NextResponse.json(validation.error, { status: validation.status });
   }
 
   try {
@@ -77,6 +79,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ organization }, { status: 201 });
   } catch (error) {
-    return mapRouteError(error);
+    const mapped = mapOrganizationRouteError(error);
+    return NextResponse.json(mapped.error, { status: mapped.status });
   }
 }
