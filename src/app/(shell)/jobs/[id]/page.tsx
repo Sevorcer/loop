@@ -1,4 +1,7 @@
-import { JobDetailPageClient } from "@/features/jobs/components/JobDetailPageClient";
+import { notFound } from "next/navigation";
+
+import { JobDetailClient } from "@/features/jobs/components/JobDetailClient";
+import { getJob, listJobActivity } from "@/services/jobs";
 
 export default async function JobDetailPage({
   params,
@@ -7,5 +10,11 @@ export default async function JobDetailPage({
 }) {
   const { id } = await params;
 
-  return <JobDetailPageClient id={id} />;
+  const [job, activity] = await Promise.all([getJob(id), listJobActivity(id)]);
+
+  if (!job) {
+    notFound();
+  }
+
+  return <JobDetailClient job={job} activity={activity} />;
 }

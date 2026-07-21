@@ -1,44 +1,21 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { notFound, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { RoutePermissionGuard } from "@/components/atlas";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 
+import type { Job } from "../types/job";
 import { JobForm } from "./JobForm";
-import { useJobs } from "../state/JobsProvider";
 
-function EditJobFormContent({ id }: { id: string }) {
+interface EditJobPageClientProps {
+  job: Job;
+}
+
+function EditJobFormContent({ job }: EditJobPageClientProps) {
   const router = useRouter();
-  const { hydrated, loading, error, getJobById, updateJob, loadJobDetails } = useJobs();
-
-  const job = useMemo(() => getJobById(id), [getJobById, id]);
-
-  useEffect(() => {
-    if (!job) {
-      void loadJobDetails(id);
-    }
-  }, [id, job, loadJobDetails]);
-
-  if (!hydrated || loading) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
-        Loading job details...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-3xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
-        {error}
-      </div>
-    );
-  }
-
-  if (!job) {
-    notFound();
-  }
+  const { role } = useCurrentRole();
 
   return (
     <JobForm
@@ -59,26 +36,25 @@ function EditJobFormContent({ id }: { id: string }) {
         notes: job.notes,
       }}
       onSubmit={async (values) => {
-        const updatedJob = await updateJob(job.id, values);
-
-        if (!updatedJob) {
-          notFound();
-        }
-
+        await requestJson(`/api/jobs/${job.id}`, {
+          method: "PATCH",
+          role,
+          body: { action: "update", ...values },
+        });
         router.push(`/jobs/${job.id}`);
       }}
     />
   );
 }
 
-export function EditJobPageClient({ id }: { id: string }) {
+export function EditJobPageClient({ job }: EditJobPageClientProps) {
   return (
     <RoutePermissionGuard
       table="jobs"
       action="update"
       deniedDescription="You don't have permission to edit jobs."
     >
-      <EditJobFormContent id={id} />
+      <EditJobFormContent job={job} />
     </RoutePermissionGuard>
   );
 }

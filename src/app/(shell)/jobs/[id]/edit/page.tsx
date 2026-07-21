@@ -1,4 +1,7 @@
+import { notFound } from "next/navigation";
+
 import { EditJobPageClient } from "@/features/jobs/components/EditJobPageClient";
+import { getJob } from "@/services/jobs";
 
 export default async function EditJobPage({
   params,
@@ -7,5 +10,11 @@ export default async function EditJobPage({
 }) {
   const { id } = await params;
 
-  return <EditJobPageClient id={id} />;
+  const job = await getJob(id);
+
+  if (!job) {
+    notFound();
+  }
+
+  return <EditJobPageClient job={job} />;
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { Ban, CheckCircle2, PauseCircle, PlayCircle } from "lucide-react";
 
