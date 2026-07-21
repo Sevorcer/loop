@@ -1,5 +1,6 @@
 import "server-only";
 
+<<<<<<< HEAD
 /**
  * Installed systems service — Sprint 27 #58
  *
@@ -24,4 +25,13 @@ export async function getInstalledSystems(filter?: {
 
 export async function getInstalledSystem(id: string): Promise<InstalledSystemRecord | null> {
   return getInstalledSystemById(id);
+=======
+import {
+  loadInstalledSystemsSnapshot,
+  type InstalledSystemsRepositorySnapshot,
+} from "@/repositories/installedSystems";
+
+export async function getInstalledSystemsSnapshot(): Promise<InstalledSystemsRepositorySnapshot> {
+  return loadInstalledSystemsSnapshot();
+>>>>>>> origin/main
 }

@@ -69,7 +69,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 1.188.4
+          version: latest
 
       - name: Validate required secrets
         run: |
@@ -90,8 +90,50 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
+      # Free-tier Supabase projects are paused after inactivity.  The REST
+      # management API (used by `supabase link`) still responds when paused,
+      # but direct Postgres connections fail.  This step restores the project
+      # if it is inactive and waits up to 3 minutes for it to become healthy.
+      - name: Ensure database is active
+        run: |
+          STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
+          echo "Project status: $STATUS"
+          if [ "$STATUS" = "INACTIVE" ]; then
+            echo "Project is paused — requesting restore..."
+            curl -sf -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/restore" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{}' || true
+          fi
+          if [ "$STATUS" = "INACTIVE" ] || [ "$STATUS" = "COMING_UP" ]; then
+            echo "Waiting up to 3 min for database to become active..."
+            for i in $(seq 1 18); do
+              sleep 10
+              STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+                | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
+              echo "  Status: $STATUS (attempt $i/18)"
+              [ "$STATUS" = "ACTIVE_HEALTHY" ] && break
+            done
+            if [ "$STATUS" != "ACTIVE_HEALTHY" ]; then
+              echo "::warning::Project may not be fully active yet (status: $STATUS). Proceeding..."
+            fi
+          fi
+
+      # Informational only — shows which migrations are pending before apply.
+      # Uses an explicit DB URL so this step does not depend on credentials
+      # cached by `supabase link`, which can be unreliable in non-interactive
+      # CI environments.  `continue-on-error` ensures a transient connection
+      # hiccup here does not block the actual migration apply step.
       - name: Show pending migrations
-        run: supabase migration list
+        continue-on-error: true
+        run: |
+          ENCODED_PWD=$(python3 -c \
+            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
+          supabase migration list \
+            --db-url "postgresql://postgres:${ENCODED_PWD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
 
       - name: Apply migrations (up)
         run: supabase db push --password "$SUPABASE_DB_PASSWORD"
@@ -118,6 +160,12 @@ jobs:
 
           echo "No schema drift detected."
 
+      # Informational only — same explicit DB URL as "Show pending migrations".
       - name: Report final migration status
         if: always()
-        run: supabase migration list
+        continue-on-error: true
+        run: |
+          ENCODED_PWD=$(python3 -c \
+            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
+          supabase migration list \
+            --db-url "postgresql://postgres:${ENCODED_PWD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"

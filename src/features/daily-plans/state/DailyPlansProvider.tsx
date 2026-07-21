@@ -7,9 +7,11 @@ import {
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
+
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 
 import type {
   DailyPlanActivation,
@@ -22,139 +24,81 @@ import { getTodayDate } from "../utils/planUtils";
 
 const DailyPlansContext = createContext<DailyPlanStoreValue | null>(null);
 
-const DAILY_NOTES_STORAGE_KEY = "loop.daily-plans.notes";
-const DAILY_OVERRIDES_STORAGE_KEY = "loop.daily-plans.overrides";
-const DAILY_ACTIVATIONS_STORAGE_KEY = "loop.daily-plans.activations";
-const DAILY_PACKETS_STORAGE_KEY = "loop.daily-plans.packets";
-
-const subscribeToHydration = (onStoreChange: () => void) => {
-  void onStoreChange;
-  return () => {};
-};
-
-function parseStoredValue<T>(value: string | null, fallback: T): T {
-  if (!value) {
-    return fallback;
-  }
-
-  try {
-    // Local-first Daily Plans state is only written by this app, so we trust the
-    // persisted JSON shape and fall back safely if the stored value is malformed.
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
 
 export function DailyPlansProvider({ children }: { children: ReactNode }) {
+  const { role } = useCurrentRole();
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDate);
-  const [notes, setNotes] = useState<Record<string, DailyPlanNote>>(() => {
-    if (typeof window === "undefined") return {};
 
-    return parseStoredValue<Record<string, DailyPlanNote>>(
-      window.localStorage.getItem(DAILY_NOTES_STORAGE_KEY),
-      {}
-    );
-  });
-  const [jobOverrides, setJobOverrides] = useState<
-    Record<string, DailyPlanJobOverride>
-  >(() => {
-    if (typeof window === "undefined") return {};
-
-    return parseStoredValue<Record<string, DailyPlanJobOverride>>(
-      window.localStorage.getItem(DAILY_OVERRIDES_STORAGE_KEY),
-      {}
-    );
-  });
+  // In-memory state — loaded from Supabase on mount
+  const [notes, setNotes] = useState<Record<string, DailyPlanNote>>({});
+  const [jobOverrides, setJobOverrides] = useState<Record<string, DailyPlanJobOverride>>({});
   const [activations, setActivations] = useState<
-    Record<string, DailyPlanActivation>
-  >(() => {
-    if (typeof window === "undefined") return {};
+    Record<string, DailyPlanActivation & { packetsSent?: boolean }>
+  >({});
 
-    return parseStoredValue<Record<string, DailyPlanActivation>>(
-      window.localStorage.getItem(DAILY_ACTIVATIONS_STORAGE_KEY),
-      {}
-    );
-  });
-
-  const [packetsSent, setPacketsSent] = useState<Record<string, boolean>>(() => {
-    if (typeof window === "undefined") return {};
-
-    return parseStoredValue<Record<string, boolean>>(
-      window.localStorage.getItem(DAILY_PACKETS_STORAGE_KEY),
-      {}
-    );
-  });
-
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false
-  );
+  // ---------------------------------------------------------------------------
+  // Initial load — pull full state from /api/daily-plans
+  // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
+    if (!role) return;
 
-    window.localStorage.setItem(DAILY_NOTES_STORAGE_KEY, JSON.stringify(notes));
-  }, [hydrated, notes]);
+    void (async () => {
+      try {
+        const state = await requestJson<{
+          notes: Record<string, DailyPlanNote>;
+          activations: Record<string, DailyPlanActivation & { packetsSent: boolean }>;
+          jobOverrides: Record<string, DailyPlanJobOverride>;
+        }>("/api/daily-plans", { role, cache: "no-store" });
 
-  useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
+        setNotes(state.notes ?? {});
+        setActivations(state.activations ?? {});
+        setJobOverrides(state.jobOverrides ?? {});
+      } catch {
+        // Supabase not configured or network failure — start with empty state.
+        // Existing UI will show as empty (no data) rather than crashing.
+      }
+    })();
+  }, [role]);
 
-    window.localStorage.setItem(
-      DAILY_OVERRIDES_STORAGE_KEY,
-      JSON.stringify(jobOverrides)
-    );
-  }, [hydrated, jobOverrides]);
-
-  useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
-    window.localStorage.setItem(
-      DAILY_ACTIVATIONS_STORAGE_KEY,
-      JSON.stringify(activations)
-    );
-  }, [hydrated, activations]);
-
-  useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
-    window.localStorage.setItem(
-      DAILY_PACKETS_STORAGE_KEY,
-      JSON.stringify(packetsSent)
-    );
-  }, [hydrated, packetsSent]);
+  // ---------------------------------------------------------------------------
+  // Notes
+  // ---------------------------------------------------------------------------
 
   const getNote = useCallback(
-    (date: string): string => {
-      return notes[date]?.content ?? "";
-    },
+    (date: string): string => notes[date]?.content ?? "",
     [notes]
   );
 
-  const saveNote = useCallback((date: string, content: string) => {
-    setNotes((current) => ({
-      ...current,
-      [date]: {
-        date,
-        content,
-        updatedAt: new Date().toISOString(),
-      },
-    }));
-  }, []);
+  const saveNote = useCallback(
+    (date: string, content: string) => {
+      // Optimistic update
+      setNotes((current) => ({
+        ...current,
+        [date]: { date, content, updatedAt: new Date().toISOString() },
+      }));
+
+      if (!role) return;
+      void requestJson("/api/daily-plans", {
+        role,
+        method: "POST",
+        body: { action: "save_note", date, content },
+      }).catch(() => {
+        // Persistence failure — optimistic state remains for session
+      });
+    },
+    [role]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Job overrides
+  // ---------------------------------------------------------------------------
 
   const getJobOverride = useCallback(
-    (jobId: string): DailyPlanJobOverride | undefined => {
-      return jobOverrides[jobId];
-    },
+    (jobId: string): DailyPlanJobOverride | undefined => jobOverrides[jobId],
     [jobOverrides]
   );
 
@@ -162,50 +106,93 @@ export function DailyPlansProvider({ children }: { children: ReactNode }) {
     (jobId: string, override: Partial<DailyPlanJobOverride>) => {
       setJobOverrides((current) => ({
         ...current,
-        [jobId]: {
-          ...current[jobId],
-          ...override,
-        },
+        [jobId]: { ...current[jobId], ...override },
       }));
+
+      if (!role) return;
+      void requestJson("/api/daily-plans", {
+        role,
+        method: "POST",
+        body: {
+          action: "set_job_override",
+          jobId,
+          readinessState: override.readinessState ?? null,
+        },
+      }).catch(() => {});
     },
-    []
+    [role]
   );
 
+  // ---------------------------------------------------------------------------
+  // Plan activations
+  // ---------------------------------------------------------------------------
+
   const getPlanStatus = useCallback(
-    (date: string): DailyPlanStatus => {
-      return activations[date]?.status ?? "planning";
-    },
+    (date: string): DailyPlanStatus => activations[date]?.status ?? "planning",
     [activations]
   );
 
   const getPlanActivation = useCallback(
     (date: string): DailyPlanActivation | undefined => {
-      return activations[date];
+      const a = activations[date];
+      if (!a) return undefined;
+      return { date: a.date, status: a.status, startedAt: a.startedAt };
     },
     [activations]
   );
 
-  const activatePlan = useCallback((date: string) => {
-    setActivations((current) => ({
-      ...current,
-      [date]: {
-        date,
-        status: "active",
-        startedAt: new Date().toISOString(),
-      },
-    }));
-  }, []);
+  const activatePlan = useCallback(
+    (date: string) => {
+      const now = new Date().toISOString();
+      setActivations((current) => ({
+        ...current,
+        [date]: { date, status: "active", startedAt: now, packetsSent: false },
+      }));
 
-  const getPacketsSent = useCallback(
-    (date: string): boolean => {
-      return packetsSent[date] ?? false;
+      if (!role) return;
+      void requestJson("/api/daily-plans", {
+        role,
+        method: "POST",
+        body: { action: "activate_plan", date },
+      }).catch(() => {});
     },
-    [packetsSent]
+    [role]
   );
 
-  const markPacketsSent = useCallback((date: string) => {
-    setPacketsSent((current) => ({ ...current, [date]: true }));
-  }, []);
+  // ---------------------------------------------------------------------------
+  // Packets sent
+  // ---------------------------------------------------------------------------
+
+  const getPacketsSent = useCallback(
+    (date: string): boolean => activations[date]?.packetsSent ?? false,
+    [activations]
+  );
+
+  const markPacketsSent = useCallback(
+    (date: string) => {
+      setActivations((current) => ({
+        ...current,
+        [date]: {
+          date,
+          status: current[date]?.status ?? "active",
+          startedAt: current[date]?.startedAt ?? new Date().toISOString(),
+          packetsSent: true,
+        },
+      }));
+
+      if (!role) return;
+      void requestJson("/api/daily-plans", {
+        role,
+        method: "POST",
+        body: { action: "mark_packets_sent", date },
+      }).catch(() => {});
+    },
+    [role]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Context value
+  // ---------------------------------------------------------------------------
 
   const value = useMemo<DailyPlanStoreValue>(
     () => ({
@@ -221,7 +208,18 @@ export function DailyPlansProvider({ children }: { children: ReactNode }) {
       getPacketsSent,
       markPacketsSent,
     }),
-    [selectedDate, getNote, saveNote, getJobOverride, setJobOverride, getPlanStatus, getPlanActivation, activatePlan, getPacketsSent, markPacketsSent]
+    [
+      selectedDate,
+      getNote,
+      saveNote,
+      getJobOverride,
+      setJobOverride,
+      getPlanStatus,
+      getPlanActivation,
+      activatePlan,
+      getPacketsSent,
+      markPacketsSent,
+    ]
   );
 
   return (

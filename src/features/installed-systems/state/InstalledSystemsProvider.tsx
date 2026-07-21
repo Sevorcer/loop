@@ -3,13 +3,17 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 
-import { useJobs } from "@/features/jobs/state/JobsProvider";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 
-import { buildInstalledSystemsSnapshot, estimateEquipmentBundles } from "../utils/installedSystemsUtils";
+import { equipmentCatalog } from "../data/equipmentCatalog";
+import { estimateEquipmentBundles } from "../data/estimateEquipmentBundles";
 import type {
   EquipmentCatalogEntry,
   EstimateEquipmentBundle,
@@ -22,6 +26,7 @@ interface InstalledSystemsContextValue {
   estimateBundles: EstimateEquipmentBundle[];
   installedSystems: InstalledSystem[];
   technicalProfiles: TechnicalProfile[];
+  loading: boolean;
   getInstalledSystemById: (id: string) => InstalledSystem | undefined;
   getInstalledSystemsForJob: (jobId: string) => InstalledSystem[];
   getTechnicalProfileById: (id: string) => TechnicalProfile | undefined;
@@ -36,38 +41,64 @@ export function InstalledSystemsProvider({
 }: {
   children: ReactNode;
 }) {
-  const { jobs } = useJobs();
-  const snapshot = useMemo(() => buildInstalledSystemsSnapshot(jobs), [jobs]);
+  const { role } = useCurrentRole();
+  const [installedSystems, setInstalledSystems] = useState<InstalledSystem[]>([]);
+  const [technicalProfiles, setTechnicalProfiles] = useState<TechnicalProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!role) return;
+
+    void (async () => {
+      setLoading(true);
+      try {
+        const snapshot = await requestJson<{
+          installedSystems: InstalledSystem[];
+          technicalProfiles: TechnicalProfile[];
+        }>("/api/installed-systems", { role, cache: "no-store" });
+
+        setInstalledSystems(snapshot.installedSystems ?? []);
+        setTechnicalProfiles(snapshot.technicalProfiles ?? []);
+      } catch {
+        // Supabase not configured or network failure — start empty.
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [role]);
 
   const value = useMemo<InstalledSystemsContextValue>(() => {
     function getInstalledSystemById(id: string) {
-      return snapshot.installedSystems.find((system) => system.id === id);
+      return installedSystems.find((system) => system.id === id);
     }
 
     function getInstalledSystemsForJob(jobId: string) {
-      return snapshot.installedSystems.filter(
+      return installedSystems.filter(
         (system) =>
           system.jobId === jobId || system.linkedWorkflowIds.includes(jobId)
       );
     }
 
     function getTechnicalProfileById(id: string) {
-      return snapshot.technicalProfiles.find((profile) => profile.id === id);
+      return technicalProfiles.find((profile) => profile.id === id);
     }
 
     function getCatalogEntryById(id: string) {
-      return snapshot.catalogEntries.find((entry) => entry.id === id);
+      return equipmentCatalog.find((entry) => entry.id === id);
     }
 
     return {
-      ...snapshot,
+      catalogEntries: equipmentCatalog,
       estimateBundles: estimateEquipmentBundles,
+      installedSystems,
+      technicalProfiles,
+      loading,
       getInstalledSystemById,
       getInstalledSystemsForJob,
       getTechnicalProfileById,
       getCatalogEntryById,
     };
-  }, [snapshot]);
+  }, [installedSystems, technicalProfiles, loading]);
 
   return (
     <InstalledSystemsContext.Provider value={value}>

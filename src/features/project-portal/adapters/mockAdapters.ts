@@ -1,4 +1,4 @@
-import { getDayOverview, getJobPlanDetail } from "@/features/daily-plans/data/mockMorningOperations";
+import { getDayOverview, getJobPlanDetail } from "@/features/daily-plans/data/morningOperations";
 import { mockDispatchEvents } from "@/features/dispatch/data/mockDispatchEvents";
 import { mockDispatchPlans } from "@/features/dispatch/data/mockDispatchPlans";
 import { estimateEquipmentBundles } from "@/features/installed-systems/data/estimateEquipmentBundles";
