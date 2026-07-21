@@ -2,8 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const getInstalledSystemsSnapshotMock = vi.fn();
-const getInstalledSystemByIdMock = vi.fn();
+const {
+  getInstalledSystemsSnapshotMock,
+  getInstalledSystemByIdMock,
+} = vi.hoisted(() => ({
+  getInstalledSystemsSnapshotMock: vi.fn(),
+  getInstalledSystemByIdMock: vi.fn(),
+}));
 
 vi.mock("@/services/installedSystems", () => ({
   getInstalledSystemsSnapshot: getInstalledSystemsSnapshotMock,
