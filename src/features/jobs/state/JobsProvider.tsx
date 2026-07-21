@@ -18,6 +18,7 @@ import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type { CreateJobInput, JobsStoreValue, UpdateJobInput } from "../types/jobStore";
 import { applyAssignment, removeAssignment, validateAssignment } from "../utils/assignmentUtils";
+import { sortJobActivity } from "../utils/jobWorkspace";
 
 const JobsContext = createContext<JobsStoreValue | null>(null);
 
@@ -98,7 +99,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         );
         setActivity((current) => {
           const remaining = current.filter((item) => item.jobId !== jobId);
-          return [...response.activity, ...remaining];
+          return [...sortJobActivity(response.activity), ...remaining];
         });
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Failed to load job details.");
@@ -123,9 +124,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     }
 
     function getActivityByJobId(jobId: string) {
-      return activity
-        .filter((item) => item.jobId === jobId)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return sortJobActivity(activity.filter((item) => item.jobId === jobId));
     }
 
     async function reload() {

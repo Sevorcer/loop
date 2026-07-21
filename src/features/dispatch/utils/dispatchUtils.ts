@@ -123,6 +123,9 @@ export function assembleDispatchSnapshot(
     awaitingMaterials: plans.filter(
       (p) => p.dispatchStatus === "awaiting_materials"
     ).length,
+    awaitingTechnicalReadiness: plans.filter(
+      (p) => p.dispatchStatus === "awaiting_technical_readiness"
+    ).length,
     awaitingCustomer: plans.filter(
       (p) => p.dispatchStatus === "awaiting_customer_confirmation"
     ).length,

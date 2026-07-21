@@ -7,9 +7,11 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { EmptyState } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
 import type { JobActivity } from "../types/jobActivity";
+import { sortJobActivity } from "../utils/jobWorkspace";
 
 function formatTimestamp(value: string) {
   return new Date(value).toLocaleString();
@@ -35,23 +37,28 @@ function getActivityIcon(type: JobActivity["type"]) {
 }
 
 export function JobTimeline({ activity }: { activity: JobActivity[] }) {
+  const items = sortJobActivity(activity);
+
   return (
     <SurfaceCard>
       <div className="p-6">
         <h2 className="text-lg font-semibold text-white">Activity Timeline</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Follow recent scheduling, assignment, and field updates for this job.
+          Follow recent scheduling, assignment, and field updates for this job. Most recent events appear first.
         </p>
 
         <div className="mt-6 space-y-6">
-          {activity.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
-              No activity has been logged for this job yet.
-            </div>
+          {items.length === 0 ? (
+            <EmptyState
+              title="No job history yet"
+              description="Scheduling, assignment, and note activity will appear here once the team starts working this job."
+              icon={<ClipboardList className="h-5 w-5" />}
+              className="border-white/10 bg-white/[0.02]"
+            />
           ) : (
-            activity.map((item, index) => (
+            items.map((item, index) => (
               <div key={item.id} className="relative pl-12">
-                {index !== activity.length - 1 ? (
+                {index !== items.length - 1 ? (
                   <div className="absolute left-[19px] top-10 h-[calc(100%+8px)] w-px bg-white/10" />
                 ) : null}
 

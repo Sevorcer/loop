@@ -277,6 +277,7 @@ export interface DispatchSnapshot {
     scheduled: number;
     inProgress: number;
     awaitingMaterials: number;
+    awaitingTechnicalReadiness: number;
     awaitingCustomer: number;
     awaitingCrew: number;
     totalPlans: number;

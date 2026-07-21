@@ -63,6 +63,7 @@ const EMPTY_SNAPSHOT: DispatchSnapshot = {
     scheduled: 0,
     inProgress: 0,
     awaitingMaterials: 0,
+    awaitingTechnicalReadiness: 0,
     awaitingCustomer: 0,
     awaitingCrew: 0,
     totalPlans: 0,
@@ -338,4 +339,3 @@ export function useDispatch() {
 
   return context;
 }
-

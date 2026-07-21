@@ -7,12 +7,13 @@ import {
   Users,
 } from "lucide-react";
 
+import { EmptyState } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
-import type { Job } from "@/features/jobs/types/job";
 
 import { CrewScheduleCard } from "../components/CrewScheduleCard";
 import { DispatchJobBoard } from "../components/DispatchJobBoard";
 import type { DispatchEvent, DispatchEventType, DispatchSnapshot } from "../types/dispatch";
+import { getDispatchQueueMetrics, sortDispatchEvents } from "../utils/dispatchWorkspace";
 import { getLocalTodayISO } from "../utils/dispatchUtils";
 
 // ------------------------------------------------------------------
@@ -20,23 +21,17 @@ import { getLocalTodayISO } from "../utils/dispatchUtils";
 // ------------------------------------------------------------------
 
 interface DispatchScreenProps {
-  jobs: Job[];
   snapshot: DispatchSnapshot;
 }
 
-export function DispatchScreen({ jobs, snapshot }: DispatchScreenProps) {
+export function DispatchScreen({ snapshot }: DispatchScreenProps) {
   const todayStr = getLocalTodayISO();
   const todayBlocks = snapshot.scheduleBlocks.filter(
     (b) => b.scheduledDate === todayStr
   );
+  const queueMetrics = getDispatchQueueMetrics(snapshot.metrics);
 
-  // Compute metrics from live job statuses
-  const activeCount = jobs.filter((j) => j.status === "In Progress").length;
-  const scheduledCount = jobs.filter((j) => j.status === "Scheduled").length;
-  const blockedCount = jobs.filter((j) => j.status === "On Hold").length;
-  const totalActive = jobs.filter(
-    (j) => j.status !== "Completed" && j.status !== "Cancelled"
-  ).length;
+  const recentEvents = sortDispatchEvents(snapshot.dispatchEvents).slice(0, 8);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -54,8 +49,8 @@ export function DispatchScreen({ jobs, snapshot }: DispatchScreenProps) {
                 Dispatch Board
               </h2>
               <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-slate-400 sm:block">
-                Live view of all active work. Jobs are grouped by operational
-                status — start work, hold, or complete directly from this board.
+                Live coordination queue for plan readiness, crew assignment,
+                and schedule placement across operational work.
               </p>
             </div>
           </div>
@@ -63,27 +58,27 @@ export function DispatchScreen({ jobs, snapshot }: DispatchScreenProps) {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={Clock}
-              value={String(activeCount)}
+              value={String(queueMetrics.active)}
               label="In progress"
               variant="active"
             />
             <MetricCard
+              icon={CheckCircle2}
+              value={String(queueMetrics.ready)}
+              label="Ready"
+              variant="success"
+            />
+            <MetricCard
               icon={CalendarDays}
-              value={String(scheduledCount)}
+              value={String(queueMetrics.scheduled)}
               label="Scheduled"
               variant="info"
             />
             <MetricCard
               icon={AlertTriangle}
-              value={String(blockedCount)}
-              label="On hold"
+              value={String(queueMetrics.blocked)}
+              label="Blocked"
               variant="warning"
-            />
-            <MetricCard
-              icon={CheckCircle2}
-              value={String(totalActive)}
-              label="Active jobs"
-              variant="success"
             />
           </div>
         </div>
@@ -93,13 +88,13 @@ export function DispatchScreen({ jobs, snapshot }: DispatchScreenProps) {
       <div>
         <div className="mb-4 flex items-center gap-3">
           <Send className="h-5 w-5 text-slate-400" />
-          <h3 className="text-lg font-semibold text-white">Job Board</h3>
+          <h3 className="text-lg font-semibold text-white">Dispatch Queue</h3>
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs text-slate-400">
-            {totalActive} active
+            {queueMetrics.total} plans
           </span>
         </div>
 
-        <DispatchJobBoard initialJobs={jobs} />
+        <DispatchJobBoard initialSnapshot={snapshot} />
       </div>
 
       {/* ── Crew Schedule — Today ── */}
@@ -133,14 +128,21 @@ export function DispatchScreen({ jobs, snapshot }: DispatchScreenProps) {
       </div>
 
       {/* ── Dispatch Events ── */}
-      {snapshot.dispatchEvents.length > 0 && (
+      {recentEvents.length > 0 ? (
         <div>
           <div className="mb-4 flex items-center gap-3">
             <Clock className="h-5 w-5 text-slate-400" />
             <h3 className="text-lg font-semibold text-white">Recent Events</h3>
           </div>
-          <DispatchEventLog events={snapshot.dispatchEvents} />
+          <DispatchEventLog events={recentEvents} />
         </div>
+      ) : (
+        <EmptyState
+          title="No dispatch events yet"
+          description="Crew assignments, schedule changes, and dispatch coordination events will appear here."
+          icon={<Clock className="h-5 w-5" />}
+          className="border-white/10 bg-white/[0.02]"
+        />
       )}
 
       {/* ── Dispatchability Model ── */}
@@ -195,14 +197,10 @@ export function DispatchScreen({ jobs, snapshot }: DispatchScreenProps) {
 // ------------------------------------------------------------------
 
 function DispatchEventLog({ events }: { events: DispatchEvent[] }) {
-  const recentEvents = [...events]
-    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    .slice(0, 8);
-
   return (
     <SurfaceCard>
       <div className="divide-y divide-white/5">
-        {recentEvents.map((event) => {
+        {events.map((event) => {
           const time = new Date(event.timestamp).toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
