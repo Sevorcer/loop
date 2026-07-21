@@ -3,77 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Building2,
-  Users,
-  Briefcase,
-  HardHat,
-  Cpu,
-  CalendarDays,
-  Radio,
-  Package,
-  Brain,
-  BarChart3,
-  Settings,
-  BellRing,
-  Send,
-  Globe,
-} from "lucide-react";
 
 import { useSession, getNavItemsForRole } from "@/features/auth";
-import type { NavGroup } from "@/features/auth";
-import { ROUTES, PORTAL_ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 import { UserDisplay } from "@/features/auth/components/UserDisplay";
+import { SHELL_NAV_GROUPS } from "./sidebarNav";
 
-const navGroups: NavGroup[] = [
-  {
-    label: "Overview",
-    items: [{ name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard }],
-  },
-  {
-    label: "Operations",
-    items: [
-      { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
-      { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
-      { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
-    ],
-  },
-  {
-    label: "Field",
-    items: [
-      { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
-      { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
-      { name: "Contractors", href: ROUTES.CONTRACTORS, icon: HardHat },
-      { name: "Customers", href: ROUTES.CUSTOMERS, icon: Users },
-      { name: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS, icon: Cpu },
-      { name: "Vehicle Alerts", href: ROUTES.VEHICLE_ALERTS, icon: BellRing },
-    ],
-  },
-  {
-    label: "Resources",
-    items: [
-      { name: "Inventory", href: ROUTES.INVENTORY, icon: Package },
-      { name: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: Brain },
-    ],
-  },
-  {
-    label: "Insights",
-    items: [{ name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 }],
-  },
-  {
-    label: "External",
-    items: [{ name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: Globe }],
-  },
-  {
-    label: "Workspace",
-    items: [{ name: "Settings", href: ROUTES.SETTINGS, icon: Settings }],
-  },
-];
-
-const NAV_SKELETON_ROWS = navGroups.reduce((sum, g) => sum + g.items.length, 0);
+const NAV_SKELETON_ROWS = SHELL_NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
 
 interface SidebarProps {
   id?: string;
@@ -85,9 +23,9 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { role, loading } = useSession();
 
-  const filteredGroups = getNavItemsForRole(role, navGroups);
+  const filteredGroups = getNavItemsForRole(role, SHELL_NAV_GROUPS);
   const shouldBypassRoleFilter = !loading && role !== "portal" && filteredGroups.length === 0;
-  const visibleGroups = shouldBypassRoleFilter ? navGroups : filteredGroups;
+  const visibleGroups = shouldBypassRoleFilter ? SHELL_NAV_GROUPS : filteredGroups;
 
   return (
     <aside
