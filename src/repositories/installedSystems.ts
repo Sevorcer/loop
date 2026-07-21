@@ -11,10 +11,6 @@ import type {
 import { wrapRepositoryError } from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
 
-// ---------------------------------------------------------------------------
-// Row shapes
-// ---------------------------------------------------------------------------
-
 interface TechnicalProfileRow {
   id: string;
   org_id: string;
@@ -55,10 +51,6 @@ interface InstalledSystemRow {
   operational_history: string[];
   created_at: string;
 }
-
-// ---------------------------------------------------------------------------
-// Mappers
-// ---------------------------------------------------------------------------
 
 function mapTechnicalProfile(row: TechnicalProfileRow): TechnicalProfile {
   return {
@@ -101,10 +93,6 @@ function mapInstalledSystem(row: InstalledSystemRow): InstalledSystem {
     operationalHistory: row.operational_history ?? [],
   };
 }
-
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
 
 export async function listInstalledSystems() {
   return wrapRepositoryError(async () => {
@@ -153,10 +141,6 @@ export async function listTechnicalProfiles() {
     return ((data ?? []) as TechnicalProfileRow[]).map(mapTechnicalProfile);
   });
 }
-
-// ---------------------------------------------------------------------------
-// Write input types
-// ---------------------------------------------------------------------------
 
 export type TechnicalProfileWriteInput = Omit<TechnicalProfile, "id">;
 export type InstalledSystemWriteInput = Omit<InstalledSystem, "id">;
@@ -261,10 +245,6 @@ export async function upsertInstalledSystem(id: string | undefined, input: Insta
   });
 }
 
-// ---------------------------------------------------------------------------
-// Snapshot load
-// ---------------------------------------------------------------------------
-
 export interface InstalledSystemsRepositorySnapshot {
   installedSystems: InstalledSystem[];
   technicalProfiles: TechnicalProfile[];
@@ -296,6 +276,4 @@ export async function loadInstalledSystemsSnapshot(): Promise<InstalledSystemsRe
     installedSystems: ((systemsRes.data ?? []) as InstalledSystemRow[]).map(mapInstalledSystem),
     technicalProfiles: ((profilesRes.data ?? []) as TechnicalProfileRow[]).map(mapTechnicalProfile),
   };
-}
->>>>>>> origin/main
 }
