@@ -24,7 +24,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requirePermission(request, "customers", "select");
+  const guard = await requirePermission(request, "customers", "select");
   if (!guard.ok) return guard.response;
 
   try {
@@ -48,7 +48,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requirePermission(request, "customers", "update");
+  const guard = await requirePermission(request, "customers", "update");
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;
@@ -95,7 +95,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requirePermission(request, "customers", "delete");
+  const guard = await requirePermission(request, "customers", "delete");
   if (!guard.ok) return guard.response;
 
   try {

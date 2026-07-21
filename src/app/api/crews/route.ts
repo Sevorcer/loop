@@ -11,7 +11,7 @@ import { mapRepositoryError, mapRouteError } from "@/lib/api/routeErrors";
 import { listCrews } from "@/repositories/dispatch";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "jobs", "select");
+  const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
   try {

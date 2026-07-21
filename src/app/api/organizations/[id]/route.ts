@@ -22,7 +22,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requirePermission(request, "organizations", "select");
+  const guard = await requirePermission(request, "organizations", "select");
   if (!guard.ok) {
     const denied = organizationPermissionDenied(guard.response.status);
     return NextResponse.json(denied.error, { status: denied.status });
@@ -48,7 +48,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requirePermission(request, "organizations", "update");
+  const guard = await requirePermission(request, "organizations", "update");
   if (!guard.ok) {
     const denied = organizationPermissionDenied(guard.response.status);
     return NextResponse.json(denied.error, { status: denied.status });
@@ -99,7 +99,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requirePermission(request, "organizations", "delete");
+  const guard = await requirePermission(request, "organizations", "delete");
   if (!guard.ok) {
     const denied = organizationPermissionDenied(guard.response.status);
     return NextResponse.json(denied.error, { status: denied.status });

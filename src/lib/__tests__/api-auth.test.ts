@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
   resolveRequestRole,
@@ -7,6 +7,20 @@ import {
   forbiddenResponse,
 } from "@/lib/api-auth";
 import type { AppRole } from "@/services/authorization";
+
+// ---------------------------------------------------------------------------
+// Mock the Supabase server client so tests remain pure unit tests.
+// By default, return no authenticated user — the x-loop-role header fallback
+// (non-production) is what drives all assertions below.
+// ---------------------------------------------------------------------------
+
+const mockGetUser = vi.fn().mockResolvedValue({ data: { user: null } });
+
+vi.mock("@/lib/supabase/server", () => ({
+  createSupabaseServerClient: vi.fn(async () => ({
+    auth: { getUser: mockGetUser },
+  })),
+}));
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,29 +39,69 @@ function makeRequest(role?: string, path = "http://localhost/api/test"): Request
 // ---------------------------------------------------------------------------
 
 describe("resolveRequestRole", () => {
-  it("returns null when no role header is present", () => {
-    expect(resolveRequestRole(makeRequest())).toBeNull();
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
   });
 
-  it("returns the role when a valid X-Loop-Role header is provided", () => {
+  it("returns null when no role header is present", async () => {
+    expect(await resolveRequestRole(makeRequest())).toBeNull();
+  });
+
+  it("returns the role when a valid X-Loop-Role header is provided", async () => {
     const roles: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"];
     for (const role of roles) {
-      expect(resolveRequestRole(makeRequest(role))).toBe(role);
+      expect(await resolveRequestRole(makeRequest(role))).toBe(role);
     }
   });
 
-  it("returns null for an unrecognised role value", () => {
-    expect(resolveRequestRole(makeRequest("superadmin"))).toBeNull();
-    expect(resolveRequestRole(makeRequest("OWNER"))).toBeNull();
-    expect(resolveRequestRole(makeRequest(""))).toBeNull();
-    expect(resolveRequestRole(makeRequest("  "))).toBeNull();
+  it("returns null for an unrecognised role value", async () => {
+    expect(await resolveRequestRole(makeRequest("superadmin"))).toBeNull();
+    expect(await resolveRequestRole(makeRequest("OWNER"))).toBeNull();
+    expect(await resolveRequestRole(makeRequest(""))).toBeNull();
+    expect(await resolveRequestRole(makeRequest("  "))).toBeNull();
   });
 
-  it("returns null for a role value that is not a string (empty header)", () => {
+  it("returns null for a role value that is not a string (empty header)", async () => {
     const req = new Request("http://localhost/api/test", {
       headers: { "x-loop-role": "" },
     });
-    expect(resolveRequestRole(req)).toBeNull();
+    expect(await resolveRequestRole(req)).toBeNull();
+  });
+
+  it("resolves role from Supabase user app_metadata.app_role when present", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { app_metadata: { app_role: "manager" }, user_metadata: {} } },
+    });
+    expect(await resolveRequestRole(makeRequest())).toBe("manager");
+  });
+
+  it("falls back to user_metadata.app_role when app_metadata.app_role is absent", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { app_metadata: {}, user_metadata: { app_role: "tech" } } },
+    });
+    expect(await resolveRequestRole(makeRequest())).toBe("tech");
+  });
+
+  it("falls back to app_metadata.role when app_role fields are absent", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { app_metadata: { role: "office" }, user_metadata: {} } },
+    });
+    expect(await resolveRequestRole(makeRequest())).toBe("office");
+  });
+
+  it("falls back to user_metadata.role as last resort", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { app_metadata: {}, user_metadata: { role: "sales" } } },
+    });
+    expect(await resolveRequestRole(makeRequest())).toBe("sales");
+  });
+
+  it("prefers Supabase session role over x-loop-role header", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { app_metadata: { app_role: "owner" }, user_metadata: {} } },
+    });
+    // Even though the header says "tech", the session-resolved role should win
+    expect(await resolveRequestRole(makeRequest("tech"))).toBe("owner");
   });
 });
 
@@ -56,8 +110,12 @@ describe("resolveRequestRole", () => {
 // ---------------------------------------------------------------------------
 
 describe("requirePermission — unauthenticated", () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+  });
+
   it("returns ok: false with a 401 response when no role is present", async () => {
-    const result = requirePermission(makeRequest(), "jobs", "select");
+    const result = await requirePermission(makeRequest(), "jobs", "select");
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -69,7 +127,7 @@ describe("requirePermission — unauthenticated", () => {
   });
 
   it("401 body contains a message field", async () => {
-    const result = requirePermission(makeRequest(), "customers", "insert");
+    const result = await requirePermission(makeRequest(), "customers", "insert");
     if (!result.ok) {
       const body = (await result.response.json()) as { message: string };
       expect(typeof body.message).toBe("string");
@@ -83,10 +141,14 @@ describe("requirePermission — unauthenticated", () => {
 // ---------------------------------------------------------------------------
 
 describe("requirePermission — authorized (allow)", () => {
-  it("returns ok: true with AuthContext for owner on any table/action", () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+  });
+
+  it("returns ok: true with AuthContext for owner on any table/action", async () => {
     const tables = ["customers", "properties", "jobs"] as const;
     for (const table of tables) {
-      const result = requirePermission(makeRequest("owner"), table, "delete");
+      const result = await requirePermission(makeRequest("owner"), table, "delete");
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.ctx.role).toBe("owner");
@@ -94,34 +156,34 @@ describe("requirePermission — authorized (allow)", () => {
     }
   });
 
-  it("returns ok: true for manager creating customers", () => {
-    const result = requirePermission(makeRequest("manager"), "customers", "insert");
+  it("returns ok: true for manager creating customers", async () => {
+    const result = await requirePermission(makeRequest("manager"), "customers", "insert");
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.ctx.role).toBe("manager");
   });
 
-  it("returns ok: true for dispatch reading jobs", () => {
-    const result = requirePermission(makeRequest("dispatch"), "jobs", "select");
+  it("returns ok: true for dispatch reading jobs", async () => {
+    const result = await requirePermission(makeRequest("dispatch"), "jobs", "select");
     expect(result.ok).toBe(true);
   });
 
-  it("returns ok: true for tech reading properties", () => {
-    const result = requirePermission(makeRequest("tech"), "properties", "select");
+  it("returns ok: true for tech reading properties", async () => {
+    const result = await requirePermission(makeRequest("tech"), "properties", "select");
     expect(result.ok).toBe(true);
   });
 
-  it("returns ok: true for office creating jobs", () => {
-    const result = requirePermission(makeRequest("office"), "jobs", "insert");
+  it("returns ok: true for office creating jobs", async () => {
+    const result = await requirePermission(makeRequest("office"), "jobs", "insert");
     expect(result.ok).toBe(true);
   });
 
-  it("returns ok: true for sales reading customers", () => {
-    const result = requirePermission(makeRequest("sales"), "customers", "select");
+  it("returns ok: true for sales reading customers", async () => {
+    const result = await requirePermission(makeRequest("sales"), "customers", "select");
     expect(result.ok).toBe(true);
   });
 
-  it("returns ok: true for portal reading own portal_users row", () => {
-    const result = requirePermission(makeRequest("portal"), "portal_users", "select");
+  it("returns ok: true for portal reading own portal_users row", async () => {
+    const result = await requirePermission(makeRequest("portal"), "portal_users", "select");
     expect(result.ok).toBe(true);
   });
 });
@@ -131,8 +193,12 @@ describe("requirePermission — authorized (allow)", () => {
 // ---------------------------------------------------------------------------
 
 describe("requirePermission — denied (403)", () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+  });
+
   it("returns ok: false with a 403 for tech trying to delete jobs", async () => {
-    const result = requirePermission(makeRequest("tech"), "jobs", "delete");
+    const result = await requirePermission(makeRequest("tech"), "jobs", "delete");
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.response.status).toBe(403);
@@ -143,43 +209,43 @@ describe("requirePermission — denied (403)", () => {
   });
 
   it("returns ok: false with a 403 for dispatch trying to insert jobs", async () => {
-    const result = requirePermission(makeRequest("dispatch"), "jobs", "insert");
+    const result = await requirePermission(makeRequest("dispatch"), "jobs", "insert");
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.response.status).toBe(403);
     }
   });
 
-  it("returns ok: false for portal accessing internal jobs table", () => {
+  it("returns ok: false for portal accessing internal jobs table", async () => {
     const actions = ["select", "insert", "update", "delete"] as const;
     for (const action of actions) {
-      const result = requirePermission(makeRequest("portal"), "jobs", action);
+      const result = await requirePermission(makeRequest("portal"), "jobs", action);
       expect(result.ok).toBe(false);
     }
   });
 
-  it("returns ok: false for portal accessing customers", () => {
-    const result = requirePermission(makeRequest("portal"), "customers", "select");
+  it("returns ok: false for portal accessing customers", async () => {
+    const result = await requirePermission(makeRequest("portal"), "customers", "select");
     expect(result.ok).toBe(false);
   });
 
-  it("returns ok: false for sales trying to delete customers", () => {
-    const result = requirePermission(makeRequest("sales"), "customers", "delete");
+  it("returns ok: false for sales trying to delete customers", async () => {
+    const result = await requirePermission(makeRequest("sales"), "customers", "delete");
     expect(result.ok).toBe(false);
   });
 
-  it("returns ok: false for tech trying to access customers", () => {
-    const result = requirePermission(makeRequest("tech"), "customers", "select");
+  it("returns ok: false for tech trying to access customers", async () => {
+    const result = await requirePermission(makeRequest("tech"), "customers", "select");
     expect(result.ok).toBe(false);
   });
 
-  it("returns ok: false for office trying to access contractors", () => {
-    const result = requirePermission(makeRequest("office"), "contractors", "select");
+  it("returns ok: false for office trying to access contractors", async () => {
+    const result = await requirePermission(makeRequest("office"), "contractors", "select");
     expect(result.ok).toBe(false);
   });
 
   it("403 body includes role, action, and table in message", async () => {
-    const result = requirePermission(makeRequest("dispatch"), "jobs", "delete");
+    const result = await requirePermission(makeRequest("dispatch"), "jobs", "delete");
     if (!result.ok) {
       const body = (await result.response.json()) as { message: string };
       expect(body.message).toContain("dispatch");
@@ -196,16 +262,20 @@ describe("requirePermission — denied (403)", () => {
 describe("requirePermission — job_activity append-only invariant", () => {
   const allRoles: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"];
 
-  it("no role may update job_activity", () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+  });
+
+  it("no role may update job_activity", async () => {
     for (const role of allRoles) {
-      const result = requirePermission(makeRequest(role), "job_activity", "update");
+      const result = await requirePermission(makeRequest(role), "job_activity", "update");
       expect(result.ok).toBe(false);
     }
   });
 
-  it("no role may delete job_activity", () => {
+  it("no role may delete job_activity", async () => {
     for (const role of allRoles) {
-      const result = requirePermission(makeRequest(role), "job_activity", "delete");
+      const result = await requirePermission(makeRequest(role), "job_activity", "delete");
       expect(result.ok).toBe(false);
     }
   });
@@ -254,13 +324,16 @@ describe("forbiddenResponse", () => {
 // ---------------------------------------------------------------------------
 
 describe("role x action coverage matrix — deny-by-default verification", () => {
-  // A role with no header at all must never get access
-  it("a request with no identity header is always denied", () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+  });
+
+  it("a request with no identity header is always denied", async () => {
     const tables = ["customers", "properties", "jobs", "contractors", "job_activity"] as const;
     const actions = ["select", "insert", "update", "delete"] as const;
     for (const table of tables) {
       for (const action of actions) {
-        const result = requirePermission(makeRequest(), table, action);
+        const result = await requirePermission(makeRequest(), table, action);
         expect(result.ok, `unauthenticated should be denied on ${table}/${action}`).toBe(false);
         if (!result.ok) {
           expect(result.response.status).toBe(401);
@@ -269,12 +342,12 @@ describe("role x action coverage matrix — deny-by-default verification", () =>
     }
   });
 
-  it("portal cannot access any internal operational table (full isolation)", () => {
+  it("portal cannot access any internal operational table (full isolation)", async () => {
     const internalTables = ["customers", "properties", "contractors", "jobs", "job_activity"] as const;
     const actions = ["select", "insert", "update", "delete"] as const;
     for (const table of internalTables) {
       for (const action of actions) {
-        const result = requirePermission(makeRequest("portal"), table, action);
+        const result = await requirePermission(makeRequest("portal"), table, action);
         expect(result.ok, `portal must be denied on ${table}/${action}`).toBe(false);
         if (!result.ok) {
           expect(result.response.status).toBe(403);

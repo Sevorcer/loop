@@ -19,7 +19,7 @@ import { loadDispatchSnapshot, createPlan } from "@/services/dispatch";
 import type { DispatchPlanWriteInput } from "@/services/dispatch";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "jobs", "select");
+  const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
   try {
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const guard = requirePermission(request, "jobs", "insert");
+  const guard = await requirePermission(request, "jobs", "insert");
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;

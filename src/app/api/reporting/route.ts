@@ -18,7 +18,7 @@ import { mapRouteError } from "@/lib/api/routeErrors";
 import { listPerformanceModels } from "@/repositories/performanceReporting";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "performance_models", "select");
+  const guard = await requirePermission(request, "performance_models", "select");
   if (!guard.ok) return guard.response;
 
   try {

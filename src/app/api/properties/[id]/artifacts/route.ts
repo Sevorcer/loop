@@ -8,10 +8,10 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const documentsGuard = requirePermission(request, "property_documents", "select");
+  const documentsGuard = await requirePermission(request, "property_documents", "select");
   if (!documentsGuard.ok) return documentsGuard.response;
 
-  const photosGuard = requirePermission(request, "property_photos", "select");
+  const photosGuard = await requirePermission(request, "property_photos", "select");
   if (!photosGuard.ok) return photosGuard.response;
 
   try {

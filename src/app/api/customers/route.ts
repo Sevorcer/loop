@@ -16,7 +16,7 @@ function readCustomerStatus(value: unknown) {
 }
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "customers", "select");
+  const guard = await requirePermission(request, "customers", "select");
   if (!guard.ok) return guard.response;
 
   try {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const guard = requirePermission(request, "customers", "insert");
+  const guard = await requirePermission(request, "customers", "insert");
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;

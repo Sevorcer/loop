@@ -285,7 +285,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     jobs: "jobs",
   };
 
-  const guard = requirePermission(request, tableMap[entity], "insert");
+  const guard = await requirePermission(request, tableMap[entity], "insert");
   if (!guard.ok) return guard.response;
 
   // Parse mode query param

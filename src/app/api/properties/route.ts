@@ -25,7 +25,7 @@ function readPropertyStatus(value: unknown) {
 }
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "properties", "select");
+  const guard = await requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
   try {
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const guard = requirePermission(request, "properties", "insert");
+  const guard = await requirePermission(request, "properties", "insert");
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;

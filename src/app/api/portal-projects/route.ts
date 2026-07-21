@@ -17,7 +17,7 @@ import {
 } from "@/services/portalProjects";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "portal_projects", "select");
+  const guard = await requirePermission(request, "portal_projects", "select");
   if (!guard.ok) return guard.response;
 
   const url = new URL(request.url);

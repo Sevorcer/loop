@@ -6,12 +6,12 @@
  * 401/403 are uniform across the entire API surface.
  *
  * Role resolution order:
- *   1. `X-Loop-Role` request header (development / automated tests only)
- *   2. TODO: Supabase JWT ****** `app_role` claim (production)
- *
- * When Supabase auth is wired, replace the header extraction in
- * `resolveRequestRole` with real JWT verification. Everything else
- * (requirePermission, error helpers) remains unchanged.
+ *   1. Supabase server session — role resolved from user metadata fields:
+ *        a. user.app_metadata.app_role
+ *        b. user.user_metadata.app_role
+ *        c. user.app_metadata.role
+ *        d. user.user_metadata.role
+ *   2. `X-Loop-Role` request header (non-production / automated tests only)
  */
 
 import { NextResponse } from "next/server";
@@ -22,6 +22,7 @@ import {
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasPermission } from "@/services/authorization";
 import type { AppRole, CoreTable, TableAction } from "@/services/authorization";
 
@@ -62,22 +63,43 @@ export interface ApiErrorBody {
  *
  * Returns `null` when no valid identity can be resolved (unauthenticated).
  *
- * **Development / test:** reads the `X-Loop-Role` request header.
- * **Production (stub):** extend this function to verify the Supabase JWT
- * and return the `app_role` claim from the token.
+ * Resolution order:
+ *   1. Supabase server session — reads user metadata role fields.
+ *   2. `X-Loop-Role` header — allowed only in non-production environments.
  */
-export function resolveRequestRole(request: Request): AppRole | null {
-  const headerRole = request.headers.get("x-loop-role");
-  if (headerRole !== null && isAppRole(headerRole)) {
-    return headerRole;
+export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
+  // --- 1. Supabase server session ---
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const candidates: unknown[] = [
+        user.app_metadata?.app_role,
+        user.user_metadata?.app_role,
+        user.app_metadata?.role,
+        user.user_metadata?.role,
+      ];
+
+      for (const candidate of candidates) {
+        if (typeof candidate === "string" && isAppRole(candidate)) {
+          return candidate;
+        }
+      }
+    }
+  } catch {
+    // Supabase may not be configured in test environments; fall through.
   }
 
-  // TODO (production): extract role from Supabase JWT
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader?.startsWith("Bearer ")) {
-  //   const role = verifyAndExtractRole(authHeader.slice(7));
-  //   if (role !== null) return role;
-  // }
+  // --- 2. x-loop-role header (non-production only) ---
+  if (process.env.NODE_ENV !== "production") {
+    const headerRole = request.headers.get("x-loop-role");
+    if (headerRole !== null && isAppRole(headerRole)) {
+      return headerRole;
+    }
+  }
 
   return null;
 }
@@ -104,19 +126,19 @@ export type PermissionResult =
  * Usage:
  * ```ts
  * export async function POST(request: Request) {
- *   const guard = requirePermission(request, "customers", "insert");
+ *   const guard = await requirePermission(request, "customers", "insert");
  *   if (!guard.ok) return guard.response;
  *   // guard.ctx.role is available here
  * }
  * ```
  */
-export function requirePermission(
+export async function requirePermission(
   request: Request,
   table: CoreTable,
   action: TableAction,
-): PermissionResult {
+): Promise<PermissionResult> {
   const trace = getRequestTraceContext(request);
-  const role = resolveRequestRole(request);
+  const role = await resolveRequestRole(request);
 
   if (role === null) {
     logAuthEvent({

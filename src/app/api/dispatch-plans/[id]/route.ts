@@ -29,7 +29,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const guard = requirePermission(request, "jobs", "update");
+  const guard = await requirePermission(request, "jobs", "update");
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

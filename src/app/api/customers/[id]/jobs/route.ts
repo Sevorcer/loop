@@ -8,7 +8,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requirePermission(request, "jobs", "select");
+  const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
   try {

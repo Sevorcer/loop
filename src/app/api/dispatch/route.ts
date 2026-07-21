@@ -14,7 +14,7 @@ import { mapRouteError } from "@/lib/api/routeErrors";
 import { listJobsWithActivity } from "@/services/jobs";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "jobs", "select");
+  const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
   try {
