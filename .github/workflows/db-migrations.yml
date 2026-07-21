@@ -76,8 +76,8 @@ jobs:
           [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Missing SUPABASE_ACCESS_TOKEN"; exit 1; }
           [ -n "$SUPABASE_PROJECT_REF" ] || { echo "::error::Missing SUPABASE_PROJECT_REF"; exit 1; }
           CLEAN_DB_PASSWORD=$(printf '%s' "$SUPABASE_DB_PASSWORD" | tr -d '\r\n')
-          [ -n "$CLEAN_DB_PASSWORD" ] || { echo "::error::Missing SUPABASE_DB_PASSWORD"; exit 1; }
           echo "::add-mask::$CLEAN_DB_PASSWORD"
+          [ -n "$CLEAN_DB_PASSWORD" ] || { echo "::error::Missing SUPABASE_DB_PASSWORD"; exit 1; }
           echo "SUPABASE_DB_PASSWORD=$CLEAN_DB_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Link Supabase project
