@@ -28,6 +28,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
     items: [
+      { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
       { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
       { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
       { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
@@ -36,7 +37,6 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
   {
     label: "Field",
     items: [
-      { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
       { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
       { name: "Contractors", href: ROUTES.CONTRACTORS, icon: HardHat },
       { name: "Customers", href: ROUTES.CUSTOMERS, icon: Users },
