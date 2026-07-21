@@ -36,6 +36,8 @@ export type AppRole =
 export type CoreTable =
   | "customers"
   | "properties"
+  | "property_documents"
+  | "property_photos"
   | "contractors"
   | "jobs"
   | "job_activity"
@@ -74,6 +76,20 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
   },
 
   properties: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager", "office", "sales"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+
+  property_documents: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager", "office", "sales"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+
+  property_photos: {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     insert: new Set<AppRole>(["owner", "manager", "office", "sales"]),
     update: new Set<AppRole>(["owner", "manager", "office", "sales"]),

@@ -17,8 +17,8 @@
  *                         static product data, not org-specific).
  *                         Deviation rationale: catalog data is configuration, not
  *                         user-generated operational data. No Supabase table needed.
- *   - mockPropertyDetails → property document/photo metadata pending
- *                         property_documents migration (tracked as follow-up).
+ *   - mockPropertyDetails → fallback-only property document/photo metadata
+ *                         used by getFallbackSearchRecords() in test/dev.
  *   - NAVIGATION_TARGETS → pure UI config; no database involvement appropriate.
  *
  * FALLBACK (getFallbackSearchRecords — test/dev only):
@@ -43,6 +43,7 @@ import { mockPerformanceModels } from "@/features/reporting/data/mockReporting";
 
 import { listCustomers } from "@/services/customers";
 import { listJobsWithActivity } from "@/services/jobs";
+import { getAllPropertyArtifacts } from "@/services/propertyArtifacts";
 import { listProperties } from "@/services/properties";
 import { listInstalledSystems } from "@/repositories/installedSystems";
 import { listKnowledgeItems } from "@/repositories/knowledgeItems";
@@ -320,6 +321,7 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     portalDocuments,
     portalPhotos,
     performanceModels,
+    propertyArtifacts,
   ] = await Promise.all([
     listJobsWithActivity(),
     listProperties(),
@@ -330,6 +332,7 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     listAllPortalDocuments().catch(() => []),
     listAllPortalPhotos().catch(() => []),
     listPerformanceModels({ status: "active" }).catch(() => []),
+    getAllPropertyArtifacts().catch(() => ({ documents: [], photos: [] })),
   ]);
 
   const installedSystems = Array.isArray(installedSystemsRaw)
@@ -491,6 +494,33 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
       href: ROUTES.REPORTING,
       recordType: "report" as const,
       tokens: sanitizeTokenStrings([model.title, model.description, ...model.relatedDomains]),
+    })),
+    ...propertyArtifacts.documents.map((document) => ({
+      id: `property-document-${document.id}`,
+      title: document.title,
+      subtitle: `${document.category} • Property ${document.propertyId}`,
+      domain: "documents" as const,
+      sourceLabel: "Properties",
+      href: ROUTE_BUILDERS.PROPERTY_DETAIL(document.propertyId),
+      recordType: "document" as const,
+      tokens: sanitizeTokenStrings([
+        document.title,
+        document.category,
+        document.status,
+        document.propertyId,
+      ]),
+      contextRefs: { propertyId: document.propertyId },
+    })),
+    ...propertyArtifacts.photos.map((photo) => ({
+      id: `property-photo-${photo.id}`,
+      title: photo.title,
+      subtitle: `${photo.category} • Property ${photo.propertyId}`,
+      domain: "photos" as const,
+      sourceLabel: "Properties",
+      href: ROUTE_BUILDERS.PROPERTY_DETAIL(photo.propertyId),
+      recordType: "photo" as const,
+      tokens: sanitizeTokenStrings([photo.title, photo.category, photo.status, photo.propertyId]),
+      contextRefs: { propertyId: photo.propertyId },
     })),
     ...manualRecords,
     ...navigationRecords,
