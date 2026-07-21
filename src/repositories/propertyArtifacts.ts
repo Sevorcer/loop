@@ -67,7 +67,7 @@ export async function listPropertyDocuments(
     .order("uploaded_at", { ascending: false });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`Failed to list property documents: ${error.message}`);
   }
 
   return ((data ?? []) as PropertyDocumentRow[]).map(mapPropertyDocument);
@@ -85,7 +85,7 @@ export async function listPropertyPhotos(
     .order("captured_at", { ascending: false });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`Failed to list property photos: ${error.message}`);
   }
 
   return ((data ?? []) as PropertyPhotoRow[]).map(mapPropertyPhoto);
@@ -100,7 +100,7 @@ export async function listAllPropertyDocuments(): Promise<PropertyDocumentRecord
     .order("uploaded_at", { ascending: false });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`Failed to list all property documents: ${error.message}`);
   }
 
   return ((data ?? []) as PropertyDocumentRow[]).map(mapPropertyDocument);
@@ -115,7 +115,7 @@ export async function listAllPropertyPhotos(): Promise<PropertyPhotoRecord[]> {
     .order("captured_at", { ascending: false });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`Failed to list all property photos: ${error.message}`);
   }
 
   return ((data ?? []) as PropertyPhotoRow[]).map(mapPropertyPhoto);

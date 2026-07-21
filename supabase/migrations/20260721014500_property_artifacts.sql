@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 003 — Property Artifacts (Documents + Photos)
+-- Migration — Property Artifacts (Documents + Photos)
 -- Sprint 28 PR B
 --
 -- UP:
