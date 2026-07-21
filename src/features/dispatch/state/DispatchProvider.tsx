@@ -2,19 +2,17 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
-import { mockCrewAssignments } from "../data/mockCrewAssignments";
-import { mockCrews } from "../data/mockCrews";
-import { mockDispatchEvents } from "../data/mockDispatchEvents";
-import { mockDispatchPlans } from "../data/mockDispatchPlans";
-import { mockScheduleBlocks } from "../data/mockScheduleBlocks";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
+
 import type {
   AssignmentStatus,
   Crew,
@@ -25,6 +23,7 @@ import type {
   DispatchSnapshot,
   DispatchStatus,
   ScheduleBlock,
+  ReassignmentRecord,
 } from "../types/dispatch";
 import {
   assembleDispatchSnapshot,
@@ -33,31 +32,13 @@ import {
   getScheduleBlocksForDate,
 } from "../utils/dispatchUtils";
 
-const DISPATCH_ASSIGNMENTS_KEY = "loop.dispatch.assignments";
-const DISPATCH_EVENTS_KEY = "loop.dispatch.events";
-const DISPATCH_SCHEDULE_BLOCKS_KEY = "loop.dispatch.scheduleBlocks";
-const DISPATCH_PLAN_STATUS_KEY = "loop.dispatch.planStatusOverrides";
-
 /** Default crew start hour for scheduled jobs (07:00 local time). */
 const DEFAULT_SCHEDULE_START_HOUR = 7;
-
-const subscribeToHydration = (onStoreChange: () => void) => {
-  void onStoreChange;
-  return () => {};
-};
-
-function parseStoredValue<T>(value: string | null, fallback: T): T {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
 
 interface DispatchContextValue {
   snapshot: DispatchSnapshot;
   crews: Crew[];
+  loading: boolean;
   getDispatchPlanById: (id: string) => DispatchPlan | undefined;
   getAssignmentForPlan: (dispatchPlanId: string) => CrewAssignment | undefined;
   getScheduleBlocksForDate: (date: string) => ScheduleBlock[];
@@ -68,157 +49,115 @@ interface DispatchContextValue {
 
 const DispatchContext = createContext<DispatchContextValue | null>(null);
 
+// ---------------------------------------------------------------------------
+// Empty snapshot used as initial state
+// ---------------------------------------------------------------------------
+const EMPTY_SNAPSHOT: DispatchSnapshot = {
+  dispatchPlans: [],
+  crewAssignments: [],
+  scheduleBlocks: [],
+  dispatchEvents: [],
+  crews: [],
+  metrics: {
+    readyToSchedule: 0,
+    scheduled: 0,
+    inProgress: 0,
+    awaitingMaterials: 0,
+    awaitingCustomer: 0,
+    awaitingCrew: 0,
+    totalPlans: 0,
+  },
+};
+
 export function DispatchProvider({ children }: { children: ReactNode }) {
-  const [assignments, setAssignments] = useState<CrewAssignment[]>(() => {
-    if (typeof window === "undefined") return mockCrewAssignments;
-    return parseStoredValue<CrewAssignment[]>(
-      window.localStorage.getItem(DISPATCH_ASSIGNMENTS_KEY),
-      mockCrewAssignments
-    );
-  });
+  const { role } = useCurrentRole();
 
-  const [extraEvents, setExtraEvents] = useState<DispatchEvent[]>(() => {
-    if (typeof window === "undefined") return [];
-    return parseStoredValue<DispatchEvent[]>(
-      window.localStorage.getItem(DISPATCH_EVENTS_KEY),
-      []
-    );
-  });
+  const [plans, setPlans] = useState<DispatchPlan[]>([]);
+  const [crews, setCrews] = useState<Crew[]>([]);
+  const [assignments, setAssignments] = useState<CrewAssignment[]>([]);
+  const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
+  const [events, setEvents] = useState<DispatchEvent[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [extraScheduleBlocks, setExtraScheduleBlocks] = useState<ScheduleBlock[]>(() => {
-    if (typeof window === "undefined") return [];
-    return parseStoredValue<ScheduleBlock[]>(
-      window.localStorage.getItem(DISPATCH_SCHEDULE_BLOCKS_KEY),
-      []
-    );
-  });
-
-  const [planStatusOverrides, setPlanStatusOverrides] = useState<Record<string, DispatchStatus>>(() => {
-    if (typeof window === "undefined") return {};
-    return parseStoredValue<Record<string, DispatchStatus>>(
-      window.localStorage.getItem(DISPATCH_PLAN_STATUS_KEY),
-      {}
-    );
-  });
-
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false
-  );
+  // ---------------------------------------------------------------------------
+  // Initial load
+  // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(DISPATCH_ASSIGNMENTS_KEY, JSON.stringify(assignments));
-  }, [hydrated, assignments]);
+    if (!role) return;
 
-  useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(DISPATCH_EVENTS_KEY, JSON.stringify(extraEvents));
-  }, [hydrated, extraEvents]);
+    void (async () => {
+      setLoading(true);
+      try {
+        const data = await requestJson<{
+          plans: DispatchPlan[];
+          crews: Crew[];
+          assignments: CrewAssignment[];
+          scheduleBlocks: ScheduleBlock[];
+          events: DispatchEvent[];
+        }>("/api/dispatch-plans", { role, cache: "no-store" });
 
-  useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(DISPATCH_SCHEDULE_BLOCKS_KEY, JSON.stringify(extraScheduleBlocks));
-  }, [hydrated, extraScheduleBlocks]);
+        setPlans(data.plans ?? []);
+        setCrews(data.crews ?? []);
+        setAssignments(data.assignments ?? []);
+        setScheduleBlocks(data.scheduleBlocks ?? []);
+        setEvents(data.events ?? []);
+      } catch {
+        // Supabase not configured or network failure — start empty.
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [role]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(DISPATCH_PLAN_STATUS_KEY, JSON.stringify(planStatusOverrides));
-  }, [hydrated, planStatusOverrides]);
-
-  const allEvents = useMemo(
-    () => [...mockDispatchEvents, ...extraEvents],
-    [extraEvents]
-  );
-
-  const allScheduleBlocks = useMemo(
-    () => [...mockScheduleBlocks, ...extraScheduleBlocks],
-    [extraScheduleBlocks]
-  );
-
-  const resolvedPlans = useMemo(
-    () =>
-      mockDispatchPlans.map((plan) => {
-        const override = planStatusOverrides[plan.id];
-        return override ? { ...plan, dispatchStatus: override } : plan;
-      }),
-    [planStatusOverrides]
-  );
+  // ---------------------------------------------------------------------------
+  // Derived snapshot
+  // ---------------------------------------------------------------------------
 
   const snapshot = useMemo(
-    () =>
-      assembleDispatchSnapshot(
-        resolvedPlans,
-        assignments,
-        allScheduleBlocks,
-        allEvents,
-        mockCrews
-      ),
-    [resolvedPlans, assignments, allScheduleBlocks, allEvents]
+    () => assembleDispatchSnapshot(plans, assignments, scheduleBlocks, events, crews),
+    [plans, crews, assignments, scheduleBlocks, events]
   );
 
-  const value = useMemo<DispatchContextValue>(() => {
-    function getDispatchPlanById(id: string) {
-      return snapshot.dispatchPlans.find((p) => p.id === id);
-    }
+  // ---------------------------------------------------------------------------
+  // Mutations
+  // ---------------------------------------------------------------------------
 
-    function getAssignmentForPlanFn(dispatchPlanId: string) {
-      return getCrewAssignmentForPlan(snapshot.crewAssignments, dispatchPlanId);
-    }
-
-    function getScheduleBlocksForDateFn(date: string) {
-      return getScheduleBlocksForDate(snapshot.scheduleBlocks, date);
-    }
-
-    function getEventsForPlanFn(dispatchPlanId: string) {
-      return getEventsForPlan(snapshot.dispatchEvents, dispatchPlanId);
-    }
-
-    function assignCrew(planId: string, crewId: string) {
-      const plan = snapshot.dispatchPlans.find((p) => p.id === planId);
-      const crew = mockCrews.find((c) => c.id === crewId);
+  const assignCrew = useCallback(
+    (planId: string, crewId: string) => {
+      const plan = plans.find((p) => p.id === planId);
+      const crew = crews.find((c) => c.id === crewId);
       if (!plan || !crew) return;
 
       const now = new Date().toISOString();
       const existing = getCrewAssignmentForPlan(assignments, planId);
 
-      if (existing) {
-        setAssignments((current) =>
-          current.map((a) => {
-            if (a.dispatchPlanId !== planId) return a;
-            const prevCrew = mockCrews.find((c) => c.id === a.crewId);
-            return {
-              ...a,
-              crewId: crew.id,
-              crewName: crew.name,
-              leadInstaller: crew.leadInstaller,
-              status: "confirmed" as AssignmentStatus,
-              assignedAt: now,
-              reassignmentHistory: [
-                ...a.reassignmentHistory,
-                {
-                  previousCrewId: a.crewId,
-                  previousCrewName: prevCrew?.name ?? a.crewName,
-                  reassignedAt: now,
-                  reason: "Manual reassignment via Dispatch board",
-                },
-              ],
-            };
-          })
-        );
+      let newAssignments: CrewAssignment[];
+      let history: ReassignmentRecord[] = [];
 
-        const eventType: DispatchEventType = "crew_assigned";
-        setExtraEvents((current) => [
-          ...current,
+      if (existing) {
+        history = [
+          ...existing.reassignmentHistory,
           {
-            id: `evt-${crypto.randomUUID()}`,
-            dispatchPlanId: planId,
-            type: eventType,
-            timestamp: now,
-            description: `Crew reassigned to ${crew.name} for ${plan.jobNumber}.`,
+            previousCrewId: existing.crewId,
+            previousCrewName: existing.crewName,
+            reassignedAt: now,
+            reason: "Manual reassignment via Dispatch board",
           },
-        ]);
+        ];
+        newAssignments = assignments.map((a) =>
+          a.dispatchPlanId !== planId
+            ? a
+            : {
+                ...a,
+                crewId: crew.id,
+                crewName: crew.name,
+                leadInstaller: crew.leadInstaller,
+                status: "confirmed" as AssignmentStatus,
+                assignedAt: now,
+                reassignmentHistory: history,
+              }
+        );
       } else {
         const newAssignment: CrewAssignment = {
           id: `ca-${crypto.randomUUID()}`,
@@ -234,32 +173,56 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
           assignedAt: now,
           reassignmentHistory: [],
         };
-        setAssignments((current) => [...current, newAssignment]);
-
-        setExtraEvents((current) => [
-          ...current,
-          {
-            id: `evt-${crypto.randomUUID()}`,
-            dispatchPlanId: planId,
-            type: "crew_assigned" as DispatchEventType,
-            timestamp: now,
-            description: `${crew.name} assigned to ${plan.jobNumber} — ${plan.customerName}.`,
-          },
-        ]);
+        newAssignments = [...assignments, newAssignment];
+        history = [];
       }
-    }
 
-    function schedulePlan(planId: string, date: string) {
-      const plan = snapshot.dispatchPlans.find((p) => p.id === planId);
+      // Optimistic update
+      setAssignments(newAssignments);
+      const eventDescription = existing
+        ? `Crew reassigned to ${crew.name} for ${plan.jobNumber}.`
+        : `${crew.name} assigned to ${plan.jobNumber} — ${plan.customerName}.`;
+
+      setEvents((current) => [
+        ...current,
+        {
+          id: `evt-${crypto.randomUUID()}`,
+          dispatchPlanId: planId,
+          type: "crew_assigned" as DispatchEventType,
+          timestamp: now,
+          description: eventDescription,
+        },
+      ]);
+
+      if (!role) return;
+      void requestJson(`/api/dispatch-plans/${planId}`, {
+        role,
+        method: "PATCH",
+        body: {
+          action: "assign_crew",
+          crewId: crew.id,
+          crewName: crew.name,
+          leadInstaller: crew.leadInstaller,
+          supportingTechnicians: crew.members
+            .filter((m) => m.role !== "lead")
+            .map((m) => m.name),
+          jobId: plan.jobId || undefined,
+          reassignmentHistory: history,
+        },
+      }).catch(() => {});
+    },
+    [plans, crews, assignments, role]
+  );
+
+  const schedulePlan = useCallback(
+    (planId: string, date: string) => {
+      const plan = plans.find((p) => p.id === planId);
       if (!plan) return;
 
       const assignment = getCrewAssignmentForPlan(assignments, planId);
       if (!assignment) return;
 
       const now = new Date().toISOString();
-
-      // Derive a start/end time based on the plan's estimated duration.
-      // Default start: 07:00; end: derived from duration.
       const startHour = DEFAULT_SCHEDULE_START_HOUR;
       const endHour = startHour + plan.estimatedDurationHours;
       const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");
@@ -282,17 +245,17 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
         dispatchStatus: "scheduled",
       };
 
-      setExtraScheduleBlocks((current) => [
+      // Optimistic update
+      setScheduleBlocks((current) => [
         ...current.filter((b) => b.dispatchPlanId !== planId),
         newBlock,
       ]);
-
-      setPlanStatusOverrides((current) => ({
-        ...current,
-        [planId]: "scheduled",
-      }));
-
-      setExtraEvents((current) => [
+      setPlans((current) =>
+        current.map((p) =>
+          p.id !== planId ? p : { ...p, dispatchStatus: "scheduled" as DispatchStatus }
+        )
+      );
+      setEvents((current) => [
         ...current,
         {
           id: `evt-${crypto.randomUUID()}`,
@@ -302,11 +265,54 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
           description: `${plan.jobNumber} — ${plan.customerName} scheduled for ${date} with ${assignment.crewName}.`,
         },
       ]);
+
+      if (!role) return;
+      void requestJson(`/api/dispatch-plans/${planId}`, {
+        role,
+        method: "PATCH",
+        body: {
+          action: "schedule",
+          jobId: plan.jobId || undefined,
+          crewAssignmentId: assignment.id,
+          crewName: assignment.crewName,
+          scheduledDate: date,
+          scheduledStartTime,
+          scheduledEndTime,
+          estimatedDurationHours: plan.estimatedDurationHours,
+          jobType: plan.jobType,
+          customerName: plan.customerName,
+          propertyName: plan.propertyName,
+        },
+      }).catch(() => {});
+    },
+    [plans, assignments, role]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Context value
+  // ---------------------------------------------------------------------------
+
+  const value = useMemo<DispatchContextValue>(() => {
+    function getDispatchPlanById(id: string) {
+      return snapshot.dispatchPlans.find((p) => p.id === id);
+    }
+
+    function getAssignmentForPlanFn(dispatchPlanId: string) {
+      return getCrewAssignmentForPlan(snapshot.crewAssignments, dispatchPlanId);
+    }
+
+    function getScheduleBlocksForDateFn(date: string) {
+      return getScheduleBlocksForDate(snapshot.scheduleBlocks, date);
+    }
+
+    function getEventsForPlanFn(dispatchPlanId: string) {
+      return getEventsForPlan(snapshot.dispatchEvents, dispatchPlanId);
     }
 
     return {
-      snapshot,
-      crews: mockCrews,
+      snapshot: plans.length > 0 ? snapshot : EMPTY_SNAPSHOT,
+      crews,
+      loading,
       getDispatchPlanById,
       getAssignmentForPlan: getAssignmentForPlanFn,
       getScheduleBlocksForDate: getScheduleBlocksForDateFn,
@@ -314,7 +320,7 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
       assignCrew,
       schedulePlan,
     };
-  }, [snapshot, assignments]);
+  }, [snapshot, plans, crews, loading, assignCrew, schedulePlan]);
 
   return (
     <DispatchContext.Provider value={value}>
@@ -332,3 +338,4 @@ export function useDispatch() {
 
   return context;
 }
+

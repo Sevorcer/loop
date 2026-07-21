@@ -14,6 +14,10 @@
  *
  * Keep this file in sync with the matrix doc and SQL policies.
  * When adding a new table or role, update all three in the same commit.
+ *
+ * Sprint 27: Added sprint-27 platform service tables —
+ *   storage_objects, gc_issue_requests, installed_systems,
+ *   knowledge_items, portal_projects, performance_models
  */
 
 // ---------------------------------------------------------------------------
@@ -36,7 +40,14 @@ export type CoreTable =
   | "jobs"
   | "job_activity"
   | "portal_users"
-  | "portal_memberships";
+  | "portal_memberships"
+  // Sprint 27 — platform service tables
+  | "storage_objects"
+  | "gc_issue_requests"
+  | "installed_systems"
+  | "knowledge_items"
+  | "portal_projects"
+  | "performance_models";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -110,6 +121,52 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager"]),
     update: new Set<AppRole>(["owner", "manager"]),
     delete: new Set<AppRole>(["owner"]),
+  },
+
+  // ── Sprint 27 tables ─────────────────────────────────────────────────────
+
+  storage_objects: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner", "manager"]),
+  },
+
+  gc_issue_requests: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    // only dispatchers and above may triage/update
+    update: new Set<AppRole>(["owner", "manager", "dispatch"]),
+    delete: new Set<AppRole>(["owner", "manager"]),
+  },
+
+  installed_systems: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner", "manager"]),
+  },
+
+  knowledge_items: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner", "manager"]),
+  },
+
+  portal_projects: {
+    // portal role can also read (row-level visibility enforced in RLS)
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales", "portal"]),
+    insert: new Set<AppRole>(["owner", "manager"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner", "manager"]),
+  },
+
+  performance_models: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner", "manager"]),
   },
 };
 
