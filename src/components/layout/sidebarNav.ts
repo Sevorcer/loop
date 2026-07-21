@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Building2,
+  Building,
   Users,
   Briefcase,
   HardHat,
@@ -56,7 +57,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Administration",
-    items: [{ name: "Organizations", href: ADMIN_ROUTES.ORGANIZATIONS, icon: Building2 }],
+    items: [{ name: "Organizations", href: ADMIN_ROUTES.ORGANIZATIONS, icon: Building }],
   },
   {
     label: "External",

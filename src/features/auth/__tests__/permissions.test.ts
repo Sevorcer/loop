@@ -4,6 +4,7 @@ import { ADMIN_ROUTES, ROUTES, PORTAL_ROUTES } from "@/lib/routes";
 import { SHELL_NAV_GROUPS } from "@/components/layout/sidebarNav";
 import type { AppRole } from "@/services/authorization";
 import { getNavItemsForRole, NAV_ROUTE_ROLES } from "../utils/navPermissions";
+import type { NavGroup } from "../utils/navPermissions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ function canSee(role: AppRole | null, href: string): boolean {
   return allVisibleHrefs(role).includes(href);
 }
 
-function findGroup(role: AppRole | null, label: string) {
+function findGroup(role: AppRole | null, label: string): NavGroup | undefined {
   return getNavItemsForRole(role, SHELL_NAV_GROUPS).find((group) => group.label === label);
 }
 
