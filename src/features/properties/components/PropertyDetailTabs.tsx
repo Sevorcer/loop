@@ -540,20 +540,22 @@ function ContactsSection({
               </div>
 
               <p className="text-sm text-muted-foreground">
-                No linked customer record found. Assign a customer to this property to surface
-                full contact details here.
+                A customer name is recorded, but no linked customer profile was found.
+                Full contact details will appear here once the customer record is linked.
               </p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Additional property-level contacts */}
-      {details.contacts.filter((c) => c.role !== "Primary Customer").length > 0 ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {details.contacts
-            .filter((c) => c.role !== "Primary Customer")
-            .map((contact) => (
+      {/* Additional property-level contacts (excludes the primary customer shown above) */}
+      {(() => {
+        const extraContacts = details.contacts.filter((c) => c.role !== "Primary Customer");
+        if (extraContacts.length === 0) return null;
+
+        return (
+          <div className="grid gap-6 lg:grid-cols-2">
+            {extraContacts.map((contact) => (
               <Card key={contact.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
@@ -579,8 +581,9 @@ function ContactsSection({
                 </CardContent>
               </Card>
             ))}
-        </div>
-      ) : null}
+          </div>
+        );
+      })()}
     </div>
   );
 }
