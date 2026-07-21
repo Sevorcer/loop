@@ -9,6 +9,9 @@ import {
   type ReactNode,
 } from "react";
 
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
+
 import { mockBenchmarks } from "../data/mockReporting";
 import { mockComparisonWindows } from "../data/mockReporting";
 import { mockHealthIndicators } from "../data/mockReporting";
@@ -64,6 +67,8 @@ interface ReportingContextValue {
   attentionItems: HealthIndicator[];
   /** True while loading performance models from Supabase */
   loading: boolean;
+  /** Error from loading performance models */
+  error: string | null;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -92,50 +97,75 @@ interface ReportingProviderProps {
  * The domain contract (shapes, enrichment logic, health scoring) is unchanged.
  */
 export function ReportingProvider({ children }: ReportingProviderProps) {
-  const [liveModels, setLiveModels] = useState<PerformanceModel[] | null>(null);
+  const { role } = useCurrentRole();
+  const [liveModels, setLiveModels] = useState<PerformanceModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!role) return;
+
     let cancelled = false;
 
     async function fetchModels() {
+      setLoading(true);
+      setError(null);
+
       try {
-        const res = await fetch("/api/reporting", {
-          headers: { "Content-Type": "application/json" },
-        });
+        const json = await requestJson<{ performanceModels?: PerformanceModel[] }>(
+          "/api/reporting",
+          { role, cache: "no-store" },
+        );
 
-        if (!res.ok) {
-          return;
-        }
-
-        const json = (await res.json()) as { performanceModels?: PerformanceModel[] };
-
-        if (!cancelled && json.performanceModels) {
-          setLiveModels(json.performanceModels);
+        if (!cancelled) {
+          setLiveModels(json.performanceModels ?? []);
         }
       } catch {
-        // Network error — fall back gracefully
+        if (!cancelled) {
+          setLiveModels([]);
+          setError("Unable to load reporting models right now.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
     void fetchModels();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   const performanceModels = useMemo(
-    () => (liveModels ?? []).filter((m) => m.status === "active"),
+    () => liveModels.filter((m) => m.status === "active"),
     [liveModels]
   );
 
+  const hasActiveModels = performanceModels.length > 0;
+
   const kpiDefinitions = useMemo(
-    () => mockKpiDefinitions.filter((k) => k.status === "active"),
-    []
+    () => (hasActiveModels ? mockKpiDefinitions.filter((k) => k.status === "active") : []),
+    [hasActiveModels]
+  );
+
+  const trends = useMemo(() => (hasActiveModels ? mockTrends : []), [hasActiveModels]);
+  const benchmarks = useMemo(() => (hasActiveModels ? mockBenchmarks : []), [hasActiveModels]);
+  const scorecards = useMemo(() => (hasActiveModels ? mockScorecards : []), [hasActiveModels]);
+  const healthIndicators = useMemo(
+    () => (hasActiveModels ? mockHealthIndicators : []),
+    [hasActiveModels]
+  );
+  const performanceSummaries = useMemo(
+    () => (hasActiveModels ? mockPerformanceSummaries : []),
+    [hasActiveModels]
+  );
+  const comparisonWindows = useMemo(
+    () => (hasActiveModels ? mockComparisonWindows : []),
+    [hasActiveModels]
   );
 
   const enrichedScorecards = useMemo(() => {
-    return mockScorecards
+    return scorecards
       .filter((sc) => sc.status === "active")
       .map((sc) => {
         const model = performanceModels.find(
@@ -146,48 +176,64 @@ export function ReportingProvider({ children }: ReportingProviderProps) {
           sc,
           model,
           kpiDefinitions,
-          mockTrends,
-          mockBenchmarks,
-          mockHealthIndicators,
-          mockPerformanceSummaries
+          trends,
+          benchmarks,
+          healthIndicators,
+          performanceSummaries
         );
       })
       .filter((sc): sc is EnrichedScorecard => sc !== null);
-  }, [performanceModels, kpiDefinitions]);
+  }, [
+    scorecards,
+    performanceModels,
+    kpiDefinitions,
+    trends,
+    benchmarks,
+    healthIndicators,
+    performanceSummaries,
+  ]);
 
   const companyHealthStatus = useMemo(
-    () => aggregateHealthStatus(mockHealthIndicators),
-    []
+    () => aggregateHealthStatus(healthIndicators),
+    [healthIndicators]
   );
 
   const attentionItems = useMemo(
-    () => mockHealthIndicators.filter((h) => h.requiresAttention),
-    []
+    () => healthIndicators.filter((h) => h.requiresAttention),
+    [healthIndicators]
   );
 
   const value = useMemo<ReportingContextValue>(
     () => ({
       performanceModels,
       kpiDefinitions,
-      trends: mockTrends,
-      benchmarks: mockBenchmarks,
-      scorecards: mockScorecards,
-      healthIndicators: mockHealthIndicators,
-      performanceSummaries: mockPerformanceSummaries,
-      comparisonWindows: mockComparisonWindows,
+      trends,
+      benchmarks,
+      scorecards,
+      healthIndicators,
+      performanceSummaries,
+      comparisonWindows,
       enrichedScorecards,
       companyHealthStatus,
-      attentionItemCount: attentionCount(mockHealthIndicators),
+      attentionItemCount: attentionCount(healthIndicators),
       attentionItems,
       loading,
+      error,
     }),
     [
       performanceModels,
       kpiDefinitions,
+      trends,
+      benchmarks,
+      scorecards,
+      healthIndicators,
+      performanceSummaries,
+      comparisonWindows,
       enrichedScorecards,
       companyHealthStatus,
       attentionItems,
       loading,
+      error,
     ]
   );
 

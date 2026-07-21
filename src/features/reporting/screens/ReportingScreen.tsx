@@ -2,11 +2,12 @@
 
 import { BarChart3 } from "lucide-react";
 
-import { PageHeader, SectionCard } from "@/components/atlas";
+import { EmptyState, ErrorState, LoadingState, PageHeader, SectionCard } from "@/components/atlas";
 
 import { HealthIndicatorCard } from "../components/HealthIndicatorCard";
 import { ScorecardSection } from "../components/ScorecardSection";
 import { useReporting } from "../state/ReportingProvider";
+import { resolveReportingUiState } from "../utils/uiState";
 
 function CompanyHealthBanner({
   status,
@@ -79,7 +80,46 @@ export function ReportingScreen() {
     companyHealthStatus,
     attentionItemCount,
     performanceModels,
+    loading,
+    error,
   } = useReporting();
+
+  const uiState = resolveReportingUiState({
+    loading,
+    error,
+    modelCount: performanceModels.length,
+  });
+
+  if (uiState === "loading") {
+    return <LoadingState message="Loading reporting models..." />;
+  }
+
+  if (uiState === "error") {
+    return (
+      <ErrorState
+        title="Unable to load Reporting"
+        description={
+          error ?? "We couldn't load reporting models right now. Please try again shortly."
+        }
+      />
+    );
+  }
+
+  if (uiState === "empty") {
+    return (
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+        <PageHeader
+          title="Performance Intelligence"
+          description="How is the company performing over time, and what patterns require attention?"
+        />
+        <EmptyState
+          title="No active performance models"
+          description="Reporting models will appear here after they are configured."
+          icon={<BarChart3 className="h-5 w-5" />}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
