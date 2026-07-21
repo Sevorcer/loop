@@ -1,43 +1,34 @@
-"use client";
-
-import { Building2, Briefcase, HardHat } from "lucide-react";
+import { Building2, Briefcase, Users } from "lucide-react";
 import Link from "next/link";
 
 import { ROUTES } from "@/lib/routes";
-import { useContractors } from "@/features/contractors/state/ContractorsProvider";
-import { useJobs } from "@/features/jobs/state/JobsProvider";
-import { useProperties } from "@/features/properties/state/PropertiesProvider";
+import type { DashboardSummary } from "@/repositories/dashboard";
 
-export function HomeSummaryCards() {
-  const { properties } = useProperties();
-  const { jobs } = useJobs();
-  const { contractors } = useContractors();
+interface HomeSummaryCardsProps {
+  summary: DashboardSummary;
+}
 
-  const openJobs = jobs.filter(
-    (j) => j.status !== "Completed" && j.status !== "Cancelled"
-  );
-  const activeContractors = contractors.filter((c) => c.active);
-
+export function HomeSummaryCards({ summary }: HomeSummaryCardsProps) {
   const cards = [
     {
       label: "Total Properties",
-      value: properties.length,
+      value: summary.totalProperties,
       icon: Building2,
       href: ROUTES.PROPERTIES,
       color: "text-blue-300",
     },
     {
-      label: "Open Jobs",
-      value: openJobs.length,
+      label: "Active Jobs",
+      value: summary.activeJobs,
       icon: Briefcase,
       href: ROUTES.JOBS,
       color: "text-red-300",
     },
     {
-      label: "Active Contractors",
-      value: activeContractors.length,
-      icon: HardHat,
-      href: ROUTES.CONTRACTORS,
+      label: "New Customers",
+      value: summary.newCustomersThisMonth,
+      icon: Users,
+      href: ROUTES.CUSTOMERS,
       color: "text-emerald-300",
     },
   ];
