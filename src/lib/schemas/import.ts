@@ -14,7 +14,9 @@ import { z } from "zod";
 
 const nonEmptyString = (label: string) =>
   z
-    .string()
+    .string({
+      error: (issue) => (issue.input === undefined ? `${label} is required` : undefined),
+    })
     .trim()
     .min(1, `${label} is required`);
 

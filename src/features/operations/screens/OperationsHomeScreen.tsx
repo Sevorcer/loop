@@ -34,7 +34,7 @@ function OperationalPhaseCard({
   return (
     <Link
       href={href}
-      className="group flex items-start gap-4 rounded-xl border border-default bg-surface p-4 transition-colors hover-surface-elevated"
+      className="group flex items-start gap-4 rounded-xl border border-default bg-surface p-4 transition-colors hover:bg-surface-elevated"
     >
       <div
         className={[
