@@ -166,7 +166,7 @@ export function PropertyDetailScreen({ property }: PropertyDetailScreenProps) {
         propertyName={property.name}
       />
 
-      {/* Tabbed workspace */}
+      {/* Property detail tabs — equipment, jobs, timeline, documents, and more */}
       <PropertyDetailTabs property={property} />
     </div>
   );

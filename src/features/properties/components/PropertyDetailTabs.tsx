@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   Building2,
@@ -23,9 +23,12 @@ import {
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { useCustomerSnapshot } from "../hooks/useCustomerSnapshot";
 
+import type { Job } from "@/features/jobs/types/job";
 import type { Property } from "../types/property";
 import type {
   PropertyDetails,
@@ -152,14 +155,30 @@ function getPhotoVariant(status: PropertyPhotoItem["status"]) {
 }
 
 function OverviewSection({
-  recentItems,
+  recentJobs,
+  jobsLoading,
+  lastVisit,
   beforeYouGoItems,
   homeIntelligenceItems,
 }: {
-  recentItems: { date: string; title: string }[];
+  recentJobs: Job[];
+  jobsLoading: boolean;
+  lastVisit: string;
   beforeYouGoItems: string[];
   homeIntelligenceItems: string[];
 }) {
+  const recentItems = useMemo(() => {
+    if (jobsLoading) return null;
+    if (recentJobs.length > 0) {
+      return recentJobs.slice(0, 3).map((job) => ({
+        date: formatDate(job.scheduledFor),
+        title: job.title,
+        id: job.id,
+      }));
+    }
+    return [{ date: formatDate(lastVisit), title: "Latest recorded property activity", id: "last-visit" }];
+  }, [recentJobs, jobsLoading, lastVisit]);
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
       <div className="space-y-6">
@@ -169,15 +188,21 @@ function OverviewSection({
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {recentItems.map((story) => (
+            {jobsLoading ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-10 animate-pulse rounded-md bg-muted" />
+                ))}
+              </div>
+            ) : (recentItems ?? []).map((story) => (
               <div
-                key={`${story.date}-${story.title}`}
+                key={story.id}
                 className="flex items-start justify-between gap-4 border-b pb-4 last:border-b-0 last:pb-0"
               >
                 <div className="space-y-1">
                   <p className="font-medium">{story.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    {formatDate(story.date)}
+                    {story.date}
                   </p>
                 </div>
 
@@ -284,8 +309,24 @@ function EquipmentSection({ details }: { details: PropertyDetails }) {
   );
 }
 
-function JobsSection({ details }: { details: PropertyDetails }) {
-  if (details.jobs.length === 0) {
+function JobsSection({
+  jobs,
+  loading,
+}: {
+  jobs: Job[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+        ))}
+      </div>
+    );
+  }
+
+  if (jobs.length === 0) {
     return (
       <EmptyState
         title="No related jobs yet"
@@ -301,35 +342,37 @@ function JobsSection({ details }: { details: PropertyDetails }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {details.jobs.map((job) => (
-          <div key={job.id} className="rounded-xl border bg-muted/20 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="font-medium">{job.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
+        {jobs.map((job) => (
+          <Link key={job.id} href={ROUTE_BUILDERS.JOB_DETAIL(job.id)} className="block">
+            <div className="rounded-xl border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/30">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-medium">{job.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{job.jobNumber}</p>
+                </div>
+
+                <StatusBadge
+                  variant={job.status === "Completed" ? "success" : "warning"}
+                >
+                  {job.status}
+                </StatusBadge>
               </div>
 
-              <StatusBadge
-                variant={job.status === "Completed" ? "success" : "warning"}
-              >
-                {job.status}
-              </StatusBadge>
+              <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide">Scheduled For</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {formatDate(job.scheduledFor)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wide">Assigned To</p>
+                  <p className="mt-1 font-medium text-foreground">{job.assignedTo}</p>
+                </div>
+              </div>
             </div>
-
-            <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
-              <div>
-                <p className="text-xs uppercase tracking-wide">Scheduled For</p>
-                <p className="mt-1 font-medium text-foreground">
-                  {formatDate(job.scheduledFor)}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-wide">Assigned Crew</p>
-                <p className="mt-1 font-medium text-foreground">{job.crew}</p>
-              </div>
-            </div>
-          </div>
+          </Link>
         ))}
       </CardContent>
     </Card>
@@ -632,24 +675,34 @@ function NotesSection({ details }: { details: PropertyDetails }) {
 }
 
 export function PropertyDetailTabs({ property }: { property: Property }) {
-  const [activeTab, setActiveTab] =
-    useState<PropertyDetailTabKey>("overview");
+  const { role } = useCurrentRole();
+  const [activeTab, setActiveTab] = useState<PropertyDetailTabKey>("overview");
+
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsFetched, setJobsFetched] = useState(false);
 
   const details = useMemo(() => getPropertyDetails(property), [property]);
 
-  const recentItems = useMemo(() => {
-    return details.jobs.length > 0
-      ? details.jobs.map((job) => ({
-          date: job.scheduledFor,
-          title: job.title,
-        }))
-      : [
-          {
-            date: property.lastVisit,
-            title: "Latest recorded property activity",
-          },
-        ];
-  }, [details.jobs, property.lastVisit]);
+  // Derive loading from whether the tab is relevant and data hasn't been fetched yet
+  const jobsLoading = (activeTab === "jobs" || activeTab === "overview") && !jobsFetched && Boolean(role);
+
+  useEffect(() => {
+    if ((activeTab !== "jobs" && activeTab !== "overview") || jobsFetched || !role) {
+      return;
+    }
+
+    requestJson<{ jobs: Job[] }>(
+      `/api/properties/${property.id}/jobs`,
+      { role, cache: "no-store" },
+    )
+      .then((response) => {
+        setJobs(response.jobs);
+        setJobsFetched(true);
+      })
+      .catch(() => {
+        setJobsFetched(true);
+      });
+  }, [activeTab, property.id, jobsFetched, role]);
 
   return (
     <div className="space-y-6">
@@ -662,7 +715,9 @@ export function PropertyDetailTabs({ property }: { property: Property }) {
 
       {activeTab === "overview" ? (
         <OverviewSection
-          recentItems={recentItems}
+          recentJobs={jobs}
+          jobsLoading={jobsLoading}
+          lastVisit={property.lastVisit}
           beforeYouGoItems={details.beforeYouGoItems}
           homeIntelligenceItems={details.homeIntelligenceItems}
         />
@@ -672,7 +727,9 @@ export function PropertyDetailTabs({ property }: { property: Property }) {
         <EquipmentSection details={details} />
       ) : null}
 
-      {activeTab === "jobs" ? <JobsSection details={details} /> : null}
+      {activeTab === "jobs" ? (
+        <JobsSection jobs={jobs} loading={jobsLoading} />
+      ) : null}
 
       {activeTab === "timeline" ? (
         <TimelineSection details={details} />

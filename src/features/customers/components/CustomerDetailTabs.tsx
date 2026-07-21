@@ -11,6 +11,7 @@ import {
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { Customer } from "../types/customer";
 import type {
@@ -128,7 +129,7 @@ function PropertiesSection({ properties }: { properties: CustomerPropertyItem[] 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {properties.map((property) => (
-        <Link key={property.id} href={`/properties/${property.id}`} className="block">
+        <Link key={property.id} href={ROUTE_BUILDERS.PROPERTY_DETAIL(property.id)} className="block">
           <Card className="hover-lift h-full transition-atlas hover:border-primary/40">
             <CardHeader>
               <div className="flex items-start justify-between gap-4">
@@ -183,30 +184,38 @@ function JobsSection({ jobs }: { jobs: CustomerJobItem[] }) {
 
       <CardContent className="space-y-4">
         {jobs.map((job) => (
-          <div key={job.id} className="rounded-xl border bg-muted/20 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="font-medium">{job.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
+          <Link key={job.id} href={ROUTE_BUILDERS.JOB_DETAIL(job.id)} className="block">
+            <div className="rounded-xl border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/30">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-medium">{job.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
+                </div>
+
+                <StatusBadge
+                  variant={job.status === "Completed" ? "success" : "warning"}
+                >
+                  {job.status}
+                </StatusBadge>
               </div>
 
-              <StatusBadge variant={job.status === "Completed" ? "success" : "warning"}>
-                {job.status}
-              </StatusBadge>
+              <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide">Scheduled For</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {formatDate(job.scheduledFor)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wide">Property</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {job.propertyName}
+                  </p>
+                </div>
+              </div>
             </div>
-
-            <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
-              <div>
-                <p className="text-xs uppercase tracking-wide">Scheduled For</p>
-                <p className="mt-1 font-medium text-foreground">{formatDate(job.scheduledFor)}</p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-wide">Property</p>
-                <p className="mt-1 font-medium text-foreground">{job.propertyName}</p>
-              </div>
-            </div>
-          </div>
+          </Link>
         ))}
       </CardContent>
     </Card>

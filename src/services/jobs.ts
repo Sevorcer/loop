@@ -13,6 +13,8 @@ import {
   getJobRowById,
   listJobActivity as listAllJobActivity,
   listJobs,
+  listJobsByCustomerId,
+  listJobsByPropertyId,
   toJob,
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
@@ -81,6 +83,14 @@ function createJobNumber(index: number) {
 export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
   const [jobs, activity] = await Promise.all([listJobs(), listAllJobActivity()]);
   return { jobs, activity };
+}
+
+export async function listJobsForCustomer(customerId: string): Promise<Job[]> {
+  return listJobsByCustomerId(customerId);
+}
+
+export async function listJobsForProperty(propertyId: string): Promise<Job[]> {
+  return listJobsByPropertyId(propertyId);
 }
 
 export async function fetchJobById(id: string): Promise<Job | null> {
