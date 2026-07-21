@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { listJobs } from "@/repositories/jobs";
 import { loadDispatchSnapshot } from "@/services/dispatch";
 import { DispatchScreen } from "@/features/dispatch";
