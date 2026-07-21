@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ export function CreateOrganizationDialog({
   const [nameErrors, setNameErrors] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -93,7 +92,6 @@ export function CreateOrganizationDialog({
 
           <AdminFieldWrapper label="Name" htmlFor="create-org-name" required>
             <input
-              ref={inputRef}
               id="create-org-name"
               type="text"
               value={name}
@@ -129,4 +127,3 @@ export function CreateOrganizationDialog({
     </div>
   );
 }
-

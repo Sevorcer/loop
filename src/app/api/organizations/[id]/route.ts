@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import {
-  invalidJsonResponse,
-  mapRouteError,
   readJsonObject,
 } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import {
+  mapOrganizationRouteError,
+  organizationNotFound,
+  organizationPermissionDenied,
+  organizationValidationFailed,
+} from "@/lib/organizationsApiErrors";
 import {
   UpdateOrganizationSchema,
   deleteOrganization,
@@ -19,22 +23,24 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = requirePermission(request, "organizations", "select");
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {
+    const denied = organizationPermissionDenied(guard.response.status);
+    return NextResponse.json(denied.error, { status: denied.status });
+  }
 
   try {
     const { id } = await params;
     const organization = await getOrganization(id);
 
     if (!organization) {
-      return NextResponse.json(
-        { error: "NOT_FOUND", message: `Organization '${id}' not found.`, code: 404 },
-        { status: 404 },
-      );
+      const notFound = organizationNotFound(id);
+      return NextResponse.json(notFound.error, { status: notFound.status });
     }
 
     return NextResponse.json({ organization });
   } catch (error) {
-    return mapRouteError(error);
+    const mapped = mapOrganizationRouteError(error);
+    return NextResponse.json(mapped.error, { status: mapped.status });
   }
 }
 
@@ -43,27 +49,26 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = requirePermission(request, "organizations", "update");
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {
+    const denied = organizationPermissionDenied(guard.response.status);
+    return NextResponse.json(denied.error, { status: denied.status });
+  }
 
   let body: Record<string, unknown>;
   try {
     body = await readJsonObject(request);
   } catch {
-    return invalidJsonResponse();
+    const validation = organizationValidationFailed({
+      _root: ["Request body must be valid JSON."],
+    });
+    return NextResponse.json(validation.error, { status: validation.status });
   }
 
   const parsed = UpdateOrganizationSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "VALIDATION_ERROR",
-        message: "Validation failed.",
-        fieldErrors: parsed.error.flatten().fieldErrors,
-        code: 400,
-      },
-      { status: 400 },
-    );
+    const validation = organizationValidationFailed(parsed.error.flatten().fieldErrors);
+    return NextResponse.json(validation.error, { status: validation.status });
   }
 
   try {
@@ -71,10 +76,8 @@ export async function PATCH(
     const organization = await updateOrganization(id, parsed.data);
 
     if (!organization) {
-      return NextResponse.json(
-        { error: "NOT_FOUND", message: `Organization '${id}' not found.`, code: 404 },
-        { status: 404 },
-      );
+      const notFound = organizationNotFound(id);
+      return NextResponse.json(notFound.error, { status: notFound.status });
     }
 
     emitAuditEvent({
@@ -87,7 +90,8 @@ export async function PATCH(
 
     return NextResponse.json({ organization });
   } catch (error) {
-    return mapRouteError(error);
+    const mapped = mapOrganizationRouteError(error);
+    return NextResponse.json(mapped.error, { status: mapped.status });
   }
 }
 
@@ -96,17 +100,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = requirePermission(request, "organizations", "delete");
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {
+    const denied = organizationPermissionDenied(guard.response.status);
+    return NextResponse.json(denied.error, { status: denied.status });
+  }
 
   try {
     const { id } = await params;
     const deleted = await deleteOrganization(id);
 
     if (!deleted) {
-      return NextResponse.json(
-        { error: "NOT_FOUND", message: `Organization '${id}' not found.`, code: 404 },
-        { status: 404 },
-      );
+      const notFound = organizationNotFound(id);
+      return NextResponse.json(notFound.error, { status: notFound.status });
     }
 
     emitAuditEvent({
@@ -118,6 +123,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Organization deleted.", id });
   } catch (error) {
-    return mapRouteError(error);
+    const mapped = mapOrganizationRouteError(error);
+    return NextResponse.json(mapped.error, { status: mapped.status });
   }
 }
