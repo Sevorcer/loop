@@ -10,7 +10,13 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import {
+  createApiErrorResponse,
+  invalidJsonResponse,
+  mapRepositoryError,
+  mapRouteError,
+  readJsonObject,
+} from "@/lib/api/routeErrors";
 import {
   assignCrewToPlan,
   emitDispatchEvent,
@@ -49,10 +55,7 @@ export async function PATCH(
 
         const result = await assignCrewToPlan(id, crewId, crewName, leadInstaller, supporting, jobId, history as never);
         if (!result.ok) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: 400 }
-          );
+          return mapRepositoryError(result.error);
         }
 
         await emitDispatchEvent(
@@ -84,10 +87,7 @@ export async function PATCH(
         );
 
         if (!result.blockResult.ok) {
-          return NextResponse.json(
-            { error: result.blockResult.error.code, message: result.blockResult.error.message },
-            { status: 400 }
-          );
+          return mapRepositoryError(result.blockResult.error);
         }
 
         await emitDispatchEvent(
@@ -103,19 +103,13 @@ export async function PATCH(
         const status = String(body.status ?? "") as DispatchStatus;
         const result = await updateDispatchPlanStatus(id, status);
         if (!result.ok) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: 400 }
-          );
+          return mapRepositoryError(result.error);
         }
         return NextResponse.json({ plan: result.data });
       }
 
       default:
-        return NextResponse.json(
-          { error: "INVALID_INPUT", message: `Unknown action: ${action}` },
-          { status: 400 }
-        );
+        return createApiErrorResponse("INVALID_INPUT", `Unknown action: ${action}`, 400);
     }
   } catch (error) {
     return mapRouteError(error);

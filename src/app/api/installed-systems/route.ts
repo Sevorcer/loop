@@ -12,7 +12,7 @@ import { mapRouteError } from "@/lib/api/routeErrors";
 import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "jobs", "select");
+  const guard = requirePermission(request, "installed_systems", "select");
   if (!guard.ok) return guard.response;
 
   try {

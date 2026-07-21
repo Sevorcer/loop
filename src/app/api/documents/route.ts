@@ -14,8 +14,8 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { invalidJsonResponse, mapRepositoryError } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import { createRepositoryErrorBody } from "@/lib/repositories/http";
 import { createDocumentsService } from "@/services/domain/documentsService";
 import type { PortalDocumentAccess } from "@/services/repositories/documentsRepository";
 
@@ -27,8 +27,7 @@ export async function GET(request: Request) {
 
   const result = await documentsService.list();
   if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+    return mapRepositoryError(result.error);
   }
 
   return NextResponse.json({ documents: result.data.items });
@@ -42,10 +41,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json(
-      { error: "INVALID_PAYLOAD", message: "Request body must be valid JSON.", code: 400 },
-      { status: 400 },
-    );
+    return invalidJsonResponse();
   }
 
   emitAuditEvent({
@@ -57,8 +53,7 @@ export async function POST(request: Request) {
 
   const result = await documentsService.create(body as Partial<PortalDocumentAccess>);
   if (!result.ok) {
-    const error = createRepositoryErrorBody(result.error);
-    return NextResponse.json(error.body, { status: error.status });
+    return mapRepositoryError(result.error);
   }
 
   return NextResponse.json({ message: "Document access created.", document: result.data }, { status: 201 });
