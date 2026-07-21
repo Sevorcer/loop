@@ -325,7 +325,7 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     { jobs },
     properties,
     customers,
-    installedSystems,
+    installedSystemsResult,
     knowledgeItems,
     portalProjects,
     portalDocuments,
@@ -335,13 +335,19 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     listJobsWithActivity(),
     listProperties(),
     listCustomers(),
-    listInstalledSystems().catch(() => []),
+    listInstalledSystems().catch(() => ({ ok: false as const, error: { message: "Failed to load installed systems" } })),
     listKnowledgeItems().catch(() => []),
     listPortalProjects().catch(() => []),
     listAllPortalDocuments().catch(() => []),
     listAllPortalPhotos().catch(() => []),
     listPerformanceModels({ status: "active" }).catch(() => []),
   ]);
+
+  if (!installedSystemsResult.ok) {
+    console.error("Failed to load installed systems", installedSystemsResult.error);
+  }
+
+  const installedSystems = installedSystemsResult.ok ? installedSystemsResult.data : [];
 
   const navigationRecords: SearchRecord[] = NAVIGATION_TARGETS.map((target) => ({
     id: `navigation-${target.href}`,
@@ -434,7 +440,7 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
       sourceLabel: "Installed Systems",
       href: ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id),
       recordType: "entity" as const,
-      tokens: sanitizeTokenStrings([system.systemName, system.customerName, system.propertyName, system.location, ...system.serialNumbers]),
+      tokens: sanitizeTokenStrings([system.systemName, system.customerName, system.propertyName, system.location, ...(system.serialNumbers ?? [])]),
       contextRefs: {
         installedSystemId: system.id,
         propertyId: system.propertyId ?? undefined,
