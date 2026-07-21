@@ -13,7 +13,13 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import {
+  createApiErrorResponse,
+  invalidJsonResponse,
+  mapRepositoryError,
+  mapRouteError,
+  readJsonObject,
+} from "@/lib/api/routeErrors";
 import {
   activatePlan,
   getDailyPlansState,
@@ -53,17 +59,11 @@ export async function POST(request: Request) {
         const date = String(body.date ?? "");
         const content = String(body.content ?? "");
         if (!date) {
-          return NextResponse.json(
-            { error: "INVALID_INPUT", message: "date is required." },
-            { status: 400 }
-          );
+          return createApiErrorResponse("INVALID_INPUT", "date is required.", 400);
         }
         const result = await saveNote(date, content);
         if (!result.ok) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: 400 }
-          );
+          return mapRepositoryError(result.error);
         }
         return NextResponse.json({ note: result.data });
       }
@@ -71,17 +71,11 @@ export async function POST(request: Request) {
       case "activate_plan": {
         const date = String(body.date ?? "");
         if (!date) {
-          return NextResponse.json(
-            { error: "INVALID_INPUT", message: "date is required." },
-            { status: 400 }
-          );
+          return createApiErrorResponse("INVALID_INPUT", "date is required.", 400);
         }
         const result = await activatePlan(date);
         if (!result.ok) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: 400 }
-          );
+          return mapRepositoryError(result.error);
         }
         return NextResponse.json({ activation: result.data });
       }
@@ -90,17 +84,11 @@ export async function POST(request: Request) {
         const jobId = String(body.jobId ?? "");
         const readinessState = body.readinessState as "ready" | "needs-attention" | undefined;
         if (!jobId) {
-          return NextResponse.json(
-            { error: "INVALID_INPUT", message: "jobId is required." },
-            { status: 400 }
-          );
+          return createApiErrorResponse("INVALID_INPUT", "jobId is required.", 400);
         }
         const result = await setJobOverride(jobId, readinessState ?? undefined);
         if (!result.ok) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: 400 }
-          );
+          return mapRepositoryError(result.error);
         }
         return NextResponse.json({ override: result.data });
       }
@@ -108,26 +96,17 @@ export async function POST(request: Request) {
       case "mark_packets_sent": {
         const date = String(body.date ?? "");
         if (!date) {
-          return NextResponse.json(
-            { error: "INVALID_INPUT", message: "date is required." },
-            { status: 400 }
-          );
+          return createApiErrorResponse("INVALID_INPUT", "date is required.", 400);
         }
         const result = await markPacketsSent(date);
         if (!result.ok) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: 400 }
-          );
+          return mapRepositoryError(result.error);
         }
         return NextResponse.json({ activation: result.data });
       }
 
       default:
-        return NextResponse.json(
-          { error: "INVALID_INPUT", message: `Unknown action: ${action}` },
-          { status: 400 }
-        );
+        return createApiErrorResponse("INVALID_INPUT", `Unknown action: ${action}`, 400);
     }
   } catch (error) {
     return mapRouteError(error);

@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { mapRouteError } from "@/lib/api/routeErrors";
+import { mapRepositoryError, mapRouteError } from "@/lib/api/routeErrors";
 import { listCrews } from "@/repositories/dispatch";
 
 export async function GET(request: Request) {
@@ -17,10 +17,7 @@ export async function GET(request: Request) {
   try {
     const result = await listCrews();
     if (!result.ok) {
-      return NextResponse.json(
-        { error: result.error.code, message: result.error.message },
-        { status: 503 }
-      );
+      return mapRepositoryError(result.error);
     }
     return NextResponse.json({ crews: result.data });
   } catch (error) {

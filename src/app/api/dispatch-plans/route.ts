@@ -9,7 +9,12 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import {
+  invalidJsonResponse,
+  mapRepositoryError,
+  mapRouteError,
+  readJsonObject,
+} from "@/lib/api/routeErrors";
 import { loadDispatchSnapshot, createPlan } from "@/services/dispatch";
 import type { DispatchPlanWriteInput } from "@/services/dispatch";
 
@@ -60,10 +65,7 @@ export async function POST(request: Request) {
 
     const result = await createPlan(input);
     if (!result.ok) {
-      return NextResponse.json(
-        { error: result.error.code, message: result.error.message },
-        { status: 400 }
-      );
+      return mapRepositoryError(result.error);
     }
     return NextResponse.json({ plan: result.data }, { status: 201 });
   } catch (error) {
