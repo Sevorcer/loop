@@ -1,8 +1,11 @@
 # LOOP — Database
 
-This folder contains all Supabase database artifacts for LOOP.
+> **⚠️ Reference only.**
+> The single source of truth for all database schema is **`supabase/migrations/`**.
+> Do not apply files from this folder directly to any environment.
+> See [`docs/architecture/database-source-of-truth.md`](../docs/architecture/database-source-of-truth.md) for the full SSoT declaration and migration sequence.
 
-Migrations and policies are designed to be applied sequentially via the Supabase CLI or applied manually through the Supabase SQL Editor.
+This folder contains human-readable reference copies of the schema definitions that were used to author the canonical `supabase/migrations/` files.  It is retained for historical context and code review convenience only.
 
 ---
 
@@ -10,18 +13,22 @@ Migrations and policies are designed to be applied sequentially via the Supabase
 
 ```
 database/
-  migrations/      — table definitions; apply in numeric order
-  policies/        — RLS baseline and per-role allow policies; apply after migrations
+  migrations/      — reference table definitions (do not apply directly)
+  policies/        — reference RLS and role policies (do not apply directly)
   fixtures/        — deterministic baseline + golden-path seed fixtures
 ```
 
 ---
 
-## Apply Order
+## Canonical Apply Order
 
-1. `migrations/001_core_schema.sql` — creates core operational tables with `org_id` (multi-tenant isolation) and user reference columns (e.g. `assigned_user_id` in jobs, `actor_id` in job_activity) used by policy expressions
-2. `policies/001_rls_baseline.sql` — enables RLS on every core table and installs deny-by-default guards
-3. `policies/002_role_policies.sql` — installs explicit ALLOW policies for each internal role
+Schema is applied exclusively through `supabase/migrations/`:
+
+1. `supabase/migrations/20260719000001_baseline_core_schema.sql` — core tables, helper functions, RLS + role policies
+2. `supabase/migrations/20260720000001_wave2_domains.sql` — Daily Plans, Dispatch, Installed Systems
+3. `supabase/migrations/20260721014500_property_artifacts.sql` — property documents and photos
+4. `supabase/migrations/20260721023800_organizations_soft_delete.sql` — soft-delete column
+5. `supabase/migrations/20260721060000_sprint27_platform_services.sql` — storage, GC issues, knowledge, portal projects, performance models
 
 ---
 

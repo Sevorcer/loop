@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { JobDetailScreen } from "@/features/jobs/components/JobDetailScreen";
+import { JobDetailClient } from "@/features/jobs/components/JobDetailClient";
 import { getJob, listJobActivity } from "@/services/jobs";
 
 export default async function JobDetailPage({
@@ -16,5 +16,5 @@ export default async function JobDetailPage({
     notFound();
   }
 
-  return <JobDetailScreen job={job} initialActivity={activity} />;
+  return <JobDetailClient job={job} activity={activity} />;
 }

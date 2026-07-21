@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CalendarDays,
@@ -15,10 +16,6 @@ import { requestJson } from "@/lib/api/client";
 import type { CrewAssignment, DispatchPlan, DispatchSnapshot } from "../types/dispatch";
 import { buildDispatchQueueSections, getCrewNameForPlan } from "../utils/dispatchWorkspace";
 import { DispatchBoardCard } from "./DispatchBoardCard";
-
-// ---------------------------------------------------------------------------
-// Board group definitions — mapped to live job statuses
-// ---------------------------------------------------------------------------
 
 const BOARD_GROUPS = {
   active: {
@@ -77,6 +74,7 @@ function updatePlan(
 
 export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   const { role } = useCurrentRole();
+  const router = useRouter();
   const [plans, setPlans] = useState<DispatchPlan[]>(initialSnapshot.dispatchPlans);
   const [crews] = useState(initialSnapshot.crews);
   const [assignments, setAssignments] = useState<CrewAssignment[]>(
@@ -130,6 +128,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
             reassignmentHistory: nextAssignment.reassignmentHistory,
           },
         });
+        router.refresh();
       } catch {
         setAssignments(previousAssignments);
       } finally {
@@ -140,7 +139,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         });
       }
     },
-    [role, crews, plans, assignments]
+    [assignments, crews, plans, role, router],
   );
 
   const handleSchedulePlan = useCallback(
@@ -185,6 +184,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
             propertyName: plan.propertyName,
           },
         });
+        router.refresh();
       } catch {
         setPlans(previousPlans);
       } finally {
@@ -195,7 +195,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         });
       }
     },
-    [role, plans, assignments],
+    [assignments, plans, role, router],
   );
 
   const sections = buildDispatchQueueSections(plans);

@@ -13,15 +13,14 @@ import {
 import Link from "next/link";
 
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
+import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 
-import { useJobs } from "../state/JobsProvider";
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
-import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
 import { AssignContractorPanel } from "./AssignContractorPanel";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
@@ -45,30 +44,23 @@ function getPriorityVariant(priority: Job["priority"]) {
   return "neutral" as const;
 }
 
+interface JobDetailScreenProps {
+  job: Job;
+  activity: JobActivity[];
+  onUpdateStatus: (status: JobStatus) => Promise<void>;
+  onAddNote: (note: string) => Promise<void>;
+}
+
 export function JobDetailScreen({
   job,
-  initialActivity = [],
-}: {
-  job: Job;
-  initialActivity?: JobActivity[];
-}) {
-  const { getJobById, getActivityByJobId, updateJobStatus, addJobNote } = useJobs();
-
-  const currentJob = getJobById(job.id) ?? job;
-  const activity = useMemo(() => {
-    const liveActivity = getActivityByJobId(job.id);
-    return liveActivity.length > 0 ? sortJobActivity(liveActivity) : sortJobActivity(initialActivity);
-  }, [getActivityByJobId, initialActivity, job.id]);
-
-  const badges = useMemo(
-    () => ({
-      statusVariant: getStatusVariant(currentJob.status),
-      priorityVariant: getPriorityVariant(currentJob.priority),
-    }),
-    [currentJob.priority, currentJob.status]
-  );
-
-  const statusIntent = getJobStatusIntent(currentJob.status);
+  activity,
+  onUpdateStatus,
+  onAddNote,
+}: JobDetailScreenProps) {
+  const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
+  const statusVariant = getStatusVariant(job.status);
+  const priorityVariant = getPriorityVariant(job.priority);
+  const statusIntent = getJobStatusIntent(job.status);
 
   return (
     <div className="space-y-6">
@@ -84,7 +76,7 @@ export function JobDetailScreen({
         </Link>
 
         <PermissionGuard table="jobs" action="update">
-          <Link href={`/jobs/${currentJob.id}/edit`}>
+          <Link href={`/jobs/${job.id}/edit`}>
             <Button variant="secondary">Edit Job</Button>
           </Link>
         </PermissionGuard>
@@ -100,24 +92,24 @@ export function JobDetailScreen({
 
             <div>
               <p className="text-sm font-medium text-slate-400">
-                {currentJob.jobNumber}
+                {job.jobNumber}
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
-                {currentJob.title}
+                {job.title}
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                {currentJob.summary}
+                {job.summary}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge variant={badges.statusVariant}>
-                {currentJob.status}
+              <StatusBadge variant={statusVariant}>
+                {job.status}
               </StatusBadge>
-              <StatusBadge variant={badges.priorityVariant}>
-                {currentJob.priority} Priority
+              <StatusBadge variant={priorityVariant}>
+                {job.priority} Priority
               </StatusBadge>
-              <StatusBadge variant="neutral">{currentJob.type}</StatusBadge>
+              <StatusBadge variant="neutral">{job.type}</StatusBadge>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
@@ -139,13 +131,13 @@ export function JobDetailScreen({
           <div className="p-6">
             <h2 className="text-lg font-semibold text-white">Work Summary</h2>
             <p className="mt-3 text-sm leading-7 text-slate-400">
-              {currentJob.summary}
+              {job.summary}
             </p>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="text-sm font-semibold text-white">Notes</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                {currentJob.notes || "No notes have been captured for this job yet."}
+                {job.notes || "No notes have been captured for this job yet."}
               </p>
             </div>
           </div>
@@ -164,7 +156,7 @@ export function JobDetailScreen({
                       Assigned To
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {currentJob.assignedTo || "No technician assigned"}
+                      {job.assignedTo || "No technician assigned"}
                     </p>
                   </div>
                 </div>
@@ -176,9 +168,7 @@ export function JobDetailScreen({
                       Scheduled For
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {currentJob.scheduledFor
-                        ? formatDate(currentJob.scheduledFor)
-                        : "No schedule set"}
+                      {job.scheduledFor ? formatDate(job.scheduledFor) : "No schedule set"}
                     </p>
                   </div>
                 </div>
@@ -190,7 +180,7 @@ export function JobDetailScreen({
                       Location
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {currentJob.location}
+                      {job.location}
                     </p>
                   </div>
                 </div>
@@ -201,21 +191,21 @@ export function JobDetailScreen({
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       Customer
                     </p>
-                    {currentJob.customerId ? (
+                    {job.customerId ? (
                       <Link
-                        href={ROUTE_BUILDERS.CUSTOMER_DETAIL(currentJob.customerId)}
+                        href={ROUTE_BUILDERS.CUSTOMER_DETAIL(job.customerId)}
                         className="mt-1 inline-flex items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
                       >
-                        {currentJob.customerName}
+                        {job.customerName}
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     ) : (
                       <p className="mt-1 text-sm text-slate-200">
-                        {currentJob.customerName || "No customer linked"}
+                        {job.customerName || "No customer linked"}
                       </p>
                     )}
                     <p className="mt-1 text-xs text-slate-500">
-                      {currentJob.customerId
+                      {job.customerId
                         ? "Linked customer record"
                         : "Reference only — no linked customer record"}
                     </p>
@@ -228,21 +218,21 @@ export function JobDetailScreen({
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       Property
                     </p>
-                    {currentJob.propertyId ? (
+                    {job.propertyId ? (
                       <Link
-                        href={ROUTE_BUILDERS.PROPERTY_DETAIL(currentJob.propertyId)}
+                        href={ROUTE_BUILDERS.PROPERTY_DETAIL(job.propertyId)}
                         className="mt-1 inline-flex items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
                       >
-                        {currentJob.propertyName}
+                        {job.propertyName}
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     ) : (
                       <p className="mt-1 text-sm text-slate-200">
-                        {currentJob.propertyName || "No property linked"}
+                        {job.propertyName || "No property linked"}
                       </p>
                     )}
                     <p className="mt-1 text-xs text-slate-500">
-                      {currentJob.propertyId
+                      {job.propertyId
                         ? "Linked property record"
                         : "Reference only — no linked property record"}
                     </p>
@@ -266,22 +256,20 @@ export function JobDetailScreen({
 
           <PermissionGuard table="jobs" action="update">
             <JobStatusActions
-              status={currentJob.status}
-              onChangeStatus={(nextStatus) =>
-                void updateJobStatus(currentJob.id, nextStatus)
-              }
+              status={job.status}
+              onChangeStatus={onUpdateStatus}
             />
           </PermissionGuard>
 
-          <AssignContractorPanel jobId={currentJob.id} />
+          <AssignContractorPanel jobId={job.id} />
 
-          <JobInstalledSystemsPanel jobId={currentJob.id} />
+          <JobInstalledSystemsPanel jobId={job.id} />
 
-          <JobNoteComposer onAddNote={(note) => void addJobNote(currentJob.id, note)} />
+          <JobNoteComposer onAddNote={onAddNote} />
         </div>
       </div>
 
-      <JobTimeline activity={activity} />
+      <JobTimeline activity={orderedActivity} />
     </div>
   );
 }

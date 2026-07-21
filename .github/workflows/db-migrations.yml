@@ -78,13 +78,15 @@ jobs:
           CLEAN_DB_PASSWORD=$(printf '%s' "$SUPABASE_DB_PASSWORD" | tr -d '\r\n')
           echo "::add-mask::$CLEAN_DB_PASSWORD"
           [ -n "$CLEAN_DB_PASSWORD" ] || { echo "::error::Missing SUPABASE_DB_PASSWORD"; exit 1; }
-          echo "SUPABASE_DB_PASSWORD=$CLEAN_DB_PASSWORD" >> "$GITHUB_ENV"
+          echo "SUPABASE_LINK_DB_PASSWORD=$CLEAN_DB_PASSWORD" >> "$GITHUB_ENV"
+          echo "SUPABASE_DB_PASSWORD=" >> "$GITHUB_ENV"
+          echo "SUPABASE_YES=true" >> "$GITHUB_ENV"
 
       - name: Link Supabase project
         run: |
           supabase link \
             --project-ref "$SUPABASE_PROJECT_REF" \
-            --password "$SUPABASE_DB_PASSWORD"
+            --password "$SUPABASE_LINK_DB_PASSWORD"
 
       - name: Supabase debug
         run: |
@@ -125,60 +127,24 @@ jobs:
             fi
           fi
 
-      # Newer Supabase projects (post-2024) only expose direct DB connections
-      # via IPv6.  GitHub Actions runners are IPv4-only, so the legacy
-      # `db.{ref}.supabase.co:5432` direct URL is unreachable.  All DB
-      # operations must instead use the IPv4 session pooler whose hostname is
-      # `aws-0-{region}.pooler.supabase.com`.  This step fetches the project's
-      # AWS region from the management API and stores the pooler hostname for
-      # use in all subsequent steps.
-      - name: Resolve database pooler host
-        run: |
-          API_RESPONSE=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" || echo "")
-          if [ -z "$API_RESPONSE" ]; then
-            echo "::error::Supabase management API request failed for project $SUPABASE_PROJECT_REF"
-            exit 1
-          fi
-          REGION=$(echo "$API_RESPONSE" | jq -r '.region // empty')
-          if [ -z "$REGION" ]; then
-            echo "::error::Supabase API response did not include a region field"
-            echo "Response: $API_RESPONSE"
-            exit 1
-          fi
-          POOLER_HOST="aws-0-${REGION}.pooler.supabase.com"
-          echo "SUPABASE_POOLER_HOST=$POOLER_HOST" >> "$GITHUB_ENV"
-          echo "Project region: $REGION — pooler host: $POOLER_HOST"
-
       # Informational only — shows which migrations are pending before apply.
-      # Uses --db-url with the IPv4 session pooler and an explicitly URL-encoded
-      # password so that special characters in the password cannot break the
-      # connection URL.  `continue-on-error` ensures a transient hiccup here
-      # does not block the actual migration apply step.
+      # Use the linked project instead of forcing a manual --db-url. The linked
+      # path handles IPv6-only direct hosts by falling back to the saved IPv4
+      # pooler URL and can mint a temporary login role when needed.
       - name: Show pending migrations
         continue-on-error: true
         run: |
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
-          supabase migration list \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
+          supabase migration list --linked
 
       - name: Apply migrations (up)
         run: |
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
-          supabase db push \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
+          supabase db push --linked
 
       - name: Check for schema drift
         id: drift
         run: |
           echo "Running schema drift check..."
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
-          DIFF=$(supabase db diff \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres" \
-            2>&1 || true)
+          DIFF=$(supabase db diff --linked 2>&1 || true)
 
           # db diff exits 0 whether or not there is drift; check for content.
           # Filter out blank lines and SQL comment lines (-- ...) which are noise.
@@ -196,12 +162,9 @@ jobs:
 
           echo "No schema drift detected."
 
-      # Informational only — same pooler URL as "Show pending migrations".
+      # Informational only — same linked connection mode as above.
       - name: Report final migration status
         if: always()
         continue-on-error: true
         run: |
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
-          supabase migration list \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
+          supabase migration list --linked

@@ -1,6 +1,8 @@
-import { loadDispatchSnapshot } from "@/services/dispatch";
+export const dynamic = "force-dynamic";
+
 import { DispatchScreen } from "@/features/dispatch";
 import type { DispatchSnapshot } from "@/features/dispatch/types/dispatch";
+import { loadDispatchSnapshot } from "@/services/dispatch";
 
 const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
   dispatchPlans: [],
@@ -23,8 +25,6 @@ const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
 export default async function DispatchPage() {
   const snapshot = await loadDispatchSnapshot().catch(() => null);
 
-  // loadDispatchSnapshot returns DispatchRepositorySnapshot (plans/assignments/etc.)
-  // Map to the DispatchSnapshot shape expected by DispatchScreen.
   const dispatchSnapshot: DispatchSnapshot = snapshot
     ? {
         ...EMPTY_DISPATCH_SNAPSHOT,

@@ -2,6 +2,7 @@ export const ROUTES = {
   HOME: "/",
   SIGN_IN: "/sign-in",
   DASHBOARD: "/dashboard",
+  OPERATIONS: "/operations",
   PROPERTIES: "/properties",
   JOBS: "/jobs",
   CONTRACTORS: "/contractors",
@@ -37,6 +38,10 @@ export const ADMIN_ROUTES = {
   CUSTOMERS: `${ADMIN_BASE}/customers`,
   PROPERTIES: `${ADMIN_BASE}/properties`,
   JOBS: `${ADMIN_BASE}/jobs`,
+  // Import pages per entity
+  IMPORT_CUSTOMERS: `${ADMIN_BASE}/customers/import`,
+  IMPORT_PROPERTIES: `${ADMIN_BASE}/properties/import`,
+  IMPORT_JOBS: `${ADMIN_BASE}/jobs/import`,
 } as const;
 
 // ─── Project Portal Routes ────────────────────────────────────────────────────
