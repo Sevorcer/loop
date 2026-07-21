@@ -1,0 +1,603 @@
+import "server-only";
+
+import type {
+  AssignmentStatus,
+  Crew,
+  CrewAssignment,
+  DispatchEvent,
+  DispatchEventType,
+  DispatchPlan,
+  DispatchPriority,
+  DispatchStatus,
+  ReassignmentRecord,
+  ScheduleBlock,
+} from "@/features/dispatch/types/dispatch";
+
+import { wrapRepositoryError } from "./shared";
+import { getRepositoryContext } from "./supabaseContext";
+
+// ---------------------------------------------------------------------------
+// Row shapes
+// ---------------------------------------------------------------------------
+
+interface CrewRow {
+  id: string;
+  org_id: string;
+  name: string;
+  lead_installer: string;
+  members: unknown;
+  certifications: string[];
+  availability: string;
+  truck_name: string;
+}
+
+interface DispatchPlanRow {
+  id: string;
+  org_id: string;
+  job_id: string | null;
+  job_number: string;
+  customer_name: string;
+  property_name: string;
+  job_type: string;
+  dispatch_status: string;
+  dispatchability: unknown;
+  target_date: string | null;
+  estimated_duration_hours: number;
+  priority: string;
+  sequencing_notes: string | null;
+  constraints: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CrewAssignmentRow {
+  id: string;
+  org_id: string;
+  dispatch_plan_id: string;
+  job_id: string | null;
+  crew_id: string;
+  crew_name: string;
+  lead_installer: string;
+  supporting_technicians: string[];
+  status: string;
+  assigned_at: string;
+  reassignment_history: unknown;
+}
+
+interface ScheduleBlockRow {
+  id: string;
+  org_id: string;
+  dispatch_plan_id: string;
+  job_id: string | null;
+  crew_assignment_id: string | null;
+  crew_name: string;
+  scheduled_date: string;
+  scheduled_start_time: string;
+  scheduled_end_time: string;
+  estimated_duration_hours: number;
+  job_type: string;
+  customer_name: string;
+  property_name: string;
+  dispatch_status: string;
+}
+
+interface DispatchEventRow {
+  id: string;
+  org_id: string;
+  dispatch_plan_id: string;
+  type: string;
+  timestamp: string;
+  description: string;
+  metadata: Record<string, string> | null;
+}
+
+// ---------------------------------------------------------------------------
+// Mappers
+// ---------------------------------------------------------------------------
+
+function mapCrew(row: CrewRow): Crew {
+  return {
+    id: row.id,
+    name: row.name,
+    leadInstaller: row.lead_installer,
+    members: (row.members as Crew["members"]) ?? [],
+    certifications: row.certifications ?? [],
+    availability: row.availability as Crew["availability"],
+    truckName: row.truck_name,
+  };
+}
+
+function mapDispatchPlan(row: DispatchPlanRow): DispatchPlan {
+  return {
+    id: row.id,
+    jobId: row.job_id ?? "",
+    jobNumber: row.job_number,
+    customerName: row.customer_name,
+    propertyName: row.property_name,
+    jobType: row.job_type,
+    dispatchStatus: row.dispatch_status as DispatchStatus,
+    dispatchability: (row.dispatchability as DispatchPlan["dispatchability"]) ?? {
+      isDispatchable: false,
+      materialReadiness: { state: "not_satisfied", reason: "" },
+      technicalReadiness: { state: "not_satisfied", reason: "" },
+      customerReadiness: { state: "not_satisfied", reason: "" },
+      crewReadiness: { state: "not_satisfied", reason: "" },
+    },
+    targetDate: row.target_date ?? "",
+    estimatedDurationHours: row.estimated_duration_hours,
+    priority: row.priority as DispatchPriority,
+    sequencingNotes: row.sequencing_notes ?? undefined,
+    constraints: (row.constraints as DispatchPlan["constraints"]) ?? [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapCrewAssignment(row: CrewAssignmentRow): CrewAssignment {
+  return {
+    id: row.id,
+    dispatchPlanId: row.dispatch_plan_id,
+    jobId: row.job_id ?? "",
+    crewId: row.crew_id,
+    crewName: row.crew_name,
+    leadInstaller: row.lead_installer,
+    supportingTechnicians: row.supporting_technicians ?? [],
+    status: row.status as AssignmentStatus,
+    assignedAt: row.assigned_at,
+    reassignmentHistory: (row.reassignment_history as ReassignmentRecord[]) ?? [],
+  };
+}
+
+function mapScheduleBlock(row: ScheduleBlockRow): ScheduleBlock {
+  return {
+    id: row.id,
+    dispatchPlanId: row.dispatch_plan_id,
+    jobId: row.job_id ?? "",
+    crewAssignmentId: row.crew_assignment_id ?? "",
+    crewName: row.crew_name,
+    scheduledDate: row.scheduled_date,
+    scheduledStartTime: row.scheduled_start_time,
+    scheduledEndTime: row.scheduled_end_time,
+    estimatedDurationHours: row.estimated_duration_hours,
+    jobType: row.job_type,
+    customerName: row.customer_name,
+    propertyName: row.property_name,
+    dispatchStatus: row.dispatch_status as DispatchStatus,
+  };
+}
+
+function mapDispatchEvent(row: DispatchEventRow): DispatchEvent {
+  return {
+    id: row.id,
+    dispatchPlanId: row.dispatch_plan_id,
+    type: row.type as DispatchEventType,
+    timestamp: row.timestamp,
+    description: row.description,
+    metadata: row.metadata ?? undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// CRUD — Crews
+// ---------------------------------------------------------------------------
+
+export async function listCrews() {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("crews")
+      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
+      .eq("org_id", orgId)
+      .order("name");
+
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as CrewRow[]).map(mapCrew);
+  });
+}
+
+export interface CrewWriteInput {
+  name: string;
+  leadInstaller: string;
+  members: Crew["members"];
+  certifications: string[];
+  availability: Crew["availability"];
+  truckName: string;
+}
+
+export async function createCrew(input: CrewWriteInput) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("crews")
+      .insert({
+        org_id: orgId,
+        name: input.name,
+        lead_installer: input.leadInstaller,
+        members: input.members,
+        certifications: input.certifications,
+        availability: input.availability,
+        truck_name: input.truckName,
+      })
+      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return mapCrew(data as CrewRow);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CRUD — Dispatch Plans
+// ---------------------------------------------------------------------------
+
+export async function listDispatchPlans() {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("dispatch_plans")
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
+      )
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as DispatchPlanRow[]).map(mapDispatchPlan);
+  });
+}
+
+export async function getDispatchPlanById(id: string) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("dispatch_plans")
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
+      )
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return data ? mapDispatchPlan(data as DispatchPlanRow) : null;
+  });
+}
+
+export interface DispatchPlanWriteInput {
+  jobId?: string;
+  jobNumber: string;
+  customerName: string;
+  propertyName: string;
+  jobType: string;
+  dispatchStatus: DispatchStatus;
+  dispatchability: DispatchPlan["dispatchability"];
+  targetDate?: string;
+  estimatedDurationHours: number;
+  priority: DispatchPriority;
+  sequencingNotes?: string;
+  constraints: DispatchPlan["constraints"];
+}
+
+export async function createDispatchPlan(input: DispatchPlanWriteInput) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("dispatch_plans")
+      .insert({
+        org_id: orgId,
+        job_id: input.jobId ?? null,
+        job_number: input.jobNumber,
+        customer_name: input.customerName,
+        property_name: input.propertyName,
+        job_type: input.jobType,
+        dispatch_status: input.dispatchStatus,
+        dispatchability: input.dispatchability,
+        target_date: input.targetDate ?? null,
+        estimated_duration_hours: input.estimatedDurationHours,
+        priority: input.priority,
+        sequencing_notes: input.sequencingNotes ?? null,
+        constraints: input.constraints,
+      })
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
+      )
+      .single();
+
+    if (error) throw new Error(error.message);
+    return mapDispatchPlan(data as DispatchPlanRow);
+  });
+}
+
+export async function updateDispatchPlanStatus(id: string, status: DispatchStatus) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("dispatch_plans")
+      .update({ dispatch_status: status, updated_at: new Date().toISOString() })
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
+      )
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error(`Dispatch plan ${id} not found.`);
+    return mapDispatchPlan(data as DispatchPlanRow);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CRUD — Crew Assignments
+// ---------------------------------------------------------------------------
+
+export async function listCrewAssignments() {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("crew_assignments")
+      .select(
+        "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history"
+      )
+      .eq("org_id", orgId);
+
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as CrewAssignmentRow[]).map(mapCrewAssignment);
+  });
+}
+
+export interface CrewAssignmentWriteInput {
+  dispatchPlanId: string;
+  jobId?: string;
+  crewId: string;
+  crewName: string;
+  leadInstaller: string;
+  supportingTechnicians: string[];
+  status: AssignmentStatus;
+  reassignmentHistory: ReassignmentRecord[];
+}
+
+export async function upsertCrewAssignment(input: CrewAssignmentWriteInput) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+
+    // Check for existing assignment for this plan
+    const { data: existing } = await supabase
+      .from("crew_assignments")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("dispatch_plan_id", input.dispatchPlanId)
+      .maybeSingle();
+
+    const now = new Date().toISOString();
+    let result;
+
+    if (existing?.id) {
+      const { data, error } = await supabase
+        .from("crew_assignments")
+        .update({
+          crew_id: input.crewId,
+          crew_name: input.crewName,
+          lead_installer: input.leadInstaller,
+          supporting_technicians: input.supportingTechnicians,
+          status: input.status,
+          assigned_at: now,
+          reassignment_history: input.reassignmentHistory,
+          updated_at: now,
+        })
+        .eq("org_id", orgId)
+        .eq("id", existing.id)
+        .select(
+          "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history"
+        )
+        .single();
+      if (error) throw new Error(error.message);
+      result = data;
+    } else {
+      const { data, error } = await supabase
+        .from("crew_assignments")
+        .insert({
+          org_id: orgId,
+          dispatch_plan_id: input.dispatchPlanId,
+          job_id: input.jobId ?? null,
+          crew_id: input.crewId,
+          crew_name: input.crewName,
+          lead_installer: input.leadInstaller,
+          supporting_technicians: input.supportingTechnicians,
+          status: input.status,
+          assigned_at: now,
+          reassignment_history: input.reassignmentHistory,
+        })
+        .select(
+          "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history"
+        )
+        .single();
+      if (error) throw new Error(error.message);
+      result = data;
+    }
+
+    return mapCrewAssignment(result as CrewAssignmentRow);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CRUD — Schedule Blocks
+// ---------------------------------------------------------------------------
+
+export async function listScheduleBlocks() {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("schedule_blocks")
+      .select(
+        "id,org_id,dispatch_plan_id,job_id,crew_assignment_id,crew_name,scheduled_date,scheduled_start_time,scheduled_end_time,estimated_duration_hours,job_type,customer_name,property_name,dispatch_status"
+      )
+      .eq("org_id", orgId)
+      .order("scheduled_date");
+
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as ScheduleBlockRow[]).map(mapScheduleBlock);
+  });
+}
+
+export interface ScheduleBlockWriteInput {
+  dispatchPlanId: string;
+  jobId?: string;
+  crewAssignmentId?: string;
+  crewName: string;
+  scheduledDate: string;
+  scheduledStartTime: string;
+  scheduledEndTime: string;
+  estimatedDurationHours: number;
+  jobType: string;
+  customerName: string;
+  propertyName: string;
+  dispatchStatus: DispatchStatus;
+}
+
+export async function upsertScheduleBlock(input: ScheduleBlockWriteInput) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+
+    // Remove any existing block for this plan before inserting new one
+    await supabase
+      .from("schedule_blocks")
+      .delete()
+      .eq("org_id", orgId)
+      .eq("dispatch_plan_id", input.dispatchPlanId);
+
+    const { data, error } = await supabase
+      .from("schedule_blocks")
+      .insert({
+        org_id: orgId,
+        dispatch_plan_id: input.dispatchPlanId,
+        job_id: input.jobId ?? null,
+        crew_assignment_id: input.crewAssignmentId ?? null,
+        crew_name: input.crewName,
+        scheduled_date: input.scheduledDate,
+        scheduled_start_time: input.scheduledStartTime,
+        scheduled_end_time: input.scheduledEndTime,
+        estimated_duration_hours: input.estimatedDurationHours,
+        job_type: input.jobType,
+        customer_name: input.customerName,
+        property_name: input.propertyName,
+        dispatch_status: input.dispatchStatus,
+      })
+      .select(
+        "id,org_id,dispatch_plan_id,job_id,crew_assignment_id,crew_name,scheduled_date,scheduled_start_time,scheduled_end_time,estimated_duration_hours,job_type,customer_name,property_name,dispatch_status"
+      )
+      .single();
+
+    if (error) throw new Error(error.message);
+    return mapScheduleBlock(data as ScheduleBlockRow);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CRUD — Dispatch Events
+// ---------------------------------------------------------------------------
+
+export async function listDispatchEvents() {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("dispatch_events")
+      .select("id,org_id,dispatch_plan_id,type,timestamp,description,metadata")
+      .eq("org_id", orgId)
+      .order("timestamp");
+
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as DispatchEventRow[]).map(mapDispatchEvent);
+  });
+}
+
+export interface DispatchEventWriteInput {
+  dispatchPlanId: string;
+  type: DispatchEventType;
+  description: string;
+  metadata?: Record<string, string>;
+}
+
+export async function appendDispatchEvent(input: DispatchEventWriteInput) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("dispatch_events")
+      .insert({
+        org_id: orgId,
+        dispatch_plan_id: input.dispatchPlanId,
+        type: input.type,
+        timestamp: new Date().toISOString(),
+        description: input.description,
+        metadata: input.metadata ?? null,
+      })
+      .select("id,org_id,dispatch_plan_id,type,timestamp,description,metadata")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return mapDispatchEvent(data as DispatchEventRow);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk snapshot load
+// ---------------------------------------------------------------------------
+
+export interface DispatchRepositorySnapshot {
+  plans: DispatchPlan[];
+  crews: Crew[];
+  assignments: CrewAssignment[];
+  scheduleBlocks: ScheduleBlock[];
+  events: DispatchEvent[];
+}
+
+export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const [plansRes, crewsRes, assignmentsRes, blocksRes, eventsRes] = await Promise.all([
+    supabase
+      .from("dispatch_plans")
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
+      )
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("crews")
+      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
+      .eq("org_id", orgId)
+      .order("name"),
+    supabase
+      .from("crew_assignments")
+      .select(
+        "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history"
+      )
+      .eq("org_id", orgId),
+    supabase
+      .from("schedule_blocks")
+      .select(
+        "id,org_id,dispatch_plan_id,job_id,crew_assignment_id,crew_name,scheduled_date,scheduled_start_time,scheduled_end_time,estimated_duration_hours,job_type,customer_name,property_name,dispatch_status"
+      )
+      .eq("org_id", orgId)
+      .order("scheduled_date"),
+    supabase
+      .from("dispatch_events")
+      .select("id,org_id,dispatch_plan_id,type,timestamp,description,metadata")
+      .eq("org_id", orgId)
+      .order("timestamp"),
+  ]);
+
+  if (plansRes.error) throw new Error(plansRes.error.message);
+  if (crewsRes.error) throw new Error(crewsRes.error.message);
+  if (assignmentsRes.error) throw new Error(assignmentsRes.error.message);
+  if (blocksRes.error) throw new Error(blocksRes.error.message);
+  if (eventsRes.error) throw new Error(eventsRes.error.message);
+
+  return {
+    plans: ((plansRes.data ?? []) as DispatchPlanRow[]).map(mapDispatchPlan),
+    crews: ((crewsRes.data ?? []) as CrewRow[]).map(mapCrew),
+    assignments: ((assignmentsRes.data ?? []) as CrewAssignmentRow[]).map(mapCrewAssignment),
+    scheduleBlocks: ((blocksRes.data ?? []) as ScheduleBlockRow[]).map(mapScheduleBlock),
+    events: ((eventsRes.data ?? []) as DispatchEventRow[]).map(mapDispatchEvent),
+  };
+}

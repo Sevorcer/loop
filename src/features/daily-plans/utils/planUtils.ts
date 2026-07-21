@@ -1,4 +1,4 @@
-import { getCrewProfilesForDate, getDayOverview, getJobPlanDetail } from "../data/mockMorningOperations";
+import { getCrewProfilesForDate, getDayOverview, getJobPlanDetail } from "../data/morningOperations";
 import type {
   CrewProfile,
   CrewWorkload,
