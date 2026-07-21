@@ -91,6 +91,24 @@ function mapActivity(row: JobActivityRow): JobActivity {
   };
 }
 
+export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(
+      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
+    )
+    .eq("org_id", orgId)
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as JobRow[]).map(mapJob);
+}
+
 export async function listJobs(): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
