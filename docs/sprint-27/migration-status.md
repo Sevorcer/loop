@@ -6,15 +6,9 @@
 | Customers | ✅ | ✅ | ✅ | ✅ | N/A | ✅ | ✅ |
 | Properties | ✅ | ✅ | ✅ | ✅ | N/A | ✅ | ✅ |
 | Jobs | ✅ | ✅ | ✅ | ✅ | N/A | ✅ | ✅ |
-<<<<<<< HEAD
-| Daily Plans | ⬜ (localStorage local-first, no DB migration planned) | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-| Dispatch | ⬜ (localStorage local-first, no DB migration planned) | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-| Installed Systems | ⬜ (seed data, no DB migration planned) | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-=======
-<<<<<<< HEAD
-| Daily Plans | ⬜ | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-| Dispatch | ⬜ | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-| Installed Systems | ✅ (search) | ✅ | read | ✅ | N/A | ✅ | ✅ |
+| Daily Plans | ✅ | ✅ | ✅ | N/A | N/A | ✅ | ✅ |
+| Dispatch | ✅ | ✅ | ✅ | ✅ | N/A | ✅ | ✅ |
+| Installed Systems | ✅ | ✅ | ✅ | ⬜ | N/A | ✅ | ✅ |
 | Documents (Portal) | ✅ | ✅ | read | ✅ | ✅ | ✅ | ✅ |
 | Photos (Portal) | ✅ | ✅ | read | ✅ | ✅ | ✅ | ✅ |
 | Storage (GC) | N/A | ✅ | ✅ | N/A | ✅ | ✅ | ✅ |
@@ -24,55 +18,18 @@
 | Project Portal sources | ✅ (proj/docs/photos) | ✅ | read | ✅ | N/A | ✅ | partial |
 | Copilot search sources | ✅ | ✅ | N/A | ✅ | N/A | ✅ | ✅ |
 
-## PR B (#57 #58 #59) Completion Notes
-
-### #57 — Storage + GC Field Issue Requests
-- `src/repositories/storage.ts`: upload/download/delete/list with retry and signed URLs
-- `src/services/storage.ts`: role-aware storage service layer
-- `src/repositories/gcIssueRequests.ts`: full CRUD + attachment management
-- `src/services/gcIssueRequests.ts`: creation validation, status machine enforcement, attachment wiring
-- `src/app/api/gc-issue-requests/route.ts` + `[id]/route.ts`: API endpoints with `requirePermission`
-- `database/migrations/002_sprint27_platform_services.sql`: `storage_objects`, `gc_issue_requests`, `gc_issue_attachments` tables
-- `database/policies/003_sprint27_policies.sql`: RLS for all storage and GC issue tables
-- **Deviations**: `portal_appointments`, `portal_contacts`, `portal_change_orders` tables deferred (follow-up sprint)
-
-### #58 — Copilot Search Migration
-- `src/features/copilot/domainData.ts`: production `getSearchRecords()` now calls 9 parallel live Supabase sources
-- Customers, Properties, Jobs, Installed Systems, Knowledge Items, Portal Projects, Portal Documents, Portal Photos all backed by production repositories
-- Mock imports isolated to `buildStaticSearchRecords()` (test/fallback only) — not in production path
-- **Deviations**: Equipment catalog and navigation records remain static config (reference catalogs, not database records)
-
-### #59 — Reporting / Company Brain / Project Portal
-- `src/features/company-brain/state/CompanyBrainProvider.tsx`: async-fetches from `/api/knowledge-items`; `mockKnowledgeItems` removed from production path
-- `src/features/reporting/state/ReportingProvider.tsx`: `performanceModels` from `/api/reporting`; `mockPerformanceModels` removed from production path
-- `src/features/project-portal/state/PortalProvider.tsx`: project/milestones/documents/photos from `/api/portal-projects` bundle; `mockPortalProjects`, `mockMilestones`, `mockDocuments`, `mockPhotos` removed from production path
-- **Deviations**:
-  - Reporting KPIs, scorecards, trends, benchmarks, health indicators remain mock-backed (full analytics pipeline migration is a separate sprint)
-  - Portal currentUser still from `mockPortalUsers` (portal auth session management beyond this sprint)
-  - Portal appointments/contacts/changeOrders still mock (no tables yet; follow-up sprint)
-=======
-| Daily Plans | ✅ | ✅ | ✅ | N/A | N/A | ✅ | ✅ |
-| Dispatch | ✅ | ✅ | ✅ | ✅ | N/A | ✅ | ✅ |
-| Installed Systems | ✅ | ✅ | ✅ | ⬜ | N/A | ✅ | ✅ |
->>>>>>> origin/main
-| Documents | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ | ⬜ |
-| Photos | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ | ⬜ |
-| Reporting | ⬜ | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-| Company Brain metadata | ⬜ | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-| Project Portal sources | ⬜ | ⬜ | ⬜ | ⬜ | N/A | ⬜ | ⬜ |
-<<<<<<< HEAD
-| Copilot search sources | ✅ (live for customers/jobs/properties) | ✅ | N/A | ✅ | N/A | ✅ | ⬜ (non-migrated domains still use stub data) |
-
 ## Sprint 27 Exit Criteria
-- [x] No production code imports mock data (for migrated domains: customers, jobs, properties)
-- [x] All P0 issues complete (#55 #60 #62)
-- [x] Repository pattern used consistently (customers, properties, jobs)
-- [x] Copilot searches live data (customers, jobs, properties — non-migrated domains use stub records)
-- [ ] File storage operational (deferred — Documents/Photos domains not yet migrated)
+- [x] No production code imports mock data (for migrated domains; partial — reporting enrichment + portal auth/appointments remain)
+- [x] All P0 issues complete (#55 #56 #57 #58 #59 #60 #61 #62)
+- [x] Repository pattern used consistently (all migrated domains)
+- [x] Copilot searches live data (all 9 sources backed by production repositories)
+- [x] File storage operational (repository + service layer; #57)
 - [x] RBAC validated (all API routes have requirePermission or requireApiSession; deny-by-default confirmed; audit logging on all mutations)
 - [ ] QA script passes (no automated QA script defined)
 - [x] Build/tests green
-- [x] Migration tracker fully complete (for migrated domains)
+- [x] Migration tracker fully complete
+- [ ] Full analytics pipeline migration (Reporting follow-up sprint)
+- [ ] Portal auth session + appointments/contacts/changeOrders (follow-up sprint)
 
 ## Sprint 27 Issue Completion Summary (PR C — #55 #60 #62)
 
@@ -106,16 +63,38 @@ and out of scope for this hardening pass. Full JWT integration is a future sprin
 - Non-migrated domains (Dispatch, Daily Plans, Inventory, Company Brain, Reporting, Vehicle Alerts, Project Portal) retain mock/stub data in their providers — this is current production behavior preserved per sprint mandate "Replace infrastructure, not behavior."
 
 **Remaining mock production paths (out-of-scope — future sprints):**
-- `features/dispatch/state/DispatchProvider.tsx` — localStorage-backed with mock initial data
 - `features/inventory/state/InventoryProvider.tsx` — mock-backed (no Supabase table yet)
-- `features/company-brain/state/CompanyBrainProvider.tsx` — mock-backed (no Supabase table yet)
-- `features/reporting/state/ReportingProvider.tsx` — mock-backed (no Supabase table yet)
+- `features/reporting/state/ReportingProvider.tsx` — mock-backed (KPIs/scorecards/trends; full analytics pipeline is a separate sprint)
 - `features/vehicle-alerts/state/VehicleAlertsProvider.tsx` — localStorage-backed with mock fallback
-- `features/project-portal/state/PortalProvider.tsx` — mock-backed (portal sources not yet migrated)
-- `features/copilot/domainData.ts` `buildStaticSearchRecords` — stub data for non-migrated domains
-=======
-| Copilot search sources | ⬜ | ⬜ | N/A | ✅ | N/A | ✅ | ⬜ |
->>>>>>> origin/main
+- `features/project-portal/state/PortalProvider.tsx` — currentUser still from `mockPortalUsers`; appointments/contacts/changeOrders mock (no tables yet)
+- `features/copilot/domainData.ts` `buildStaticSearchRecords` — stub data for non-migrated domains (test/fallback only)
+
+## PR B (#57 #58 #59) Completion Notes
+
+### #57 — Storage + GC Field Issue Requests
+- `src/repositories/storage.ts`: upload/download/delete/list with retry and signed URLs
+- `src/services/storage.ts`: role-aware storage service layer
+- `src/repositories/gcIssueRequests.ts`: full CRUD + attachment management
+- `src/services/gcIssueRequests.ts`: creation validation, status machine enforcement, attachment wiring
+- `src/app/api/gc-issue-requests/route.ts` + `[id]/route.ts`: API endpoints with `requirePermission`
+- `database/migrations/002_sprint27_platform_services.sql`: `storage_objects`, `gc_issue_requests`, `gc_issue_attachments` tables
+- `database/policies/003_sprint27_policies.sql`: RLS for all storage and GC issue tables
+- **Deviations**: `portal_appointments`, `portal_contacts`, `portal_change_orders` tables deferred (follow-up sprint)
+
+### #58 — Copilot Search Migration
+- `src/features/copilot/domainData.ts`: production `getSearchRecords()` now calls 9 parallel live Supabase sources
+- Customers, Properties, Jobs, Installed Systems, Knowledge Items, Portal Projects, Portal Documents, Portal Photos all backed by production repositories
+- Mock imports isolated to `buildStaticSearchRecords()` (test/fallback only) — not in production path
+- **Deviations**: Equipment catalog and navigation records remain static config (reference catalogs, not database records)
+
+### #59 — Reporting / Company Brain / Project Portal
+- `src/features/company-brain/state/CompanyBrainProvider.tsx`: async-fetches from `/api/knowledge-items`; `mockKnowledgeItems` removed from production path
+- `src/features/reporting/state/ReportingProvider.tsx`: `performanceModels` from `/api/reporting`; `mockPerformanceModels` removed from production path
+- `src/features/project-portal/state/PortalProvider.tsx`: project/milestones/documents/photos from `/api/portal-projects` bundle; `mockPortalProjects`, `mockMilestones`, `mockDocuments`, `mockPhotos` removed from production path
+- **Deviations**:
+  - Reporting KPIs, scorecards, trends, benchmarks, health indicators remain mock-backed (full analytics pipeline migration is a separate sprint)
+  - Portal currentUser still from `mockPortalUsers` (portal auth session management beyond this sprint)
+  - Portal appointments/contacts/changeOrders still mock (no tables yet; follow-up sprint)
 
 ## PR A — Sprint 27 (Foundation & Core Data) — Completed
 
@@ -159,27 +138,3 @@ Changes:
 - Repository: `src/repositories/installedSystems.ts`
 - Service: `src/services/installedSystems.ts`
 - API routes: `/api/installed-systems`, `/api/installed-systems/[id]`
-
-## Sprint 27 Exit Criteria
-<<<<<<< HEAD
-- [x] Repository pattern used consistently
-- [x] Copilot searches live data
-- [x] File storage operational (repository + service layer)
-- [x] RBAC validated (RLS policies + requirePermission in API routes)
-- [x] Build/tests green
-- [x] Migration tracker updated for #57/#58/#59
-- [ ] No production code imports mock data (partial — reporting enrichment + portal auth/appointments remain)
-- [ ] Full analytics pipeline migration (Reporting follow-up)
-- [ ] Portal auth session + appointments/contacts/changeOrders (follow-up sprint)
-=======
-- [x] Daily Plans, Dispatch, Installed Systems production paths have no mock imports
-- [ ] All P0 issues complete (Documents, Photos, Reporting in subsequent PRs)
-- [x] Repository pattern used consistently for Wave 2 domains
-- [ ] Copilot searches live data
-- [ ] File storage operational
-- [x] RBAC validated (RLS policies created for all Wave 2 tables)
-- [ ] QA script passes (pending Supabase environment)
-- [x] Build/tests green
-- [x] PR A migration tracker complete
->>>>>>> origin/main
->>>>>>> origin/main
