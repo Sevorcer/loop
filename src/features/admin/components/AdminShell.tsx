@@ -83,7 +83,7 @@ export function AdminShell({ children }: AdminShellProps) {
               />
             </svg>
           </button>
-          <span className="text-sm font-medium text-slate-300">Admin</span>
+          <span className="text-sm font-medium text-slate-300">Administration</span>
         </div>
 
         <main className="flex-1">

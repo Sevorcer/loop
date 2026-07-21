@@ -1,11 +1,12 @@
-import { redirect } from "next/navigation";
-
-import { ADMIN_ROUTES } from "@/lib/routes";
+import { AdminLandingScreen } from "@/features/admin";
 
 /**
- * /admin root — redirect to the Organizations list.
- * The primary admin landing page is Organizations.
+ * /admin root — Administration governance landing page.
+ *
+ * Displays the governance/configuration hub for platform administrators.
+ * Operational entities (Jobs, Customers, Properties) are in the Operations
+ * shell at their own routes.
  */
 export default function AdminRootPage() {
-  redirect(ADMIN_ROUTES.ORGANIZATIONS);
+  return <AdminLandingScreen />;
 }

@@ -1,27 +1,39 @@
 "use client";
 
 /**
- * Admin sidebar navigation — Sprint 29.
+ * Administration sidebar navigation — Sprint 30 IA refactor.
  *
- * Dedicated sidebar for the /admin area. Lists the four managed entities
- * and provides a back-link to the main operations shell.
+ * Dedicated sidebar for the /admin area. Scoped to governance/configuration
+ * modules only. Operational entities (Jobs, Customers, Properties) live in
+ * the Operations shell at their own routes.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, Users, MapPin, Briefcase, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Building, ShieldCheck, ArrowLeft } from "lucide-react";
 
-import { ADMIN_ROUTES, ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 import { UserDisplay } from "@/features/auth/components/UserDisplay";
+import {
+  ADMIN_AREA_LABEL,
+  ADMIN_NAV_ITEMS,
+  type AdminNavItem,
+} from "../config/adminNavItems";
 
-const adminNavItems = [
-  { name: "Organizations", href: ADMIN_ROUTES.ORGANIZATIONS, icon: Building },
-  { name: "Customers", href: ADMIN_ROUTES.CUSTOMERS, icon: Users },
-  { name: "Properties", href: ADMIN_ROUTES.PROPERTIES, icon: MapPin },
-  { name: "Jobs", href: ADMIN_ROUTES.JOBS, icon: Briefcase },
-] as const;
+const NAV_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
+  Organizations: Building,
+};
+
+type NavItemWithIcon = AdminNavItem & {
+  icon: React.ComponentType<{ size?: number }>;
+};
+
+const adminNavItemsWithIcons: NavItemWithIcon[] = ADMIN_NAV_ITEMS.map((item) => ({
+  ...item,
+  icon: NAV_ICONS[item.name] ?? Building,
+}));
 
 interface AdminSidebarProps {
   onNavigate?: () => void;
@@ -39,20 +51,20 @@ export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
             <ShieldCheck size={20} className="text-red-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold tracking-tight text-white">Admin</h1>
-            <p className="text-xs text-slate-400">Data management</p>
+            <h1 className="text-lg font-semibold tracking-tight text-white">{ADMIN_AREA_LABEL}</h1>
+            <p className="text-xs text-slate-400">Governance &amp; configuration</p>
           </div>
         </div>
       </div>
 
       {/* Nav */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        <nav aria-label="Admin navigation">
+        <nav aria-label="Administration navigation">
           <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Entities
+            Governance
           </p>
           <div className="space-y-0.5">
-            {adminNavItems.map((item) => {
+            {adminNavItemsWithIcons.map((item) => {
               const Icon = item.icon;
               const isActive =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
