@@ -69,8 +69,10 @@ describe("GET /api/installed-systems", () => {
     };
 
     expect(response.status).toBe(200);
-    expect(body.installedSystems[0]?.id).toBe("sys-1");
-    expect(body.technicalProfiles[0]?.id).toBe("tp-1");
+    expect(body.installedSystems).toHaveLength(1);
+    expect(body.technicalProfiles).toHaveLength(1);
+    expect(body.installedSystems[0].id).toBe("sys-1");
+    expect(body.technicalProfiles[0].id).toBe("tp-1");
   });
 });
 
