@@ -285,21 +285,34 @@ export async function countOpenJobsForProperty(propertyId: string): Promise<numb
 
 export async function listPropertiesByCustomerId(customerId: string): Promise<Property[]> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
-    .from("properties")
-    .select(
-      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at",
-    )
-    .eq("org_id", orgId)
-    .eq("customer_id", customerId)
-    .order("created_at", { ascending: false });
 
-  if (error) {
-    throw new Error(error.message);
+  const [propertiesResult, customerResult] = await Promise.all([
+    supabase
+      .from("properties")
+      .select(
+        "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at",
+      )
+      .eq("org_id", orgId)
+      .eq("customer_id", customerId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("customers")
+      .select("id,name")
+      .eq("org_id", orgId)
+      .eq("id", customerId)
+      .maybeSingle(),
+  ]);
+
+  if (propertiesResult.error) {
+    throw new Error(propertiesResult.error.message);
   }
 
-  const rows = (data ?? []) as PropertyRow[];
-  const customerNames = await getCustomerNameMap([customerId]);
+  if (customerResult.error) {
+    throw new Error(customerResult.error.message);
+  }
 
-  return rows.map((row) => mapProperty(row, resolveCustomerName(row.customer_id, customerNames)));
+  const customerName = (customerResult.data?.name as string | undefined) ?? UNLINKED_CUSTOMER_LABEL;
+  const rows = (propertiesResult.data ?? []) as PropertyRow[];
+
+  return rows.map((row) => mapProperty(row, customerName));
 }
