@@ -134,11 +134,16 @@ jobs:
       # use in all subsequent steps.
       - name: Resolve database pooler host
         run: |
-          REGION=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            | jq -r '.region // empty')
+          API_RESPONSE=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" || echo "")
+          if [ -z "$API_RESPONSE" ]; then
+            echo "::error::Supabase management API request failed for project $SUPABASE_PROJECT_REF"
+            exit 1
+          fi
+          REGION=$(echo "$API_RESPONSE" | jq -r '.region // empty')
           if [ -z "$REGION" ]; then
-            echo "::error::Could not determine project region from Supabase management API"
+            echo "::error::Supabase API response did not include a region field"
+            echo "Response: $API_RESPONSE"
             exit 1
           fi
           POOLER_HOST="aws-0-${REGION}.pooler.supabase.com"
