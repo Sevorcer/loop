@@ -14,7 +14,10 @@ export interface PropertyLocation {
 export interface Property {
   id: string;
   name: string;
+  /** Resolved customer display name. */
   customer: string;
+  /** Supabase UUID of the linked customer record, when one exists. */
+  customerId?: string;
   address: string;
   city: string;
   type: PropertyType;
