@@ -591,7 +591,7 @@ function CustomerHubSection({
           <div className="flex items-center justify-between gap-4 text-sm">
             <span className="text-muted-foreground">Portfolio</span>
             <span className="font-medium">
-              {customer.propertyCount} {customer.propertyCount === 1 ? "property" : "properties"} &mdash;{" "}
+              {customer.propertyCount} {customer.propertyCount === 1 ? "property" : "properties"},{" "}
               {customer.openJobs} open {customer.openJobs === 1 ? "job" : "jobs"}
             </span>
           </div>
