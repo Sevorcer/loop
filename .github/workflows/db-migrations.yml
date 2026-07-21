@@ -125,27 +125,55 @@ jobs:
             fi
           fi
 
+      # Newer Supabase projects (post-2024) only expose direct DB connections
+      # via IPv6.  GitHub Actions runners are IPv4-only, so the legacy
+      # `db.{ref}.supabase.co:5432` direct URL is unreachable.  All DB
+      # operations must instead use the IPv4 session pooler whose hostname is
+      # `aws-0-{region}.pooler.supabase.com`.  This step fetches the project's
+      # AWS region from the management API and stores the pooler hostname for
+      # use in all subsequent steps.
+      - name: Resolve database pooler host
+        run: |
+          REGION=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            | jq -r '.region // empty')
+          if [ -z "$REGION" ]; then
+            echo "::error::Could not determine project region from Supabase management API"
+            exit 1
+          fi
+          POOLER_HOST="aws-0-${REGION}.pooler.supabase.com"
+          echo "SUPABASE_POOLER_HOST=$POOLER_HOST" >> "$GITHUB_ENV"
+          echo "Project region: $REGION — pooler host: $POOLER_HOST"
+
       # Informational only — shows which migrations are pending before apply.
-      # Uses an explicit DB URL so this step does not depend on credentials
-      # cached by `supabase link`, which can be unreliable in non-interactive
-      # CI environments.  `continue-on-error` ensures a transient connection
-      # hiccup here does not block the actual migration apply step.
+      # Uses --db-url with the IPv4 session pooler and an explicitly URL-encoded
+      # password so that special characters in the password cannot break the
+      # connection URL.  `continue-on-error` ensures a transient hiccup here
+      # does not block the actual migration apply step.
       - name: Show pending migrations
         continue-on-error: true
         run: |
           ENCODED_PWD=$(python3 -c \
             "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           supabase migration list \
-            --db-url "postgresql://postgres:${ENCODED_PWD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
 
       - name: Apply migrations (up)
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+        run: |
+          ENCODED_PWD=$(python3 -c \
+            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
+          supabase db push \
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
 
       - name: Check for schema drift
         id: drift
         run: |
           echo "Running schema drift check..."
-          DIFF=$(supabase db diff --password "$SUPABASE_DB_PASSWORD" 2>&1 || true)
+          ENCODED_PWD=$(python3 -c \
+            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
+          DIFF=$(supabase db diff \
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres" \
+            2>&1 || true)
 
           # db diff exits 0 whether or not there is drift; check for content.
           # Filter out blank lines and SQL comment lines (-- ...) which are noise.
@@ -163,7 +191,7 @@ jobs:
 
           echo "No schema drift detected."
 
-      # Informational only — same explicit DB URL as "Show pending migrations".
+      # Informational only — same pooler URL as "Show pending migrations".
       - name: Report final migration status
         if: always()
         continue-on-error: true
@@ -171,4 +199,4 @@ jobs:
           ENCODED_PWD=$(python3 -c \
             "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           supabase migration list \
-            --db-url "postgresql://postgres:${ENCODED_PWD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
