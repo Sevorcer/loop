@@ -151,33 +151,29 @@ jobs:
           echo "Project region: $REGION — pooler host: $POOLER_HOST"
 
       # Informational only — shows which migrations are pending before apply.
-      # Uses --db-url with the IPv4 session pooler and an explicitly URL-encoded
-      # password so that special characters in the password cannot break the
-      # connection URL.  `continue-on-error` ensures a transient hiccup here
-      # does not block the actual migration apply step.
+      # Uses --db-url with the IPv4 session pooler.  The password is NOT
+      # embedded in the URL; Supabase CLI v2 reads SUPABASE_DB_PASSWORD from
+      # the environment for SASL authentication, which avoids mismatches caused
+      # by URL-encoding special characters.  sslmode=require is mandatory for
+      # Supabase pooler connections.  `continue-on-error` ensures a transient
+      # hiccup here does not block the actual migration apply step.
       - name: Show pending migrations
         continue-on-error: true
         run: |
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           supabase migration list \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}@${SUPABASE_POOLER_HOST}:5432/postgres?sslmode=require"
 
       - name: Apply migrations (up)
         run: |
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           supabase db push \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}@${SUPABASE_POOLER_HOST}:5432/postgres?sslmode=require"
 
       - name: Check for schema drift
         id: drift
         run: |
           echo "Running schema drift check..."
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           DIFF=$(supabase db diff \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres" \
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}@${SUPABASE_POOLER_HOST}:5432/postgres?sslmode=require" \
             2>&1 || true)
 
           # db diff exits 0 whether or not there is drift; check for content.
@@ -201,7 +197,5 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          ENCODED_PWD=$(python3 -c \
-            "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           supabase migration list \
-            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PWD}@${SUPABASE_POOLER_HOST}:5432/postgres"
+            --db-url "postgresql://postgres.${SUPABASE_PROJECT_REF}@${SUPABASE_POOLER_HOST}:5432/postgres?sslmode=require"
