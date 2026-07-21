@@ -5,10 +5,13 @@ import { PermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
+import { listCustomers } from "@/services/customers";
 
 import { CustomerTable } from "../components/CustomerTable";
 
-export function CustomersScreen() {
+export async function CustomersScreen() {
+  const customers = await listCustomers();
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <SurfaceCard className="overflow-hidden">
@@ -61,7 +64,7 @@ export function CustomersScreen() {
         </div>
 
         <div className="p-4 sm:p-6">
-          <CustomerTable />
+          <CustomerTable customers={customers} />
         </div>
       </SurfaceCard>
     </div>

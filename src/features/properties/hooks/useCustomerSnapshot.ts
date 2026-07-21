@@ -11,33 +11,30 @@ interface CustomerSnapshotState {
   loading: boolean;
 }
 
+interface FetchResult {
+  forId: string;
+  customer: Customer | null;
+}
+
 /**
  * Lazily fetches a single customer record by ID.
  * Returns null (not loading) when no customerId is provided.
  */
 export function useCustomerSnapshot(customerId: string | undefined): CustomerSnapshotState {
   const { role } = useCurrentRole();
-  const [state, setState] = useState<CustomerSnapshotState>({
-    customer: null,
-    loading: Boolean(customerId),
-  });
+  const [fetchResult, setFetchResult] = useState<FetchResult | null>(null);
 
   useEffect(() => {
-    if (!customerId || !role) {
-      setState({ customer: null, loading: false });
-      return;
-    }
+    if (!customerId || !role) return;
 
     let cancelled = false;
 
-    setState({ customer: null, loading: true });
-
     void requestJson<{ customer: Customer }>(`/api/customers/${customerId}`, { role })
       .then(({ customer }) => {
-        if (!cancelled) setState({ customer, loading: false });
+        if (!cancelled) setFetchResult({ forId: customerId, customer });
       })
       .catch(() => {
-        if (!cancelled) setState({ customer: null, loading: false });
+        if (!cancelled) setFetchResult({ forId: customerId, customer: null });
       });
 
     return () => {
@@ -45,5 +42,7 @@ export function useCustomerSnapshot(customerId: string | undefined): CustomerSna
     };
   }, [customerId, role]);
 
-  return state;
+  if (!customerId) return { customer: null, loading: false };
+  if (!fetchResult || fetchResult.forId !== customerId) return { customer: null, loading: true };
+  return { customer: fetchResult.customer, loading: false };
 }
