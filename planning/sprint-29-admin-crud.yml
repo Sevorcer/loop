@@ -1,0 +1,315 @@
+sprint:
+  id: 29
+  name: "Data Entry Foundation (Admin CRUD v1)"
+  timeframe: "1 sprint"
+  status: "planned"
+  owner: "Sevorcer"
+  updated_at: "2026-07-21"
+
+goal:
+  summary: >
+    Enable in-app management of core records (Organizations, Customers, Properties, Jobs v1)
+    so normal operations no longer require direct SQL/files.
+  success_metrics:
+    - "100% of core record create/edit/delete flows available in Admin UI"
+    - "No direct DB edits required for routine ops"
+    - "All CRUD endpoints protected by role-based authorization"
+    - "Audit metadata present on all create/update/delete mutations"
+
+scope:
+  in_scope:
+    - "Admin area shell and protected routes"
+    - "CRUD APIs + Admin UI for Organizations, Customers, Properties, Jobs (basic fields)"
+    - "Server-side schema validation"
+    - "Standard API error contract"
+    - "Audit metadata stamping and verification"
+    - "Table pagination/filter/search on each entity page"
+    - "Integration/E2E regression coverage for one full chain"
+  out_of_scope:
+    - "CSV import pipeline (Sprint 30)"
+    - "Seed-to-UI reference data conversion (Sprint 30)"
+    - "Release/migration automation (Sprint 31)"
+    - "Historical change browser UX beyond minimal audit fields (Sprint 32)"
+    - "Advanced job workflow orchestration/transitions"
+
+entity_ownership_matrix:
+  notes:
+    - "Decisions here are binding for Sprint 29 implementation."
+    - "Any unresolved cell must be decided before API implementation starts."
+  default_roles:
+    - "platform_admin"
+    - "ops_admin"
+    - "ops_editor"
+    - "ops_viewer"
+  entities:
+    - entity: "Organization"
+      owner: "Platform/Admin"
+      can_create: ["platform_admin"]
+      can_edit: ["platform_admin"]
+      can_delete: ["platform_admin"]
+      soft_delete: true
+      audit_required: true
+    - entity: "Customer"
+      owner: "Operations"
+      can_create: ["platform_admin", "ops_admin", "ops_editor"]
+      can_edit: ["platform_admin", "ops_admin", "ops_editor"]
+      can_delete: ["platform_admin", "ops_admin"]
+      soft_delete: true
+      audit_required: true
+    - entity: "Property"
+      owner: "Operations"
+      can_create: ["platform_admin", "ops_admin", "ops_editor"]
+      can_edit: ["platform_admin", "ops_admin", "ops_editor"]
+      can_delete: ["platform_admin", "ops_admin"]
+      soft_delete: true
+      audit_required: true
+    - entity: "Job"
+      owner: "Operations"
+      can_create: ["platform_admin", "ops_admin", "ops_editor"]
+      can_edit: ["platform_admin", "ops_admin", "ops_editor"]
+      can_delete: ["platform_admin"]
+      soft_delete: true
+      audit_required: true
+
+rbac_policy:
+  principles:
+    - "Deny by default"
+    - "Server is source of truth for authorization"
+    - "UI mirrors policy (hide/disable forbidden actions) but does not enforce security"
+  requirements:
+    - "Central policy module used across all admin APIs"
+    - "Mutation endpoints require role check + entity-level check"
+    - "Client cannot set/override audit identity fields"
+    - "Authorization failures return standardized 403 contract"
+
+api_contract:
+  validation:
+    library: "zod"
+    requirements:
+      - "All POST/PATCH payloads validated server-side"
+      - "Enum and relationship validations enforced"
+      - "Unknown fields rejected or stripped consistently"
+  error_shape:
+    fields:
+      - "code"
+      - "message"
+      - "fieldErrors (optional)"
+      - "requestId (optional)"
+    http_mapping:
+      "400": "validation_failure"
+      "401": "unauthenticated"
+      "403": "forbidden"
+      "404": "not_found"
+      "409": "conflict"
+      "500": "internal_error"
+
+audit_model:
+  required_fields:
+    - "created_at"
+    - "updated_at"
+    - "created_by (if user context available)"
+    - "updated_by (if user context available)"
+    - "deleted_at (for soft delete)"
+    - "deleted_by (for soft delete, if user context available)"
+  rules:
+    - "created_* immutable after insert"
+    - "updated_* changes on every mutation"
+    - "soft delete preserves record and stamps deleted_*"
+    - "hard delete disabled for Sprint 29 unless explicitly approved per entity"
+
+work_breakdown:
+  execution_order:
+    - "Foundation"
+    - "Organizations"
+    - "Customers"
+    - "Properties"
+    - "Jobs v1"
+    - "Hardening + QA"
+  epics:
+    - id: "S29-E1"
+      name: "Admin Foundation"
+      priority: "P0"
+      items:
+        - id: "S29-001"
+          title: "Create /admin shell with protected routes and navigation"
+          estimate_points: 3
+          depends_on: []
+          acceptance:
+            - "/admin routes require auth"
+            - "Unauthorized users receive standard redirect/403 behavior"
+            - "Nav includes Organizations, Customers, Properties, Jobs"
+        - id: "S29-002"
+          title: "Implement centralized admin authorization policy module"
+          estimate_points: 3
+          depends_on: []
+          acceptance:
+            - "Single policy module consumed by all admin APIs"
+            - "Deny-by-default tests included"
+        - id: "S29-003"
+          title: "Create shared admin form primitives and API error mapping"
+          estimate_points: 5
+          depends_on: ["S29-001"]
+          acceptance:
+            - "Reusable field/form components"
+            - "Standard handling for field and non-field errors"
+            - "Used by at least two entity screens"
+
+    - id: "S29-E2"
+      name: "Organizations CRUD"
+      priority: "P0"
+      items:
+        - id: "S29-010"
+          title: "Organizations CRUD API (list/detail/create/update/delete)"
+          estimate_points: 5
+          depends_on: ["S29-002"]
+          acceptance:
+            - "Zod validation on POST/PATCH"
+            - "Standard error shape across all failure modes"
+            - "Authz checks on all mutations"
+        - id: "S29-011"
+          title: "Organizations Admin UI"
+          estimate_points: 5
+          depends_on: ["S29-003", "S29-010"]
+          acceptance:
+            - "Table with pagination/search"
+            - "Create/edit/delete flows with confirmation"
+            - "List refresh after mutation without full reload"
+
+    - id: "S29-E3"
+      name: "Customers CRUD"
+      priority: "P0"
+      items:
+        - id: "S29-020"
+          title: "Customers CRUD API with org linkage validation"
+          estimate_points: 5
+          depends_on: ["S29-002", "S29-010"]
+          acceptance:
+            - "Customer creation enforces valid organization reference"
+            - "404/409 handling verified"
+        - id: "S29-021"
+          title: "Customers Admin UI"
+          estimate_points: 5
+          depends_on: ["S29-003", "S29-020"]
+          acceptance:
+            - "Filters (name/org/status), pagination/search"
+            - "Validated org selector"
+            - "Mutation feedback toasts"
+
+    - id: "S29-E4"
+      name: "Properties CRUD"
+      priority: "P0"
+      items:
+        - id: "S29-030"
+          title: "Properties CRUD API with customer linkage validation"
+          estimate_points: 5
+          depends_on: ["S29-002", "S29-020"]
+          acceptance:
+            - "Property creation requires valid customer"
+            - "Standard 400/403/404 behavior"
+        - id: "S29-031"
+          title: "Properties Admin UI"
+          estimate_points: 5
+          depends_on: ["S29-003", "S29-030"]
+          acceptance:
+            - "Filter by customer + text search"
+            - "Create/edit/delete flows stable"
+
+    - id: "S29-E5"
+      name: "Jobs CRUD v1"
+      priority: "P1"
+      items:
+        - id: "S29-040"
+          title: "Jobs CRUD API (basic fields only)"
+          estimate_points: 5
+          depends_on: ["S29-002", "S29-020", "S29-030"]
+          acceptance:
+            - "Basic field validation (status/type/refs/dates/summary)"
+            - "Basic invalid transition guard"
+        - id: "S29-041"
+          title: "Jobs Admin UI v1"
+          estimate_points: 5
+          depends_on: ["S29-003", "S29-040"]
+          acceptance:
+            - "Filters: status/customer/property/date range"
+            - "Create/edit/delete flows for v1 fields"
+
+    - id: "S29-E6"
+      name: "Audit + QA Hardening"
+      priority: "P0"
+      items:
+        - id: "S29-050"
+          title: "Audit metadata stamping across all entity mutations"
+          estimate_points: 3
+          depends_on: ["S29-010", "S29-020", "S29-030", "S29-040"]
+          acceptance:
+            - "created_* and updated_* verified"
+            - "soft delete stamps deleted_*"
+            - "client spoofing blocked"
+        - id: "S29-051"
+          title: "Integration/E2E regression pack for CRUD chain"
+          estimate_points: 5
+          depends_on: ["S29-011", "S29-021", "S29-031", "S29-041", "S29-050"]
+          acceptance:
+            - "Org → Customer → Property → Job chain covered"
+            - "Authorization negative tests included"
+            - "Delete dependency behavior verified"
+
+priority_plan:
+  p0_must_ship:
+    - "S29-001"
+    - "S29-002"
+    - "S29-003"
+    - "S29-010"
+    - "S29-011"
+    - "S29-020"
+    - "S29-021"
+    - "S29-030"
+    - "S29-031"
+    - "S29-050"
+    - "S29-051"
+  p1_should_ship:
+    - "S29-040"
+    - "S29-041"
+  p2_if_time:
+    - "Advanced table UX polish"
+    - "Saved filters/views"
+
+definition_of_done:
+  functional:
+    - "Admin users can CRUD Organizations, Customers, Properties, Jobs(v1) fully in-app"
+    - "No routine SQL/file edits needed"
+  security:
+    - "All mutation routes enforce centralized RBAC"
+    - "Viewer/non-admin mutation attempts denied"
+  quality:
+    - "Validation coverage for POST/PATCH across all entities"
+    - "Integration tests pass for full entity chain"
+    - "Audit field behavior verified in tests"
+  operational:
+    - "Developer docs updated for admin data-entry workflow"
+    - "Known limitations for Jobs v1 documented"
+
+risks_and_mitigations:
+  - risk: "RBAC ambiguity causes rework"
+    mitigation: "Finalize entity ownership matrix before API coding"
+  - risk: "Inconsistent error handling across entities"
+    mitigation: "Ship shared error contract helper first"
+  - risk: "Soft-delete semantics conflict with existing queries"
+    mitigation: "Add repository-level filters and regression tests for default non-deleted reads"
+  - risk: "Scope overrun due to Jobs complexity"
+    mitigation: "Keep Jobs strictly v1 fields; defer workflow orchestration"
+
+immediate_first_backlog_this_week:
+  - "Scaffold /admin/organizations, /admin/customers, /admin/properties, /admin/jobs"
+  - "Implement shared form components + zod schemas"
+  - "Implement POST/PATCH/DELETE endpoints with auth policy checks"
+  - "Build table views with filter/search/pagination"
+  - "Write one full CRUD integration path per entity chain"
+
+carryover_preview:
+  sprint_30:
+    - "Seed-to-UI bridge and CSV import with dry-run/error reporting"
+  sprint_31:
+    - "Release and migration automation + cross-platform CI lanes"
+  sprint_32:
+    - "Data governance, history views, permissions refinement, duplicate detection"
