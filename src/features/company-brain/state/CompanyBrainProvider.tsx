@@ -9,6 +9,9 @@ import {
   type ReactNode,
 } from "react";
 
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
+
 import type {
   KnowledgeItem,
   KnowledgeRelationship,
@@ -27,6 +30,7 @@ import {
 interface CompanyBrainContextValue {
   snapshot: KnowledgeSnapshot;
   loading: boolean;
+  error: string | null;
   getKnowledgeItemById: (id: string) => KnowledgeItem | undefined;
   getRelationshipsForItem: (knowledgeItemId: string) => KnowledgeRelationship[];
   getUsageForItem: (knowledgeItemId: string) => KnowledgeUsage[];
@@ -41,32 +45,38 @@ const EMPTY_SNAPSHOT: KnowledgeSnapshot = assembleKnowledgeSnapshot([], [], []);
 const CompanyBrainContext = createContext<CompanyBrainContextValue | null>(null);
 
 export function CompanyBrainProvider({ children }: { children: ReactNode }) {
+  const { role } = useCurrentRole();
   const [snapshot, setSnapshot] = useState<KnowledgeSnapshot>(EMPTY_SNAPSHOT);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!role) return;
+
     let cancelled = false;
 
     async function fetchSnapshot() {
+      setLoading(true);
+      setError(null);
+
       try {
-        const res = await fetch("/api/knowledge-items", {
-          headers: { "Content-Type": "application/json" },
-        });
+        const json = await requestJson<{ snapshot?: KnowledgeSnapshot }>(
+          "/api/knowledge-items",
+          { role, cache: "no-store" },
+        );
 
-        if (!res.ok) {
-          // Non-2xx: leave empty snapshot in place (graceful degradation)
-          return;
-        }
-
-        const json = (await res.json()) as { snapshot?: KnowledgeSnapshot };
-
-        if (!cancelled && json.snapshot) {
-          setSnapshot(json.snapshot);
+        if (!cancelled) {
+          setSnapshot(json.snapshot ?? EMPTY_SNAPSHOT);
         }
       } catch {
-        // Network error — leave empty snapshot in place
+        if (!cancelled) {
+          setSnapshot(EMPTY_SNAPSHOT);
+          setError("Unable to load company knowledge right now.");
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -75,7 +85,7 @@ export function CompanyBrainProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [role]);
 
   const value = useMemo<CompanyBrainContextValue>(() => {
     function getKnowledgeItemById(id: string) {
@@ -103,13 +113,14 @@ export function CompanyBrainProvider({ children }: { children: ReactNode }) {
     return {
       snapshot,
       loading,
+      error,
       getKnowledgeItemById,
       getRelationshipsForItem: getRelationshipsForItemFn,
       getUsageForItem: getUsageForItemFn,
       searchKnowledge,
       getItemsForDomain: getItemsForDomainFn,
     };
-  }, [snapshot, loading]);
+  }, [snapshot, loading, error]);
 
   return (
     <CompanyBrainContext.Provider value={value}>

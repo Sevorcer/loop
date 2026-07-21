@@ -16,11 +16,13 @@ import {
   Zap,
 } from "lucide-react";
 
+import { EmptyState, ErrorState, LoadingState } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
 import { KnowledgeItemCard } from "../components/KnowledgeItemCard";
 import { useCompanyBrain } from "../state/CompanyBrainProvider";
 import type { KnowledgeItem, KnowledgeType } from "../types/knowledgeItem";
+import { resolveCompanyBrainUiState } from "../utils/uiState";
 import {
   formatRelativeDate,
   getKnowledgeTypeLabel,
@@ -49,7 +51,7 @@ const TYPE_FILTERS: { key: KnowledgeType | "all"; label: string }[] = [
 // ------------------------------------------------------------------
 
 export function CompanyBrainScreen() {
-  const { snapshot, searchKnowledge, getRelationshipsForItem } =
+  const { snapshot, searchKnowledge, getRelationshipsForItem, loading, error } =
     useCompanyBrain();
 
   const [searchText, setSearchText] = useState("");
@@ -68,6 +70,37 @@ export function CompanyBrainScreen() {
   const recentUsage = getRecentUsage(snapshot.usage, 7);
 
   const isSearchActive = searchText.trim().length > 0 || typeFilter !== "all";
+  const uiState = resolveCompanyBrainUiState({
+    loading,
+    error,
+    itemCount: snapshot.items.length,
+  });
+
+  if (uiState === "loading") {
+    return <LoadingState message="Loading company knowledge..." />;
+  }
+
+  if (uiState === "error") {
+    return (
+      <ErrorState
+        title="Unable to load Company Brain"
+        description={
+          error ??
+          "We couldn't load Company Brain right now. Please try again in a moment."
+        }
+      />
+    );
+  }
+
+  if (uiState === "empty") {
+    return (
+      <EmptyState
+        title="No company knowledge is available yet"
+        description="Knowledge items will appear here once published."
+        icon={<Brain className="h-5 w-5" />}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
