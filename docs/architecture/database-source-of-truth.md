@@ -103,7 +103,7 @@ All policies are scoped using the helper functions defined in `20260719000001_ba
 
 Policies follow the deny-by-default model: RLS is `FORCE`d on every table, and no row is accessible unless an explicit `PERMISSIVE` policy matches. Portal users (`app_role = 'portal'`) are fully isolated from all internal operational tables.
 
-For the full role × table × action matrix see [`docs/architecture/security/rls-role-matrix.md`](security/rls-role-matrix.md).
+For the full role × table × action matrix see [`docs/architecture/security/rls-role-matrix.md`](/docs/architecture/security/rls-role-matrix.md).
 
 ---
 

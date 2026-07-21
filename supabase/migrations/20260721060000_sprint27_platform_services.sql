@@ -436,7 +436,7 @@ CREATE POLICY "knowledge_items_mgr_update"
     AND current_app_role() IN ('owner','manager')
   );
 
-CREATE POLICY "knowledge_items_owner_delete"
+CREATE POLICY "knowledge_items_mgr_delete"
   ON knowledge_items FOR DELETE
   USING (
     org_id = current_org_id()
@@ -588,7 +588,7 @@ CREATE POLICY "performance_models_mgr_update"
     AND current_app_role() IN ('owner','manager')
   );
 
-CREATE POLICY "performance_models_owner_delete"
+CREATE POLICY "performance_models_mgr_delete"
   ON performance_models FOR DELETE
   USING (
     org_id = current_org_id()
