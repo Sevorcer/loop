@@ -1,5 +1,7 @@
 import { CustomersScreen } from "@/features/customers";
 
-export default function CustomersPage() {
+export const dynamic = "force-dynamic";
+
+export default async function CustomersPage() {
   return <CustomersScreen />;
 }
