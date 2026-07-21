@@ -282,3 +282,24 @@ export async function countOpenJobsForProperty(propertyId: string): Promise<numb
 
   return count ?? 0;
 }
+
+export async function listPropertiesByCustomerId(customerId: string): Promise<Property[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("properties")
+    .select(
+      "id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at",
+    )
+    .eq("org_id", orgId)
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as PropertyRow[];
+  const customerNames = await getCustomerNameMap([customerId]);
+
+  return rows.map((row) => mapProperty(row, resolveCustomerName(row.customer_id, customerNames)));
+}

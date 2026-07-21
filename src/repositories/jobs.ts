@@ -70,7 +70,9 @@ function mapJob(row: JobRow): Job {
     type: row.type,
     status: row.status,
     priority: row.priority,
+    customerId: row.customer_id,
     customerName: row.customer_name,
+    propertyId: row.property_id,
     propertyName: row.property_name,
     assignedTo: row.assigned_to,
     scheduledFor: row.scheduled_for ?? row.created_at.slice(0, 10),
@@ -304,4 +306,40 @@ export async function countJobs(): Promise<number> {
 
 export function toJob(row: JobRow): Job {
   return mapJob(row);
+}
+
+export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(
+      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
+    )
+    .eq("org_id", orgId)
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as JobRow[]).map(mapJob);
+}
+
+export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(
+      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
+    )
+    .eq("org_id", orgId)
+    .eq("property_id", propertyId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as JobRow[]).map(mapJob);
 }

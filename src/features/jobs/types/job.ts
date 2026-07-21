@@ -18,7 +18,9 @@ export interface Job {
   type: JobType;
   status: JobStatus;
   priority: JobPriority;
+  customerId?: string | null;
   customerName: string;
+  propertyId?: string | null;
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;

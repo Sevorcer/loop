@@ -13,6 +13,7 @@ import {
   deleteProperty as deletePropertyRecord,
   getPropertyById,
   listProperties as listPropertyRecords,
+  listPropertiesByCustomerId as listPropertiesByCustomerIdRecord,
   resolveCustomerIdByName,
   updateProperty as updatePropertyRecord,
 } from "@/repositories/properties";
@@ -91,6 +92,10 @@ async function resolveLocation(
 
 export async function listProperties() {
   return listPropertyRecords();
+}
+
+export async function listPropertiesForCustomer(customerId: string) {
+  return listPropertiesByCustomerIdRecord(customerId);
 }
 
 export async function fetchPropertyById(id: string): Promise<Property | null> {

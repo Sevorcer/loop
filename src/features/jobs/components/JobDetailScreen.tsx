@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Briefcase,
   CalendarClock,
+  ExternalLink,
   MapPin,
   User,
   Wrench,
@@ -14,6 +15,7 @@ import Link from "next/link";
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import { useJobs } from "../state/JobsProvider";
 import type { Job, JobStatus } from "../types/job";
@@ -177,12 +179,32 @@ export function JobDetailScreen({ job }: { job: Job }) {
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       Customer
                     </p>
-                    <p className="mt-1 text-sm text-slate-200">
-                      {currentJob.customerName}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {currentJob.propertyName}
-                    </p>
+                    {currentJob.customerId ? (
+                      <Link
+                        href={ROUTE_BUILDERS.CUSTOMER_DETAIL(currentJob.customerId)}
+                        className="mt-1 inline-flex items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
+                      >
+                        {currentJob.customerName}
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-200">
+                        {currentJob.customerName}
+                      </p>
+                    )}
+                    {currentJob.propertyId ? (
+                      <Link
+                        href={ROUTE_BUILDERS.PROPERTY_DETAIL(currentJob.propertyId)}
+                        className="mt-1 inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 hover:underline"
+                      >
+                        {currentJob.propertyName}
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </Link>
+                    ) : (
+                      <p className="mt-1 text-xs text-slate-400">
+                        {currentJob.propertyName}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

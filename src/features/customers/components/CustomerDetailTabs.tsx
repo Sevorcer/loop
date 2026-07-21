@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 
 import {
@@ -11,9 +11,21 @@ import {
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { Customer } from "../types/customer";
-import type { CustomerDetails } from "../types/customerDetails";
+import type {
+  CustomerContactItem,
+  CustomerDetails,
+  CustomerJobItem,
+  CustomerNoteItem,
+  CustomerPropertyItem,
+  CustomerTimelineItem,
+} from "../types/customerDetails";
+import type { Property } from "@/features/properties/types/property";
+import type { Job } from "@/features/jobs/types/job";
 
 type CustomerDetailTabKey =
   | "overview"
@@ -41,15 +53,13 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
 }
 
-function getCustomerDetails(customer: Customer): CustomerDetails {
+function buildStaticDetails(customer: Customer): Omit<CustomerDetails, "properties" | "jobs"> {
   return {
     customerId: customer.id,
     accountSummary: [
       "Customer profile is active and ready for deeper service relationship tracking.",
       "No additional account intelligence has been recorded yet.",
     ],
-    properties: [],
-    jobs: [],
     contacts: [
       {
         id: `${customer.id}-primary-contact`,
@@ -108,8 +118,24 @@ function OverviewSection({
   );
 }
 
-function PropertiesSection({ details }: { details: CustomerDetails }) {
-  if (details.properties.length === 0) {
+function PropertiesSection({
+  properties,
+  loading,
+}: {
+  properties: CustomerPropertyItem[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+        ))}
+      </div>
+    );
+  }
+
+  if (properties.length === 0) {
     return (
       <EmptyState
         title="No linked properties yet"
@@ -120,8 +146,8 @@ function PropertiesSection({ details }: { details: CustomerDetails }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {details.properties.map((property) => (
-        <Link key={property.id} href={`/properties/${property.id}`} className="block">
+      {properties.map((property) => (
+        <Link key={property.id} href={ROUTE_BUILDERS.PROPERTY_DETAIL(property.id)} className="block">
           <Card className="hover-lift h-full transition-atlas hover:border-primary/40">
             <CardHeader>
               <div className="flex items-start justify-between gap-4">
@@ -158,8 +184,24 @@ function PropertiesSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-function JobsSection({ details }: { details: CustomerDetails }) {
-  if (details.jobs.length === 0) {
+function JobsSection({
+  jobs,
+  loading,
+}: {
+  jobs: CustomerJobItem[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+        ))}
+      </div>
+    );
+  }
+
+  if (jobs.length === 0) {
     return (
       <EmptyState
         title="No jobs linked yet"
@@ -175,47 +217,49 @@ function JobsSection({ details }: { details: CustomerDetails }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {details.jobs.map((job) => (
-          <div key={job.id} className="rounded-xl border bg-muted/20 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="font-medium">{job.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
+        {jobs.map((job) => (
+          <Link key={job.id} href={ROUTE_BUILDERS.JOB_DETAIL(job.id)} className="block">
+            <div className="rounded-xl border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/30">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-medium">{job.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
+                </div>
+
+                <StatusBadge
+                  variant={job.status === "Completed" ? "success" : "warning"}
+                >
+                  {job.status}
+                </StatusBadge>
               </div>
 
-              <StatusBadge
-                variant={job.status === "Completed" ? "success" : "warning"}
-              >
-                {job.status}
-              </StatusBadge>
+              <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide">Scheduled For</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {formatDate(job.scheduledFor)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wide">Property</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {job.propertyName}
+                  </p>
+                </div>
+              </div>
             </div>
-
-            <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
-              <div>
-                <p className="text-xs uppercase tracking-wide">Scheduled For</p>
-                <p className="mt-1 font-medium text-foreground">
-                  {formatDate(job.scheduledFor)}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-wide">Property</p>
-                <p className="mt-1 font-medium text-foreground">
-                  {job.propertyName}
-                </p>
-              </div>
-            </div>
-          </div>
+          </Link>
         ))}
       </CardContent>
     </Card>
   );
 }
 
-function ContactsSection({ details }: { details: CustomerDetails }) {
+function ContactsSection({ contacts }: { contacts: CustomerContactItem[] }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {details.contacts.map((contact) => (
+      {contacts.map((contact) => (
         <Card key={contact.id}>
           <CardHeader>
             <CardTitle>{contact.name}</CardTitle>
@@ -248,16 +292,16 @@ function ContactsSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-function TimelineSection({ details }: { details: CustomerDetails }) {
+function TimelineSection({ timeline }: { timeline: CustomerTimelineItem[] }) {
   const timelineItems = useMemo(
     () =>
-      details.timeline.map((event) => ({
+      timeline.map((event) => ({
         id: event.id,
         title: event.title,
         date: formatDate(event.date),
         description: event.description,
       })),
-    [details.timeline]
+    [timeline]
   );
 
   return (
@@ -273,7 +317,7 @@ function TimelineSection({ details }: { details: CustomerDetails }) {
   );
 }
 
-function NotesSection({ details }: { details: CustomerDetails }) {
+function NotesSection({ notes }: { notes: CustomerNoteItem[] }) {
   return (
     <Card>
       <CardHeader>
@@ -281,7 +325,7 @@ function NotesSection({ details }: { details: CustomerDetails }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {details.notes.map((note) => (
+        {notes.map((note) => (
           <div
             key={note.id}
             className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground"
@@ -295,10 +339,73 @@ function NotesSection({ details }: { details: CustomerDetails }) {
 }
 
 export function CustomerDetailTabs({ customer }: { customer: Customer }) {
-  const [activeTab, setActiveTab] =
-    useState<CustomerDetailTabKey>("overview");
+  const { role } = useCurrentRole();
+  const [activeTab, setActiveTab] = useState<CustomerDetailTabKey>("overview");
 
-  const details = useMemo(() => getCustomerDetails(customer), [customer]);
+  const [properties, setProperties] = useState<CustomerPropertyItem[]>([]);
+  const [propertiesFetched, setPropertiesFetched] = useState(false);
+
+  const [jobs, setJobs] = useState<CustomerJobItem[]>([]);
+  const [jobsFetched, setJobsFetched] = useState(false);
+
+  const staticDetails = useMemo(() => buildStaticDetails(customer), [customer]);
+
+  // Derive loading from whether the tab is active and the data hasn't been fetched yet
+  const propertiesLoading = activeTab === "properties" && !propertiesFetched && Boolean(role);
+  const jobsLoading = activeTab === "jobs" && !jobsFetched && Boolean(role);
+
+  useEffect(() => {
+    if (activeTab !== "properties" || propertiesFetched || !role) {
+      return;
+    }
+
+    requestJson<{ properties: Property[] }>(
+      `/api/customers/${customer.id}/properties`,
+      { role, cache: "no-store" },
+    )
+      .then((response) => {
+        setProperties(
+          response.properties.map((p) => ({
+            id: p.id,
+            name: p.name,
+            address: p.address,
+            city: p.city,
+            status: p.status,
+            primarySystem: p.primarySystem,
+          })),
+        );
+        setPropertiesFetched(true);
+      })
+      .catch(() => {
+        setPropertiesFetched(true);
+      });
+  }, [activeTab, customer.id, propertiesFetched, role]);
+
+  useEffect(() => {
+    if (activeTab !== "jobs" || jobsFetched || !role) {
+      return;
+    }
+
+    requestJson<{ jobs: Job[] }>(
+      `/api/customers/${customer.id}/jobs`,
+      { role, cache: "no-store" },
+    )
+      .then((response) => {
+        setJobs(
+          response.jobs.map((j) => ({
+            id: j.id,
+            title: j.title,
+            status: j.status,
+            scheduledFor: j.scheduledFor,
+            propertyName: j.propertyName,
+          })),
+        );
+        setJobsFetched(true);
+      })
+      .catch(() => {
+        setJobsFetched(true);
+      });
+  }, [activeTab, customer.id, jobsFetched, role]);
 
   return (
     <div className="space-y-6">
@@ -310,24 +417,26 @@ export function CustomerDetailTabs({ customer }: { customer: Customer }) {
       />
 
       {activeTab === "overview" ? (
-        <OverviewSection accountSummary={details.accountSummary} />
+        <OverviewSection accountSummary={staticDetails.accountSummary} />
       ) : null}
 
       {activeTab === "properties" ? (
-        <PropertiesSection details={details} />
+        <PropertiesSection properties={properties} loading={propertiesLoading} />
       ) : null}
 
-      {activeTab === "jobs" ? <JobsSection details={details} /> : null}
+      {activeTab === "jobs" ? (
+        <JobsSection jobs={jobs} loading={jobsLoading} />
+      ) : null}
 
       {activeTab === "contacts" ? (
-        <ContactsSection details={details} />
+        <ContactsSection contacts={staticDetails.contacts} />
       ) : null}
 
       {activeTab === "timeline" ? (
-        <TimelineSection details={details} />
+        <TimelineSection timeline={staticDetails.timeline} />
       ) : null}
 
-      {activeTab === "notes" ? <NotesSection details={details} /> : null}
+      {activeTab === "notes" ? <NotesSection notes={staticDetails.notes} /> : null}
     </div>
   );
 }
