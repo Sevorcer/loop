@@ -32,6 +32,7 @@ import {
   type ImportResult,
   type ImportRowError,
 } from "@/lib/schemas/import";
+import type { CoreTable } from "@/services/authorization";
 import { createCustomer } from "@/services/customers";
 import { createJob } from "@/services/jobs";
 import { createProperty } from "@/services/properties";
@@ -235,7 +236,6 @@ async function insertJobRow(row: Record<string, string>): Promise<void> {
   await createJob({
     title: parsed.title,
     type: parsed.type,
-    status: parsed.status,
     priority: parsed.priority,
     customerName: parsed.customerName,
     propertyName: parsed.propertyName,
@@ -279,7 +279,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   // Map entity → table name for permission check
-  const tableMap: Record<SupportedEntity, string> = {
+  const tableMap: Record<SupportedEntity, CoreTable> = {
     customers: "customers",
     properties: "properties",
     jobs: "jobs",

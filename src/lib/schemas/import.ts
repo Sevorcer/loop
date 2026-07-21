@@ -14,7 +14,7 @@ import { z } from "zod";
 
 const nonEmptyString = (label: string) =>
   z
-    .string({ required_error: `${label} is required` })
+    .string()
     .trim()
     .min(1, `${label} is required`);
 
@@ -36,9 +36,7 @@ export const CustomerImportRowSchema = z.object({
   city: nonEmptyString("city").max(100, "city must be 100 characters or fewer"),
   status: z
     .enum(["Active", "Prospect", "Inactive"], {
-      errorMap: () => ({
-        message: 'status must be one of: Active, Prospect, Inactive',
-      }),
+      message: 'status must be one of: Active, Prospect, Inactive',
     })
     .default("Active"),
 });
@@ -62,16 +60,12 @@ export const PropertyImportRowSchema = z.object({
   city: nonEmptyString("city").max(100, "city must be 100 characters or fewer"),
   type: z
     .enum(["Residential", "Commercial", "Multi-Family"], {
-      errorMap: () => ({
-        message: 'type must be one of: Residential, Commercial, Multi-Family',
-      }),
+      message: 'type must be one of: Residential, Commercial, Multi-Family',
     })
     .default("Residential"),
   status: z
     .enum(["Active", "Pending", "Inactive"], {
-      errorMap: () => ({
-        message: 'status must be one of: Active, Pending, Inactive',
-      }),
+      message: 'status must be one of: Active, Pending, Inactive',
     })
     .default("Active"),
   primarySystem: z
@@ -91,24 +85,17 @@ export const JobImportRowSchema = z.object({
   title: nonEmptyString("title").max(255, "title must be 255 characters or fewer"),
   type: z
     .enum(["Install", "Service", "Maintenance", "Inspection"], {
-      errorMap: () => ({
-        message: 'type must be one of: Install, Service, Maintenance, Inspection',
-      }),
+      message: 'type must be one of: Install, Service, Maintenance, Inspection',
     })
     .default("Service"),
   status: z
     .enum(["Scheduled", "In Progress", "On Hold", "Completed", "Cancelled"], {
-      errorMap: () => ({
-        message:
-          'status must be one of: Scheduled, In Progress, On Hold, Completed, Cancelled',
-      }),
+      message: 'status must be one of: Scheduled, In Progress, On Hold, Completed, Cancelled',
     })
     .default("Scheduled"),
   priority: z
     .enum(["Low", "Medium", "High"], {
-      errorMap: () => ({
-        message: 'priority must be one of: Low, Medium, High',
-      }),
+      message: 'priority must be one of: Low, Medium, High',
     })
     .default("Medium"),
   customerName: nonEmptyString("customerName").max(
