@@ -28,6 +28,9 @@ supabase login
 # https://app.supabase.com/account/tokens
 ```
 
+If you are on Windows, run all documented `bash ...` commands from **WSL** or
+Git Bash. `cmd.exe`/PowerShell cannot execute these bash scripts directly.
+
 ---
 
 ## Project setup (one-time per developer)
@@ -88,6 +91,13 @@ The same script CI runs — no database credentials needed:
 ```bash
 bash scripts/verify-migrations.sh
 ```
+
+Windows scope/workaround:
+- Scope: only commands that call `bash` scripts (for example
+  `bash scripts/verify-migrations.sh` and `npm run db:seed|db:reset|db:reseed`)
+  require a bash-compatible shell.
+- Workaround: run those commands from WSL/Git Bash, or use a Linux/macOS CI
+  runner.
 
 This checks:
 - Every file follows the naming convention `YYYYMMDDHHMMSS_description.sql`

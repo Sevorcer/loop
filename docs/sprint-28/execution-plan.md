@@ -59,3 +59,7 @@ Run before code changes:
 - Zero build/type/lint regressions
 - Preview deploy healthy
 - Documentation updated
+
+## PR E Stabilization Addendum
+- Final hardening notes: `docs/sprint-28/release-readiness-pr-e.md`
+- Includes validation matrix, known caveats, and deploy/rollback checklist
