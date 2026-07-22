@@ -18,7 +18,7 @@ import {
 } from "@/services/organizations";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "organizations", "select");
+  const guard = await requirePermission(request, "organizations", "select");
   if (!guard.ok) {
     const denied = organizationPermissionDenied(guard.response.status);
     return NextResponse.json(denied.error, { status: denied.status });
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const guard = requirePermission(request, "organizations", "insert");
+  const guard = await requirePermission(request, "organizations", "insert");
   if (!guard.ok) {
     const denied = organizationPermissionDenied(guard.response.status);
     return NextResponse.json(denied.error, { status: denied.status });

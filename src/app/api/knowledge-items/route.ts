@@ -14,7 +14,7 @@ import { mapRouteError } from "@/lib/api/routeErrors";
 import { getKnowledgeSnapshot } from "@/services/knowledgeItems";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "knowledge_items", "select");
+  const guard = await requirePermission(request, "knowledge_items", "select");
   if (!guard.ok) return guard.response;
 
   try {

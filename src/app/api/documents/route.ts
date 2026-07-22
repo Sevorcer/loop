@@ -22,7 +22,7 @@ import type { PortalDocumentAccess } from "@/services/repositories/documentsRepo
 const documentsService = createDocumentsService();
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "portal_memberships", "select");
+  const guard = await requirePermission(request, "portal_memberships", "select");
   if (!guard.ok) return guard.response;
 
   const result = await documentsService.list();
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const guard = requirePermission(request, "portal_memberships", "insert");
+  const guard = await requirePermission(request, "portal_memberships", "insert");
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;

@@ -20,7 +20,7 @@ import {
 import type { GcIssuePriority, GcIssueStatus } from "@/features/gc-field-issues/types/gcIssueRequest";
 
 export async function GET(request: Request) {
-  const guard = requirePermission(request, "gc_issue_requests", "select");
+  const guard = await requirePermission(request, "gc_issue_requests", "select");
   if (!guard.ok) return guard.response;
 
   const url = new URL(request.url);
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const guard = requirePermission(request, "gc_issue_requests", "insert");
+  const guard = await requirePermission(request, "gc_issue_requests", "insert");
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;

@@ -14,7 +14,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const guard = requirePermission(request, "installed_systems", "select");
+  const guard = await requirePermission(request, "installed_systems", "select");
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
