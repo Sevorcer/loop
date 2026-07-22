@@ -54,7 +54,6 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
       const response = await requestJson<{ properties: Property[] }>("/api/properties", {
-        role,
         cache: "no-store",
       });
       setProperties(response.properties);
@@ -85,7 +84,6 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     async function createProperty(input: CreatePropertyInput): Promise<Property> {
       const response = await requestJson<{ property: Property }>("/api/properties", {
         method: "POST",
-        role,
         body: input,
       });
 
