@@ -3,6 +3,7 @@ import type { AppRole } from "@/services/authorization";
 interface RequestJsonOptions extends Omit<RequestInit, "body" | "headers"> {
   body?: unknown;
   headers?: HeadersInit;
+  /** @deprecated Role headers are ignored; role is resolved server-side from session. */
   role?: AppRole | null;
 }
 
@@ -21,7 +22,6 @@ export async function requestJson<T>(
   options: RequestJsonOptions = {},
 ): Promise<T> {
   const { body, headers, role: _deprecatedRole, ...init } = options;
-  void _deprecatedRole;
   const requestHeaders = new Headers(headers);
 
   if (body !== undefined && !requestHeaders.has("content-type")) {
