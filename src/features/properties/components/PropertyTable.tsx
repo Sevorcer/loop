@@ -22,14 +22,16 @@ export function PropertyTable() {
   const [typeFilter, setTypeFilter] = useState(ALL_FILTER_VALUE);
   const [cityFilter, setCityFilter] = useState(ALL_FILTER_VALUE);
 
-  const cityOptions = useMemo(() => {
-    return Array.from(new Set(properties.map((property) => property.city))).sort();
+  const cityOptions = useMemo<string[]>(() => {
+    return Array.from(
+      new Set(properties.map((property: Property) => property.city)),
+    ).sort((a, b) => a.localeCompare(b));
   }, [properties]);
 
-  const filteredProperties = useMemo(() => {
+  const filteredProperties = useMemo<Property[]>(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return properties.filter((property) => {
+    return properties.filter((property: Property) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         property.name.toLowerCase().includes(normalizedSearch) ||
