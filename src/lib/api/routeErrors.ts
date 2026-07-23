@@ -3,6 +3,13 @@ import { NextResponse } from "next/server";
 import { getRepositoryErrorStatus } from "@/lib/repositories/http";
 import type { RepositoryError } from "@/lib/repositories/contracts";
 
+interface RouteErrorLike {
+  message?: unknown;
+  code?: unknown;
+  status?: unknown;
+  details?: unknown;
+}
+
 function canonicalErrorCode(status: number, fallback: string): string {
   switch (status) {
     case 401:
@@ -44,7 +51,7 @@ function extractErrorInfo(error: unknown): {
   details: unknown;
 } {
   if (error && typeof error === "object") {
-    const e = error as { message?: unknown; code?: unknown; status?: unknown; details?: unknown };
+    const e = error as RouteErrorLike;
     return {
       message:
         typeof e.message === "string" && e.message.trim().length > 0

@@ -62,14 +62,10 @@ export function organizationNotFound(id: string): AdminErrorResponse {
 
 export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   const message = error instanceof Error ? error.message : "Unknown server error.";
+  const errorObject = error && typeof error === "object" ? (error as { code?: unknown; details?: unknown }) : null;
   const code =
-    error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
-      ? ((error as { code: string }).code as string)
-      : null;
-  const details =
-    error && typeof error === "object" && "details" in error
-      ? (error as { details?: unknown }).details ?? null
-      : null;
+    errorObject && typeof errorObject.code === "string" ? errorObject.code : null;
+  const details = errorObject?.details ?? null;
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
     return {
