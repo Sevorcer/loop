@@ -23,10 +23,14 @@ export function PropertyTable() {
   const [cityFilter, setCityFilter] = useState(ALL_FILTER_VALUE);
 
   const cityOptions = useMemo<string[]>(() => {
-    return Array.from(
-      new Set(properties.map((property: Property) => property.city)),
-    ).sort((a, b) => a.localeCompare(b));
-  }, [properties]);
+  return Array.from(
+    new Set(
+      properties
+        .map((property: Property) => property.city)
+        .filter((city): city is string => typeof city === "string" && city.trim().length > 0),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+}, [properties]);
 
   const filteredProperties = useMemo<Property[]>(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
@@ -201,4 +205,12 @@ export function PropertyTable() {
       />
     </div>
   );
-}
+}const cityOptions = useMemo<string[]>(() => {
+  return Array.from(
+    new Set(
+      properties
+        .map((property: Property) => property.city)
+        .filter((city): city is string => typeof city === "string" && city.trim().length > 0),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+}, [properties]);
