@@ -13,17 +13,15 @@ import {
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
-import type {
-  CreatePropertyInput,
-  PropertiesContextValue,
-  PropertyRecord,
-} from "../types";
+import type { CreatePropertyInput, Property } from "../types/property";
+import type { PropertiesStoreValue } from "../types/propertyStore";
 
-const PropertiesContext = createContext<PropertiesContextValue | null>(null);
+const PropertiesContext = createContext<PropertiesStoreValue | null>(null);
 
 export function PropertiesProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
-  const [properties, setProperties] = useState<PropertyRecord[]>([]);
+
+  const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +32,15 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     }
 
     setLoading(true);
+
     try {
       setError(null);
-      const response = await requestJson<{ properties: PropertyRecord[] }>("/api/properties", {
+
+      const response = await requestJson<{ properties: Property[] }>("/api/properties", {
         role,
         cache: "no-store",
       });
+
       setProperties(response.properties);
     } catch (loadError) {
       setProperties([]);
@@ -60,7 +61,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     });
   }, [refreshProperties, role]);
 
-  const value = useMemo<PropertiesContextValue>(() => {
+  const value = useMemo<PropertiesStoreValue>(() => {
     function getPropertyById(id: string) {
       return properties.find((property) => property.id === id);
     }
@@ -70,7 +71,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     }
 
     async function createProperty(input: CreatePropertyInput) {
-      const response = await requestJson<{ property: PropertyRecord }>("/api/properties", {
+      const response = await requestJson<{ property: Property }>("/api/properties", {
         method: "POST",
         role,
         body: input,
@@ -81,14 +82,14 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     }
 
     return {
+      properties,
       hydrated,
       loading,
       error,
-      properties,
       getPropertyById,
+      createProperty,
       refreshProperties,
       reload,
-      createProperty,
     };
   }, [error, hydrated, loading, properties, refreshProperties, role]);
 
