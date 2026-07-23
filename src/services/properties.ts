@@ -94,8 +94,11 @@ export async function listProperties(contextInput?: SessionRepositoryContextInpu
   return listPropertyRecords(contextInput);
 }
 
-export async function listPropertiesForCustomer(customerId: string): Promise<Property[]> {
-  return listPropertiesByCustomerId(customerId);
+export async function listPropertiesForCustomer(
+  customerId: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<Property[]> {
+  return listPropertiesByCustomerId(customerId, contextInput);
 }
 
 export async function getProperty(
