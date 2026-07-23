@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import { requestJson } from "@/lib/api/client";
-import { useCurrentRole } from "@/providers/current-role-provider"";
+import { useCurrentRole } from "@/providers/current-role-provider";
 import type {
   CreatePropertyInput,
   PropertiesContextValue,
