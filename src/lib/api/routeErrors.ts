@@ -37,8 +37,32 @@ export async function readJsonObject(request: Request): Promise<Record<string, u
   return (await request.json()) as Record<string, unknown>;
 }
 
+function extractErrorInfo(error: unknown): {
+  message: string;
+  code: string | null;
+  status: number | null;
+} {
+  if (error && typeof error === "object") {
+    const e = error as { message?: unknown; code?: unknown; status?: unknown };
+    return {
+      message:
+        typeof e.message === "string" && e.message.trim().length > 0
+          ? e.message
+          : "Unknown server error.",
+      code: typeof e.code === "string" ? e.code : null,
+      status: typeof e.status === "number" ? e.status : null,
+    };
+  }
+
+  return {
+    message: error instanceof Error ? error.message : "Unknown server error.",
+    code: null,
+    status: null,
+  };
+}
+
 export function mapRouteError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unknown server error.";
+  const { message, code, status } = extractErrorInfo(error);
   const lowerMessage = message.toLowerCase();
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
@@ -49,13 +73,22 @@ export function mapRouteError(error: unknown) {
     );
   }
 
-  if (
-    message === "SUPABASE_SESSION_REQUIRED" ||
-    message === "USER_PROFILE_NOT_FOUND" ||
-    lowerMessage.includes("unauthorized") ||
-    lowerMessage.includes("authentication")
-  ) {
+  // Only explicit auth/session sentinel failures should become 401.
+  if (message === "SUPABASE_SESSION_REQUIRED" || message === "USER_PROFILE_NOT_FOUND") {
     return createApiErrorResponse("UNAUTHORIZED", "A valid session is required.", 401);
+  }
+
+  // Honor explicit upstream status/code when present.
+  if (status === 401 || code === "UNAUTHORIZED") {
+    return createApiErrorResponse("UNAUTHORIZED", "A valid session is required.", 401);
+  }
+
+  if (status === 403 || code === "FORBIDDEN") {
+    return createApiErrorResponse("FORBIDDEN", message, 403);
+  }
+
+  if (status === 404 || code === "NOT_FOUND") {
+    return createApiErrorResponse("NOT_FOUND", message, 404);
   }
 
   if (
