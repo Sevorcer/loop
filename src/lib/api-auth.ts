@@ -330,6 +330,19 @@ export async function requirePermission(
       stack: captureStack(),
     });
 
+    console.error(
+      "[AUTH_FLOW]",
+      JSON.stringify({
+        event: "requirePermission.deny",
+        reason: "MISSING_ROLE",
+        route: trace.route,
+        requestId: trace.requestId,
+        correlationId: trace.correlationId,
+        statusCode: 401,
+        stack: new Error("AUTH_FLOW_STACK").stack,
+      }),
+    );
+
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -409,6 +422,15 @@ export async function requirePermission(
 export function unauthorizedResponse(
   message = "A valid session is required.",
 ): NextResponse<ApiErrorBody> {
+  console.error(
+    "[AUTH_FLOW]",
+    JSON.stringify({
+      event: "unauthorizedResponse.emit",
+      reason: message,
+      statusCode: 401,
+      stack: new Error("AUTH_FLOW_STACK").stack,
+    }),
+  );
   return NextResponse.json<ApiErrorBody>(
     { error: "UNAUTHORIZED", message, code: 401 },
     { status: 401 },

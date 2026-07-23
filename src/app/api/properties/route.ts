@@ -30,6 +30,21 @@ export async function GET(request: Request) {
   const guard = await requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
+  console.log(
+    "[AUTH_FLOW]",
+    JSON.stringify({
+      event: "guard.pass",
+      route: "/api/properties",
+      userId: guard.ctx.userId,
+      role: guard.ctx.role,
+      requestId:
+        request.headers.get("x-request-id") ??
+        request.headers.get("x-correlation-id") ??
+        request.headers.get("x-vercel-id") ??
+        undefined,
+    }),
+  );
+
   try {
     const { userId } = guard.ctx;
     const properties = await listProperties({ userId });
