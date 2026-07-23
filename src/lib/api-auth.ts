@@ -38,6 +38,20 @@ export type PermissionResult =
   | { ok: true; ctx: AuthContext }
   | { ok: false; response: NextResponse<ApiErrorBody> };
 
+type SessionProbeResult = {
+  user: {
+    id?: string;
+    app_metadata?: Record<string, unknown> | null;
+    user_metadata?: Record<string, unknown> | null;
+  } | null;
+  error: {
+    message?: string;
+    name?: string;
+    code?: string;
+    status?: number;
+  } | null;
+};
+
 function extractRoleFromUser(user: {
   id?: string;
   app_metadata?: Record<string, unknown> | null;
@@ -82,7 +96,62 @@ function logAuthDiag(event: string, payload: Record<string, unknown>) {
 function captureStack(): string {
   return new Error("AUTH_DIAG_STACK").stack ?? "no-stack";
 }
+
+function getCookieDiagnostics(request: Request) {
+  const cookie = request.headers.get("cookie") ?? "";
+  return {
+    hasCookieHeader: cookie.length > 0,
+    hasSbAccessCookie:
+      cookie.includes("sb-access-token") ||
+      cookie.includes("sb:token") ||
+      cookie.includes("sb-"),
+    hasSbRefreshCookie:
+      cookie.includes("sb-refresh-token") ||
+      cookie.includes("refresh_token") ||
+      cookie.includes("sb-"),
+    xVercelId: request.headers.get("x-vercel-id"),
+    userAgent: request.headers.get("user-agent"),
+  };
+}
 // ---------- /TEMP DIAGNOSTICS ----------
+
+async function probeSession(): Promise<SessionProbeResult> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.getUser();
+
+    return {
+      user: data.user
+        ? {
+            id: data.user.id,
+            app_metadata: data.user.app_metadata,
+            user_metadata: data.user.user_metadata,
+          }
+        : null,
+      error: error
+        ? {
+            message: error.message,
+            name: (error as { name?: string }).name,
+            code: (error as { code?: string }).code,
+            status: (error as { status?: number }).status,
+          }
+        : null,
+    };
+  } catch (error) {
+    return {
+      user: null,
+      error: {
+        message: error instanceof Error ? error.message : "unknown",
+        name: "ProbeSessionException",
+      },
+    };
+  }
+}
+
+function isMissingSessionError(err: SessionProbeResult["error"]) {
+  const token = `${err?.name ?? ""}|${err?.code ?? ""}|${err?.message ?? ""}`.toLowerCase();
+  return token.includes("authsessionmissingerror") || token.includes("session missing");
+}
 
 export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
   const diagId = nextAuthDiagId();
@@ -95,30 +164,47 @@ export async function resolveRequestRole(request: Request): Promise<AppRole | nu
     }
   })();
 
+  const cookieDiag = getCookieDiagnostics(request);
+
   logAuthDiag("resolveRequestRole.enter", {
     diagId,
     reqId,
     method: request.method,
     url,
-    hasCookie: Boolean(request.headers.get("cookie")),
+    ...cookieDiag,
     stack: captureStack(),
   });
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const result = await supabase.auth.getUser();
+    let session = await probeSession();
+    let retried = false;
 
-    const user = result.data.user;
-    const error = result.error;
+    if (!session.user && isMissingSessionError(session.error)) {
+      retried = true;
+      logAuthDiag("resolveRequestRole.retry.missing_session", {
+        diagId,
+        reqId,
+        errorMessage: session.error?.message ?? null,
+        errorName: session.error?.name ?? null,
+        errorCode: session.error?.code ?? null,
+      });
+      session = await probeSession();
+    }
+
+    const user = session.user;
+    const error = session.error;
     const extractedRole = user ? extractRoleFromUser(user) : null;
 
     logAuthDiag("resolveRequestRole.getUser.result", {
       diagId,
       reqId,
+      retried,
       userId: user?.id ?? null,
       extractedRole,
       errorMessage: error?.message ?? null,
-      errorStatus: (error as { status?: number } | null)?.status ?? null,
+      errorName: error?.name ?? null,
+      errorCode: error?.code ?? null,
+      errorStatus: error?.status ?? null,
       appMeta: user?.app_metadata ?? null,
       userMeta: user?.user_metadata ?? null,
     });
@@ -223,7 +309,7 @@ export async function requirePermission(
   });
 
   if (role === null) {
-    const hasCookieHeader = Boolean(request.headers.get("cookie"));
+    const cookieDiag = getCookieDiagnostics(request);
 
     logAuthDiag("requirePermission.unauthorizedResponse", {
       diagId,
@@ -231,7 +317,7 @@ export async function requirePermission(
       route: trace.route,
       table,
       action,
-      hasCookieHeader,
+      ...cookieDiag,
       result: "UNAUTHORIZED",
       stack: captureStack(),
     });
@@ -244,13 +330,13 @@ export async function requirePermission(
       requestId: trace.requestId,
       correlationId: trace.correlationId,
       errorCode: "MISSING_ROLE",
-      details: { table, action, hasCookieHeader },
+      details: { table, action, ...cookieDiag },
     });
     incrementAuthMetric("auth_401_total", { route: trace.route });
 
     const response = unauthorizedResponse("A valid session is required.");
     if (process.env.NODE_ENV !== "production") {
-      response.headers.set("x-auth-debug-has-cookie", String(hasCookieHeader));
+      response.headers.set("x-auth-debug-has-cookie", String(cookieDiag.hasCookieHeader));
       response.headers.set("x-auth-debug-node-env", process.env.NODE_ENV ?? "unknown");
     }
 
