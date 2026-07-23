@@ -15,7 +15,15 @@ import { requestJson } from "@/lib/api/client";
 
 import type { Property } from "../types/property";
 
-type CreatePropertyInput = Record<string, unknown>;
+type CreatePropertyInput = {
+  name: string;
+  customer: string;
+  address: string;
+  city: string;
+  type: string;
+  status: string;
+  primarySystem: string;
+};
 
 type PropertiesStoreValue = {
   properties: Property[];
@@ -42,7 +50,6 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
     if (!role) return;
 
     setLoading(true);
-
     try {
       setError(null);
 
@@ -99,7 +106,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       refreshProperties,
       reload,
     };
-  }, [properties, hydrated, loading, error, refreshProperties, role]);
+  }, [error, hydrated, loading, properties, refreshProperties, role]);
 
   return <PropertiesContext.Provider value={value}>{children}</PropertiesContext.Provider>;
 }
