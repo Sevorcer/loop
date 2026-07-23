@@ -13,6 +13,19 @@ export async function createSupabaseServerClient() {
     );
   }
 
+  console.log("[auth-debug] supabase server env", {
+    urlHost: (() => {
+      try {
+        return new URL(url).host;
+      } catch {
+        return "invalid-url";
+      }
+    })(),
+    hasAnonKey: Boolean(key),
+    nodeEnv: process.env.NODE_ENV ?? null,
+    vercelEnv: process.env.VERCEL_ENV ?? null,
+  });
+
   const cookieStore = await cookies();
 
   return createServerClient(url, key, {
@@ -26,7 +39,7 @@ export async function createSupabaseServerClient() {
             cookieStore.set(name, value, options);
           }
         } catch {
-          // Ignore where writes are unavailable (RSC contexts).
+          // Ignore in contexts where writes are unavailable.
         }
       },
     },

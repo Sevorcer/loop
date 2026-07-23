@@ -61,10 +61,26 @@ function extractRoleFromUser(user: {
 export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
   try {
     const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+
+    const result = await supabase.auth.getUser();
+
+    console.log("[auth-debug] resolveRequestRole:getUser", {
+      hasCookie: Boolean(request.headers.get("cookie")),
+      userId: result.data.user?.id ?? null,
+      appMetaRole:
+        (result.data.user?.app_metadata as Record<string, unknown> | undefined)?.app_role ??
+        (result.data.user?.app_metadata as Record<string, unknown> | undefined)?.role ??
+        null,
+      userMetaRole:
+        (result.data.user?.user_metadata as Record<string, unknown> | undefined)?.app_role ??
+        (result.data.user?.user_metadata as Record<string, unknown> | undefined)?.role ??
+        null,
+      errorMessage: result.error?.message ?? null,
+      errorStatus: (result.error as { status?: number } | null)?.status ?? null,
+    });
+
+    const user = result.data.user;
+    const error = result.error;
 
     if (!error && user) {
       const role = extractRoleFromUser(user);
@@ -76,7 +92,10 @@ export async function resolveRequestRole(request: Request): Promise<AppRole | nu
 
       return null;
     }
-  } catch {
+  } catch (err) {
+    console.log("[auth-debug] resolveRequestRole:exception", {
+      message: err instanceof Error ? err.message : "unknown",
+    });
     // continue to non-prod fallback
   }
 
