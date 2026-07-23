@@ -1,41 +1,49 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
-import { useCurrentRole } from "@/providers/current-role-provider";
+import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
+
 import type {
   CreatePropertyInput,
   PropertiesContextValue,
   PropertyRecord,
-} from "@/features/properties/types";
+} from "../types";
 
 const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 
-export function PropertiesProvider({ children }: { children: React.ReactNode }) {
+export function PropertiesProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
-
   const [properties, setProperties] = useState<PropertyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshProperties = useCallback(async () => {
-    if (!role) return;
+    if (!role) {
+      return;
+    }
 
     setLoading(true);
     try {
       setError(null);
-
-      const payload = await requestJson<{ properties: PropertyRecord[] }>("/api/properties", {
+      const response = await requestJson<{ properties: PropertyRecord[] }>("/api/properties", {
+        role,
         cache: "no-store",
-        role, // keep aligned with jobs provider behavior in non-prod
       });
-
-      setProperties(payload.properties);
-    } catch (err) {
+      setProperties(response.properties);
+    } catch (loadError) {
       setProperties([]);
-      setError(err instanceof Error ? err.message : "Failed to load properties.");
+      setError(loadError instanceof Error ? loadError.message : "Failed to load properties.");
     } finally {
       setLoading(false);
       setHydrated(true);
@@ -43,7 +51,9 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
   }, [role]);
 
   useEffect(() => {
-    if (!role) return;
+    if (!role) {
+      return;
+    }
 
     queueMicrotask(() => {
       void refreshProperties();
@@ -51,8 +61,23 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
   }, [refreshProperties, role]);
 
   const value = useMemo<PropertiesContextValue>(() => {
+    function getPropertyById(id: string) {
+      return properties.find((property) => property.id === id);
+    }
+
     async function reload() {
       await refreshProperties();
+    }
+
+    async function createProperty(input: CreatePropertyInput) {
+      const response = await requestJson<{ property: PropertyRecord }>("/api/properties", {
+        method: "POST",
+        role,
+        body: input,
+      });
+
+      setProperties((current) => [response.property, ...current]);
+      return response.property;
     }
 
     return {
@@ -60,21 +85,10 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
       loading,
       error,
       properties,
-      getPropertyById(id: string) {
-        return properties.find((property) => property.id === id);
-      },
+      getPropertyById,
       refreshProperties,
       reload,
-      async createProperty(input: CreatePropertyInput) {
-        const payload = await requestJson<{ property: PropertyRecord }>("/api/properties", {
-          method: "POST",
-          body: input,
-          role, // keep aligned with jobs provider behavior in non-prod
-        });
-
-        setProperties((prev) => [payload.property, ...prev]);
-        return payload.property;
-      },
+      createProperty,
     };
   }, [error, hydrated, loading, properties, refreshProperties, role]);
 
@@ -83,8 +97,10 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
 
 export function useProperties() {
   const context = useContext(PropertiesContext);
+
   if (!context) {
     throw new Error("useProperties must be used within a PropertiesProvider");
   }
+
   return context;
 }
