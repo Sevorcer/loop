@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import { requestJson } from "@/lib/api/client";
 import { useCurrentRole } from "@/providers/current-role-provider";
+import { requestJson } from "@/lib/api/client";
 import type {
   CreatePropertyInput,
   PropertiesContextValue,
@@ -21,6 +14,7 @@ const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 
 export function PropertiesProvider({ children }: { children: React.ReactNode }) {
   const { role } = useCurrentRole();
+
   const [properties, setProperties] = useState<PropertyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
@@ -32,10 +26,12 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
     setLoading(true);
     try {
       setError(null);
+
       const payload = await requestJson<{ properties: PropertyRecord[] }>("/api/properties", {
         cache: "no-store",
-        role, // TEMP: align with jobs until cookie-only auth is fully stable
+        role, // keep aligned with jobs provider behavior in non-prod
       });
+
       setProperties(payload.properties);
     } catch (err) {
       setProperties([]);
@@ -48,6 +44,7 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (!role) return;
+
     queueMicrotask(() => {
       void refreshProperties();
     });
@@ -63,7 +60,7 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
       loading,
       error,
       properties,
-      getPropertyById(id) {
+      getPropertyById(id: string) {
         return properties.find((property) => property.id === id);
       },
       refreshProperties,
@@ -72,8 +69,9 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
         const payload = await requestJson<{ property: PropertyRecord }>("/api/properties", {
           method: "POST",
           body: input,
-          role, // TEMP: align with jobs until cookie-only auth is fully stable
+          role, // keep aligned with jobs provider behavior in non-prod
         });
+
         setProperties((prev) => [payload.property, ...prev]);
         return payload.property;
       },
@@ -85,6 +83,8 @@ export function PropertiesProvider({ children }: { children: React.ReactNode }) 
 
 export function useProperties() {
   const context = useContext(PropertiesContext);
-  if (!context) throw new Error("useProperties must be used within a PropertiesProvider");
+  if (!context) {
+    throw new Error("useProperties must be used within a PropertiesProvider");
+  }
   return context;
 }
