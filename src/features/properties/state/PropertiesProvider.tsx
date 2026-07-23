@@ -13,10 +13,12 @@ import {
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
-import type { CreatePropertyInput, Property } from "../types/property";
+import type { Property } from "../types/property";
 import type { PropertiesStoreValue } from "../types/propertyStore";
 
 const PropertiesContext = createContext<PropertiesStoreValue | null>(null);
+
+type CreatePropertyPayload = Record<string, unknown>;
 
 export function PropertiesProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
@@ -27,9 +29,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const refreshProperties = useCallback(async () => {
-    if (!role) {
-      return;
-    }
+    if (!role) return;
 
     setLoading(true);
 
@@ -41,7 +41,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
         cache: "no-store",
       });
 
-      setProperties(response.properties);
+      setProperties(Array.isArray(response.properties) ? response.properties : []);
     } catch (loadError) {
       setProperties([]);
       setError(loadError instanceof Error ? loadError.message : "Failed to load properties.");
@@ -52,9 +52,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
   }, [role]);
 
   useEffect(() => {
-    if (!role) {
-      return;
-    }
+    if (!role) return;
 
     queueMicrotask(() => {
       void refreshProperties();
@@ -70,7 +68,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       await refreshProperties();
     }
 
-    async function createProperty(input: CreatePropertyInput) {
+    async function createProperty(input: CreatePropertyPayload) {
       const response = await requestJson<{ property: Property }>("/api/properties", {
         method: "POST",
         role,
@@ -87,11 +85,11 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       getPropertyById,
-      createProperty,
       refreshProperties,
       reload,
+      createProperty,
     };
-  }, [error, hydrated, loading, properties, refreshProperties, role]);
+  }, [properties, hydrated, loading, error, refreshProperties, role]);
 
   return <PropertiesContext.Provider value={value}>{children}</PropertiesContext.Provider>;
 }
