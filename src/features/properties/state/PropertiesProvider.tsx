@@ -14,11 +14,21 @@ import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
 import type { Property } from "../types/property";
-import type { PropertiesStoreValue } from "../types/propertyStore";
+
+type CreatePropertyInput = Record<string, unknown>;
+
+type PropertiesStoreValue = {
+  properties: Property[];
+  hydrated: boolean;
+  loading: boolean;
+  error: string | null;
+  getPropertyById: (id: string) => Property | undefined;
+  createProperty: (input: CreatePropertyInput) => Promise<Property>;
+  refreshProperties: () => Promise<void>;
+  reload: () => Promise<void>;
+};
 
 const PropertiesContext = createContext<PropertiesStoreValue | null>(null);
-
-type CreatePropertyPayload = Record<string, unknown>;
 
 export function PropertiesProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
@@ -68,7 +78,7 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       await refreshProperties();
     }
 
-    async function createProperty(input: CreatePropertyPayload) {
+    async function createProperty(input: CreatePropertyInput) {
       const response = await requestJson<{ property: Property }>("/api/properties", {
         method: "POST",
         role,
@@ -85,9 +95,9 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       getPropertyById,
+      createProperty,
       refreshProperties,
       reload,
-      createProperty,
     };
   }, [properties, hydrated, loading, error, refreshProperties, role]);
 
