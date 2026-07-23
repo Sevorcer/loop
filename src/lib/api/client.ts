@@ -1,12 +1,3 @@
-import type { AppRole } from "@/services/authorization";
-
-interface RequestJsonOptions extends Omit<RequestInit, "body" | "headers"> {
-  body?: unknown;
-  headers?: HeadersInit;
-  /** @deprecated Role headers are ignored; role is resolved server-side from session. */
-  role?: AppRole | null;
-}
-
 export class ApiRequestError extends Error {
   status: number;
 
@@ -17,34 +8,46 @@ export class ApiRequestError extends Error {
   }
 }
 
+type RequestJsonOptions = Omit<RequestInit, "body" | "headers"> & {
+  body?: unknown;
+  headers?: HeadersInit;
+  role?: string | null;
+};
+
 export async function requestJson<T>(
   input: RequestInfo | URL,
   options: RequestJsonOptions = {},
 ): Promise<T> {
-  const { body, headers, role: _deprecatedRole, ...init } = options;
+  const { body, headers, role, ...rest } = options;
+
   const requestHeaders = new Headers(headers);
 
   if (body !== undefined && !requestHeaders.has("content-type")) {
     requestHeaders.set("content-type", "application/json");
   }
 
+  // Keep temporary non-prod compatibility path used by current API auth fallback.
+  if (role && process.env.NODE_ENV !== "production") {
+    requestHeaders.set("x-loop-role", role);
+  }
+
   const response = await fetch(input, {
     credentials: "include",
-    ...init,
+    ...rest,
     headers: requestHeaders,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
-  const payload = (await response.json().catch(() => null)) as
-    | { message?: string; error?: string }
-    | null;
+  const data = await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new ApiRequestError(
-      payload?.message ?? payload?.error ?? "Request failed.",
+      (data as { message?: string; error?: string } | null)?.message ??
+        (data as { message?: string; error?: string } | null)?.error ??
+        "Request failed.",
       response.status,
     );
   }
 
-  return payload as T;
+  return data as T;
 }

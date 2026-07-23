@@ -7,59 +7,39 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
 
-import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
-
-import type { Property, PropertyStatus, PropertyType } from "../types/property";
-
-interface CreatePropertyInput {
-  name: string;
-  customer: string;
-  address: string;
-  city: string;
-  type: PropertyType;
-  status: PropertyStatus;
-  primarySystem: string;
-}
-
-interface PropertiesContextValue {
-  hydrated: boolean;
-  loading: boolean;
-  error: string | null;
-  properties: Property[];
-  getPropertyById: (id: string) => Property | undefined;
-  refreshProperties: () => Promise<void>;
-  reload: () => Promise<void>;
-  createProperty: (input: CreatePropertyInput) => Promise<Property>;
-}
+import { useCurrentRole } from "@/features/auth/state/CurrentRoleProvider";
+import type {
+  CreatePropertyInput,
+  PropertiesContextValue,
+  PropertyRecord,
+} from "@/features/properties/types";
 
 const PropertiesContext = createContext<PropertiesContextValue | null>(null);
 
-export function PropertiesProvider({ children }: { children: ReactNode }) {
+export function PropertiesProvider({ children }: { children: React.ReactNode }) {
   const { role } = useCurrentRole();
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [properties, setProperties] = useState<PropertyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshProperties = useCallback(async () => {
-    if (!role) {
-      return;
-    }
+    if (!role) return;
 
     setLoading(true);
     try {
       setError(null);
-      const response = await requestJson<{ properties: Property[] }>("/api/properties", {
+      const payload = await requestJson<{ properties: PropertyRecord[] }>("/api/properties", {
         cache: "no-store",
+        role, // TEMP: align with jobs until cookie-only auth is fully stable
       });
-      setProperties(response.properties);
-    } catch (loadError) {
+      setProperties(payload.properties);
+    } catch (err) {
       setProperties([]);
-      setError(loadError instanceof Error ? loadError.message : "Failed to load properties.");
+      setError(err instanceof Error ? err.message : "Failed to load properties.");
     } finally {
       setLoading(false);
       setHydrated(true);
@@ -67,30 +47,13 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
   }, [role]);
 
   useEffect(() => {
-    if (!role) {
-      return;
-    }
-
+    if (!role) return;
     queueMicrotask(() => {
       void refreshProperties();
     });
   }, [refreshProperties, role]);
 
   const value = useMemo<PropertiesContextValue>(() => {
-    function getPropertyById(id: string) {
-      return properties.find((property) => property.id === id);
-    }
-
-    async function createProperty(input: CreatePropertyInput): Promise<Property> {
-      const response = await requestJson<{ property: Property }>("/api/properties", {
-        method: "POST",
-        body: input,
-      });
-
-      setProperties((current) => [response.property, ...current]);
-      return response.property;
-    }
-
     async function reload() {
       await refreshProperties();
     }
@@ -100,10 +63,20 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       properties,
-      getPropertyById,
+      getPropertyById(id) {
+        return properties.find((property) => property.id === id);
+      },
       refreshProperties,
       reload,
-      createProperty,
+      async createProperty(input: CreatePropertyInput) {
+        const payload = await requestJson<{ property: PropertyRecord }>("/api/properties", {
+          method: "POST",
+          body: input,
+          role, // TEMP: align with jobs until cookie-only auth is fully stable
+        });
+        setProperties((prev) => [payload.property, ...prev]);
+        return payload.property;
+      },
     };
   }, [error, hydrated, loading, properties, refreshProperties, role]);
 
@@ -112,10 +85,6 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
 
 export function useProperties() {
   const context = useContext(PropertiesContext);
-
-  if (!context) {
-    throw new Error("useProperties must be used within a PropertiesProvider");
-  }
-
+  if (!context) throw new Error("useProperties must be used within a PropertiesProvider");
   return context;
 }
