@@ -3,6 +3,13 @@ import { NextResponse } from "next/server";
 import { getRepositoryErrorStatus } from "@/lib/repositories/http";
 import type { RepositoryError } from "@/lib/repositories/contracts";
 
+interface RouteErrorLike {
+  message?: string;
+  code?: string;
+  status?: number;
+  details?: unknown;
+}
+
 function canonicalErrorCode(status: number, fallback: string): string {
   switch (status) {
     case 401:
@@ -41,9 +48,10 @@ function extractErrorInfo(error: unknown): {
   message: string;
   code: string | null;
   status: number | null;
+  details: unknown;
 } {
   if (error && typeof error === "object") {
-    const e = error as { message?: unknown; code?: unknown; status?: unknown };
+    const e = error as RouteErrorLike;
     return {
       message:
         typeof e.message === "string" && e.message.trim().length > 0
@@ -51,6 +59,7 @@ function extractErrorInfo(error: unknown): {
           : "Unknown server error.",
       code: typeof e.code === "string" ? e.code : null,
       status: typeof e.status === "number" ? e.status : null,
+      details: e.details ?? null,
     };
   }
 
@@ -58,11 +67,12 @@ function extractErrorInfo(error: unknown): {
     message: error instanceof Error ? error.message : "Unknown server error.",
     code: null,
     status: null,
+    details: null,
   };
 }
 
 export function mapRouteError(error: unknown) {
-  const { message, code, status } = extractErrorInfo(error);
+  const { message, code, status, details } = extractErrorInfo(error);
   const lowerMessage = message.toLowerCase();
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
@@ -74,13 +84,18 @@ export function mapRouteError(error: unknown) {
   }
 
   // Only explicit auth/session sentinel failures should become 401.
-  if (message === "SUPABASE_SESSION_REQUIRED" || message === "USER_PROFILE_NOT_FOUND") {
+  if (
+    message === "SUPABASE_SESSION_REQUIRED" ||
+    message === "USER_PROFILE_NOT_FOUND" ||
+    code === "USER_PROFILE_NOT_FOUND"
+  ) {
     console.error(
       "[AUTH_FLOW]",
       JSON.stringify({
         event: "mapRouteError.emit401",
-        reason: message,
+        reason: code ?? message,
         statusCode: 401,
+        details,
         stack: new Error("AUTH_FLOW_STACK").stack,
       }),
     );

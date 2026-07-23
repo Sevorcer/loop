@@ -62,6 +62,10 @@ export function organizationNotFound(id: string): AdminErrorResponse {
 
 export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   const message = error instanceof Error ? error.message : "Unknown server error.";
+  const errorObject = error && typeof error === "object" ? (error as { code?: unknown; details?: unknown }) : null;
+  const code =
+    errorObject && typeof errorObject.code === "string" ? errorObject.code : null;
+  const details = errorObject?.details ?? null;
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
     return {
@@ -73,6 +77,7 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   if (
     message === "SUPABASE_SESSION_REQUIRED" ||
     message === "USER_PROFILE_NOT_FOUND" ||
+    code === "USER_PROFILE_NOT_FOUND" ||
     message.toLowerCase().includes("unauthorized") ||
     message.toLowerCase().includes("authentication")
   ) {
@@ -80,8 +85,9 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
       "[AUTH_FLOW]",
       JSON.stringify({
         event: "mapOrganizationRouteError.emit401",
-        reason: message,
+        reason: code ?? message,
         statusCode: 401,
+        details,
         stack: new Error("AUTH_FLOW_STACK").stack,
       }),
     );
