@@ -32,6 +32,8 @@ const {
   };
 });
 
+// `server-only` only enforces import boundaries at build time, so a no-op mock
+// is sufficient for these node-environment unit tests.
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: mockCreateSupabaseServerClient,

@@ -4,9 +4,9 @@ import { getRepositoryErrorStatus } from "@/lib/repositories/http";
 import type { RepositoryError } from "@/lib/repositories/contracts";
 
 interface RouteErrorLike {
-  message?: unknown;
-  code?: unknown;
-  status?: unknown;
+  message?: string;
+  code?: string;
+  status?: number;
   details?: unknown;
 }
 
