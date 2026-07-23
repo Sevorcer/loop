@@ -93,7 +93,7 @@ export async function POST(request: Request) {
 
     emitAuditEvent({
       role: guard.ctx.role,
-      action: "insert",
+      action: "create",
       resource: "properties",
       resourceId: result.property.id,
       details: {
