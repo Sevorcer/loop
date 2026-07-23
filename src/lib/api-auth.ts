@@ -32,6 +32,7 @@ export interface ApiErrorBody {
 
 export interface AuthContext {
   role: AppRole;
+  userId: string;
 }
 
 export type PermissionResult =
@@ -153,7 +154,9 @@ function isMissingSessionError(err: SessionProbeResult["error"]) {
   return token.includes("authsessionmissingerror") || token.includes("session missing");
 }
 
-export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
+type ResolvedAuth = { role: AppRole; userId: string };
+
+async function resolveRequestAuth(request: Request): Promise<ResolvedAuth | null> {
   const diagId = nextAuthDiagId();
   const reqId = getRequestIdFromHeaders(request);
   const url = (() => {
@@ -218,7 +221,7 @@ export async function resolveRequestRole(request: Request): Promise<AppRole | nu
           role: extractedRole,
           reason: "metadata",
         });
-        return extractedRole;
+        return { role: extractedRole, userId: user.id ?? "" };
       }
 
       if (process.env.NODE_ENV !== "production") {
@@ -229,7 +232,7 @@ export async function resolveRequestRole(request: Request): Promise<AppRole | nu
           role: "owner",
           reason: "non-prod-fallback",
         });
-        return "owner";
+        return { role: "owner", userId: user.id ?? "" };
       }
 
       logAuthDiag("resolveRequestRole.return.null", {
@@ -259,7 +262,7 @@ export async function resolveRequestRole(request: Request): Promise<AppRole | nu
         role: headerRole,
         reason: "x-loop-role-fallback",
       });
-      return headerRole;
+      return { role: headerRole, userId: "" };
     }
   }
 
@@ -271,6 +274,11 @@ export async function resolveRequestRole(request: Request): Promise<AppRole | nu
   });
 
   return null;
+}
+
+export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
+  const auth = await resolveRequestAuth(request);
+  return auth ? auth.role : null;
 }
 
 export async function requirePermission(
@@ -299,16 +307,16 @@ export async function requirePermission(
   });
 
   const trace = getRequestTraceContext(request);
-  const role = await resolveRequestRole(request);
+  const auth = await resolveRequestAuth(request);
 
   logAuthDiag("requirePermission.after.resolveRole", {
     diagId,
     reqId,
-    resolvedRole: role,
+    resolvedRole: auth ? auth.role : null,
     route: trace.route,
   });
 
-  if (role === null) {
+  if (auth === null) {
     const cookieDiag = getCookieDiagnostics(request);
 
     logAuthDiag("requirePermission.unauthorizedResponse", {
@@ -342,6 +350,8 @@ export async function requirePermission(
 
     return { ok: false, response: applyTraceHeaders(response, trace) };
   }
+
+  const { role, userId } = auth;
 
   if (!hasPermission(role, table, action)) {
     logAuthDiag("requirePermission.forbidden", {
@@ -393,7 +403,7 @@ export async function requirePermission(
     details: { table, action },
   });
 
-  return { ok: true, ctx: { role } };
+  return { ok: true, ctx: { role, userId } };
 }
 
 export function unauthorizedResponse(

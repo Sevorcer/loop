@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createProperty, listProperties } from "@/services/properties";
 
 const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
@@ -27,30 +26,12 @@ function readPropertyStatus(value: unknown) {
   return normalized as "Active" | "Pending" | "Inactive";
 }
 
-async function getAuthenticatedUserId() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user?.id) return null;
-  return user.id;
-}
-
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
   try {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
-        { status: 401 },
-      );
-    }
-
+    const { userId } = guard.ctx;
     const properties = await listProperties({ userId });
     return NextResponse.json({ properties });
   } catch (error) {
@@ -70,13 +51,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
-        { status: 401 },
-      );
-    }
+    const { userId } = guard.ctx;
 
     const result = await createProperty(
       {
