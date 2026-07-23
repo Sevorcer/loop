@@ -4,8 +4,6 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Deterministic local-development org used by seeded fixtures when no authenticated
-// Supabase session is available but a service-role client is configured.
 export const DEFAULT_DEVELOPMENT_ORG_ID = "00000000-0000-4000-8000-000000000001";
 
 export interface RepositoryContext {
@@ -14,7 +12,13 @@ export interface RepositoryContext {
   mode: "session" | "development";
 }
 
-export async function getRepositoryContext(): Promise<RepositoryContext> {
+export interface SessionRepositoryContextInput {
+  userId: string;
+}
+
+export async function getRepositoryContext(
+  input?: SessionRepositoryContextInput,
+): Promise<RepositoryContext> {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
@@ -24,19 +28,31 @@ export async function getRepositoryContext(): Promise<RepositoryContext> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (user) {
+  // If route already authenticated user, trust that identity and skip a second auth.getUser() lookup.
+  let userId: string | null = input?.userId ?? null;
+
+  if (!userId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    userId = user?.id ?? null;
+  }
+
+  if (userId) {
     const { data: profile, error } = await supabase
       .from("user_profiles")
       .select("org_id")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
 
     if (error) {
-      throw new Error(error.message);
+      throw Object.assign(new Error(error.message), {
+        status: (error as { status?: number }).status ?? null,
+        code: (error as { code?: string }).code ?? null,
+        details: (error as { details?: unknown }).details ?? null,
+        hint: (error as { hint?: unknown }).hint ?? null,
+      });
     }
 
     if (!profile?.org_id) {
