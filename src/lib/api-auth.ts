@@ -39,6 +39,7 @@ export type PermissionResult =
   | { ok: false; response: NextResponse<ApiErrorBody> };
 
 function extractRoleFromUser(user: {
+  id?: string;
   app_metadata?: Record<string, unknown> | null;
   user_metadata?: Record<string, unknown> | null;
 }): AppRole | null {
@@ -58,32 +59,130 @@ function extractRoleFromUser(user: {
   return null;
 }
 
+// ---------- TEMP DIAGNOSTICS ----------
+let authDiagSeq = 0;
+function nextAuthDiagId() {
+  authDiagSeq += 1;
+  return `authdiag-${Date.now()}-${authDiagSeq}`;
+}
+
+function getRequestIdFromHeaders(request: Request): string | null {
+  return (
+    request.headers.get("x-request-id") ??
+    request.headers.get("x-correlation-id") ??
+    request.headers.get("x-vercel-id") ??
+    null
+  );
+}
+
+function logAuthDiag(event: string, payload: Record<string, unknown>) {
+  console.log("[AUTH_DIAG]", JSON.stringify({ event, ...payload }));
+}
+
+function captureStack(): string {
+  return new Error("AUTH_DIAG_STACK").stack ?? "no-stack";
+}
+// ---------- /TEMP DIAGNOSTICS ----------
+
 export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
+  const diagId = nextAuthDiagId();
+  const reqId = getRequestIdFromHeaders(request);
+  const url = (() => {
+    try {
+      return new URL(request.url).pathname;
+    } catch {
+      return request.url;
+    }
+  })();
+
+  logAuthDiag("resolveRequestRole.enter", {
+    diagId,
+    reqId,
+    method: request.method,
+    url,
+    hasCookie: Boolean(request.headers.get("cookie")),
+    stack: captureStack(),
+  });
+
   try {
     const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+    const result = await supabase.auth.getUser();
+
+    const user = result.data.user;
+    const error = result.error;
+    const extractedRole = user ? extractRoleFromUser(user) : null;
+
+    logAuthDiag("resolveRequestRole.getUser.result", {
+      diagId,
+      reqId,
+      userId: user?.id ?? null,
+      extractedRole,
+      errorMessage: error?.message ?? null,
+      errorStatus: (error as { status?: number } | null)?.status ?? null,
+      appMeta: user?.app_metadata ?? null,
+      userMeta: user?.user_metadata ?? null,
+    });
 
     if (!error && user) {
-      const role = extractRoleFromUser(user);
-      if (role) return role;
+      if (extractedRole) {
+        logAuthDiag("resolveRequestRole.return.role", {
+          diagId,
+          reqId,
+          userId: user.id,
+          role: extractedRole,
+          reason: "metadata",
+        });
+        return extractedRole;
+      }
 
       if (process.env.NODE_ENV !== "production") {
+        logAuthDiag("resolveRequestRole.return.role", {
+          diagId,
+          reqId,
+          userId: user.id,
+          role: "owner",
+          reason: "non-prod-fallback",
+        });
         return "owner";
       }
 
+      logAuthDiag("resolveRequestRole.return.null", {
+        diagId,
+        reqId,
+        userId: user.id,
+        reason: "user-without-valid-role",
+      });
       return null;
     }
-  } catch {
-    // continue to non-prod fallback
+  } catch (err) {
+    logAuthDiag("resolveRequestRole.exception", {
+      diagId,
+      reqId,
+      errorMessage: err instanceof Error ? err.message : "unknown",
+      stack: captureStack(),
+    });
   }
 
   if (process.env.NODE_ENV !== "production") {
     const headerRole = request.headers.get("x-loop-role");
-    if (headerRole && isAppRole(headerRole)) return headerRole;
+    if (headerRole && isAppRole(headerRole)) {
+      logAuthDiag("resolveRequestRole.return.role", {
+        diagId,
+        reqId,
+        userId: null,
+        role: headerRole,
+        reason: "x-loop-role-fallback",
+      });
+      return headerRole;
+    }
   }
+
+  logAuthDiag("resolveRequestRole.return.null", {
+    diagId,
+    reqId,
+    userId: null,
+    reason: "no-user-no-fallback",
+  });
 
   return null;
 }
@@ -93,11 +192,49 @@ export async function requirePermission(
   table: CoreTable,
   action: TableAction,
 ): Promise<PermissionResult> {
+  const diagId = nextAuthDiagId();
+  const reqId = getRequestIdFromHeaders(request);
+  const url = (() => {
+    try {
+      return new URL(request.url).pathname;
+    } catch {
+      return request.url;
+    }
+  })();
+
+  logAuthDiag("requirePermission.enter", {
+    diagId,
+    reqId,
+    method: request.method,
+    url,
+    table,
+    action,
+    stack: captureStack(),
+  });
+
   const trace = getRequestTraceContext(request);
   const role = await resolveRequestRole(request);
 
+  logAuthDiag("requirePermission.after.resolveRole", {
+    diagId,
+    reqId,
+    resolvedRole: role,
+    route: trace.route,
+  });
+
   if (role === null) {
     const hasCookieHeader = Boolean(request.headers.get("cookie"));
+
+    logAuthDiag("requirePermission.unauthorizedResponse", {
+      diagId,
+      reqId,
+      route: trace.route,
+      table,
+      action,
+      hasCookieHeader,
+      result: "UNAUTHORIZED",
+      stack: captureStack(),
+    });
 
     logAuthEvent({
       event: "unauthorized_access_attempt",
@@ -121,6 +258,16 @@ export async function requirePermission(
   }
 
   if (!hasPermission(role, table, action)) {
+    logAuthDiag("requirePermission.forbidden", {
+      diagId,
+      reqId,
+      route: trace.route,
+      table,
+      action,
+      role,
+      result: "FORBIDDEN",
+    });
+
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -138,6 +285,16 @@ export async function requirePermission(
       response: applyTraceHeaders(forbiddenResponse(role, table, action), trace),
     };
   }
+
+  logAuthDiag("requirePermission.allow", {
+    diagId,
+    reqId,
+    route: trace.route,
+    table,
+    action,
+    role,
+    result: "ALLOW",
+  });
 
   logAuthEvent({
     event: "authz_decision_allow",

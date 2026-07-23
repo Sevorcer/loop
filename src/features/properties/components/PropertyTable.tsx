@@ -13,6 +13,12 @@ import { PropertyToolbar } from "./PropertyToolbar";
 
 const ALL_FILTER_VALUE = "all";
 
+function toStringValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function PropertyTable() {
   const router = useRouter();
   const { hydrated, loading, error, refreshProperties, properties } = useProperties();
@@ -22,30 +28,47 @@ export function PropertyTable() {
   const [typeFilter, setTypeFilter] = useState(ALL_FILTER_VALUE);
   const [cityFilter, setCityFilter] = useState(ALL_FILTER_VALUE);
 
-  const cityOptions = useMemo(() => {
-    return Array.from(new Set(properties.map((property) => property.city))).sort();
+  const cityOptions = useMemo<string[]>(() => {
+    const cities: string[] = [];
+
+    for (const property of properties as Property[]) {
+      const city = toStringValue(property.city);
+      if (city) cities.push(city);
+    }
+
+    return [...new Set<string>(cities)].sort((a, b) => a.localeCompare(b));
   }, [properties]);
 
-  const filteredProperties = useMemo(() => {
+  const filteredProperties = useMemo<Property[]>(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return properties.filter((property) => {
+    return (properties as Property[]).filter((property) => {
+      const name = toStringValue(property.name)?.toLowerCase() ?? "";
+      const customer = toStringValue(property.customer)?.toLowerCase() ?? "";
+      const address = toStringValue(property.address)?.toLowerCase() ?? "";
+      const city = toStringValue(property.city)?.toLowerCase() ?? "";
+      const primarySystem = toStringValue(property.primarySystem)?.toLowerCase() ?? "";
+
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        property.name.toLowerCase().includes(normalizedSearch) ||
-        property.customer.toLowerCase().includes(normalizedSearch) ||
-        property.address.toLowerCase().includes(normalizedSearch) ||
-        property.city.toLowerCase().includes(normalizedSearch) ||
-        property.primarySystem.toLowerCase().includes(normalizedSearch);
+        name.includes(normalizedSearch) ||
+        customer.includes(normalizedSearch) ||
+        address.includes(normalizedSearch) ||
+        city.includes(normalizedSearch) ||
+        primarySystem.includes(normalizedSearch);
+
+      const propertyStatus = toStringValue(property.status) ?? "";
+      const propertyType = toStringValue(property.type) ?? "";
+      const propertyCity = toStringValue(property.city) ?? "";
 
       const matchesStatus =
-        statusFilter === ALL_FILTER_VALUE || property.status === statusFilter;
+        statusFilter === ALL_FILTER_VALUE || propertyStatus === statusFilter;
 
       const matchesType =
-        typeFilter === ALL_FILTER_VALUE || property.type === typeFilter;
+        typeFilter === ALL_FILTER_VALUE || propertyType === typeFilter;
 
       const matchesCity =
-        cityFilter === ALL_FILTER_VALUE || property.city === cityFilter;
+        cityFilter === ALL_FILTER_VALUE || propertyCity === cityFilter;
 
       return matchesSearch && matchesStatus && matchesType && matchesCity;
     });
@@ -151,11 +174,7 @@ export function PropertyTable() {
           </p>
 
           {hasActiveFilters ? (
-            <Button
-              variant="outline"
-              className="mt-6"
-              onClick={handleClearFilters}
-            >
+            <Button variant="outline" className="mt-6" onClick={handleClearFilters}>
               Clear filters
             </Button>
           ) : null}
@@ -192,11 +211,7 @@ export function PropertyTable() {
         ) : null}
       </div>
 
-      <DataTable
-        columns={propertyColumns}
-        data={filteredProperties}
-        onRowClick={handleRowClick}
-      />
+      <DataTable columns={propertyColumns} data={filteredProperties} onRowClick={handleRowClick} />
     </div>
   );
 }

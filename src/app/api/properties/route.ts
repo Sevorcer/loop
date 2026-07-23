@@ -24,15 +24,54 @@ function readPropertyStatus(value: unknown) {
   return normalized as "Active" | "Pending" | "Inactive";
 }
 
+function diag(event: string, payload: Record<string, unknown> = {}) {
+  console.log("[AUTH_DIAG]", JSON.stringify({ event, route: "/api/properties", ...payload }));
+}
+
+function errInfo(error: unknown) {
+  if (error && typeof error === "object") {
+    const e = error as {
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      status?: unknown;
+      name?: unknown;
+    };
+    return {
+      name: typeof e.name === "string" ? e.name : null,
+      message: typeof e.message === "string" ? e.message : String(e.message ?? "unknown"),
+      code: typeof e.code === "string" ? e.code : null,
+      details: e.details ?? null,
+      hint: e.hint ?? null,
+      status: typeof e.status === "number" ? e.status : null,
+    };
+  }
+  return { name: null, message: String(error), code: null, details: null, hint: null, status: null };
+}
+
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
+  diag("properties.get.guard_passed", { role: guard.ctx.role });
+
   try {
+    diag("properties.get.list.start");
     const properties = await listProperties();
+    diag("properties.get.list.success", { count: Array.isArray(properties) ? properties.length : null });
     return NextResponse.json({ properties });
   } catch (error) {
-    return mapRouteError(error);
+    const info = errInfo(error);
+    diag("properties.get.list.error", info);
+
+    const mapped = mapRouteError(error);
+    diag("properties.get.error.mapped", {
+      status: mapped.status,
+      statusText: mapped.statusText,
+    });
+
+    return mapped;
   }
 }
 
@@ -40,14 +79,18 @@ export async function POST(request: Request) {
   const guard = await requirePermission(request, "properties", "insert");
   if (!guard.ok) return guard.response;
 
+  diag("properties.post.guard_passed", { role: guard.ctx.role });
+
   let body: Record<string, unknown>;
   try {
     body = await readJsonObject(request);
   } catch {
+    diag("properties.post.invalid_json");
     return invalidJsonResponse();
   }
 
   try {
+    diag("properties.post.create.start");
     const result = await createProperty({
       name: String(body.name ?? "").trim(),
       customer: String(body.customer ?? "").trim(),
@@ -69,11 +112,25 @@ export async function POST(request: Request) {
       },
     });
 
+    diag("properties.post.create.success", {
+      propertyId: result.property.id,
+      geocodeStatus: result.geocodeStatus,
+    });
+
     return NextResponse.json(
       { property: result.property, geocodeStatus: result.geocodeStatus },
       { status: 201 },
     );
   } catch (error) {
-    return mapRouteError(error);
+    const info = errInfo(error);
+    diag("properties.post.create.error", info);
+
+    const mapped = mapRouteError(error);
+    diag("properties.post.error.mapped", {
+      status: mapped.status,
+      statusText: mapped.statusText,
+    });
+
+    return mapped;
   }
 }

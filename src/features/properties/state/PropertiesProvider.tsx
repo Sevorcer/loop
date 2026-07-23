@@ -13,50 +13,52 @@ import {
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
-import type { Property, PropertyStatus, PropertyType } from "../types/property";
+import type { Property } from "../types/property";
 
-interface CreatePropertyInput {
+type CreatePropertyInput = {
   name: string;
   customer: string;
   address: string;
   city: string;
-  type: PropertyType;
-  status: PropertyStatus;
+  type: string;
+  status: string;
   primarySystem: string;
-}
+};
 
-interface PropertiesContextValue {
+type PropertiesStoreValue = {
+  properties: Property[];
   hydrated: boolean;
   loading: boolean;
   error: string | null;
-  properties: Property[];
   getPropertyById: (id: string) => Property | undefined;
+  createProperty: (input: CreatePropertyInput) => Promise<Property>;
   refreshProperties: () => Promise<void>;
   reload: () => Promise<void>;
-  createProperty: (input: CreatePropertyInput) => Promise<Property>;
-}
+};
 
-const PropertiesContext = createContext<PropertiesContextValue | null>(null);
+const PropertiesContext = createContext<PropertiesStoreValue | null>(null);
 
 export function PropertiesProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
+
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshProperties = useCallback(async () => {
-    if (!role) {
-      return;
-    }
+    if (!role) return;
 
     setLoading(true);
     try {
       setError(null);
+
       const response = await requestJson<{ properties: Property[] }>("/api/properties", {
+        role,
         cache: "no-store",
       });
-      setProperties(response.properties);
+
+      setProperties(Array.isArray(response.properties) ? response.properties : []);
     } catch (loadError) {
       setProperties([]);
       setError(loadError instanceof Error ? loadError.message : "Failed to load properties.");
@@ -67,23 +69,26 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
   }, [role]);
 
   useEffect(() => {
-    if (!role) {
-      return;
-    }
+    if (!role) return;
 
     queueMicrotask(() => {
       void refreshProperties();
     });
   }, [refreshProperties, role]);
 
-  const value = useMemo<PropertiesContextValue>(() => {
+  const value = useMemo<PropertiesStoreValue>(() => {
     function getPropertyById(id: string) {
       return properties.find((property) => property.id === id);
     }
 
-    async function createProperty(input: CreatePropertyInput): Promise<Property> {
+    async function reload() {
+      await refreshProperties();
+    }
+
+    async function createProperty(input: CreatePropertyInput) {
       const response = await requestJson<{ property: Property }>("/api/properties", {
         method: "POST",
+        role,
         body: input,
       });
 
@@ -91,19 +96,15 @@ export function PropertiesProvider({ children }: { children: ReactNode }) {
       return response.property;
     }
 
-    async function reload() {
-      await refreshProperties();
-    }
-
     return {
+      properties,
       hydrated,
       loading,
       error,
-      properties,
       getPropertyById,
+      createProperty,
       refreshProperties,
       reload,
-      createProperty,
     };
   }, [error, hydrated, loading, properties, refreshProperties, role]);
 
