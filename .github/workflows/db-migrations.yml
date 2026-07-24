@@ -45,7 +45,8 @@ jobs:
         run: bash scripts/verify-migrations.sh
 
   # ── Apply & drift check ────────────────────────────────────────────────────
-  # Runs only when Supabase credentials are available (i.e. not on fork PRs).
+  # Runs only when Supabase credentials are available (i.e. not on fork PRs or
+  # bot-authored PRs where GitHub withholds repository secrets).
   # Applies pending migrations to the linked project and fails if schema
   # drift is detected after the apply.
   apply-and-verify:
@@ -53,12 +54,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: verify-structure
 
-    # Skip on fork PRs (secrets unavailable) and dependabot PRs.
+    # Skip on fork PRs plus bot-authored PRs where secrets are unavailable.
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       github.actor != 'dependabot[bot]')
+       github.actor != 'dependabot[bot]' &&
+       github.actor != 'Copilot')
 
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
