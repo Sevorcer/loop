@@ -69,7 +69,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.109.1
 
       - name: Validate required secrets
         run: |
@@ -146,8 +146,19 @@ jobs:
           echo "Running schema drift check..."
           DIFF=$(supabase db diff --linked 2>&1 || true)
 
+          # The CLI always emits operational log lines (e.g. "Finished supabase db diff
+          # on branch …" and "No schema changes found") regardless of whether drift
+          # exists.  Check for the explicit no-drift message first so those lines are
+          # never mistaken for meaningful SQL diff content.
+          if echo "$DIFF" | grep -q "No schema changes found"; then
+            echo "No schema drift detected."
+            exit 0
+          fi
+
           # db diff exits 0 whether or not there is drift; check for content.
-          # Filter out blank lines and SQL comment lines (-- ...) which are noise.
+          # Filter out blank lines, SQL comment lines (-- ...), and CLI operational
+          # log lines (lines that don't start with SQL keywords or whitespace-indented
+          # SQL) which are noise emitted by the CLI even without a real diff.
           MEANINGFUL=$(echo "$DIFF" | grep -v '^\s*$' | grep -v '^\s*--' || true)
 
           if [ -n "$MEANINGFUL" ]; then

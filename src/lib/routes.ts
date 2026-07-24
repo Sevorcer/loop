@@ -35,6 +35,7 @@ export const ADMIN_BASE = "/admin";
 export const ADMIN_ROUTES = {
   ROOT: ADMIN_BASE,
   ORGANIZATIONS: `${ADMIN_BASE}/organizations`,
+  DB_HEALTH: `${ADMIN_BASE}/db-health`,
   CUSTOMERS: `${ADMIN_BASE}/customers`,
   PROPERTIES: `${ADMIN_BASE}/properties`,
   JOBS: `${ADMIN_BASE}/jobs`,

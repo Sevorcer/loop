@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, Clock } from "lucide-react";
+import { ShieldCheck, Clock, Activity } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas/PageHeader";
 import { ADMIN_ROUTES } from "@/lib/routes";
@@ -38,6 +38,22 @@ export function AdminLandingScreen() {
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted">
                 Manage platform organizations. Restricted to platform administrators.
+              </p>
+            </div>
+          </Link>
+          <Link
+            href={ADMIN_ROUTES.DB_HEALTH}
+            className="group flex items-start gap-4 rounded-xl border border-default bg-surface p-4 transition-colors hover-surface-elevated"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-elevated ring-1 ring-default">
+              <Activity size={17} className="text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium transition-colors group-hover:text-primary">
+                DB Health
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted">
+                Database integrity checks, alert routing, and run history.
               </p>
             </div>
           </Link>

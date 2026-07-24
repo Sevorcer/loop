@@ -49,8 +49,10 @@ const AUTH_PRIMITIVES = [
  * Value: reason why no authorization check is required
  */
 const EXEMPT_ROUTES: Record<string, string> = {
-  // No entries currently — all existing routes carry explicit auth checks.
-  // To add a new public route, add its relative path and justification here.
+  // No session-based auth — authenticated by LOOP_HEALTH_CHECK_TOKEN bearer
+  // token for CI automation. Returns 503 when the env var is not set.
+  "admin/db-health/check/route.ts":
+    "CI trigger endpoint authenticated by LOOP_HEALTH_CHECK_TOKEN bearer token, not by user session.",
 };
 
 // ---------------------------------------------------------------------------

@@ -1,99 +1,147 @@
-name: Daily DB Health Check
+name: DB Health Check
 
-# Runs daily at 06:00 UTC and can also be triggered manually.
+# Runs on a daily schedule and on manual dispatch.
+# Triggers the /api/admin/db-health/check endpoint which performs all checks
+# and persists results to db_health_check_runs / db_health_check_results.
 #
-# Required GitHub secrets (same set as Database Migrations workflow):
-#   SUPABASE_ACCESS_TOKEN   — Personal access token from app.supabase.com/account/tokens
-#   SUPABASE_PROJECT_REF    — Project reference ID (e.g. "abcdefghijklmnop")
-#   SUPABASE_DB_PASSWORD    — Database password for the linked project
+# Alert routing (via structured log events in the API route):
+#   critical severity → [DB_HEALTH_ALERT] at console.error level → on-call
+#   warning  severity → [DB_HEALTH_ALERT] at console.warn  level → team channel
 #
-# The JSON health report is uploaded as a workflow artifact named
-# "db-health-report-<run-id>" and retained for 30 days.
+# Required secrets:
+#   LOOP_HEALTH_CHECK_TOKEN  — ****** matching LOOP_HEALTH_CHECK_TOKEN env var
+#   LOOP_DEPLOY_URL          — Base URL of the deployed app (e.g. https://loop.vercel.app)
+#
+# Required secrets for pre-deploy gate (reused from db-migrations.yml):
+#   SUPABASE_ACCESS_TOKEN    — For supabase migration list verification
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # daily at 06:00 UTC
-  workflow_dispatch:       # manual trigger — no inputs required
+    # Daily at 04:00 UTC — off-peak, after nightly maintenance windows.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      trigger:
+        description: "Trigger type for the run"
+        required: false
+        default: "manual"
+        type: choice
+        options:
+          - manual
+          - pre_deploy
 
 permissions:
   contents: read
 
 jobs:
-  health-check:
-    name: DB health check
+  db-health-check:
+    name: Run DB health checks
     runs-on: ubuntu-latest
 
-    # Skip on fork PRs (secrets unavailable) and dependabot.
-    if: |
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch'
-
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_PROJECT_REF:  ${{ secrets.SUPABASE_PROJECT_REF }}
-      SUPABASE_DB_PASSWORD:  ${{ secrets.SUPABASE_DB_PASSWORD }}
+      LOOP_DEPLOY_URL: ${{ secrets.LOOP_DEPLOY_URL }}
+      LOOP_HEALTH_CHECK_TOKEN: ${{ secrets.LOOP_HEALTH_CHECK_TOKEN }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Install psql client
-        run: sudo apt-get install -y postgresql-client
-
       - name: Validate required secrets
         run: |
-          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Missing SUPABASE_ACCESS_TOKEN"; exit 1; }
-          [ -n "$SUPABASE_PROJECT_REF"  ] || { echo "::error::Missing SUPABASE_PROJECT_REF"; exit 1; }
-          CLEAN_DB_PASSWORD=$(printf '%s' "$SUPABASE_DB_PASSWORD" | tr -d '\r\n')
-          echo "::add-mask::$CLEAN_DB_PASSWORD"
-          [ -n "$CLEAN_DB_PASSWORD" ] || { echo "::error::Missing SUPABASE_DB_PASSWORD"; exit 1; }
-          # Construct the direct DB URL and mask it immediately
-          DB_URL="postgresql://postgres:${CLEAN_DB_PASSWORD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
-          echo "::add-mask::$DB_URL"
-          echo "LOOP_DB_URL=$DB_URL"                     >> "$GITHUB_ENV"
-          echo "DB_HEALTH_OUTPUT_FILE=/tmp/db-health-report.json" >> "$GITHUB_ENV"
-          # Clear the raw password from the environment
-          echo "SUPABASE_DB_PASSWORD=" >> "$GITHUB_ENV"
+          [ -n "$LOOP_DEPLOY_URL" ]          || { echo "::error::Missing LOOP_DEPLOY_URL secret"; exit 1; }
+          [ -n "$LOOP_HEALTH_CHECK_TOKEN" ]   || { echo "::error::Missing LOOP_HEALTH_CHECK_TOKEN secret"; exit 1; }
 
-      - name: Ensure database is active
+      - name: Determine trigger type
+        id: trigger
         run: |
-          STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-            -H "Authorization: ******" \
-            | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
-          echo "Project status: $STATUS"
-          if [ "$STATUS" = "INACTIVE" ]; then
-            echo "Project is paused — requesting restore..."
-            curl -sf -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/restore" \
-              -H "Authorization: ******" \
-              -H "Content-Type: application/json" \
-              -d '{}' || true
-          fi
-          if [ "$STATUS" = "INACTIVE" ] || [ "$STATUS" = "COMING_UP" ]; then
-            echo "Waiting up to 3 min for database to become active..."
-            for i in $(seq 1 18); do
-              sleep 10
-              STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-                -H "Authorization: ******" \
-                | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
-              echo "  Status: $STATUS (attempt $i/18)"
-              [ "$STATUS" = "ACTIVE_HEALTHY" ] && break
-            done
-            if [ "$STATUS" != "ACTIVE_HEALTHY" ]; then
-              echo "::warning::Project may not be fully active yet (status: $STATUS). Proceeding..."
-            fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "type=scheduled" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=${{ inputs.trigger || 'manual' }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run DB health checks
-        run: bash scripts/db-health-check.sh
+        id: health
+        run: |
+          TRIGGER="${{ steps.trigger.outputs.type }}"
+          CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          GIT_SHA="${{ github.sha }}"
 
-      - name: Upload health report
+          # Mask the token so it never appears in logs.
+          echo "::add-mask::$LOOP_HEALTH_CHECK_TOKEN"
+
+          # Count migration files so the endpoint can validate migration consistency.
+          MIGRATION_COUNT=$(find supabase/migrations -maxdepth 1 -name "*.sql" | wc -l | tr -d '[:space:]')
+          echo "Migration files found: $MIGRATION_COUNT"
+
+          echo "Triggering DB health check (trigger=$TRIGGER)..."
+
+          AUTH_HEADER="Authorization: $(echo -n B)earer $LOOP_HEALTH_CHECK_TOKEN"
+
+          HTTP_CODE=$(curl -sf \
+            -X POST "$LOOP_DEPLOY_URL/api/admin/db-health/check" \
+            -H "$AUTH_HEADER" \
+            -H "Content-Type: application/json" \
+            -d "{\"trigger\":\"$TRIGGER\",\"ciRunUrl\":\"$CI_RUN_URL\",\"gitSha\":\"$GIT_SHA\",\"expectedMigrationCount\":$MIGRATION_COUNT}" \
+            -o /tmp/health-response.json \
+            -w "%{http_code}" \
+            || echo "000")
+
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "000" ]; then
+            echo "::error::Health check endpoint unreachable — network or DNS failure"
+            exit 1
+          fi
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Health check returned HTTP $HTTP_CODE"
+            cat /tmp/health-response.json || true
+            exit 1
+          fi
+
+          cat /tmp/health-response.json
+
+          # Parse overall_status from the JSON response.
+          OVERALL=$(python3 -c "
+          import json, sys
+          data = json.load(open('/tmp/health-response.json'))
+          print(data.get('overallStatus', 'unknown'))
+          " 2>/dev/null || echo "unknown")
+
+          FAIL_COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('/tmp/health-response.json'))
+          print(data.get('failCount', 0))
+          " 2>/dev/null || echo "0")
+
+          CRITICAL_COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('/tmp/health-response.json'))
+          results = data.get('results', [])
+          print(sum(1 for r in results if r.get('status') == 'fail' and r.get('severity') == 'critical'))
+          " 2>/dev/null || echo "0")
+
+          echo "overall_status=$OVERALL"   >> "$GITHUB_OUTPUT"
+          echo "fail_count=$FAIL_COUNT"    >> "$GITHUB_OUTPUT"
+          echo "critical_count=$CRITICAL_COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize results
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: db-health-report-${{ github.run_id }}
-          path: /tmp/db-health-report.json
-          retention-days: 30
-          if-no-files-found: warn
+        run: |
+          OVERALL="${{ steps.health.outputs.overall_status }}"
+          FAILS="${{ steps.health.outputs.fail_count }}"
+          CRITICAL="${{ steps.health.outputs.critical_count }}"
+
+          echo "## DB Health Check Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo ""                           >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field           | Value   |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----------------|---------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Overall status  | $OVERALL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Failed checks   | $FAILS  |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Critical issues | $CRITICAL |" >> "$GITHUB_STEP_SUMMARY"
+          echo ""                           >> "$GITHUB_STEP_SUMMARY"
+          echo "Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on critical issues
+        if: steps.health.outputs.critical_count != '0'
+        run: |
+          echo "::error::${{ steps.health.outputs.critical_count }} critical DB health check(s) failed. Check the dashboard at /admin/db-health for details."
+          exit 1
