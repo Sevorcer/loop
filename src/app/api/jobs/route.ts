@@ -73,6 +73,7 @@ export async function POST(request: Request) {
 
     const guard = await requirePermission(request, "jobs", "insert");
     if (!guard.ok) return guard.response;
+    const { userId } = guard.ctx;
 
     step = "body_parse";
     body = await readJsonObject(request);
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
 
     step = "create_job_service";
     const job = await createJob(payload, {
-      userId: guard.ctx.userId,
+      userId,
       supabase,
       route,
       requestId,

@@ -12,6 +12,12 @@ export interface RepositoryContext {
   mode: "session" | "development";
 }
 
+/**
+ * Optional request-scoped context for repository calls.
+ * - `supabase`: pass a request-bound authenticated server client to guarantee JWT/cookie propagation.
+ * - `userId`: pass a previously verified auth user id to skip redundant user lookup when available.
+ * - `route`/`requestId`: attach API trace metadata for temporary diagnostics.
+ */
 export interface SessionRepositoryContextInput {
   /** Authenticated user id resolved earlier in the request pipeline (if already known). */
   userId?: string;
