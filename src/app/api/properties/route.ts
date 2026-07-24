@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import {
+  extractSanitizedPostPayload,
+  extractSupabaseError,
+  getPostRequestTrace,
+} from "@/lib/api/postFailureTelemetry";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
 import { createProperty, listProperties } from "@/services/properties";
@@ -55,11 +60,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const requestId =
-    request.headers.get("x-request-id") ??
-    request.headers.get("x-correlation-id") ??
-    request.headers.get("x-vercel-id") ??
-    `prop-post-${Date.now()}`;
+  const { requestId, correlationId } = getPostRequestTrace(request, "prop-post");
+  let step = "permission_guard";
 
   const guard = await requirePermission(request, "properties", "insert");
   if (!guard.ok) return guard.response;
@@ -77,6 +79,7 @@ export async function POST(request: Request) {
 
   let body: Record<string, unknown>;
   try {
+    step = "body_parse";
     body = await readJsonObject(request);
   } catch {
     console.error(
@@ -104,6 +107,7 @@ export async function POST(request: Request) {
 
   try {
     const { userId } = guard.ctx;
+    step = "payload_build";
 
     // Checkpoint (b): build and validate payload
     let payload: {
@@ -156,6 +160,7 @@ export async function POST(request: Request) {
     );
 
     // Checkpoint (c): before service call (encompasses geocode + supabase insert + customer sync)
+    step = "create_property_service";
     console.log(
       "[PROP_CREATE_DIAG]",
       JSON.stringify({
@@ -179,6 +184,7 @@ export async function POST(request: Request) {
     );
 
     // Checkpoint (e): post-insert — audit event
+    step = "audit_event";
     emitAuditEvent({
       role: guard.ctx.role,
       action: "create",
@@ -208,22 +214,36 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    // Checkpoint: unhandled exception — log full diagnostic context
     const isError = error instanceof Error;
-    console.error(
-      "[PROP_CREATE_DIAG]",
-      JSON.stringify({
-        event: "post_properties.unhandled_error",
-        requestId,
-        errorName: isError ? error.name : typeof error,
-        errorMessage: isError ? error.message : String(error),
-        errorCode: (error as { code?: string }).code ?? null,
-        errorDetails: (error as { details?: unknown }).details ?? null,
-        errorHint: (error as { hint?: unknown }).hint ?? null,
-        errorStatus: (error as { status?: number }).status ?? null,
+    const sanitizedPayload = extractSanitizedPostPayload(body);
+    const supabaseError = extractSupabaseError(error);
+
+    console.error("api.properties.post.failure", {
+      event: "api.properties.post.failure",
+      route: "/api/properties",
+      method: "POST",
+      requestId,
+      correlationId,
+      step,
+      error: {
+        name: isError ? error.name : typeof error,
+        message: isError ? error.message : String(error),
         stack: isError ? (error.stack ?? null) : null,
-      }),
-    );
+      },
+      supabaseError,
+      sanitizedPayload: {
+        ...sanitizedPayload,
+        requiredFieldPresence: {
+          hasName: Boolean(body.name),
+          hasCustomer: Boolean(body.customer),
+          hasAddress: Boolean(body.address),
+          hasCity: Boolean(body.city),
+          hasType: body.type !== undefined && body.type !== null,
+          hasStatus: body.status !== undefined && body.status !== null,
+          hasPrimarySystem: Boolean(body.primarySystem ?? body.primary_system),
+        },
+      },
+    });
     return mapRouteError(error);
   }
 }
