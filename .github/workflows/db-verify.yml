@@ -1,0 +1,130 @@
+name: DB Schema Verification
+
+# Runs on every PR targeting main and every push to main.
+#
+# Purpose: verify database schema and policy contracts are met BEFORE the
+# pre-deploy gate promotes changes to production.  This is the verification
+# stage — it does not deploy anything.
+#
+# Two-tier design:
+#   verify-structure   — structural checks only, no secrets required.
+#                        Always runs (including fork PRs).
+#   verify-schema      — live-database checks, requires DB secrets.
+#                        Skipped on fork PRs where secrets are unavailable.
+#
+# What is checked:
+#   - Migration file naming / ordering / checksums (verify-migrations.sh)
+#   - Required tables and columns present (db:verify-schema)
+#   - RLS enabled on all required tables (db:verify-schema)
+#   - All expected policies present (db:verify-policies)
+#
+# Required GitHub secrets (for live-DB jobs):
+#   DATABASE_URL            — Supabase pooler or direct connection string
+#
+# See docs/runbooks/db-drift-detection.md for full instructions.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Structural verification (no secrets) ─────────────────────────────────
+  # Validates migration file structure and checksums.  Runs unconditionally,
+  # including on fork PRs.  Does not require any database connection.
+  verify-structure:
+    name: Verify migration structure & checksums
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify migration file sequence and checksums
+        run: bash scripts/verify-migrations.sh
+
+  # ── Live-DB schema verification (secrets required) ────────────────────────
+  # Connects to the Supabase project and verifies tables, columns, RLS, and
+  # policies match the expected state from migration files.
+  # Skipped on fork PRs and dependabot PRs where secrets are unavailable.
+  verify-schema:
+    name: Verify schema & policies (live DB)
+    runs-on: ubuntu-latest
+    needs: verify-structure
+
+    # Skip on fork PRs (secrets unavailable) and dependabot PRs.
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.actor != 'dependabot[bot]')
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          [ -n "$DATABASE_URL" ] || { echo "::error::Missing DATABASE_URL secret"; exit 1; }
+          echo "::add-mask::$DATABASE_URL"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify schema (tables, columns, RLS)
+        run: |
+          echo "## Schema Verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm run db:verify-schema 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify policies (RLS policy presence)
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Policy Verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm run db:verify-policies 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Drift summary ─────────────────────────────────────────────────────────
+  # Aggregates results and posts a summary.  Runs after both prior jobs.
+  drift-summary:
+    name: Drift check summary
+    runs-on: ubuntu-latest
+    needs: [verify-structure, verify-schema]
+    if: always()
+
+    steps:
+      - name: Evaluate gate result
+        run: |
+          STRUCTURE="${{ needs.verify-structure.result }}"
+          SCHEMA="${{ needs.verify-schema.result }}"
+
+          echo "verify-structure: $STRUCTURE"
+          echo "verify-schema   : $SCHEMA"
+
+          if [ "$STRUCTURE" = "failure" ] || [ "$SCHEMA" = "failure" ]; then
+            echo "::error::DB verification failed — see job details for drift categories."
+            exit 1
+          fi
+
+          if [ "$STRUCTURE" = "success" ] && { [ "$SCHEMA" = "success" ] || [ "$SCHEMA" = "skipped" ]; }; then
+            echo "DB verification passed — no drift detected."
+          fi

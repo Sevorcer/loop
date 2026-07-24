@@ -9,6 +9,7 @@
 | [Backup/Restore Runbook](runbooks/backup-restore.md) | Recovery steps for backup and restore incidents |
 | [Migration Rollback Runbook](runbooks/migration-rollback.md) | Rollback procedure for failed database migrations |
 | [Pre-Deploy DB Drift Gate](runbooks/pre-deploy-gate.md) | Release flow, gate failure remediation, and bypass policy |
+| [DB Drift Detection](runbooks/db-drift-detection.md) | Local run instructions, drift categories, and remediation steps |
 | [Daily DB Health Check Runbook](runbooks/db-health-check.md) | Where the check runs, how to run it manually, how to interpret failures |
 | [DB Health Dashboard Runbook](runbooks/db-health-dashboard.md) | Dashboard location, alert thresholds, and escalation path for DB health checks |
 | [Drill Reports README](drills/README.md) | Location and expectations for completed drill reports |

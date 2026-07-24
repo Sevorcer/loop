@@ -168,6 +168,48 @@ else
   _pass "No schema drift detected."
 fi
 
+# ── check 4: policy drift ─────────────────────────────────────────────────────
+# Delegates to scripts/verify-policies.sh which:
+#   - Parses expected policy names from supabase/migrations/*.sql
+#   - Queries pg_policies for the actual live policy set
+#   - Reports missing and unexpected policies
+#
+# A missing policy (defined in migrations but absent from the live DB) is
+# CRITICAL — it means RLS is only partially enforced and a security boundary
+# may be absent.
+#
+# Requires DATABASE_URL to be set.  If not set, this check is skipped with a
+# WARNING (pre-flight already enforced SUPABASE_ACCESS_TOKEN and
+# SUPABASE_PROJECT_REF; DATABASE_URL is an additional optional requirement for
+# this gate).
+
+_section "Check 4 — Policy drift (verify-policies)"
+
+VERIFY_POLICIES_SCRIPT="$(cd "$(dirname "$0")" && pwd)/verify-policies.sh"
+
+if [ ! -f "$VERIFY_POLICIES_SCRIPT" ]; then
+  _critical "verify-policies.sh not found at $VERIFY_POLICIES_SCRIPT"
+  _hint "Ensure scripts/verify-policies.sh exists and is executable."
+elif [ -z "${DATABASE_URL:-}" ]; then
+  _warn "DATABASE_URL is not set — skipping policy drift check."
+  _hint "Set DATABASE_URL to enable full policy verification in this gate."
+  _hint "See docs/runbooks/db-drift-detection.md for setup instructions."
+else
+  if bash "$VERIFY_POLICIES_SCRIPT" 2>&1; then
+    _pass "All expected RLS policies are present."
+  else
+    EXIT_CODE=$?
+    if [ "$EXIT_CODE" -eq 1 ]; then
+      _critical "Policy drift detected — one or more expected RLS policies are missing."
+      _hint "Why it matters: missing policies may leave rows unprotected by RLS."
+      _hint "Next step     : apply pending migrations with  supabase db push --linked"
+      _hint "Ref           : see docs/runbooks/db-drift-detection.md for remediation."
+    else
+      _critical "verify-policies.sh exited with unexpected code $EXIT_CODE."
+    fi
+  fi
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 _header "Gate Summary"

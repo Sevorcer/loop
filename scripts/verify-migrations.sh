@@ -115,6 +115,41 @@ for FILE in "${FILES[@]}"; do
   fi
 done
 
+# ── check 5: migration checksum integrity ────────────────────────────────────
+# Compares file content against scripts/migration-checksums.sha256.
+# A mismatch means an already-committed migration file was modified in place,
+# which is never safe.  New migrations not yet in the checksum file are
+# detected by a count mismatch.
+#
+# Skip gracefully if the checksum file does not exist yet (first-time setup).
+
+info ""
+info "5. Migration checksum integrity"
+
+CHECKSUMS_FILE="$(cd "$(dirname "$0")" && pwd)/migration-checksums.sha256"
+
+if [ ! -f "$CHECKSUMS_FILE" ]; then
+  info "  (checksum file not found at $CHECKSUMS_FILE — skipping)"
+  info "  Run: bash scripts/update-migration-checksums.sh  to generate it."
+else
+  # Run sha256sum --check from the repo root so relative paths resolve.
+  REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+  if (cd "$REPO_ROOT" && sha256sum --check "$CHECKSUMS_FILE" --quiet 2>&1); then
+    CHECKSUM_FILE_COUNT=$(grep -c '^' "$CHECKSUMS_FILE" || true)
+    MIGRATION_FILE_COUNT=${#FILES[@]}
+    if [ "$MIGRATION_FILE_COUNT" -gt "$CHECKSUM_FILE_COUNT" ]; then
+      fail "New migration(s) not yet in checksum file ($MIGRATION_FILE_COUNT files, $CHECKSUM_FILE_COUNT in manifest)."
+      fail "Run: bash scripts/update-migration-checksums.sh  then commit the updated file."
+    else
+      pass "All $CHECKSUM_FILE_COUNT migration file checksums verified."
+    fi
+  else
+    fail "Migration checksum mismatch — one or more migration files were modified after commit."
+    fail "Migration files must never be edited in place.  Create a new migration instead."
+    fail "If this is a legitimate change, run: bash scripts/update-migration-checksums.sh"
+  fi
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 info ""
