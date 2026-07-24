@@ -115,6 +115,7 @@ for FILE in "${FILES[@]}"; do
   fi
 done
 
+<<<<<<< HEAD
 # ── check 5: migration checksum integrity ────────────────────────────────────
 # Compares file content against scripts/migration-checksums.sha256.
 # A mismatch means an already-committed migration file was modified in place,
@@ -149,6 +150,24 @@ else
     fail "If this is a legitimate change, run: bash scripts/update-migration-checksums.sh"
   fi
 fi
+=======
+# ── check 5: every migration has a companion verification file ────────────────
+
+info ""
+info "5. Verification file required (supabase/verifications/<TIMESTAMP>_<desc>.verify.sql)"
+
+VERIF_DIR="$(cd "$(dirname "$0")/../supabase/verifications" && pwd)"
+
+for FILE in "${FILES[@]}"; do
+  BASENAME="$(basename "$FILE" .sql)"
+  VERIF_FILE="$VERIF_DIR/${BASENAME}.verify.sql"
+  if [ ! -f "$VERIF_FILE" ]; then
+    fail "No verification file for $BASENAME.sql — expected supabase/verifications/${BASENAME}.verify.sql"
+  else
+    pass "$BASENAME has verification file"
+  fi
+done
+>>>>>>> origin/main
 
 # ── summary ───────────────────────────────────────────────────────────────────
 

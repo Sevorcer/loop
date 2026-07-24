@@ -78,13 +78,39 @@ supabase migration new <short_description>
 # Creates: supabase/migrations/YYYYMMDDHHMMSS_add_jobs_table.sql
 ```
 
+Use `supabase/migration-template.sql` as a starting point — copy the structure
+into the generated file and fill in your DDL.
+
 Edit the generated file, then apply it:
 
 ```bash
 supabase db push
 ```
 
-### 4. Verify migration file structure (offline)
+### 4. Create the companion verification file (required)
+
+Every migration **must** have a companion verification file. After writing your
+migration SQL, create:
+
+```
+supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql
+```
+
+The timestamp and description must match the migration file exactly. The
+verification file contains `DO $$ BEGIN ASSERT …; END; $$;` blocks that assert
+every structural and security outcome of the migration (tables, columns, RLS,
+policies, indexes).
+
+CI will block merge if the companion file is missing. See
+[`docs/migration-verification-standard.md`](migration-verification-standard.md)
+for the full standard, assertion patterns, and examples.
+
+```bash
+# Run the verification against the live database after applying:
+psql "$DATABASE_URL" -f supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql
+```
+
+### 5. Verify migration file structure (offline)
 
 The same script CI runs — no database credentials needed:
 
@@ -104,8 +130,9 @@ This checks:
 - No duplicate timestamps
 - Files are in ascending timestamp order
 - No empty files
+- **Every migration has a companion `.verify.sql` in `supabase/verifications/`** (Check 5)
 
-### 5. Check for schema drift
+### 6. Check for schema drift
 
 Compares the current database schema against what the migration files describe.
 A clean state produces no output:
@@ -137,6 +164,28 @@ To reverse a change:
 > **Never delete or modify an already-applied migration file.** This breaks the
 > migration history and will cause CI to fail with an out-of-order error.
 
+For the full step-by-step rollback procedure (decision tree, Path A / Path B, and
+post-rollback verification) see the **[Migration Rollback Runbook](runbooks/migration-rollback.md)**.
+
+---
+
+## Opening a migration PR
+
+Use the **migration PR template** when your PR touches `supabase/migrations/`.
+The template requires a Rollback Plan section (blast radius, rollback SQL,
+data-loss risk, and post-rollback verification steps).
+
+**Open the template directly:**
+
+```
+https://github.com/Sevorcer/loop/compare/<branch>?template=migration.md
+```
+
+Or select `migration.md` from the template picker on the GitHub PR creation page.
+
+Fill out the full rollback checklist before requesting review:
+[`docs/migrations/rollback-checklist.md`](migrations/rollback-checklist.md)
+
 ---
 
 ## Migration file naming convention
@@ -161,6 +210,7 @@ The GitHub Actions workflow at `.github/workflows/db-migrations.yml` runs
 automatically on any PR or push to `main` that touches:
 
 - `supabase/migrations/**`
+- `supabase/verifications/**`
 - `supabase/config.toml`
 - `scripts/verify-migrations.sh`
 
@@ -168,7 +218,7 @@ automatically on any PR or push to `main` that touches:
 
 | Job | Trigger | Description |
 |-----|---------|-------------|
-| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` — no secrets required |
+| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` — checks naming, order, and presence of companion `.verify.sql` files — no secrets required |
 | `apply-and-verify` | Non-fork PRs, pushes to main | Applies migrations and checks for drift |
 
 ### Required GitHub secrets
@@ -185,9 +235,9 @@ Configure these at: `https://github.com/Sevorcer/loop/settings/secrets/actions`
 
 ## CI failure scenarios
 
-### `verify-structure` fails
+### `verify-structure` fails — naming/order
 
-The migration files themselves are invalid before any database is involved.
+The migration files themselves are structurally invalid before any database is involved.
 
 Common causes:
 - File name does not match `YYYYMMDDHHMMSS_description.sql`
@@ -196,6 +246,22 @@ Common causes:
 - Empty file (zero bytes)
 
 Fix: rename or reorder files locally and push again.
+
+### `verify-structure` fails — missing companion verification file
+
+A new or modified migration file does not have a matching file in
+`supabase/verifications/`.
+
+Fix: create `supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql`
+with `DO $$ BEGIN ASSERT …; END; $$;` blocks for every structural and security
+outcome of the migration.  See
+[`docs/migration-verification-standard.md`](migration-verification-standard.md)
+for the full standard, assertion patterns, and examples.
+
+Validate locally before pushing:
+```bash
+bash scripts/verify-migrations.sh
+```
 
 ### `apply-and-verify` fails on apply
 
@@ -222,4 +288,6 @@ supabase db diff --schema public | supabase migration new capture_drift
 - Supabase CLI docs: https://supabase.com/docs/reference/cli
 - Supabase migrations guide: https://supabase.com/docs/guides/database/migrations
 - GitHub workflow: `.github/workflows/db-migrations.yml`
-- Verification script: `scripts/verify-migrations.sh`
+- File sequence + verification check: `scripts/verify-migrations.sh`
+- Verification standard: [`docs/migration-verification-standard.md`](migration-verification-standard.md)
+- Issues: [#117](https://github.com/Sevorcer/loop/issues/117) (epic), [#118](https://github.com/Sevorcer/loop/issues/118) (standard), [#119](https://github.com/Sevorcer/loop/issues/119) (CI enforcement)
