@@ -8,6 +8,8 @@
 #   2. No two files share the same timestamp prefix (duplicate prevention).
 #   3. Files are in strict ascending timestamp order (no out-of-order entries).
 #   4. No file is empty (zero-byte guard).
+#   5. Every migration has a companion verification file in supabase/verifications/.
+#   6. Migration checksum integrity (files not modified after commit).
 #
 # Usage:
 #   bash scripts/verify-migrations.sh
@@ -115,8 +117,24 @@ for FILE in "${FILES[@]}"; do
   fi
 done
 
-<<<<<<< HEAD
-# ── check 5: migration checksum integrity ────────────────────────────────────
+# ── check 5: every migration has a companion verification file ────────────────
+
+info ""
+info "5. Verification file required (supabase/verifications/<TIMESTAMP>_<desc>.verify.sql)"
+
+VERIF_DIR="$(cd "$(dirname "$0")/../supabase/verifications" && pwd)"
+
+for FILE in "${FILES[@]}"; do
+  BASENAME="$(basename "$FILE" .sql)"
+  VERIF_FILE="$VERIF_DIR/${BASENAME}.verify.sql"
+  if [ ! -f "$VERIF_FILE" ]; then
+    fail "No verification file for $BASENAME.sql — expected supabase/verifications/${BASENAME}.verify.sql"
+  else
+    pass "$BASENAME has verification file"
+  fi
+done
+
+# ── check 6: migration checksum integrity ────────────────────────────────────
 # Compares file content against scripts/migration-checksums.sha256.
 # A mismatch means an already-committed migration file was modified in place,
 # which is never safe.  New migrations not yet in the checksum file are
@@ -125,7 +143,7 @@ done
 # Skip gracefully if the checksum file does not exist yet (first-time setup).
 
 info ""
-info "5. Migration checksum integrity"
+info "6. Migration checksum integrity"
 
 CHECKSUMS_FILE="$(cd "$(dirname "$0")" && pwd)/migration-checksums.sha256"
 
@@ -150,24 +168,6 @@ else
     fail "If this is a legitimate change, run: bash scripts/update-migration-checksums.sh"
   fi
 fi
-=======
-# ── check 5: every migration has a companion verification file ────────────────
-
-info ""
-info "5. Verification file required (supabase/verifications/<TIMESTAMP>_<desc>.verify.sql)"
-
-VERIF_DIR="$(cd "$(dirname "$0")/../supabase/verifications" && pwd)"
-
-for FILE in "${FILES[@]}"; do
-  BASENAME="$(basename "$FILE" .sql)"
-  VERIF_FILE="$VERIF_DIR/${BASENAME}.verify.sql"
-  if [ ! -f "$VERIF_FILE" ]; then
-    fail "No verification file for $BASENAME.sql — expected supabase/verifications/${BASENAME}.verify.sql"
-  else
-    pass "$BASENAME has verification file"
-  fi
-done
->>>>>>> origin/main
 
 # ── summary ───────────────────────────────────────────────────────────────────
 

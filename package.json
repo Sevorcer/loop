@@ -12,13 +12,9 @@
     "db:reset": "bash scripts/db/reset.sh",
     "db:reseed": "bash scripts/db/reseed.sh",
     "db:verify-schema": "psql \"$DATABASE_URL\" -f scripts/verify-schema.sql",
-<<<<<<< HEAD
     "db:verify-policies": "bash scripts/verify-policies.sh",
-    "db:verify-migrations": "bash scripts/verify-migrations.sh"
-=======
     "db:verify-migrations": "bash scripts/verify-migrations.sh",
     "db:verify-verification": "bash scripts/verify-migration-verification.sh"
->>>>>>> origin/main
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
