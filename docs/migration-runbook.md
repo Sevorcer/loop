@@ -78,13 +78,39 @@ supabase migration new <short_description>
 # Creates: supabase/migrations/YYYYMMDDHHMMSS_add_jobs_table.sql
 ```
 
+Use `supabase/migration-template.sql` as a starting point — copy the structure
+into the generated file and fill in your DDL.
+
 Edit the generated file, then apply it:
 
 ```bash
 supabase db push
 ```
 
-### 4. Verify migration file structure (offline)
+### 4. Create the companion verification file (required)
+
+Every migration **must** have a companion verification file. After writing your
+migration SQL, create:
+
+```
+supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql
+```
+
+The timestamp and description must match the migration file exactly. The
+verification file contains `DO $$ BEGIN ASSERT …; END; $$;` blocks that assert
+every structural and security outcome of the migration (tables, columns, RLS,
+policies, indexes).
+
+CI will block merge if the companion file is missing. See
+[`docs/migration-verification-standard.md`](migration-verification-standard.md)
+for the full standard, assertion patterns, and examples.
+
+```bash
+# Run the verification against the live database after applying:
+psql "$DATABASE_URL" -f supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql
+```
+
+### 5. Verify migration file structure (offline)
 
 The same script CI runs — no database credentials needed:
 
@@ -104,80 +130,7 @@ This checks:
 - No duplicate timestamps
 - Files are in ascending timestamp order
 - No empty files
-
-### 5. Add the required verification section {#verification-section}
-
-**Every new migration file must include a `-- VERIFICATION:` block** ([issue #118](https://github.com/Sevorcer/loop/issues/118)).  CI will reject
-migration PRs that are missing this section.
-
-#### Standard format
-
-Append the following at the end of your migration file:
-
-```sql
--- VERIFICATION: ---------------------------------------------------------------
--- Confirm schema after this migration.  Run each SELECT in the Supabase SQL
--- editor (or via psql) after applying.  Expected result: 1 row per query.
-
-SELECT count(*) = 1 AS table_exists
-FROM information_schema.tables
-WHERE table_schema = 'public'
-  AND table_name = '<your_new_table>';
-
--- Add one query per significant object created or altered in this migration.
-```
-
-Rules:
-- The sentinel line must be exactly `-- VERIFICATION:` (at the start of the line).
-- At least one `SELECT` statement must follow the sentinel.
-- Queries should verify the most critical objects the migration creates or alters
-  (tables, columns, RLS enabled, helper functions, etc.).
-- Comments and blank lines between queries are encouraged.
-
-#### Validate locally before pushing
-
-Run the same check CI runs — no database credentials needed:
-
-```bash
-# Check a specific file:
-bash scripts/verify-migration-verification.sh supabase/migrations/YYYYMMDDHHMMSS_your_change.sql
-
-# Check all migration files:
-bash scripts/verify-migration-verification.sh
-```
-
-#### Pass and fail examples
-
-**✓ PASS** — file contains sentinel and at least one SELECT:
-
-```
-Checking 1 migration file(s) for required verification sections
-
-  ✓ 20260801120000_add_widgets_table.sql
-
-Migration verification check PASSED — all 1 file(s) contain a valid verification section.
-```
-
-**✗ FAIL** — file is missing the sentinel entirely:
-
-```
-Checking 1 migration file(s) for required verification sections
-
-  ✗ 20260801120000_add_widgets_table.sql — missing '-- VERIFICATION:' block
-    → Add a verification section at the end of this file.  Example:
-    →
-    →   -- VERIFICATION: ------------------------------------------------
-    →   -- Confirm schema after this migration.  Expected: 1 row each.
-    →
-    →   SELECT count(*) = 1 AS table_exists
-    →   FROM information_schema.tables
-    →   WHERE table_schema = 'public'
-    →     AND table_name = '<your_new_table>';
-    →
-    → See docs/migration-runbook.md for the full standard.
-
-Migration verification check FAILED — 1 file(s) missing required verification section.
-```
+- **Every migration has a companion `.verify.sql` in `supabase/verifications/`** (Check 5)
 
 ### 6. Check for schema drift
 
@@ -211,6 +164,28 @@ To reverse a change:
 > **Never delete or modify an already-applied migration file.** This breaks the
 > migration history and will cause CI to fail with an out-of-order error.
 
+For the full step-by-step rollback procedure (decision tree, Path A / Path B, and
+post-rollback verification) see the **[Migration Rollback Runbook](runbooks/migration-rollback.md)**.
+
+---
+
+## Opening a migration PR
+
+Use the **migration PR template** when your PR touches `supabase/migrations/`.
+The template requires a Rollback Plan section (blast radius, rollback SQL,
+data-loss risk, and post-rollback verification steps).
+
+**Open the template directly:**
+
+```
+https://github.com/Sevorcer/loop/compare/<branch>?template=migration.md
+```
+
+Or select `migration.md` from the template picker on the GitHub PR creation page.
+
+Fill out the full rollback checklist before requesting review:
+[`docs/migrations/rollback-checklist.md`](migrations/rollback-checklist.md)
+
 ---
 
 ## Migration file naming convention
@@ -235,21 +210,16 @@ The GitHub Actions workflow at `.github/workflows/db-migrations.yml` runs
 automatically on any PR or push to `main` that touches:
 
 - `supabase/migrations/**`
+- `supabase/verifications/**`
 - `supabase/config.toml`
 - `scripts/verify-migrations.sh`
-- `scripts/verify-migration-verification.sh`
 
 ### CI jobs
 
 | Job | Trigger | Description |
 |-----|---------|-------------|
-| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` (naming/order) **and** `scripts/verify-migration-verification.sh` (verification sections) — no secrets required |
+| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` — checks naming, order, and presence of companion `.verify.sql` files — no secrets required |
 | `apply-and-verify` | Non-fork PRs, pushes to main | Applies migrations and checks for drift |
-
-The `Verify migration verification sections` step inside `verify-structure`
-detects which migration files were **added or modified** in the PR and checks
-only those.  Existing migrations are never retroactively flagged, so
-non-migration PRs are completely unaffected.
 
 ### Required GitHub secrets
 
@@ -277,15 +247,20 @@ Common causes:
 
 Fix: rename or reorder files locally and push again.
 
-### `verify-structure` fails — missing verification section
+### `verify-structure` fails — missing companion verification file
 
-A new or modified migration file does not contain the required `-- VERIFICATION:` block.
+A new or modified migration file does not have a matching file in
+`supabase/verifications/`.
 
-Fix: add the verification section (see [step 5 above](#verification-section)) and push again.
+Fix: create `supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql`
+with `DO $$ BEGIN ASSERT …; END; $$;` blocks for every structural and security
+outcome of the migration.  See
+[`docs/migration-verification-standard.md`](migration-verification-standard.md)
+for the full standard, assertion patterns, and examples.
 
 Validate locally before pushing:
 ```bash
-bash scripts/verify-migration-verification.sh supabase/migrations/YYYYMMDDHHMMSS_your_change.sql
+bash scripts/verify-migrations.sh
 ```
 
 ### `apply-and-verify` fails on apply
@@ -313,6 +288,6 @@ supabase db diff --schema public | supabase migration new capture_drift
 - Supabase CLI docs: https://supabase.com/docs/reference/cli
 - Supabase migrations guide: https://supabase.com/docs/guides/database/migrations
 - GitHub workflow: `.github/workflows/db-migrations.yml`
-- File sequence check: `scripts/verify-migrations.sh`
-- Verification section check: `scripts/verify-migration-verification.sh`
+- File sequence + verification check: `scripts/verify-migrations.sh`
+- Verification standard: [`docs/migration-verification-standard.md`](migration-verification-standard.md)
 - Issues: [#117](https://github.com/Sevorcer/loop/issues/117) (epic), [#118](https://github.com/Sevorcer/loop/issues/118) (standard), [#119](https://github.com/Sevorcer/loop/issues/119) (CI enforcement)

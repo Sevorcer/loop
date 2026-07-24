@@ -13,14 +13,15 @@ on:
   pull_request:
     paths:
       - "supabase/migrations/**"
+      - "supabase/verifications/**"
       - "supabase/config.toml"
       - "scripts/verify-migrations.sh"
-      - "scripts/verify-migration-verification.sh"
   push:
     branches:
       - main
     paths:
       - "supabase/migrations/**"
+      - "supabase/verifications/**"
       - "supabase/config.toml"
 
 permissions:
@@ -29,9 +30,9 @@ permissions:
 jobs:
   # ── Structural validation ──────────────────────────────────────────────────
   # Runs on every PR — no database credentials required.
-  # Validates that migration files follow naming conventions and are ordered
-  # correctly, and that every changed/added migration file includes the
-  # required '-- VERIFICATION:' block (issue #118/#119).
+  # Validates that migration files follow naming conventions, are ordered
+  # correctly, and that every migration has a companion .verify.sql file
+  # (Check 5 in scripts/verify-migrations.sh — issue #118/#119).
   verify-structure:
     name: Verify migration structure
     runs-on: ubuntu-latest
@@ -39,50 +40,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # Fetch full history so git diff can compare against the base branch.
-          fetch-depth: 0
 
       - name: Verify migration file sequence
         run: bash scripts/verify-migrations.sh
-
-      - name: Detect changed migration files
-        id: changed-migrations
-        run: |
-          # Determine the comparison base so only new/modified migrations are
-          # checked.  Pre-existing migrations that pre-date this standard are
-          # not retroactively flagged.
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-            git fetch origin "${{ github.base_ref }}" --depth=1 2>/dev/null || true
-            CHANGED=$(git diff --name-only --diff-filter=AM "$BASE"...HEAD \
-              -- 'supabase/migrations/*.sql' 2>/dev/null || true)
-          else
-            # push to main — compare against the immediate parent commit.
-            CHANGED=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD \
-              -- 'supabase/migrations/*.sql' 2>/dev/null || true)
-          fi
-
-          if [ -z "$CHANGED" ]; then
-            echo "No migration SQL files added or modified — skipping verification check."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            FILE_COUNT=$(echo "$CHANGED" | grep -c .)
-            echo "Found $FILE_COUNT changed migration file(s):"
-            echo "$CHANGED"
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-            # Write file list to a temp file so the next step can read it
-            # without worrying about newlines in output variables.
-            echo "$CHANGED" > /tmp/changed-migrations.txt
-          fi
-
-      - name: Verify migration verification sections
-        if: steps.changed-migrations.outputs.skip == 'false'
-        run: |
-          # Read the file list written by the previous step and pass every
-          # changed migration file to the verification script.
-          mapfile -t FILES < /tmp/changed-migrations.txt
-          bash scripts/verify-migration-verification.sh "${FILES[@]}"
 
   # ── Apply & drift check ────────────────────────────────────────────────────
   # Runs only when Supabase credentials are available (i.e. not on fork PRs).
