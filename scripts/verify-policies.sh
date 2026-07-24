@@ -58,7 +58,7 @@ fi
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "::error::DATABASE_URL is not set." >&2
   echo "  Set it to a valid PostgreSQL connection string, e.g.:" >&2
-  echo "    export DATABASE_URL=\"******host:5432/dbname\"" >&2
+  echo "    export DATABASE_URL=\"postgresql://postgres:[password]@[host]:5432/postgres\"" >&2
   echo "  For local development use the Supabase local connection string." >&2
   exit 2
 fi

@@ -88,6 +88,7 @@ jobs:
 
       - name: Verify schema (tables, columns, RLS)
         run: |
+          set -o pipefail
           echo "## Schema Verification" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -96,6 +97,7 @@ jobs:
 
       - name: Verify policies (RLS policy presence)
         run: |
+          set -o pipefail
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "## Policy Verification" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

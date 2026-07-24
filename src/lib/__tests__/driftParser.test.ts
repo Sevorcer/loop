@@ -217,6 +217,12 @@ describe("buildDriftReport", () => {
     expect(report.unexpected).toEqual([]);
   });
 
+  it("returns status drift when policies are unexpected only", () => {
+    const report = buildDriftReport("policies", ["pol_a"], ["pol_a", "pol_b"]);
+    expect(report.status).toBe("drift");
+    expect(report.unexpected).toEqual(["pol_b"]);
+  });
+
   it("returns status drift when policies are missing", () => {
     const report = buildDriftReport("policies", ["pol_a", "pol_b"], ["pol_a"]);
     expect(report.status).toBe("drift");

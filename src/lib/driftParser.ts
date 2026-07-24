@@ -168,6 +168,6 @@ export function buildDriftReport(
     totalActual: actual.length,
     missing: drift.missing,
     unexpected: drift.unexpected,
-    status: drift.missing.length === 0 ? "ok" : "drift",
+    status: drift.missing.length === 0 && drift.unexpected.length === 0 ? "ok" : "drift",
   };
 }
