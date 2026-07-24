@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# scripts/db-drift-gate.sh
+#
+# Reusable DB drift + health gate for LOOP.
+#
+# Runs a series of critical checks against the linked Supabase project.
+# Each check is labelled CRITICAL or WARNING.  The script exits 1 if any
+# CRITICAL check fails; it exits 0 (with advisory output) when only WARNINGs
+# are present.
+#
+# Designed to be called by:
+#   - .github/workflows/pre-deploy-gate.yml  (deployment blocker)
+#   - future: .github/workflows/db-health-check.yml  (daily health job, #114)
+#
+# Prerequisites (env vars must be set before calling this script):
+#   SUPABASE_ACCESS_TOKEN   — Personal access token from Supabase account settings
+#   SUPABASE_PROJECT_REF    — Project reference ID (e.g. "abcdefghijklmnop")
+#
+# The script assumes `supabase link` has already been run in the calling
+# environment.  It does not link the project itself.
+#
+# Exit codes:
+#   0  All CRITICAL checks passed (WARNINGs may be present).
+#   1  One or more CRITICAL checks failed — deployment must be blocked.
+#   2  Pre-flight error (missing tool, missing env var, etc.).
+
+set -euo pipefail
+
+# ── constants ─────────────────────────────────────────────────────────────────
+
+GATE_VERSION="1.0"
+SCRIPT_NAME="db-drift-gate.sh"
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+CRITICAL_FAILURES=0
+WARNINGS=0
+
+_ts()       { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+_header()   { echo ""; echo "════════════════════════════════════════════════════"; echo "  $*"; echo "════════════════════════════════════════════════════"; }
+_section()  { echo ""; echo "── $* ──────────────────────────────────────────────"; }
+_pass()     { echo "  ✓ $*"; }
+_warn()     { echo "  ⚠ $*"; WARNINGS=$((WARNINGS + 1)); }
+_critical() { echo "  ✗ [CRITICAL] $*" >&2; CRITICAL_FAILURES=$((CRITICAL_FAILURES + 1)); }
+_hint()     { echo "    → $*"; }
+_info()     { echo "    $*"; }
+
+# ── pre-flight ────────────────────────────────────────────────────────────────
+
+_header "LOOP DB Drift Gate  v${GATE_VERSION}"
+echo "  Script : $SCRIPT_NAME"
+echo "  Started: $(_ts)"
+echo ""
+
+# Verify Supabase CLI is available.
+if ! command -v supabase &>/dev/null; then
+  echo "::error::supabase CLI not found — install it before running this gate." >&2
+  exit 2
+fi
+
+# Verify required environment variables.
+for VAR in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF; do
+  if [ -z "${!VAR:-}" ]; then
+    echo "::error::Required env var $VAR is not set." >&2
+    exit 2
+  fi
+done
+
+# ── check 1: migration file structure ─────────────────────────────────────────
+# Delegates entirely to the existing verify-migrations.sh so there is no
+# duplicate logic.  A structural failure is CRITICAL — broken filenames or
+# out-of-order timestamps indicate a workflow problem that must be fixed
+# before deploying.
+
+_section "Check 1 — Migration file structure"
+
+VERIFY_SCRIPT="$(cd "$(dirname "$0")" && pwd)/verify-migrations.sh"
+
+if [ ! -f "$VERIFY_SCRIPT" ]; then
+  _critical "verify-migrations.sh not found at $VERIFY_SCRIPT"
+  _hint "Ensure scripts/verify-migrations.sh exists and is executable."
+else
+  if bash "$VERIFY_SCRIPT"; then
+    _pass "Migration file structure is valid."
+  else
+    _critical "Migration file structure check failed."
+    _hint "Fix naming convention or ordering issues in supabase/migrations/ then re-push."
+    _hint "Run locally: bash scripts/verify-migrations.sh"
+  fi
+fi
+
+# ── check 2: pending (unapplied) migrations ────────────────────────────────────
+# If migration files exist locally that have not been applied to the target
+# database, deploying the application against an outdated schema is unsafe.
+# This is a CRITICAL failure.
+
+_section "Check 2 — Unapplied migrations"
+
+PENDING_OUTPUT=$(supabase migration list --linked 2>&1 || true)
+
+# `supabase migration list` marks unapplied migrations with a blank or missing
+# "Applied At" column.  A row that contains the migration name but no ISO date
+# indicates it is pending.  We detect this by looking for lines that have a
+# migration timestamp but no date in the applied column.
+#
+# Output format (two possible layouts):
+#   LOCAL      │ REMOTE     │ TIME (in newer CLI versions)
+#   Version    │ Name       │ Applied At
+# We treat any line that appears in the LOCAL/Version column but not in the
+# REMOTE/Applied At column as unapplied.
+
+UNAPPLIED=$(echo "$PENDING_OUTPUT" | grep -E '^\s*[0-9]{14}' | grep -v '\(applied\)\|[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
+
+if [ -n "$UNAPPLIED" ]; then
+  _critical "Unapplied migrations detected — deploying now is unsafe."
+  echo ""
+  echo "$UNAPPLIED"
+  echo ""
+  _hint "Why it matters: the application code expects these schema changes to be present."
+  _hint "Next step     : run  supabase db push --linked  then re-run this gate."
+  _hint "Ref           : see docs/runbooks/pre-deploy-gate.md for the full release flow."
+else
+  _pass "All migrations are applied."
+fi
+
+# ── check 3: schema drift ──────────────────────────────────────────────────────
+# Detects out-of-band schema changes applied directly to the database that are
+# not captured in any migration file.  Drift means the schema tracked in source
+# control no longer matches the live database.  This is a CRITICAL failure.
+
+_section "Check 3 — Schema drift (db diff)"
+
+DIFF_RAW=$(supabase db diff --linked 2>&1 || true)
+
+# Filter blank lines and pure SQL comment lines — these are structural noise
+# emitted by the CLI even when there is no meaningful diff.
+DIFF_MEANINGFUL=$(echo "$DIFF_RAW" | grep -v '^\s*$' | grep -v '^\s*--' || true)
+
+if [ -n "$DIFF_MEANINGFUL" ]; then
+  _critical "Schema drift detected — live DB schema diverges from migration files."
+  echo ""
+  echo "── Diff output ─────────────────────────────────────────────────────"
+  echo "$DIFF_RAW"
+  echo "────────────────────────────────────────────────────────────────────"
+  echo ""
+  _hint "Why it matters: the application may behave incorrectly against a drifted schema."
+  _hint "Next step     : generate a migration for the out-of-band change:"
+  _hint "                  supabase db diff --linked --schema public -f <name>"
+  _hint "                then commit and push the generated file."
+  _hint "Ref           : see docs/runbooks/pre-deploy-gate.md for the full release flow."
+else
+  _pass "No schema drift detected."
+fi
+
+# ── summary ───────────────────────────────────────────────────────────────────
+
+_header "Gate Summary"
+echo "  Completed: $(_ts)"
+echo "  Critical failures : $CRITICAL_FAILURES"
+echo "  Warnings          : $WARNINGS"
+echo ""
+
+if [ "$CRITICAL_FAILURES" -gt 0 ]; then
+  echo "  ✗ GATE FAILED — deployment is BLOCKED."
+  echo ""
+  echo "  Resolve the critical failure(s) listed above before re-deploying."
+  echo "  See docs/runbooks/pre-deploy-gate.md for the gate bypass policy."
+  echo ""
+  exit 1
+fi
+
+if [ "$WARNINGS" -gt 0 ]; then
+  echo "  ⚠ GATE PASSED WITH WARNINGS — deployment may proceed."
+  echo "    Address advisory warnings at your earliest convenience."
+else
+  echo "  ✓ GATE PASSED — deployment is CLEAR."
+fi
+
+echo ""
+exit 0

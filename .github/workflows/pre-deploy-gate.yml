@@ -1,0 +1,123 @@
+name: Pre-Deploy DB Drift Gate
+
+# Runs on every push to main and every PR targeting main.
+#
+# Purpose: block deployments when critical DB drift conditions are detected.
+#
+# Required GitHub secrets:
+#   SUPABASE_ACCESS_TOKEN   — Personal access token from app.supabase.com/account/tokens
+#   SUPABASE_PROJECT_REF    — Project reference ID (e.g. "abcdefghijklmnop")
+#   SUPABASE_DB_PASSWORD    — Database password for the linked project
+#
+# Gate behaviour:
+#   CRITICAL failure → job exits 1, deployment is blocked.
+#   WARNING only     → job exits 0, deployment is allowed (advisory output emitted).
+#   PASS             → job exits 0, deployment is clear.
+#
+# Bypass policy: see docs/runbooks/pre-deploy-gate.md
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Structural validation (no secrets required) ───────────────────────────
+  # Mirrors the verify-structure job in db-migrations.yml so that this gate
+  # provides a standalone status check that branch protection can require.
+  # No database credentials are used.
+  verify-structure:
+    name: Verify migration file structure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify migration file sequence
+        run: bash scripts/verify-migrations.sh
+
+  # ── DB drift gate (secrets required) ──────────────────────────────────────
+  # Connects to the linked Supabase project and runs the drift gate script.
+  # Skipped on fork PRs and dependabot PRs where secrets are unavailable.
+  db-drift-gate:
+    name: DB drift gate
+    runs-on: ubuntu-latest
+    needs: verify-structure
+
+    # Skip on fork PRs (secrets unavailable) and dependabot PRs.
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.actor != 'dependabot[bot]')
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate required secrets
+        run: |
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Missing SUPABASE_ACCESS_TOKEN"; exit 1; }
+          [ -n "$SUPABASE_PROJECT_REF" ] || { echo "::error::Missing SUPABASE_PROJECT_REF"; exit 1; }
+          CLEAN_DB_PASSWORD=$(printf '%s' "$SUPABASE_DB_PASSWORD" | tr -d '\r\n')
+          echo "::add-mask::$CLEAN_DB_PASSWORD"
+          [ -n "$CLEAN_DB_PASSWORD" ] || { echo "::error::Missing SUPABASE_DB_PASSWORD"; exit 1; }
+          echo "SUPABASE_LINK_DB_PASSWORD=$CLEAN_DB_PASSWORD" >> "$GITHUB_ENV"
+          echo "SUPABASE_DB_PASSWORD=" >> "$GITHUB_ENV"
+          echo "SUPABASE_YES=true" >> "$GITHUB_ENV"
+
+      - name: Link Supabase project
+        run: |
+          supabase link \
+            --project-ref "$SUPABASE_PROJECT_REF" \
+            --password "$SUPABASE_LINK_DB_PASSWORD"
+
+      # Free-tier projects pause after inactivity. Restore and wait before
+      # any database-touching steps.
+      - name: Ensure database is active
+        run: |
+          STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
+            -H "Authorization: ******" \
+            | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
+          echo "Project status: $STATUS"
+          if [ "$STATUS" = "INACTIVE" ]; then
+            echo "Project is paused — requesting restore..."
+            curl -sf -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/restore" \
+              -H "Authorization: ******" \
+              -H "Content-Type: application/json" \
+              -d '{}' || true
+          fi
+          if [ "$STATUS" = "INACTIVE" ] || [ "$STATUS" = "COMING_UP" ]; then
+            echo "Waiting up to 3 min for database to become active..."
+            for i in $(seq 1 18); do
+              sleep 10
+              STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
+                -H "Authorization: ******" \
+                | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
+              echo "  Status: $STATUS (attempt $i/18)"
+              [ "$STATUS" = "ACTIVE_HEALTHY" ] && break
+            done
+            if [ "$STATUS" != "ACTIVE_HEALTHY" ]; then
+              echo "::warning::Project may not be fully active yet (status: $STATUS). Proceeding..."
+            fi
+          fi
+
+      - name: Run DB drift gate
+        run: bash scripts/db-drift-gate.sh
