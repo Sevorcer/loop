@@ -5,6 +5,7 @@ import {
   readJsonObject,
 } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import { logWriteFailure } from "@/lib/observability/writes";
 import {
   mapOrganizationRouteError,
   organizationPermissionDenied,
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ organization }, { status: 201 });
   } catch (error) {
+    logWriteFailure({ route: "/api/organizations", request }, error);
     const mapped = mapOrganizationRouteError(error);
     return NextResponse.json(mapped.error, { status: mapped.status });
   }

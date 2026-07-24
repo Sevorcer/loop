@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import { logWriteFailure } from "@/lib/observability/writes";
 import { addJobNote, deleteJob, getJob, listJobActivity, updateJob, updateJobStatus } from "@/services/jobs";
 
 const JOB_ACTIONS = new Set(["update", "status", "note"]);
@@ -140,6 +141,7 @@ export async function PATCH(
 
     return NextResponse.json({ job });
   } catch (error) {
+    logWriteFailure({ route: "/api/jobs/[id]", request }, error);
     return mapRouteError(error);
   }
 }
@@ -171,6 +173,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Job deleted.", id });
   } catch (error) {
+    logWriteFailure({ route: "/api/jobs/[id]", request }, error);
     return mapRouteError(error);
   }
 }

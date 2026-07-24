@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { logWriteFailure } from "@/lib/observability/writes";
 import {
   deleteGcIssueRequest,
   getGcIssueRequest,
@@ -69,6 +70,7 @@ export async function PATCH(
     const issue = await updateGcIssueRequest(id, patch);
     return NextResponse.json({ issue });
   } catch (error) {
+    logWriteFailure({ route: "/api/gc-issue-requests/[id]", request }, error);
     return mapRouteError(error);
   }
 }
@@ -86,6 +88,7 @@ export async function DELETE(
     await deleteGcIssueRequest(id);
     return NextResponse.json({ message: "Issue request deleted." });
   } catch (error) {
+    logWriteFailure({ route: "/api/gc-issue-requests/[id]", request }, error);
     return mapRouteError(error);
   }
 }

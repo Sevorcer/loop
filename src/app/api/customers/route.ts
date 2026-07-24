@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import { logWriteFailure } from "@/lib/observability/writes";
 import { createCustomer, listCustomers } from "@/services/customers";
 
 const CUSTOMER_STATUSES = new Set(["Active", "Prospect", "Inactive"]);
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ customer }, { status: 201 });
   } catch (error) {
+    logWriteFailure({ route: "/api/customers", request }, error);
     return mapRouteError(error);
   }
 }

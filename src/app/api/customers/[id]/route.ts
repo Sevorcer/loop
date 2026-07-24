@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import { logWriteFailure } from "@/lib/observability/writes";
 import { deleteCustomer, getCustomer, updateCustomer } from "@/services/customers";
 
 const CUSTOMER_STATUSES = new Set(["Active", "Prospect", "Inactive"]);
@@ -87,6 +88,7 @@ export async function PATCH(
 
     return NextResponse.json({ customer });
   } catch (error) {
+    logWriteFailure({ route: "/api/customers/[id]", request }, error);
     return mapRouteError(error);
   }
 }
@@ -118,6 +120,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Customer deleted.", id });
   } catch (error) {
+    logWriteFailure({ route: "/api/customers/[id]", request }, error);
     return mapRouteError(error);
   }
 }

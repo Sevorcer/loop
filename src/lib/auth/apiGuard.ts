@@ -72,18 +72,6 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    console.error(
-      "[AUTH_FLOW]",
-      JSON.stringify({
-        event: "requireApiSession.deny",
-        reason: error?.name ?? "API_SESSION_MISSING",
-        route: trace.route,
-        requestId: trace.requestId,
-        correlationId: trace.correlationId,
-        statusCode: 401,
-        stack: new Error("AUTH_FLOW_STACK").stack,
-      }),
-    );
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",

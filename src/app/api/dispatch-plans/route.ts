@@ -15,6 +15,7 @@ import {
   mapRouteError,
   readJsonObject,
 } from "@/lib/api/routeErrors";
+import { logWriteFailure } from "@/lib/observability/writes";
 import { loadDispatchSnapshot, createPlan } from "@/services/dispatch";
 import type { DispatchPlanWriteInput } from "@/services/dispatch";
 
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ plan: result.data }, { status: 201 });
   } catch (error) {
+    logWriteFailure({ route: "/api/dispatch-plans", request }, error);
     return mapRouteError(error);
   }
 }

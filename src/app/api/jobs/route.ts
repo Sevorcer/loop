@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import {
-  extractSupabaseError,
   getPostRequestTrace,
 } from "@/lib/api/postFailureTelemetry";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { emitAuditEvent } from "@/lib/audit";
+import { logWriteFailure } from "@/lib/observability/writes";
 import { createJob, listJobsWithActivity } from "@/services/jobs";
 
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
@@ -99,21 +99,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const route = "/api/jobs";
     const tracedRequestId = requestId ?? getPostRequestTrace(request, "jobs-post").requestId;
-    const isError = error instanceof Error;
-    const supabaseError = extractSupabaseError(error);
 
-    console.error("API_POST_FAILURE", {
-      route,
-      requestId: tracedRequestId,
-      step,
-      name: isError ? error.name : typeof error,
-      message: isError ? error.message : String(error),
-      stack: isError ? (error.stack ?? null) : null,
-      ...(supabaseError.code ? { code: supabaseError.code } : {}),
-      ...(supabaseError.details !== null ? { details: supabaseError.details } : {}),
-      ...(supabaseError.hint !== null ? { hint: supabaseError.hint } : {}),
-      ...(supabaseError.status !== null ? { status: supabaseError.status } : {}),
-    });
+    logWriteFailure({ route, requestId: tracedRequestId, step }, error);
 
     if (step === "body_parse") {
       return invalidJsonResponse();
