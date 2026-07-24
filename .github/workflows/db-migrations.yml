@@ -30,8 +30,9 @@ permissions:
 jobs:
   # ── Structural validation ──────────────────────────────────────────────────
   # Runs on every PR — no database credentials required.
-  # Validates that migration files follow naming conventions and are ordered
-  # correctly before any database-touching steps execute.
+  # Validates that migration files follow naming conventions, are ordered
+  # correctly, and that every migration has a companion .verify.sql file
+  # (Check 5 in scripts/verify-migrations.sh — issue #118/#119).
   verify-structure:
     name: Verify migration structure
     runs-on: ubuntu-latest

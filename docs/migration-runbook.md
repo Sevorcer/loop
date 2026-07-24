@@ -210,6 +210,7 @@ The GitHub Actions workflow at `.github/workflows/db-migrations.yml` runs
 automatically on any PR or push to `main` that touches:
 
 - `supabase/migrations/**`
+- `supabase/verifications/**`
 - `supabase/config.toml`
 - `scripts/verify-migrations.sh`
 
@@ -217,7 +218,7 @@ automatically on any PR or push to `main` that touches:
 
 | Job | Trigger | Description |
 |-----|---------|-------------|
-| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` — no secrets required |
+| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` — checks naming, order, and presence of companion `.verify.sql` files — no secrets required |
 | `apply-and-verify` | Non-fork PRs, pushes to main | Applies migrations and checks for drift |
 
 ### Required GitHub secrets
@@ -234,9 +235,9 @@ Configure these at: `https://github.com/Sevorcer/loop/settings/secrets/actions`
 
 ## CI failure scenarios
 
-### `verify-structure` fails
+### `verify-structure` fails — naming/order
 
-The migration files themselves are invalid before any database is involved.
+The migration files themselves are structurally invalid before any database is involved.
 
 Common causes:
 - File name does not match `YYYYMMDDHHMMSS_description.sql`
@@ -245,6 +246,22 @@ Common causes:
 - Empty file (zero bytes)
 
 Fix: rename or reorder files locally and push again.
+
+### `verify-structure` fails — missing companion verification file
+
+A new or modified migration file does not have a matching file in
+`supabase/verifications/`.
+
+Fix: create `supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql`
+with `DO $$ BEGIN ASSERT …; END; $$;` blocks for every structural and security
+outcome of the migration.  See
+[`docs/migration-verification-standard.md`](migration-verification-standard.md)
+for the full standard, assertion patterns, and examples.
+
+Validate locally before pushing:
+```bash
+bash scripts/verify-migrations.sh
+```
 
 ### `apply-and-verify` fails on apply
 
@@ -271,4 +288,6 @@ supabase db diff --schema public | supabase migration new capture_drift
 - Supabase CLI docs: https://supabase.com/docs/reference/cli
 - Supabase migrations guide: https://supabase.com/docs/guides/database/migrations
 - GitHub workflow: `.github/workflows/db-migrations.yml`
-- Verification script: `scripts/verify-migrations.sh`
+- File sequence + verification check: `scripts/verify-migrations.sh`
+- Verification standard: [`docs/migration-verification-standard.md`](migration-verification-standard.md)
+- Issues: [#117](https://github.com/Sevorcer/loop/issues/117) (epic), [#118](https://github.com/Sevorcer/loop/issues/118) (standard), [#119](https://github.com/Sevorcer/loop/issues/119) (CI enforcement)
