@@ -12,7 +12,7 @@ Every migration in `supabase/migrations/` **must** be accompanied by a
 verification file in `supabase/verifications/`. The verification file is
 read-only SQL that asserts the intended structural and security outcomes of
 the migration. It is not applied as part of the migration — it is run after
-apply to confirm the schema contract is satisfied.
+the migration is applied to confirm the schema contract is satisfied.
 
 This standard is machine-enforced: `scripts/verify-migrations.sh` (Check 5)
 fails on any PR where a migration file does not have a matching

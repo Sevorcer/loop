@@ -87,7 +87,7 @@ Edit the generated file, then apply it:
 supabase db push
 ```
 
-### 3a. Create the companion verification file (required)
+### 4. Create the companion verification file (required)
 
 Every migration **must** have a companion verification file. After writing your
 migration SQL, create:
@@ -110,7 +110,7 @@ for the full standard, assertion patterns, and examples.
 psql "$DATABASE_URL" -f supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql
 ```
 
-### 4. Verify migration file structure (offline)
+### 5. Verify migration file structure (offline)
 
 The same script CI runs — no database credentials needed:
 
@@ -132,7 +132,7 @@ This checks:
 - No empty files
 - **Every migration has a companion `.verify.sql` in `supabase/verifications/`** (Check 5)
 
-### 5. Check for schema drift
+### 6. Check for schema drift
 
 Compares the current database schema against what the migration files describe.
 A clean state produces no output:
