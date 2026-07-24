@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Building, ShieldCheck, ArrowLeft, Activity } from "lucide-react";
 
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import {
 
 const NAV_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   Organizations: Building,
+  "DB Health": Activity,
 };
 
 type NavItemWithIcon = AdminNavItem & {

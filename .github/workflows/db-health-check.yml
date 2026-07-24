@@ -1,0 +1,138 @@
+name: DB Health Check
+
+# Runs on a daily schedule and on manual dispatch.
+# Triggers the /api/admin/db-health/check endpoint which performs all checks
+# and persists results to db_health_check_runs / db_health_check_results.
+#
+# Alert routing (via structured log events in the API route):
+#   critical severity → [DB_HEALTH_ALERT] at console.error level → on-call
+#   warning  severity → [DB_HEALTH_ALERT] at console.warn  level → team channel
+#
+# Required secrets:
+#   LOOP_HEALTH_CHECK_TOKEN  — ****** matching LOOP_HEALTH_CHECK_TOKEN env var
+#   LOOP_DEPLOY_URL          — Base URL of the deployed app (e.g. https://loop.vercel.app)
+#
+# Required secrets for pre-deploy gate (reused from db-migrations.yml):
+#   SUPABASE_ACCESS_TOKEN    — For supabase migration list verification
+
+on:
+  schedule:
+    # Daily at 04:00 UTC — off-peak, after nightly maintenance windows.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      trigger:
+        description: "Trigger type for the run"
+        required: false
+        default: "manual"
+        type: choice
+        options:
+          - manual
+          - pre_deploy
+
+permissions:
+  contents: read
+
+jobs:
+  db-health-check:
+    name: Run DB health checks
+    runs-on: ubuntu-latest
+
+    env:
+      LOOP_DEPLOY_URL: ${{ secrets.LOOP_DEPLOY_URL }}
+      LOOP_HEALTH_CHECK_TOKEN: ${{ secrets.LOOP_HEALTH_CHECK_TOKEN }}
+
+    steps:
+      - name: Validate required secrets
+        run: |
+          [ -n "$LOOP_DEPLOY_URL" ]          || { echo "::error::Missing LOOP_DEPLOY_URL secret"; exit 1; }
+          [ -n "$LOOP_HEALTH_CHECK_TOKEN" ]   || { echo "::error::Missing LOOP_HEALTH_CHECK_TOKEN secret"; exit 1; }
+
+      - name: Determine trigger type
+        id: trigger
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "type=scheduled" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=${{ inputs.trigger || 'manual' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run DB health checks
+        id: health
+        run: |
+          TRIGGER="${{ steps.trigger.outputs.type }}"
+          CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          GIT_SHA="${{ github.sha }}"
+
+          echo "Triggering DB health check (trigger=$TRIGGER)..."
+
+          HTTP_CODE=$(curl -sf \
+            -X POST "$LOOP_DEPLOY_URL/api/admin/db-health/check" \
+            -H "Authorization: ******" \
+            -H "Content-Type: application/json" \
+            -d "{\"trigger\":\"$TRIGGER\",\"ciRunUrl\":\"$CI_RUN_URL\",\"gitSha\":\"$GIT_SHA\"}" \
+            -o /tmp/health-response.json \
+            -w "%{http_code}" \
+            || echo "000")
+
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "000" ]; then
+            echo "::error::Health check endpoint unreachable — network or DNS failure"
+            exit 1
+          fi
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Health check returned HTTP $HTTP_CODE"
+            cat /tmp/health-response.json || true
+            exit 1
+          fi
+
+          cat /tmp/health-response.json
+
+          # Parse overall_status from the JSON response.
+          OVERALL=$(python3 -c "
+          import json, sys
+          data = json.load(open('/tmp/health-response.json'))
+          print(data.get('overallStatus', 'unknown'))
+          " 2>/dev/null || echo "unknown")
+
+          FAIL_COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('/tmp/health-response.json'))
+          print(data.get('failCount', 0))
+          " 2>/dev/null || echo "0")
+
+          CRITICAL_COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('/tmp/health-response.json'))
+          results = data.get('results', [])
+          print(sum(1 for r in results if r.get('status') == 'fail' and r.get('severity') == 'critical'))
+          " 2>/dev/null || echo "0")
+
+          echo "overall_status=$OVERALL"   >> "$GITHUB_OUTPUT"
+          echo "fail_count=$FAIL_COUNT"    >> "$GITHUB_OUTPUT"
+          echo "critical_count=$CRITICAL_COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize results
+        if: always()
+        run: |
+          OVERALL="${{ steps.health.outputs.overall_status }}"
+          FAILS="${{ steps.health.outputs.fail_count }}"
+          CRITICAL="${{ steps.health.outputs.critical_count }}"
+
+          echo "## DB Health Check Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo ""                           >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field           | Value   |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----------------|---------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Overall status  | $OVERALL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Failed checks   | $FAILS  |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Critical issues | $CRITICAL |" >> "$GITHUB_STEP_SUMMARY"
+          echo ""                           >> "$GITHUB_STEP_SUMMARY"
+          echo "Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on critical issues
+        if: steps.health.outputs.critical_count != '0'
+        run: |
+          echo "::error::${{ steps.health.outputs.critical_count }} critical DB health check(s) failed. Check the dashboard at /admin/db-health for details."
+          exit 1

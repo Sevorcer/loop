@@ -8,6 +8,7 @@ export { AdminSidebar } from "./components/AdminSidebar";
 export { AdminLandingScreen } from "./screens/AdminLandingScreen";
 export { OrganizationsScreen } from "./screens/OrganizationsScreen";
 export { ImportScreen } from "./screens/ImportScreen";
+export { DbHealthScreen } from "./db-health/screens/DbHealthScreen";
 // Legacy screens kept for any external references — operational entities have
 // been moved to their own /admin redirect pages (backward compat only).
 export { CustomersAdminScreen } from "./screens/CustomersAdminScreen";

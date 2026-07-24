@@ -18,6 +18,9 @@
  * Sprint 27: Added sprint-27 platform service tables —
  *   storage_objects, gc_issue_requests, installed_systems,
  *   knowledge_items, portal_projects, performance_models
+ *
+ * Sprint 28: Added db_health_check_runs for the DB health dashboard.
+ *   Read-only for owner/manager roles; CI writes via service_role (bypasses RLS).
  */
 
 // ---------------------------------------------------------------------------
@@ -53,7 +56,10 @@ export type CoreTable =
   // Sprint 29 — admin CRUD tables
   // Organizations are platform-level; mutations restricted to `owner` until
   // the S29-002 `platform_admin` role is introduced.
-  | "organizations";
+  | "organizations"
+  // Sprint 28 — DB health check tables
+  // Read-only in the app layer; CI writes via service_role (bypasses RLS).
+  | "db_health_check_runs";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -198,6 +204,16 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner"]),
     update: new Set<AppRole>(["owner"]),
     delete: new Set<AppRole>(["owner"]),
+  },
+
+  // ── Sprint 28 — DB health check tables ────────────────────────────────────
+  // Read-only from the app layer. Only owner/manager may view health data.
+  // Inserts come from the CI service-role token (bypasses RLS).
+  db_health_check_runs: {
+    select: new Set<AppRole>(["owner", "manager"]),
+    insert: new Set<AppRole>([]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
   },
 };
 
