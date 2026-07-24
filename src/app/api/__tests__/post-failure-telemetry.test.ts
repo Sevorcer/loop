@@ -43,10 +43,12 @@ import { POST as postProperties } from "@/app/api/properties/route";
 
 describe("POST route failure telemetry", () => {
   let consoleErrorMock: ReturnType<typeof vi.spyOn>;
+  let consoleInfoMock: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleInfoMock = vi.spyOn(console, "info").mockImplementation(() => {});
 
     requirePermissionMock.mockResolvedValue({
       ok: true,
@@ -60,9 +62,10 @@ describe("POST route failure telemetry", () => {
 
   afterEach(() => {
     consoleErrorMock.mockRestore();
+    consoleInfoMock.mockRestore();
   });
 
-  it("logs structured failure telemetry for POST /api/properties", async () => {
+  it("logs sentinel failure telemetry for POST /api/properties", async () => {
     readJsonObjectMock.mockResolvedValue({
       name: "Smoke Test Property",
       customer: "Acme",
@@ -93,20 +96,34 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(consoleErrorMock).toHaveBeenCalledWith(
-      "api.properties.post.failure",
+    expect(consoleInfoMock).toHaveBeenCalledWith(
+      "API_POST_CHECKPOINT",
       expect.objectContaining({
-        event: "api.properties.post.failure",
+        route: "/api/properties",
+        step: "before_insert",
+        requestId: "req-prop-1",
+      }),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "API_POST_FAILURE",
+      expect.objectContaining({
         route: "/api/properties",
         method: "POST",
         requestId: "req-prop-1",
         step: "create_property_service",
+        errorName: "Error",
+        errorMessage: "insert failed",
+        supabase: expect.objectContaining({
+          code: "23505",
+          details: "duplicate key",
+          hint: "check unique index",
+          status: 500,
+        }),
       }),
     );
-
   });
 
-  it("logs structured failure telemetry for POST /api/jobs", async () => {
+  it("logs sentinel failure telemetry for POST /api/jobs", async () => {
     readJsonObjectMock.mockResolvedValue({
       title: "Install Heat Pump",
       customerName: "Acme",
@@ -138,16 +155,30 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(consoleErrorMock).toHaveBeenCalledWith(
-      "api.jobs.post.failure",
+    expect(consoleInfoMock).toHaveBeenCalledWith(
+      "API_POST_CHECKPOINT",
       expect.objectContaining({
-        event: "api.jobs.post.failure",
+        route: "/api/jobs",
+        step: "before_insert",
+        requestId: "req-job-1",
+      }),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "API_POST_FAILURE",
+      expect.objectContaining({
         route: "/api/jobs",
         method: "POST",
         requestId: "req-job-1",
         step: "create_job_service",
+        errorName: "Error",
+        errorMessage: "jobs insert failed",
+        supabase: expect.objectContaining({
+          code: "PGRST301",
+          details: "db details",
+          hint: "db hint",
+          status: 500,
+        }),
       }),
     );
-
   });
 });

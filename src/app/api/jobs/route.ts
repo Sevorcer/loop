@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import {
-  extractSanitizedPostPayload,
   extractSupabaseError,
   getPostRequestTrace,
 } from "@/lib/api/postFailureTelemetry";
@@ -57,23 +56,21 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { requestId, correlationId } = getPostRequestTrace(request, "jobs-post");
+  const { requestId } = getPostRequestTrace(request, "jobs-post");
+  const route = "/api/jobs";
+  const method = "POST";
   let step = "permission_guard";
+  let body: Record<string, unknown> = {};
 
-  const guard = await requirePermission(request, "jobs", "insert");
-  if (!guard.ok) return guard.response;
-
-  let body: Record<string, unknown>;
   try {
+    const guard = await requirePermission(request, "jobs", "insert");
+    if (!guard.ok) return guard.response;
+
     step = "body_parse";
     body = await readJsonObject(request);
-  } catch {
-    return invalidJsonResponse();
-  }
 
-  try {
     step = "create_job_service";
-    const job = await createJob({
+    const payload = {
       estimateId: body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
       equipmentBundleId:
         body.equipmentBundleId !== undefined
@@ -89,7 +86,11 @@ export async function POST(request: Request) {
       location: String(body.location ?? "").trim(),
       summary: String(body.summary ?? "").trim(),
       notes: String(body.notes ?? "").trim(),
-    });
+    };
+
+    console.info("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
+
+    const job = await createJob(payload);
 
     emitAuditEvent({
       role: guard.ctx.role,
@@ -98,39 +99,37 @@ export async function POST(request: Request) {
       resourceId: job.id,
       details: { title: job.title, type: job.type },
     });
-
     return NextResponse.json({ job }, { status: 201 });
   } catch (error) {
     const isError = error instanceof Error;
-    const sanitizedPayload = extractSanitizedPostPayload(body);
     const supabaseError = extractSupabaseError(error);
+    const supabase: {
+      code?: string;
+      details?: unknown;
+      hint?: unknown;
+      status?: number;
+    } = {};
 
-    console.error("api.jobs.post.failure", {
-      event: "api.jobs.post.failure",
-      route: "/api/jobs",
-      method: "POST",
+    if (supabaseError.code) supabase.code = supabaseError.code;
+    if (supabaseError.details !== null) supabase.details = supabaseError.details;
+    if (supabaseError.hint !== null) supabase.hint = supabaseError.hint;
+    if (supabaseError.status !== null) supabase.status = supabaseError.status;
+
+    console.error("API_POST_FAILURE", {
+      route,
+      method,
       requestId,
-      correlationId,
       step,
-      error: {
-        name: isError ? error.name : typeof error,
-        message: isError ? error.message : String(error),
-        stack: isError ? (error.stack ?? null) : null,
-      },
-      supabaseError,
-      sanitizedPayload: {
-        ...sanitizedPayload,
-        requiredFieldPresence: {
-          hasTitle: Boolean(body.title),
-          hasCustomerName: Boolean(body.customerName),
-          hasPropertyName: Boolean(body.propertyName),
-          hasAssignedTo: Boolean(body.assignedTo),
-          hasScheduledFor: Boolean(body.scheduledFor),
-          hasType: body.type !== undefined && body.type !== null,
-          hasPriority: body.priority !== undefined && body.priority !== null,
-        },
-      },
+      errorName: isError ? error.name : typeof error,
+      errorMessage: isError ? error.message : String(error),
+      errorStack: isError ? (error.stack ?? null) : null,
+      ...(Object.keys(supabase).length > 0 ? { supabase } : {}),
     });
+
+    if (step === "body_parse") {
+      return invalidJsonResponse();
+    }
+
     return mapRouteError(error);
   }
 }
