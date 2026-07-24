@@ -153,6 +153,7 @@ describe("POST /api/properties — authorization guard", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(readJsonObjectMock).not.toHaveBeenCalled();
     expect(createPropertyMock).not.toHaveBeenCalled();
   });
 
@@ -171,7 +172,7 @@ describe("POST /api/properties — authorization guard", () => {
     );
 
     expect(response.status).toBe(401);
+    expect(readJsonObjectMock).not.toHaveBeenCalled();
     expect(createPropertyMock).not.toHaveBeenCalled();
   });
 });
-

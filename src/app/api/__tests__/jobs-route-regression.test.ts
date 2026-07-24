@@ -132,6 +132,7 @@ describe("POST /api/jobs — authorization guard", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(readJsonObjectMock).not.toHaveBeenCalled();
     expect(createJobMock).not.toHaveBeenCalled();
   });
 
@@ -150,6 +151,7 @@ describe("POST /api/jobs — authorization guard", () => {
     );
 
     expect(response.status).toBe(401);
+    expect(readJsonObjectMock).not.toHaveBeenCalled();
     expect(createJobMock).not.toHaveBeenCalled();
   });
 });
