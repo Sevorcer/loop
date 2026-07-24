@@ -52,18 +52,20 @@ jobs:
   # ── Live-DB schema verification (secrets required) ────────────────────────
   # Connects to the Supabase project and verifies tables, columns, RLS, and
   # policies match the expected state from migration files.
-  # Skipped on fork PRs and dependabot PRs where secrets are unavailable.
+  # Skipped on fork PRs, dependabot PRs, and Copilot-authored PRs where
+  # GitHub does not expose repository secrets to the workflow run.
   verify-schema:
     name: Verify schema & policies (live DB)
     runs-on: ubuntu-latest
     needs: verify-structure
 
-    # Skip on fork PRs (secrets unavailable) and dependabot PRs.
+    # Skip on fork PRs plus bot-authored PRs where secrets are unavailable.
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       github.actor != 'dependabot[bot]')
+       github.actor != 'dependabot[bot]' &&
+       github.actor != 'Copilot')
 
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}

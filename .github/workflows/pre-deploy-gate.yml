@@ -45,18 +45,20 @@ jobs:
 
   # ── DB drift gate (secrets required) ──────────────────────────────────────
   # Connects to the linked Supabase project and runs the drift gate script.
-  # Skipped on fork PRs and dependabot PRs where secrets are unavailable.
+  # Skipped on fork PRs, dependabot PRs, and Copilot-authored PRs where
+  # GitHub does not expose repository secrets to the workflow run.
   db-drift-gate:
     name: DB drift gate
     runs-on: ubuntu-latest
     needs: verify-structure
 
-    # Skip on fork PRs (secrets unavailable) and dependabot PRs.
+    # Skip on fork PRs plus bot-authored PRs where secrets are unavailable.
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       github.actor != 'dependabot[bot]')
+       github.actor != 'dependabot[bot]' &&
+       github.actor != 'Copilot')
 
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
