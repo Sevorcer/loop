@@ -94,13 +94,13 @@ jobs:
       - name: Ensure database is active
         run: |
           STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-            -H "Authorization: ******" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
           echo "Project status: $STATUS"
           if [ "$STATUS" = "INACTIVE" ]; then
             echo "Project is paused — requesting restore..."
             curl -sf -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/restore" \
-              -H "Authorization: ******" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
               -H "Content-Type: application/json" \
               -d '{}' || true
           fi
@@ -109,7 +109,7 @@ jobs:
             for i in $(seq 1 18); do
               sleep 10
               STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-                -H "Authorization: ******" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
                 | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
               echo "  Status: $STATUS (attempt $i/18)"
               [ "$STATUS" = "ACTIVE_HEALTHY" ] && break

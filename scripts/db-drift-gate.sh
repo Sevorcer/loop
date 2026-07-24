@@ -109,7 +109,7 @@ PENDING_OUTPUT=$(supabase migration list --linked 2>&1 || true)
 # We treat any line that appears in the LOCAL/Version column but not in the
 # REMOTE/Applied At column as unapplied.
 
-UNAPPLIED=$(echo "$PENDING_OUTPUT" | grep -E '^\s*[0-9]{14}' | grep -v '\(applied\)\|[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
+UNAPPLIED=$(echo "$PENDING_OUTPUT" | grep -E '^\s*[0-9]{14}' | grep -Ev '(applied)|[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
 
 if [ -n "$UNAPPLIED" ]; then
   _critical "Unapplied migrations detected — deploying now is unsafe."
