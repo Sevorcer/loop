@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import {
-  extractSanitizedPostPayload,
   extractSupabaseError,
   getPostRequestTrace,
 } from "@/lib/api/postFailureTelemetry";
@@ -59,131 +58,40 @@ export async function GET(request: Request) {
   }
 }
 
+
 export async function POST(request: Request) {
-  const { requestId, correlationId } = getPostRequestTrace(request, "prop-post");
+  const { requestId } = getPostRequestTrace(request, "prop-post");
+  const route = "/api/properties";
+  const method = "POST";
   let step = "permission_guard";
+  let body: Record<string, unknown> = {};
 
-  const guard = await requirePermission(request, "properties", "insert");
-  if (!guard.ok) return guard.response;
-
-  // Checkpoint (a): auth guard passed
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "post_properties.guard_passed",
-      requestId,
-      userId: guard.ctx.userId,
-      role: guard.ctx.role,
-    }),
-  );
-
-  let body: Record<string, unknown>;
   try {
+    const guard = await requirePermission(request, "properties", "insert");
+    if (!guard.ok) return guard.response;
+
     step = "body_parse";
     body = await readJsonObject(request);
-  } catch {
-    console.error(
-      "[PROP_CREATE_DIAG]",
-      JSON.stringify({ event: "post_properties.body_parse_failed", requestId }),
-    );
-    return invalidJsonResponse();
-  }
 
-  // Checkpoint (a continued): request body parsed — presence flags only, no PII
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "post_properties.body_parsed",
-      requestId,
-      hasName: Boolean(body.name),
-      hasCustomer: Boolean(body.customer),
-      hasAddress: Boolean(body.address),
-      hasCity: Boolean(body.city),
-      type: body.type,
-      status: body.status,
-      primarySystem: body.primarySystem,
-    }),
-  );
-
-  try {
     const { userId } = guard.ctx;
     step = "payload_build";
 
-    // Checkpoint (b): build and validate payload
-    let payload: {
-      name: string;
-      customer: string;
-      address: string;
-      city: string;
-      type: ReturnType<typeof readPropertyType>;
-      status: ReturnType<typeof readPropertyStatus>;
-      primarySystem: string;
+    const payload = {
+      name: String(body.name ?? "").trim(),
+      customer: String(body.customer ?? "").trim(),
+      address: String(body.address ?? "").trim(),
+      city: String(body.city ?? "").trim(),
+      type: readPropertyType(body.type),
+      status: readPropertyStatus(body.status),
+      primarySystem: String(body.primarySystem ?? "").trim(),
     };
-    try {
-      payload = {
-        name: String(body.name ?? "").trim(),
-        customer: String(body.customer ?? "").trim(),
-        address: String(body.address ?? "").trim(),
-        city: String(body.city ?? "").trim(),
-        type: readPropertyType(body.type),
-        status: readPropertyStatus(body.status),
-        primarySystem: String(body.primarySystem ?? "").trim(),
-      };
-    } catch (validationError) {
-      console.error(
-        "[PROP_CREATE_DIAG]",
-        JSON.stringify({
-          event: "post_properties.payload_validation_failed",
-          requestId,
-          step: "payload_build",
-          errorMessage:
-            validationError instanceof Error ? validationError.message : String(validationError),
-        }),
-      );
-      throw validationError;
-    }
 
-    // Checkpoint (b): pre-insert payload prepared (sanitized)
-    console.log(
-      "[PROP_CREATE_DIAG]",
-      JSON.stringify({
-        event: "post_properties.payload_prepared",
-        requestId,
-        type: payload.type,
-        status: payload.status,
-        primarySystem: payload.primarySystem,
-        hasName: Boolean(payload.name),
-        hasCustomer: Boolean(payload.customer),
-        hasAddress: Boolean(payload.address),
-        hasCity: Boolean(payload.city),
-      }),
-    );
+    step = "before_insert";
+    console.error("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
 
-    // Checkpoint (c): before service call (encompasses geocode + supabase insert + customer sync)
     step = "create_property_service";
-    console.log(
-      "[PROP_CREATE_DIAG]",
-      JSON.stringify({
-        event: "post_properties.service_call_start",
-        requestId,
-        userId,
-      }),
-    );
-
     const result = await createProperty(payload, { userId });
 
-    // Checkpoint (d): insert succeeded — service returned property
-    console.log(
-      "[PROP_CREATE_DIAG]",
-      JSON.stringify({
-        event: "post_properties.service_call_success",
-        requestId,
-        propertyId: result.property.id,
-        geocodeStatus: result.geocodeStatus,
-      }),
-    );
-
-    // Checkpoint (e): post-insert — audit event
     step = "audit_event";
     emitAuditEvent({
       role: guard.ctx.role,
@@ -195,17 +103,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Checkpoint (f): final response boundary
-    console.log(
-      "[PROP_CREATE_DIAG]",
-      JSON.stringify({
-        event: "post_properties.response_send",
-        requestId,
-        propertyId: result.property.id,
-        statusCode: 201,
-      }),
-    );
-
     return NextResponse.json(
       {
         property: result.property,
@@ -215,35 +112,34 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const isError = error instanceof Error;
-    const sanitizedPayload = extractSanitizedPostPayload(body);
     const supabaseError = extractSupabaseError(error);
+    const supabase: {
+      code?: string;
+      details?: unknown;
+      hint?: unknown;
+      status?: number;
+    } = {};
 
-    console.error("api.properties.post.failure", {
-      event: "api.properties.post.failure",
-      route: "/api/properties",
-      method: "POST",
+    if (supabaseError.code) supabase.code = supabaseError.code;
+    if (supabaseError.details !== null) supabase.details = supabaseError.details;
+    if (supabaseError.hint !== null) supabase.hint = supabaseError.hint;
+    if (supabaseError.status !== null) supabase.status = supabaseError.status;
+
+    console.error("API_POST_FAILURE", {
+      route,
+      method,
       requestId,
-      correlationId,
       step,
-      error: {
-        name: isError ? error.name : typeof error,
-        message: isError ? error.message : String(error),
-        stack: isError ? (error.stack ?? null) : null,
-      },
-      supabaseError,
-      sanitizedPayload: {
-        ...sanitizedPayload,
-        requiredFieldPresence: {
-          hasName: Boolean(body.name),
-          hasCustomer: Boolean(body.customer),
-          hasAddress: Boolean(body.address),
-          hasCity: Boolean(body.city),
-          hasType: body.type !== undefined && body.type !== null,
-          hasStatus: body.status !== undefined && body.status !== null,
-          hasPrimarySystem: Boolean(body.primarySystem ?? body.primary_system),
-        },
-      },
+      errorName: isError ? error.name : typeof error,
+      errorMessage: isError ? error.message : String(error),
+      errorStack: isError ? (error.stack ?? null) : null,
+      ...(Object.keys(supabase).length > 0 ? { supabase } : {}),
     });
+
+    if (step === "body_parse") {
+      return invalidJsonResponse();
+    }
+
     return mapRouteError(error);
   }
 }
