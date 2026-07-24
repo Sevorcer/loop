@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import {
+  extractSanitizedPostPayload,
+  extractSupabaseError,
+  getPostRequestTrace,
+} from "@/lib/api/postFailureTelemetry";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
 import { createJob, listJobsWithActivity } from "@/services/jobs";
@@ -52,17 +57,22 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const { requestId, correlationId } = getPostRequestTrace(request, "jobs-post");
+  let step = "permission_guard";
+
   const guard = await requirePermission(request, "jobs", "insert");
   if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;
   try {
+    step = "body_parse";
     body = await readJsonObject(request);
   } catch {
     return invalidJsonResponse();
   }
 
   try {
+    step = "create_job_service";
     const job = await createJob({
       estimateId: body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
       equipmentBundleId:
@@ -91,6 +101,36 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ job }, { status: 201 });
   } catch (error) {
+    const isError = error instanceof Error;
+    const sanitizedPayload = extractSanitizedPostPayload(body);
+    const supabaseError = extractSupabaseError(error);
+
+    console.error("api.jobs.post.failure", {
+      event: "api.jobs.post.failure",
+      route: "/api/jobs",
+      method: "POST",
+      requestId,
+      correlationId,
+      step,
+      error: {
+        name: isError ? error.name : typeof error,
+        message: isError ? error.message : String(error),
+        stack: isError ? (error.stack ?? null) : null,
+      },
+      supabaseError,
+      sanitizedPayload: {
+        ...sanitizedPayload,
+        requiredFieldPresence: {
+          hasTitle: Boolean(body.title),
+          hasCustomerName: Boolean(body.customerName),
+          hasPropertyName: Boolean(body.propertyName),
+          hasAssignedTo: Boolean(body.assignedTo),
+          hasScheduledFor: Boolean(body.scheduledFor),
+          hasType: body.type !== undefined && body.type !== null,
+          hasPriority: body.priority !== undefined && body.priority !== null,
+        },
+      },
+    });
     return mapRouteError(error);
   }
 }
