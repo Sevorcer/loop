@@ -163,6 +163,7 @@ After any rollback, confirm:
 
 ## Related Documents
 
+- [Rollback Planning Checklist](../migrations/rollback-checklist.md) — fill this out before every migration PR
 - [Backup Policy](../backup-policy.md)
 - [Backup/Restore Runbook](backup-restore.md)
 - [Drill Report Template](../drill-report-template.md)

@@ -164,6 +164,28 @@ To reverse a change:
 > **Never delete or modify an already-applied migration file.** This breaks the
 > migration history and will cause CI to fail with an out-of-order error.
 
+For the full step-by-step rollback procedure (decision tree, Path A / Path B, and
+post-rollback verification) see the **[Migration Rollback Runbook](runbooks/migration-rollback.md)**.
+
+---
+
+## Opening a migration PR
+
+Use the **migration PR template** when your PR touches `supabase/migrations/`.
+The template requires a Rollback Plan section (blast radius, rollback SQL,
+data-loss risk, and post-rollback verification steps).
+
+**Open the template directly:**
+
+```
+https://github.com/Sevorcer/loop/compare/<branch>?template=migration.md
+```
+
+Or select `migration.md` from the template picker on the GitHub PR creation page.
+
+Fill out the full rollback checklist before requesting review:
+[`docs/migrations/rollback-checklist.md`](migrations/rollback-checklist.md)
+
 ---
 
 ## Migration file naming convention
