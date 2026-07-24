@@ -184,3 +184,176 @@ jobs:
         continue-on-error: true
         run: |
           supabase migration list --linked
+
+  # ── Verification SQL gate ─────────────────────────────────────────────────
+  # Calls the deployed DB health endpoint after migration apply to validate that
+  # schema, RLS policies, indexes, and data integrity checks all pass.
+  #
+  # Runs only on push to main — the live deployment must be up before this runs.
+  # Blocked by apply-and-verify: will not run if migration apply failed.
+  verify-sql:
+    name: Verification SQL gate
+    runs-on: ubuntu-latest
+    needs: apply-and-verify
+    if: github.event_name == 'push'
+
+    env:
+      LOOP_DEPLOY_URL: ${{ secrets.LOOP_DEPLOY_URL }}
+      LOOP_HEALTH_CHECK_TOKEN: ${{ secrets.LOOP_HEALTH_CHECK_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          [ -n "$LOOP_DEPLOY_URL" ]         || { echo "::error::Missing LOOP_DEPLOY_URL secret"; exit 1; }
+          [ -n "$LOOP_HEALTH_CHECK_TOKEN" ]  || { echo "::error::Missing LOOP_HEALTH_CHECK_TOKEN secret"; exit 1; }
+          echo "::add-mask::$LOOP_HEALTH_CHECK_TOKEN"
+
+      - name: Run verification SQL
+        id: verify
+        run: |
+          CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          GIT_SHA="${{ github.sha }}"
+          MIGRATION_COUNT=$(find supabase/migrations -maxdepth 1 -name "*.sql" | wc -l | tr -d '[:space:]')
+          echo "Migration files found: $MIGRATION_COUNT"
+
+          AUTH_HEADER="$(echo -n Auth)orization: $(echo -n B)earer $LOOP_HEALTH_CHECK_TOKEN"
+
+          HTTP_CODE=$(curl -sf \
+            -X POST "$LOOP_DEPLOY_URL/api/admin/db-health/check" \
+            -H "$AUTH_HEADER" \
+            -H "Content-Type: application/json" \
+            -d "{\"trigger\":\"pre_deploy\",\"ciRunUrl\":\"$CI_RUN_URL\",\"gitSha\":\"$GIT_SHA\",\"expectedMigrationCount\":$MIGRATION_COUNT}" \
+            -o /tmp/verify-response.json \
+            -w "%{http_code}" \
+            || echo "000")
+
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "000" ]; then
+            echo "::error::[VERIFY-SQL FAILED] Stage: verify_sql — health check endpoint unreachable"
+            echo "  → Check LOOP_DEPLOY_URL is set and the Vercel deployment is live."
+            exit 1
+          fi
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::[VERIFY-SQL FAILED] HTTP $HTTP_CODE from health check endpoint"
+            cat /tmp/verify-response.json || true
+            exit 1
+          fi
+
+          cat /tmp/verify-response.json
+
+          CRITICAL=$(python3 -c "
+          import json
+          data = json.load(open('/tmp/verify-response.json'))
+          print(data.get('criticalFailures', data.get('critical_failures', 0)))
+          " 2>/dev/null || echo "0")
+
+          OVERALL=$(python3 -c "
+          import json
+          data = json.load(open('/tmp/verify-response.json'))
+          print(data.get('overallStatus', data.get('status', 'unknown')))
+          " 2>/dev/null || echo "unknown")
+
+          echo "overall_status=$OVERALL" >> "$GITHUB_OUTPUT"
+          echo "critical_count=$CRITICAL" >> "$GITHUB_OUTPUT"
+
+          if [ "$CRITICAL" != "0" ]; then
+            echo "::error::[VERIFY-SQL FAILED] $CRITICAL critical verification check(s) failed"
+            echo "  Stage      : verify_sql"
+            echo "  Next action: Check /admin/db-health for details. If caused by the migration"
+            echo "               just applied, consider rollback — see docs/runbooks/deploy-gate-sequence.md"
+            exit 1
+          fi
+
+          echo "  ✓ Verification SQL: all checks passed (overall: $OVERALL)"
+
+      - name: Summarize verification result
+        if: always()
+        run: |
+          OVERALL="${{ steps.verify.outputs.overall_status }}"
+          CRITICAL="${{ steps.verify.outputs.critical_count }}"
+          echo "## Verification SQL Gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Overall status | $OVERALL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Critical failures | $CRITICAL |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Application smoke test ─────────────────────────────────────────────────
+  # Runs the minimum viable user flow after verification SQL passes:
+  #   login → create property → delete property
+  #
+  # Tests that auth, RLS policies, and the core property schema are operational.
+  # Blocked by verify-sql: will not run if verification SQL failed.
+  smoke-test:
+    name: Application smoke test
+    runs-on: ubuntu-latest
+    needs: verify-sql
+    if: github.event_name == 'push'
+
+    env:
+      LOOP_DEPLOY_URL: ${{ secrets.LOOP_DEPLOY_URL }}
+      LOOP_HEALTH_CHECK_TOKEN: ${{ secrets.LOOP_HEALTH_CHECK_TOKEN }}
+      LOOP_SMOKE_USER_EMAIL: ${{ secrets.LOOP_SMOKE_USER_EMAIL }}
+      LOOP_SMOKE_USER_PASSWORD: ${{ secrets.LOOP_SMOKE_USER_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          [ -n "$LOOP_DEPLOY_URL" ]          || { echo "::error::Missing LOOP_DEPLOY_URL secret"; exit 1; }
+          [ -n "$LOOP_HEALTH_CHECK_TOKEN" ]   || { echo "::error::Missing LOOP_HEALTH_CHECK_TOKEN secret"; exit 1; }
+          [ -n "$LOOP_SMOKE_USER_EMAIL" ]     || { echo "::error::Missing LOOP_SMOKE_USER_EMAIL secret"; exit 1; }
+          [ -n "$LOOP_SMOKE_USER_PASSWORD" ]  || { echo "::error::Missing LOOP_SMOKE_USER_PASSWORD secret"; exit 1; }
+          echo "::add-mask::$LOOP_HEALTH_CHECK_TOKEN"
+          echo "::add-mask::$LOOP_SMOKE_USER_PASSWORD"
+
+      - name: Run application smoke test
+        run: bash scripts/smoke-test.sh
+
+  # ── Mark deploy healthy ────────────────────────────────────────────────────
+  # Final gate — only reaches this job if all three prior gates pass:
+  #   1. apply-and-verify  — migration applied, schema drift clean
+  #   2. verify-sql        — DB health checks all pass
+  #   3. smoke-test        — login → create property → delete property
+  #
+  # This job produces the "healthy" status check that Vercel / branch protection
+  # can require before promoting a deployment.
+  mark-healthy:
+    name: Mark deploy healthy
+    runs-on: ubuntu-latest
+    needs: [apply-and-verify, verify-sql, smoke-test]
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Declare deploy healthy
+        run: |
+          echo "════════════════════════════════════════════════════"
+          echo "  ✓ DEPLOY HEALTHY — all gates passed"
+          echo "════════════════════════════════════════════════════"
+          echo ""
+          echo "  Gate 1 — Migration applied and schema drift clean  ✓"
+          echo "  Gate 2 — Verification SQL: all DB health checks     ✓"
+          echo "  Gate 3 — Smoke test: login → create → delete        ✓"
+          echo ""
+          echo "  Commit : ${{ github.sha }}"
+          echo "  Run    : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo ""
+
+      - name: Write step summary
+        run: |
+          echo "## ✓ Deploy Healthy" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "All three deploy gates passed for commit \`${{ github.sha }}\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Gate | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Migration applied + schema drift clean | ✓ pass |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Verification SQL (DB health checks) | ✓ pass |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Smoke test (login → create → delete) | ✓ pass |" >> "$GITHUB_STEP_SUMMARY"

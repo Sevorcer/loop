@@ -53,6 +53,10 @@ const EXEMPT_ROUTES: Record<string, string> = {
   // token for CI automation. Returns 503 when the env var is not set.
   "admin/db-health/check/route.ts":
     "CI trigger endpoint authenticated by LOOP_HEALTH_CHECK_TOKEN bearer token, not by user session.",
+  // No session-based auth — authenticated by LOOP_HEALTH_CHECK_TOKEN bearer
+  // token for CI automation (deploy gate smoke test). Returns 503 when the env var is not set.
+  "admin/smoke-test/route.ts":
+    "CI deploy gate endpoint authenticated by LOOP_HEALTH_CHECK_TOKEN bearer token, not by user session.",
 };
 
 // ---------------------------------------------------------------------------
