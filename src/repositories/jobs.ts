@@ -190,6 +190,7 @@ export async function createJob(
     error: authError,
   } = await supabase.auth.getUser();
 
+  // TODO: Remove this temporary diagnostic once auth context propagation is verified in production.
   console.info("API_INSERT_AUTH_CONTEXT", {
     route: contextInput?.route ?? "/api/jobs",
     requestId: contextInput?.requestId ?? null,

@@ -13,9 +13,13 @@ export interface RepositoryContext {
 }
 
 export interface SessionRepositoryContextInput {
+  /** Authenticated user id resolved earlier in the request pipeline (if already known). */
   userId?: string;
+  /** Request-scoped Supabase server client bound to incoming request cookies/session. */
   supabase?: SupabaseClient;
+  /** Route path for temporary diagnostics. */
   route?: string;
+  /** Request correlation id for temporary diagnostics. */
   requestId?: string;
 }
 

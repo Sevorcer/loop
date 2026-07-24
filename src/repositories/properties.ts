@@ -284,6 +284,7 @@ export async function createPropertyRecord(
     error: authError,
   } = await supabase.auth.getUser();
 
+  // TODO: Remove this temporary diagnostic once auth context propagation is verified in production.
   console.info("API_INSERT_AUTH_CONTEXT", {
     route: contextInput?.route ?? "/api/properties",
     requestId: contextInput?.requestId ?? null,
