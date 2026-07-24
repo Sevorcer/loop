@@ -13,7 +13,10 @@ export interface RepositoryContext {
 }
 
 export interface SessionRepositoryContextInput {
-  userId: string;
+  userId?: string;
+  supabase?: SupabaseClient;
+  route?: string;
+  requestId?: string;
 }
 
 type UserProfileLookupFailureReason = "profile_row_missing_or_rls_hidden" | "profile_org_id_missing";
@@ -60,7 +63,7 @@ export async function getRepositoryContext(
     throw new Error("SUPABASE_NOT_CONFIGURED");
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = input?.supabase ?? (await createSupabaseServerClient());
 
   // If route already authenticated user, trust that identity and skip a second auth.getUser() lookup.
   let userId: string | null = input?.userId ?? null;

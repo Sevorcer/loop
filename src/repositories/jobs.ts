@@ -3,7 +3,7 @@ import "server-only";
 import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActivity";
 
-import { getRepositoryContext } from "./supabaseContext";
+import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
 interface JobRow {
   id: string;
@@ -179,8 +179,27 @@ export async function getJobRowById(id: string): Promise<JobRow | null> {
   return (data as JobRow | null) ?? null;
 }
 
-export async function createJob(jobNumber: string, input: JobWriteInput): Promise<Job> {
-  const { supabase, orgId } = await getRepositoryContext();
+export async function createJob(
+  jobNumber: string,
+  input: JobWriteInput,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<Job> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  console.info("API_INSERT_AUTH_CONTEXT", {
+    route: contextInput?.route ?? "/api/jobs",
+    requestId: contextInput?.requestId ?? null,
+    table: "jobs",
+    hasUserId: Boolean(user?.id),
+    userId: user?.id ?? null,
+    expectedUserId: contextInput?.userId ?? null,
+    authError: authError?.message ?? null,
+  });
+
   const { data, error } = await supabase
     .from("jobs")
     .insert({
@@ -271,8 +290,11 @@ export async function deleteJob(id: string): Promise<boolean> {
   return Boolean(count);
 }
 
-export async function createJobActivity(input: JobActivityWriteInput): Promise<JobActivity> {
-  const { supabase, orgId } = await getRepositoryContext();
+export async function createJobActivity(
+  input: JobActivityWriteInput,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<JobActivity> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
   const { data, error } = await supabase
     .from("job_activity")
     .insert({
@@ -308,8 +330,10 @@ export async function listActivityByJobId(jobId: string): Promise<JobActivity[]>
   return ((data ?? []) as JobActivityRow[]).map(mapActivity);
 }
 
-export async function countJobs(): Promise<number> {
-  const { supabase, orgId } = await getRepositoryContext();
+export async function countJobs(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<number> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
   const { count, error } = await supabase
     .from("jobs")
     .select("id", { count: "exact", head: true })
