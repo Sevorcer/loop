@@ -55,46 +55,29 @@ function validPropertyBody() {
 }
 
 // ---------------------------------------------------------------------------
-// Module-load sentinel — API_ROUTE_MODULE_LOADED must still be emitted
+// Module-load sentinel — API_ROUTE_MODULE_LOADED must NOT be emitted
 // ---------------------------------------------------------------------------
 
 describe("properties route module-load sentinel", () => {
   let consoleInfoMock: ReturnType<typeof vi.spyOn>;
-  const originalCommit = process.env.VERCEL_GIT_COMMIT_SHA;
-  const originalUrl = process.env.VERCEL_URL;
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     consoleInfoMock = vi.spyOn(console, "info").mockImplementation(() => {});
-    process.env.VERCEL_GIT_COMMIT_SHA = "commit-sha";
-    process.env.VERCEL_URL = "loop.vercel.app";
   });
 
   afterEach(() => {
     consoleInfoMock.mockRestore();
-
-    if (originalCommit === undefined) {
-      delete process.env.VERCEL_GIT_COMMIT_SHA;
-    } else {
-      process.env.VERCEL_GIT_COMMIT_SHA = originalCommit;
-    }
-
-    if (originalUrl === undefined) {
-      delete process.env.VERCEL_URL;
-    } else {
-      process.env.VERCEL_URL = originalUrl;
-    }
   });
 
-  it("logs module load metadata when the route module is imported", async () => {
+  it("does not emit API_ROUTE_MODULE_LOADED on import", async () => {
     await import("@/app/api/properties/route");
 
-    expect(consoleInfoMock).toHaveBeenCalledWith("API_ROUTE_MODULE_LOADED", {
-      route: "/api/properties",
-      commit: "commit-sha",
-      url: "loop.vercel.app",
-    });
+    expect(consoleInfoMock).not.toHaveBeenCalledWith(
+      "API_ROUTE_MODULE_LOADED",
+      expect.anything(),
+    );
   });
 });
 

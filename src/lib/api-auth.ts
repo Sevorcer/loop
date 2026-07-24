@@ -179,12 +179,6 @@ export async function requirePermission(
     incrementAuthMetric("auth_401_total", { route: trace.route });
 
     const response = unauthorizedResponse("A valid session is required.");
-    if (process.env.NODE_ENV !== "production") {
-      const hasCookie = request.headers.get("cookie") !== null;
-      response.headers.set("x-auth-debug-has-cookie", String(hasCookie));
-      response.headers.set("x-auth-debug-node-env", process.env.NODE_ENV ?? "unknown");
-    }
-
     return { ok: false, response: applyTraceHeaders(response, trace) };
   }
 

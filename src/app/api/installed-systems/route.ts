@@ -15,21 +15,6 @@ export async function GET(request: Request) {
   const guard = await requirePermission(request, "installed_systems", "select");
   if (!guard.ok) return guard.response;
 
-  console.log(
-    "[AUTH_FLOW]",
-    JSON.stringify({
-      event: "guard.pass",
-      route: "/api/installed-systems",
-      userId: guard.ctx.userId,
-      role: guard.ctx.role,
-      requestId:
-        request.headers.get("x-request-id") ??
-        request.headers.get("x-correlation-id") ??
-        request.headers.get("x-vercel-id") ??
-        undefined,
-    }),
-  );
-
   try {
     const snapshot = await getInstalledSystemsSnapshot();
     return NextResponse.json(snapshot);

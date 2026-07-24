@@ -262,39 +262,6 @@ export async function createPropertyRecord(
       ? input.customerId
       : await resolveCustomerIdByName(input.customer, contextInput);
 
-  // Checkpoint (c): before supabase insert — log payload identifiers for diagnosis
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "createPropertyRecord.insert_start",
-      orgId,
-      customerId: customerId ?? null,
-      type: input.type,
-      status: input.status,
-      primarySystem: input.primarySystem,
-      openJobs: input.openJobs ?? 0,
-      hasName: Boolean(input.name),
-      hasAddress: Boolean(input.address),
-      hasCity: Boolean(input.city),
-    }),
-  );
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  // TODO: Remove this temporary diagnostic once auth context propagation is verified in production.
-  console.info("API_INSERT_AUTH_CONTEXT", {
-    route: contextInput?.route ?? "/api/properties",
-    requestId: contextInput?.requestId ?? null,
-    table: "properties",
-    hasUserId: Boolean(user?.id),
-    userId: user?.id ?? null,
-    expectedUserId: contextInput?.userId ?? null,
-    authError: authError?.message ?? null,
-  });
-
   const { data, error } = await supabase
     .from("properties")
     .insert({
@@ -325,19 +292,6 @@ export async function createPropertyRecord(
       hint?: unknown;
       status?: number;
     };
-    // Checkpoint (d): insert failed — log full Supabase error payload
-    console.error(
-      "[PROP_CREATE_DIAG]",
-      JSON.stringify({
-        event: "createPropertyRecord.insert_error",
-        orgId,
-        supabaseCode: supabaseError.code ?? null,
-        supabaseMessage: supabaseError.message ?? null,
-        supabaseDetails: supabaseError.details ?? null,
-        supabaseHint: supabaseError.hint ?? null,
-        supabaseStatus: supabaseError.status ?? null,
-      }),
-    );
     // Preserve full Supabase error fields so the route handler can surface them
     throw Object.assign(new Error(error.message), {
       code: supabaseError.code ?? null,
@@ -346,15 +300,6 @@ export async function createPropertyRecord(
       status: supabaseError.status ?? null,
     });
   }
-
-  // Checkpoint (d): insert succeeded
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "createPropertyRecord.insert_success",
-      propertyId: (data as PropertyRow).id,
-    }),
-  );
 
   return mapProperty(data as PropertyRow, input.customer);
 }
