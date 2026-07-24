@@ -10,12 +10,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { emitAuditEvent } from "@/lib/audit";
 import { createProperty, listProperties } from "@/services/properties";
 
-console.info("API_ROUTE_MODULE_LOADED", {
-  route: "/api/properties",
-  commit: process.env.VERCEL_GIT_COMMIT_SHA,
-  url: process.env.VERCEL_URL,
-});
-
 const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
 const PROPERTY_STATUSES = new Set(["Active", "Pending", "Inactive"]);
 

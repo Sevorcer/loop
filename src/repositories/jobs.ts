@@ -185,21 +185,6 @@ export async function createJob(
   contextInput?: SessionRepositoryContextInput,
 ): Promise<Job> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  // TODO: Remove this temporary diagnostic once auth context propagation is verified in production.
-  console.info("API_INSERT_AUTH_CONTEXT", {
-    route: contextInput?.route ?? "/api/jobs",
-    requestId: contextInput?.requestId ?? null,
-    table: "jobs",
-    hasUserId: Boolean(user?.id),
-    userId: user?.id ?? null,
-    expectedUserId: contextInput?.userId ?? null,
-    authError: authError?.message ?? null,
-  });
 
   const { data, error } = await supabase
     .from("jobs")
