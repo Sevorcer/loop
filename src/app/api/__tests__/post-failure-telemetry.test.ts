@@ -96,6 +96,14 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
+    expect(consoleInfoMock.mock.calls[0]).toEqual([
+      "API_ROUTE_POST_START",
+      { route: "/api/properties" },
+    ]);
+    expect(consoleInfoMock.mock.calls[1]).toEqual([
+      "API_ROUTE_TRY_ENTER",
+      { route: "/api/properties" },
+    ]);
     expect(consoleInfoMock).toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
       expect.objectContaining({
@@ -108,17 +116,15 @@ describe("POST route failure telemetry", () => {
       "API_POST_FAILURE",
       expect.objectContaining({
         route: "/api/properties",
-        method: "POST",
         requestId: "req-prop-1",
         step: "create_property_service",
-        errorName: "Error",
-        errorMessage: "insert failed",
-        supabase: expect.objectContaining({
-          code: "23505",
-          details: "duplicate key",
-          hint: "check unique index",
-          status: 500,
-        }),
+        name: "Error",
+        message: "insert failed",
+        stack: expect.any(String),
+        code: "23505",
+        details: "duplicate key",
+        hint: "check unique index",
+        status: 500,
       }),
     );
   });
@@ -155,6 +161,14 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
+    expect(consoleInfoMock.mock.calls[0]).toEqual([
+      "API_ROUTE_POST_START",
+      { route: "/api/jobs" },
+    ]);
+    expect(consoleInfoMock.mock.calls[1]).toEqual([
+      "API_ROUTE_TRY_ENTER",
+      { route: "/api/jobs" },
+    ]);
     expect(consoleInfoMock).toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
       expect.objectContaining({
@@ -167,17 +181,15 @@ describe("POST route failure telemetry", () => {
       "API_POST_FAILURE",
       expect.objectContaining({
         route: "/api/jobs",
-        method: "POST",
         requestId: "req-job-1",
         step: "create_job_service",
-        errorName: "Error",
-        errorMessage: "jobs insert failed",
-        supabase: expect.objectContaining({
-          code: "PGRST301",
-          details: "db details",
-          hint: "db hint",
-          status: 500,
-        }),
+        name: "Error",
+        message: "jobs insert failed",
+        stack: expect.any(String),
+        code: "PGRST301",
+        details: "db details",
+        hint: "db hint",
+        status: 500,
       }),
     );
   });
