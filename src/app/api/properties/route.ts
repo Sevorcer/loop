@@ -9,6 +9,12 @@ import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/ro
 import { emitAuditEvent } from "@/lib/audit";
 import { createProperty, listProperties } from "@/services/properties";
 
+console.info("API_ROUTE_MODULE_LOADED", {
+  route: "/api/properties",
+  commit: process.env.VERCEL_GIT_COMMIT_SHA,
+  url: process.env.VERCEL_URL,
+});
+
 const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
 const PROPERTY_STATUSES = new Set(["Active", "Pending", "Inactive"]);
 
@@ -60,6 +66,9 @@ export async function GET(request: Request) {
 
 
 export async function POST(request: Request) {
+  console.info("API_ROUTE_POST_START", {
+    route: "/api/properties",
+  });
   const { requestId } = getPostRequestTrace(request, "prop-post");
   const route = "/api/properties";
   const method = "POST";
