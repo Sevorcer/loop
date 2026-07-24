@@ -48,7 +48,7 @@ vi.mock("@/services/jobs", () => ({
 import { POST as postJobs } from "@/app/api/jobs/route";
 import { POST as postProperties } from "@/app/api/properties/route";
 
-describe("POST route failure telemetry — API_POST_FAILURE is emitted on write errors", () => {
+describe("POST route write-failure telemetry — [WRITE_FAILURE] is emitted on write errors", () => {
   let consoleErrorMock: ReturnType<typeof vi.spyOn>;
   let consoleInfoMock: ReturnType<typeof vi.spyOn>;
 
@@ -72,7 +72,7 @@ describe("POST route failure telemetry — API_POST_FAILURE is emitted on write 
     consoleInfoMock.mockRestore();
   });
 
-  it("emits API_POST_FAILURE with structured telemetry for POST /api/properties", async () => {
+  it("emits [WRITE_FAILURE] structured JSON for POST /api/properties", async () => {
     readJsonObjectMock.mockResolvedValue({
       name: "Smoke Test Property",
       customer: "Acme",
@@ -105,31 +105,34 @@ describe("POST route failure telemetry — API_POST_FAILURE is emitted on write 
       expect.anything(),
     );
     expect(consoleInfoMock).not.toHaveBeenCalledWith(
-      "API_ROUTE_TRY_ENTER",
-      expect.anything(),
-    );
-    expect(consoleInfoMock).not.toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
       expect.anything(),
     );
+    // Must emit exactly one [WRITE_FAILURE] structured log line.
     expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"route":"/api/properties"'),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"requestId":"req-prop-1"'),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"errorMessage":"insert failed"'),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"errorCode":"23505"'),
+    );
+    // Old format must NOT be present.
+    expect(consoleErrorMock).not.toHaveBeenCalledWith(
       "API_POST_FAILURE",
-      expect.objectContaining({
-        route: "/api/properties",
-        requestId: "req-prop-1",
-        step: "create_property_service",
-        name: "Error",
-        message: "insert failed",
-        stack: expect.any(String),
-        code: "23505",
-        details: "duplicate key",
-        hint: "check unique index",
-        status: 500,
-      }),
+      expect.anything(),
     );
   });
 
-  it("emits API_POST_FAILURE with structured telemetry for POST /api/jobs", async () => {
+  it("emits [WRITE_FAILURE] structured JSON for POST /api/jobs", async () => {
     readJsonObjectMock.mockResolvedValue({
       title: "Install Heat Pump",
       customerName: "Acme",
@@ -157,32 +160,52 @@ describe("POST route failure telemetry — API_POST_FAILURE is emitted on write 
     );
 
     expect(response.status).toBe(500);
-    expect(consoleInfoMock).not.toHaveBeenCalledWith(
-      "API_ROUTE_POST_START",
-      expect.anything(),
-    );
-    expect(consoleInfoMock).not.toHaveBeenCalledWith(
-      "API_ROUTE_TRY_ENTER",
-      expect.anything(),
-    );
-    expect(consoleInfoMock).not.toHaveBeenCalledWith(
-      "API_POST_CHECKPOINT",
-      expect.anything(),
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"route":"/api/jobs"'),
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"requestId":"req-job-1"'),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"errorMessage":"jobs insert failed"'),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"errorCode":"PGRST301"'),
+    );
+    // Old format must NOT be present.
+    expect(consoleErrorMock).not.toHaveBeenCalledWith(
       "API_POST_FAILURE",
-      expect.objectContaining({
-        route: "/api/jobs",
-        requestId: "req-job-1",
-        step: "create_job_service",
-        name: "Error",
-        message: "jobs insert failed",
-        stack: expect.any(String),
-        code: "PGRST301",
-        details: "db details",
-        hint: "db hint",
-        status: 500,
+      expect.anything(),
+    );
+  });
+
+  it("includes step label in [WRITE_FAILURE] payload", async () => {
+    readJsonObjectMock.mockResolvedValue({
+      name: "Smoke Test Property",
+      customer: "Acme",
+      address: "123 Main St",
+      city: "Calgary",
+      type: "Residential",
+      status: "Active",
+      primarySystem: "Furnace",
+    });
+
+    createPropertyMock.mockRejectedValue(new Error("db timeout"));
+
+    await postProperties(
+      new Request("http://localhost/api/properties", {
+        method: "POST",
+        headers: { "x-request-id": "req-step-1" },
       }),
+    );
+
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"step":"create_property_service"'),
     );
   });
 });

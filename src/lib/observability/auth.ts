@@ -11,6 +11,7 @@ export type AuthLifecycleEvent =
   | "session_refresh_success"
   | "session_refresh_failure"
   | "authz_decision_allow"
+  | "authz_decision_deny"
   | "unauthorized_access_attempt";
 
 export type AuthMetricName =

@@ -72,7 +72,7 @@ function extractErrorInfo(error: unknown): {
 }
 
 export function mapRouteError(error: unknown) {
-  const { message, code, status, details } = extractErrorInfo(error);
+  const { message, code, status } = extractErrorInfo(error);
   const lowerMessage = message.toLowerCase();
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
@@ -89,30 +89,11 @@ export function mapRouteError(error: unknown) {
     message === "USER_PROFILE_NOT_FOUND" ||
     code === "USER_PROFILE_NOT_FOUND"
   ) {
-    console.error(
-      "[AUTH_FLOW]",
-      JSON.stringify({
-        event: "mapRouteError.emit401",
-        reason: code ?? message,
-        statusCode: 401,
-        details,
-        stack: new Error("AUTH_FLOW_STACK").stack,
-      }),
-    );
     return createApiErrorResponse("UNAUTHORIZED", "A valid session is required.", 401);
   }
 
   // Honor explicit upstream status/code when present.
   if (status === 401 || code === "UNAUTHORIZED") {
-    console.error(
-      "[AUTH_FLOW]",
-      JSON.stringify({
-        event: "mapRouteError.emit401",
-        reason: `upstream_status=${status ?? "none"} code=${code ?? "none"}`,
-        statusCode: 401,
-        stack: new Error("AUTH_FLOW_STACK").stack,
-      }),
-    );
     return createApiErrorResponse("UNAUTHORIZED", "A valid session is required.", 401);
   }
 

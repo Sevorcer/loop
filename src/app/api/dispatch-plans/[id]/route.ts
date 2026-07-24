@@ -17,6 +17,7 @@ import {
   mapRouteError,
   readJsonObject,
 } from "@/lib/api/routeErrors";
+import { logWriteFailure } from "@/lib/observability/writes";
 import {
   assignCrewToPlan,
   emitDispatchEvent,
@@ -112,6 +113,7 @@ export async function PATCH(
         return createApiErrorResponse("INVALID_INPUT", `Unknown action: ${action}`, 400);
     }
   } catch (error) {
+    logWriteFailure({ route: "/api/dispatch-plans/[id]", request }, error);
     return mapRouteError(error);
   }
 }

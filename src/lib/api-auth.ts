@@ -186,7 +186,7 @@ export async function requirePermission(
 
   if (!hasPermission(role, table, action)) {
     logAuthEvent({
-      event: "unauthorized_access_attempt",
+      event: "authz_decision_deny",
       outcome: "deny",
       route: trace.route,
       statusCode: 403,

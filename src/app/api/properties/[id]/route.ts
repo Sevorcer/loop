@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import { logWriteFailure } from "@/lib/observability/writes";
 import { deleteProperty, getProperty, updateProperty } from "@/services/properties";
 
 const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
@@ -102,6 +103,7 @@ export async function PATCH(
       geocodeStatus: updated.geocodeStatus,
     });
   } catch (error) {
+    logWriteFailure({ route: "/api/properties/[id]", request }, error);
     return mapRouteError(error);
   }
 }
@@ -134,6 +136,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Property deleted.", id });
   } catch (error) {
+    logWriteFailure({ route: "/api/properties/[id]", request }, error);
     return mapRouteError(error);
   }
 }

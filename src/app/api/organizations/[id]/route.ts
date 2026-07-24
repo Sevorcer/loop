@@ -5,6 +5,7 @@ import {
   readJsonObject,
 } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import { logWriteFailure } from "@/lib/observability/writes";
 import {
   mapOrganizationRouteError,
   organizationNotFound,
@@ -90,6 +91,7 @@ export async function PATCH(
 
     return NextResponse.json({ organization });
   } catch (error) {
+    logWriteFailure({ route: "/api/organizations/[id]", request }, error);
     const mapped = mapOrganizationRouteError(error);
     return NextResponse.json(mapped.error, { status: mapped.status });
   }
@@ -123,6 +125,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Organization deleted.", id });
   } catch (error) {
+    logWriteFailure({ route: "/api/organizations/[id]", request }, error);
     const mapped = mapOrganizationRouteError(error);
     return NextResponse.json(mapped.error, { status: mapped.status });
   }

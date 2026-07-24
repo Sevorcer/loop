@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { logWriteFailure } from "@/lib/observability/writes";
 import {
   createGcIssueRequest,
   listGcIssueRequests,
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
     );
     return NextResponse.json({ issue }, { status: 201 });
   } catch (error) {
+    logWriteFailure({ route: "/api/gc-issue-requests", request }, error);
     return mapRouteError(error);
   }
 }
