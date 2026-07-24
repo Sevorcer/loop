@@ -78,13 +78,39 @@ supabase migration new <short_description>
 # Creates: supabase/migrations/YYYYMMDDHHMMSS_add_jobs_table.sql
 ```
 
+Use `supabase/migration-template.sql` as a starting point — copy the structure
+into the generated file and fill in your DDL.
+
 Edit the generated file, then apply it:
 
 ```bash
 supabase db push
 ```
 
-### 4. Verify migration file structure (offline)
+### 4. Create the companion verification file (required)
+
+Every migration **must** have a companion verification file. After writing your
+migration SQL, create:
+
+```
+supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql
+```
+
+The timestamp and description must match the migration file exactly. The
+verification file contains `DO $$ BEGIN ASSERT …; END; $$;` blocks that assert
+every structural and security outcome of the migration (tables, columns, RLS,
+policies, indexes).
+
+CI will block merge if the companion file is missing. See
+[`docs/migration-verification-standard.md`](migration-verification-standard.md)
+for the full standard, assertion patterns, and examples.
+
+```bash
+# Run the verification against the live database after applying:
+psql "$DATABASE_URL" -f supabase/verifications/YYYYMMDDHHMMSS_<description>.verify.sql
+```
+
+### 5. Verify migration file structure (offline)
 
 The same script CI runs — no database credentials needed:
 
@@ -104,8 +130,9 @@ This checks:
 - No duplicate timestamps
 - Files are in ascending timestamp order
 - No empty files
+- **Every migration has a companion `.verify.sql` in `supabase/verifications/`** (Check 5)
 
-### 5. Check for schema drift
+### 6. Check for schema drift
 
 Compares the current database schema against what the migration files describe.
 A clean state produces no output:
