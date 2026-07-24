@@ -115,6 +115,23 @@ for FILE in "${FILES[@]}"; do
   fi
 done
 
+# ── check 5: every migration has a companion verification file ────────────────
+
+info ""
+info "5. Verification file required (supabase/verifications/<TIMESTAMP>_<desc>.verify.sql)"
+
+VERIF_DIR="$(cd "$(dirname "$0")/../supabase/verifications" && pwd)"
+
+for FILE in "${FILES[@]}"; do
+  BASENAME="$(basename "$FILE" .sql)"
+  VERIF_FILE="$VERIF_DIR/${BASENAME}.verify.sql"
+  if [ ! -f "$VERIF_FILE" ]; then
+    fail "No verification file for $BASENAME.sql — expected supabase/verifications/${BASENAME}.verify.sql"
+  else
+    pass "$BASENAME has verification file"
+  fi
+done
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 info ""

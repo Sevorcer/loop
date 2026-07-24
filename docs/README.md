@@ -19,3 +19,4 @@
 - [Auth/Authz Observability Baseline](architecture/security/auth-observability.md)
 - [RLS Role Matrix](architecture/security/rls-role-matrix.md)
 - [Database Overview](database.md)
+- [Migration Verification Standard](migration-verification-standard.md)
