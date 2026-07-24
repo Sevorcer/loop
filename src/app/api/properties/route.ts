@@ -66,16 +66,21 @@ export async function GET(request: Request) {
 
 
 export async function POST(request: Request) {
+  let requestId: string | undefined;
+  let step: string | undefined;
+  let body: Record<string, unknown>;
+
   console.info("API_ROUTE_POST_START", {
     route: "/api/properties",
   });
-  const { requestId } = getPostRequestTrace(request, "prop-post");
-  const route = "/api/properties";
-  const method = "POST";
-  let step = "permission_guard";
-  let body: Record<string, unknown> = {};
 
   try {
+    console.info("API_ROUTE_TRY_ENTER", { route: "/api/properties" });
+    requestId = getPostRequestTrace(request, "prop-post").requestId;
+    step = "permission_guard";
+    body = {};
+    const route = "/api/properties";
+
     const guard = await requirePermission(request, "properties", "insert");
     if (!guard.ok) return guard.response;
 
@@ -120,29 +125,22 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    const route = "/api/properties";
+    const tracedRequestId = requestId ?? getPostRequestTrace(request, "prop-post").requestId;
     const isError = error instanceof Error;
     const supabaseError = extractSupabaseError(error);
-    const supabase: {
-      code?: string;
-      details?: unknown;
-      hint?: unknown;
-      status?: number;
-    } = {};
-
-    if (supabaseError.code) supabase.code = supabaseError.code;
-    if (supabaseError.details !== null) supabase.details = supabaseError.details;
-    if (supabaseError.hint !== null) supabase.hint = supabaseError.hint;
-    if (supabaseError.status !== null) supabase.status = supabaseError.status;
 
     console.error("API_POST_FAILURE", {
       route,
-      method,
-      requestId,
+      requestId: tracedRequestId,
       step,
-      errorName: isError ? error.name : typeof error,
-      errorMessage: isError ? error.message : String(error),
-      errorStack: isError ? (error.stack ?? null) : null,
-      ...(Object.keys(supabase).length > 0 ? { supabase } : {}),
+      name: isError ? error.name : typeof error,
+      message: isError ? error.message : String(error),
+      stack: isError ? (error.stack ?? null) : null,
+      ...(supabaseError.code ? { code: supabaseError.code } : {}),
+      ...(supabaseError.details !== null ? { details: supabaseError.details } : {}),
+      ...(supabaseError.hint !== null ? { hint: supabaseError.hint } : {}),
+      ...(supabaseError.status !== null ? { status: supabaseError.status } : {}),
     });
 
     if (step === "body_parse") {

@@ -104,6 +104,10 @@ describe("properties route sentinel logs", () => {
       "API_ROUTE_POST_START",
       { route: "/api/properties" },
     ]);
+    expect(consoleInfoMock.mock.calls[1]).toEqual([
+      "API_ROUTE_TRY_ENTER",
+      { route: "/api/properties" },
+    ]);
     expect(consoleInfoMock).toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
       expect.objectContaining({
