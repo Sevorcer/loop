@@ -74,47 +74,6 @@ function extractRoleFromUser(user: {
   return null;
 }
 
-// ---------- TEMP DIAGNOSTICS ----------
-let authDiagSeq = 0;
-function nextAuthDiagId() {
-  authDiagSeq += 1;
-  return `authdiag-${Date.now()}-${authDiagSeq}`;
-}
-
-function getRequestIdFromHeaders(request: Request): string | null {
-  return (
-    request.headers.get("x-request-id") ??
-    request.headers.get("x-correlation-id") ??
-    request.headers.get("x-vercel-id") ??
-    null
-  );
-}
-
-function logAuthDiag(event: string, payload: Record<string, unknown>) {
-  console.log("[AUTH_DIAG]", JSON.stringify({ event, ...payload }));
-}
-
-function captureStack(): string {
-  return new Error("AUTH_DIAG_STACK").stack ?? "no-stack";
-}
-
-function getCookieDiagnostics(request: Request) {
-  const cookie = request.headers.get("cookie") ?? "";
-  return {
-    hasCookieHeader: cookie.length > 0,
-    hasSbAccessCookie:
-      cookie.includes("sb-access-token") ||
-      cookie.includes("sb:token") ||
-      cookie.includes("sb-"),
-    hasSbRefreshCookie:
-      cookie.includes("sb-refresh-token") ||
-      cookie.includes("refresh_token") ||
-      cookie.includes("sb-"),
-    xVercelId: request.headers.get("x-vercel-id"),
-    userAgent: request.headers.get("user-agent"),
-  };
-}
-// ---------- /TEMP DIAGNOSTICS ----------
 
 async function probeSession(): Promise<SessionProbeResult> {
   try {
@@ -157,121 +116,38 @@ function isMissingSessionError(err: SessionProbeResult["error"]) {
 type ResolvedAuth = { role: AppRole; userId: string };
 
 async function resolveRequestAuth(request: Request): Promise<ResolvedAuth | null> {
-  const diagId = nextAuthDiagId();
-  const reqId = getRequestIdFromHeaders(request);
-  const url = (() => {
-    try {
-      return new URL(request.url).pathname;
-    } catch {
-      return request.url;
-    }
-  })();
-
-  const cookieDiag = getCookieDiagnostics(request);
-
-  logAuthDiag("resolveRequestRole.enter", {
-    diagId,
-    reqId,
-    method: request.method,
-    url,
-    ...cookieDiag,
-    stack: captureStack(),
-  });
-
   try {
     let session = await probeSession();
-    let retried = false;
 
     if (!session.user && isMissingSessionError(session.error)) {
-      retried = true;
-      logAuthDiag("resolveRequestRole.retry.missing_session", {
-        diagId,
-        reqId,
-        errorMessage: session.error?.message ?? null,
-        errorName: session.error?.name ?? null,
-        errorCode: session.error?.code ?? null,
-      });
       session = await probeSession();
     }
 
     const user = session.user;
     const error = session.error;
-    const extractedRole = user ? extractRoleFromUser(user) : null;
-
-    logAuthDiag("resolveRequestRole.getUser.result", {
-      diagId,
-      reqId,
-      retried,
-      userId: user?.id ?? null,
-      extractedRole,
-      errorMessage: error?.message ?? null,
-      errorName: error?.name ?? null,
-      errorCode: error?.code ?? null,
-      errorStatus: error?.status ?? null,
-      appMeta: user?.app_metadata ?? null,
-      userMeta: user?.user_metadata ?? null,
-    });
 
     if (!error && user) {
+      const extractedRole = extractRoleFromUser(user);
       if (extractedRole) {
-        logAuthDiag("resolveRequestRole.return.role", {
-          diagId,
-          reqId,
-          userId: user.id,
-          role: extractedRole,
-          reason: "metadata",
-        });
         return { role: extractedRole, userId: user.id ?? "" };
       }
 
       if (process.env.NODE_ENV !== "production") {
-        logAuthDiag("resolveRequestRole.return.role", {
-          diagId,
-          reqId,
-          userId: user.id,
-          role: "owner",
-          reason: "non-prod-fallback",
-        });
         return { role: "owner", userId: user.id ?? "" };
       }
 
-      logAuthDiag("resolveRequestRole.return.null", {
-        diagId,
-        reqId,
-        userId: user.id,
-        reason: "user-without-valid-role",
-      });
       return null;
     }
-  } catch (err) {
-    logAuthDiag("resolveRequestRole.exception", {
-      diagId,
-      reqId,
-      errorMessage: err instanceof Error ? err.message : "unknown",
-      stack: captureStack(),
-    });
+  } catch {
+    // Session probe failed — fall through to header fallback (non-prod only).
   }
 
   if (process.env.NODE_ENV !== "production") {
     const headerRole = request.headers.get("x-loop-role");
     if (headerRole && isAppRole(headerRole)) {
-      logAuthDiag("resolveRequestRole.return.role", {
-        diagId,
-        reqId,
-        userId: null,
-        role: headerRole,
-        reason: "x-loop-role-fallback",
-      });
       return { role: headerRole, userId: "" };
     }
   }
-
-  logAuthDiag("resolveRequestRole.return.null", {
-    diagId,
-    reqId,
-    userId: null,
-    reason: "no-user-no-fallback",
-  });
 
   return null;
 }
@@ -286,63 +162,10 @@ export async function requirePermission(
   table: CoreTable,
   action: TableAction,
 ): Promise<PermissionResult> {
-  const diagId = nextAuthDiagId();
-  const reqId = getRequestIdFromHeaders(request);
-  const url = (() => {
-    try {
-      return new URL(request.url).pathname;
-    } catch {
-      return request.url;
-    }
-  })();
-
-  logAuthDiag("requirePermission.enter", {
-    diagId,
-    reqId,
-    method: request.method,
-    url,
-    table,
-    action,
-    stack: captureStack(),
-  });
-
   const trace = getRequestTraceContext(request);
   const auth = await resolveRequestAuth(request);
 
-  logAuthDiag("requirePermission.after.resolveRole", {
-    diagId,
-    reqId,
-    resolvedRole: auth ? auth.role : null,
-    route: trace.route,
-  });
-
   if (auth === null) {
-    const cookieDiag = getCookieDiagnostics(request);
-
-    logAuthDiag("requirePermission.unauthorizedResponse", {
-      diagId,
-      reqId,
-      route: trace.route,
-      table,
-      action,
-      ...cookieDiag,
-      result: "UNAUTHORIZED",
-      stack: captureStack(),
-    });
-
-    console.error(
-      "[AUTH_FLOW]",
-      JSON.stringify({
-        event: "requirePermission.deny",
-        reason: "MISSING_ROLE",
-        route: trace.route,
-        requestId: trace.requestId,
-        correlationId: trace.correlationId,
-        statusCode: 401,
-        stack: new Error("AUTH_FLOW_STACK").stack,
-      }),
-    );
-
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -351,13 +174,14 @@ export async function requirePermission(
       requestId: trace.requestId,
       correlationId: trace.correlationId,
       errorCode: "MISSING_ROLE",
-      details: { table, action, ...cookieDiag },
+      details: { table, action },
     });
     incrementAuthMetric("auth_401_total", { route: trace.route });
 
     const response = unauthorizedResponse("A valid session is required.");
     if (process.env.NODE_ENV !== "production") {
-      response.headers.set("x-auth-debug-has-cookie", String(cookieDiag.hasCookieHeader));
+      const hasCookie = request.headers.get("cookie") !== null;
+      response.headers.set("x-auth-debug-has-cookie", String(hasCookie));
       response.headers.set("x-auth-debug-node-env", process.env.NODE_ENV ?? "unknown");
     }
 
@@ -367,16 +191,6 @@ export async function requirePermission(
   const { role, userId } = auth;
 
   if (!hasPermission(role, table, action)) {
-    logAuthDiag("requirePermission.forbidden", {
-      diagId,
-      reqId,
-      route: trace.route,
-      table,
-      action,
-      role,
-      result: "FORBIDDEN",
-    });
-
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -395,16 +209,6 @@ export async function requirePermission(
     };
   }
 
-  logAuthDiag("requirePermission.allow", {
-    diagId,
-    reqId,
-    route: trace.route,
-    table,
-    action,
-    role,
-    result: "ALLOW",
-  });
-
   logAuthEvent({
     event: "authz_decision_allow",
     outcome: "success",
@@ -422,15 +226,6 @@ export async function requirePermission(
 export function unauthorizedResponse(
   message = "A valid session is required.",
 ): NextResponse<ApiErrorBody> {
-  console.error(
-    "[AUTH_FLOW]",
-    JSON.stringify({
-      event: "unauthorizedResponse.emit",
-      reason: message,
-      statusCode: 401,
-      stack: new Error("AUTH_FLOW_STACK").stack,
-    }),
-  );
   return NextResponse.json<ApiErrorBody>(
     { error: "UNAUTHORIZED", message, code: 401 },
     { status: 401 },

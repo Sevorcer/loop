@@ -41,21 +41,6 @@ export async function GET(request: Request) {
   const guard = await requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
 
-  console.log(
-    "[AUTH_FLOW]",
-    JSON.stringify({
-      event: "guard.pass",
-      route: "/api/properties",
-      userId: guard.ctx.userId,
-      role: guard.ctx.role,
-      requestId:
-        request.headers.get("x-request-id") ??
-        request.headers.get("x-correlation-id") ??
-        request.headers.get("x-vercel-id") ??
-        undefined,
-    }),
-  );
-
   try {
     const { userId } = guard.ctx;
     const properties = await listProperties({ userId });
@@ -70,12 +55,7 @@ export async function POST(request: Request) {
   let requestId: string | undefined;
   let step: string | undefined;
 
-  console.info("API_ROUTE_POST_START", {
-    route: "/api/properties",
-  });
-
   try {
-    console.info("API_ROUTE_TRY_ENTER", { route: "/api/properties" });
     requestId = getPostRequestTrace(request, "prop-post").requestId;
     step = "permission_guard";
     const route = "/api/properties";
@@ -99,9 +79,6 @@ export async function POST(request: Request) {
       status: readPropertyStatus(body.status),
       primarySystem: String(body.primarySystem ?? "").trim(),
     };
-
-    step = "before_insert";
-    console.info("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
 
     step = "build_supabase_client";
     const supabase = await createSupabaseServerClient();

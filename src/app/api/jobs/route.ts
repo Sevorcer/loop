@@ -33,21 +33,6 @@ export async function GET(request: Request) {
   const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
-  console.log(
-    "[AUTH_FLOW]",
-    JSON.stringify({
-      event: "guard.pass",
-      route: "/api/jobs",
-      userId: guard.ctx.userId,
-      role: guard.ctx.role,
-      requestId:
-        request.headers.get("x-request-id") ??
-        request.headers.get("x-correlation-id") ??
-        request.headers.get("x-vercel-id") ??
-        undefined,
-    }),
-  );
-
   try {
     const { jobs, activity } = await listJobsWithActivity();
     return NextResponse.json({ jobs, activity });
@@ -60,12 +45,7 @@ export async function POST(request: Request) {
   let requestId: string | undefined;
   let step: string | undefined;
 
-  console.info("API_ROUTE_POST_START", {
-    route: "/api/jobs",
-  });
-
   try {
-    console.info("API_ROUTE_TRY_ENTER", { route: "/api/jobs" });
     requestId = getPostRequestTrace(request, "jobs-post").requestId;
     step = "permission_guard";
     const route = "/api/jobs";
@@ -96,8 +76,6 @@ export async function POST(request: Request) {
       summary: String(body.summary ?? "").trim(),
       notes: String(body.notes ?? "").trim(),
     };
-
-    console.info("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
 
     step = "build_supabase_client";
     const supabase = await createSupabaseServerClient();

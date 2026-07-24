@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Route modules import @/lib/supabase/server which uses the server-only guard.
+// Mock both the guard module and the server client before any route imports.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/supabase/server", () => ({
+  createSupabaseServerClient: vi.fn().mockResolvedValue({}),
+}));
+
 const {
   requirePermissionMock,
   readJsonObjectMock,
@@ -41,7 +48,7 @@ vi.mock("@/services/jobs", () => ({
 import { POST as postJobs } from "@/app/api/jobs/route";
 import { POST as postProperties } from "@/app/api/properties/route";
 
-describe("POST route failure telemetry", () => {
+describe("POST route failure telemetry — API_POST_FAILURE is emitted on write errors", () => {
   let consoleErrorMock: ReturnType<typeof vi.spyOn>;
   let consoleInfoMock: ReturnType<typeof vi.spyOn>;
 
@@ -65,7 +72,7 @@ describe("POST route failure telemetry", () => {
     consoleInfoMock.mockRestore();
   });
 
-  it("logs sentinel failure telemetry for POST /api/properties", async () => {
+  it("emits API_POST_FAILURE with structured telemetry for POST /api/properties", async () => {
     readJsonObjectMock.mockResolvedValue({
       name: "Smoke Test Property",
       customer: "Acme",
@@ -74,9 +81,6 @@ describe("POST route failure telemetry", () => {
       type: "Residential",
       status: "Active",
       primarySystem: "Furnace",
-      org_id: "org-1",
-      customer_id: "cust-1",
-      open_jobs: 3,
     });
 
     createPropertyMock.mockRejectedValue(
@@ -96,21 +100,17 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(consoleInfoMock.mock.calls[0]).toEqual([
+    expect(consoleInfoMock).not.toHaveBeenCalledWith(
       "API_ROUTE_POST_START",
-      { route: "/api/properties" },
-    ]);
-    expect(consoleInfoMock.mock.calls[1]).toEqual([
+      expect.anything(),
+    );
+    expect(consoleInfoMock).not.toHaveBeenCalledWith(
       "API_ROUTE_TRY_ENTER",
-      { route: "/api/properties" },
-    ]);
-    expect(consoleInfoMock).toHaveBeenCalledWith(
+      expect.anything(),
+    );
+    expect(consoleInfoMock).not.toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
-      expect.objectContaining({
-        route: "/api/properties",
-        step: "before_insert",
-        requestId: "req-prop-1",
-      }),
+      expect.anything(),
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "API_POST_FAILURE",
@@ -129,7 +129,7 @@ describe("POST route failure telemetry", () => {
     );
   });
 
-  it("logs sentinel failure telemetry for POST /api/jobs", async () => {
+  it("emits API_POST_FAILURE with structured telemetry for POST /api/jobs", async () => {
     readJsonObjectMock.mockResolvedValue({
       title: "Install Heat Pump",
       customerName: "Acme",
@@ -138,10 +138,6 @@ describe("POST route failure telemetry", () => {
       scheduledFor: "2026-07-24",
       type: "Install",
       priority: "High",
-      org_id: "org-1",
-      customer_id: "cust-1",
-      primary_system: "Heat Pump",
-      open_jobs: 2,
     });
 
     createJobMock.mockRejectedValue(
@@ -161,21 +157,17 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(consoleInfoMock.mock.calls[0]).toEqual([
+    expect(consoleInfoMock).not.toHaveBeenCalledWith(
       "API_ROUTE_POST_START",
-      { route: "/api/jobs" },
-    ]);
-    expect(consoleInfoMock.mock.calls[1]).toEqual([
+      expect.anything(),
+    );
+    expect(consoleInfoMock).not.toHaveBeenCalledWith(
       "API_ROUTE_TRY_ENTER",
-      { route: "/api/jobs" },
-    ]);
-    expect(consoleInfoMock).toHaveBeenCalledWith(
+      expect.anything(),
+    );
+    expect(consoleInfoMock).not.toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
-      expect.objectContaining({
-        route: "/api/jobs",
-        step: "before_insert",
-        requestId: "req-job-1",
-      }),
+      expect.anything(),
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "API_POST_FAILURE",
@@ -194,3 +186,4 @@ describe("POST route failure telemetry", () => {
     );
   });
 });
+
