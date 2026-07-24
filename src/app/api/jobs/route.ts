@@ -69,10 +69,8 @@ export async function POST(request: Request) {
     step = "body_parse";
     body = await readJsonObject(request);
 
-    console.error("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
-
     step = "create_job_service";
-    const job = await createJob({
+    const payload = {
       estimateId: body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
       equipmentBundleId:
         body.equipmentBundleId !== undefined
@@ -88,7 +86,11 @@ export async function POST(request: Request) {
       location: String(body.location ?? "").trim(),
       summary: String(body.summary ?? "").trim(),
       notes: String(body.notes ?? "").trim(),
-    });
+    };
+
+    console.error("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
+
+    const job = await createJob(payload);
 
     emitAuditEvent({
       role: guard.ctx.role,
