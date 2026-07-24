@@ -1,8 +1,8 @@
 # Incident Closeout: Auth/RLS Write-Path Authorization Regression
 
-Version: 1.0  
-Status: Closed  
-Last reviewed: 2026-07-24  
+Version: 1.0
+Status: Closed
+Last reviewed: 2026-07-24
 Owner: Engineering
 
 ---

@@ -1,7 +1,7 @@
 # Runbook: Auth/Authz Production Incidents
 
-Version: 1.1  
-Last reviewed: 2026-07-24  
+Version: 1.1
+Last reviewed: 2026-07-24
 Owner: Engineering on-call  
 Severity scope: P0 / P1 authentication and authorization incidents
 
