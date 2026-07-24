@@ -105,7 +105,81 @@ This checks:
 - Files are in ascending timestamp order
 - No empty files
 
-### 5. Check for schema drift
+### 5. Add the required verification section {#verification-section}
+
+**Every new migration file must include a `-- VERIFICATION:` block** ([issue #118](https://github.com/Sevorcer/loop/issues/118)).  CI will reject
+migration PRs that are missing this section.
+
+#### Standard format
+
+Append the following at the end of your migration file:
+
+```sql
+-- VERIFICATION: ---------------------------------------------------------------
+-- Confirm schema after this migration.  Run each SELECT in the Supabase SQL
+-- editor (or via psql) after applying.  Expected result: 1 row per query.
+
+SELECT count(*) = 1 AS table_exists
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name = '<your_new_table>';
+
+-- Add one query per significant object created or altered in this migration.
+```
+
+Rules:
+- The sentinel line must be exactly `-- VERIFICATION:` (at the start of the line).
+- At least one `SELECT` statement must follow the sentinel.
+- Queries should verify the most critical objects the migration creates or alters
+  (tables, columns, RLS enabled, helper functions, etc.).
+- Comments and blank lines between queries are encouraged.
+
+#### Validate locally before pushing
+
+Run the same check CI runs — no database credentials needed:
+
+```bash
+# Check a specific file:
+bash scripts/verify-migration-verification.sh supabase/migrations/YYYYMMDDHHMMSS_your_change.sql
+
+# Check all migration files:
+bash scripts/verify-migration-verification.sh
+```
+
+#### Pass and fail examples
+
+**✓ PASS** — file contains sentinel and at least one SELECT:
+
+```
+Checking 1 migration file(s) for required verification sections
+
+  ✓ 20260801120000_add_widgets_table.sql
+
+Migration verification check PASSED — all 1 file(s) contain a valid verification section.
+```
+
+**✗ FAIL** — file is missing the sentinel entirely:
+
+```
+Checking 1 migration file(s) for required verification sections
+
+  ✗ 20260801120000_add_widgets_table.sql — missing '-- VERIFICATION:' block
+    → Add a verification section at the end of this file.  Example:
+    →
+    →   -- VERIFICATION: ------------------------------------------------
+    →   -- Confirm schema after this migration.  Expected: 1 row each.
+    →
+    →   SELECT count(*) = 1 AS table_exists
+    →   FROM information_schema.tables
+    →   WHERE table_schema = 'public'
+    →     AND table_name = '<your_new_table>';
+    →
+    → See docs/migration-runbook.md for the full standard.
+
+Migration verification check FAILED — 1 file(s) missing required verification section.
+```
+
+### 6. Check for schema drift
 
 Compares the current database schema against what the migration files describe.
 A clean state produces no output:
@@ -163,13 +237,19 @@ automatically on any PR or push to `main` that touches:
 - `supabase/migrations/**`
 - `supabase/config.toml`
 - `scripts/verify-migrations.sh`
+- `scripts/verify-migration-verification.sh`
 
 ### CI jobs
 
 | Job | Trigger | Description |
 |-----|---------|-------------|
-| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` — no secrets required |
+| `verify-structure` | All PRs | Runs `scripts/verify-migrations.sh` (naming/order) **and** `scripts/verify-migration-verification.sh` (verification sections) — no secrets required |
 | `apply-and-verify` | Non-fork PRs, pushes to main | Applies migrations and checks for drift |
+
+The `Verify migration verification sections` step inside `verify-structure`
+detects which migration files were **added or modified** in the PR and checks
+only those.  Existing migrations are never retroactively flagged, so
+non-migration PRs are completely unaffected.
 
 ### Required GitHub secrets
 
@@ -185,9 +265,9 @@ Configure these at: `https://github.com/Sevorcer/loop/settings/secrets/actions`
 
 ## CI failure scenarios
 
-### `verify-structure` fails
+### `verify-structure` fails — naming/order
 
-The migration files themselves are invalid before any database is involved.
+The migration files themselves are structurally invalid before any database is involved.
 
 Common causes:
 - File name does not match `YYYYMMDDHHMMSS_description.sql`
@@ -196,6 +276,17 @@ Common causes:
 - Empty file (zero bytes)
 
 Fix: rename or reorder files locally and push again.
+
+### `verify-structure` fails — missing verification section
+
+A new or modified migration file does not contain the required `-- VERIFICATION:` block.
+
+Fix: add the verification section (see [step 5 above](#verification-section)) and push again.
+
+Validate locally before pushing:
+```bash
+bash scripts/verify-migration-verification.sh supabase/migrations/YYYYMMDDHHMMSS_your_change.sql
+```
 
 ### `apply-and-verify` fails on apply
 
@@ -222,4 +313,6 @@ supabase db diff --schema public | supabase migration new capture_drift
 - Supabase CLI docs: https://supabase.com/docs/reference/cli
 - Supabase migrations guide: https://supabase.com/docs/guides/database/migrations
 - GitHub workflow: `.github/workflows/db-migrations.yml`
-- Verification script: `scripts/verify-migrations.sh`
+- File sequence check: `scripts/verify-migrations.sh`
+- Verification section check: `scripts/verify-migration-verification.sh`
+- Issues: [#117](https://github.com/Sevorcer/loop/issues/117) (epic), [#118](https://github.com/Sevorcer/loop/issues/118) (standard), [#119](https://github.com/Sevorcer/loop/issues/119) (CI enforcement)
