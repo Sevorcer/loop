@@ -58,7 +58,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   let requestId: string | undefined;
   let step: string | undefined;
-  let body: Record<string, unknown>;
 
   console.info("API_ROUTE_POST_START", {
     route: "/api/jobs",
@@ -68,8 +67,8 @@ export async function POST(request: Request) {
     console.info("API_ROUTE_TRY_ENTER", { route: "/api/jobs" });
     requestId = getPostRequestTrace(request, "jobs-post").requestId;
     step = "permission_guard";
-    body = {};
     const route = "/api/jobs";
+    let body: Record<string, unknown> = {};
 
     const guard = await requirePermission(request, "jobs", "insert");
     if (!guard.ok) return guard.response;
