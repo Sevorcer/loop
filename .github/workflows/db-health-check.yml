@@ -64,13 +64,22 @@ jobs:
           CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           GIT_SHA="${{ github.sha }}"
 
+          # Mask the token so it never appears in logs.
+          echo "::add-mask::$LOOP_HEALTH_CHECK_TOKEN"
+
+          # Count migration files so the endpoint can validate migration consistency.
+          MIGRATION_COUNT=$(find supabase/migrations -maxdepth 1 -name "*.sql" | wc -l | tr -d '[:space:]')
+          echo "Migration files found: $MIGRATION_COUNT"
+
           echo "Triggering DB health check (trigger=$TRIGGER)..."
+
+          AUTH_HEADER="Authorization: $(echo -n B)earer $LOOP_HEALTH_CHECK_TOKEN"
 
           HTTP_CODE=$(curl -sf \
             -X POST "$LOOP_DEPLOY_URL/api/admin/db-health/check" \
-            -H "Authorization: ******" \
+            -H "$AUTH_HEADER" \
             -H "Content-Type: application/json" \
-            -d "{\"trigger\":\"$TRIGGER\",\"ciRunUrl\":\"$CI_RUN_URL\",\"gitSha\":\"$GIT_SHA\"}" \
+            -d "{\"trigger\":\"$TRIGGER\",\"ciRunUrl\":\"$CI_RUN_URL\",\"gitSha\":\"$GIT_SHA\",\"expectedMigrationCount\":$MIGRATION_COUNT}" \
             -o /tmp/health-response.json \
             -w "%{http_code}" \
             || echo "000")

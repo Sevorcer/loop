@@ -224,13 +224,23 @@ export async function runDbHealthChecks(opts: {
   });
 
   // Run all check categories in parallel.
+  // The migration count check uses: explicit caller value → env var → skip (undefined).
+  const envMigrationCount = process.env.LOOP_EXPECTED_MIGRATION_COUNT
+    ? parseInt(process.env.LOOP_EXPECTED_MIGRATION_COUNT, 10)
+    : undefined;
+  const migrationCount = opts.expectedMigrationCount ?? envMigrationCount;
+
   const [nullOrgResults, orphanResults, indexResults, rlsResults, migrationResults] =
     await Promise.all([
       runNullOrgIdChecks(client),
       runOrphanFkChecks(client),
       runIndexChecks(client),
       runRlsChecks(client),
-      runMigrationChecks(client, opts.expectedMigrationCount ?? 7),
+      // Skip migration count check when no expected count is available — avoids
+      // false positives when the check is triggered without the CI file count.
+      migrationCount !== undefined
+        ? runMigrationChecks(client, migrationCount)
+        : Promise.resolve<CheckResult[]>([]),
     ]);
 
   const allResults = [

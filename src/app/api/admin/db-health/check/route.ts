@@ -10,9 +10,10 @@ import type { RunTrigger } from "@/features/admin/db-health/types";
  * Authenticated by the LOOP_HEALTH_CHECK_TOKEN bearer token — intended for
  * CI automation (GitHub Actions daily cron and pre-deploy gate).
  *
- * Auth: ****** compared against LOOP_HEALTH_CHECK_TOKEN env var.
+ * Auth: ****** compared against the LOOP_HEALTH_CHECK_TOKEN environment
+ *       variable. Returns 503 when the env var is not configured.
  *       This route is listed in EXEMPT_ROUTES in api-route-authz-coverage.test.ts
- *       because it uses its own bearer-token auth, not the session-based
+ *       because it uses bearer-token auth, not the session-based
  *       requirePermission / requireApiSession primitives.
  *
  * Request body (JSON):
