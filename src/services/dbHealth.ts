@@ -225,10 +225,8 @@ export async function runDbHealthChecks(opts: {
 
   // Run all check categories in parallel.
   // The migration count check uses: explicit caller value → env var → skip (undefined).
-  const _envParsed = process.env.LOOP_EXPECTED_MIGRATION_COUNT
-    ? parseInt(process.env.LOOP_EXPECTED_MIGRATION_COUNT, 10)
-    : NaN;
-  const envMigrationCount = isNaN(_envParsed) ? undefined : _envParsed;
+  const _p = parseInt(process.env.LOOP_EXPECTED_MIGRATION_COUNT ?? "", 10);
+  const envMigrationCount = isNaN(_p) ? undefined : _p;
   const migrationCount = opts.expectedMigrationCount ?? envMigrationCount;
 
   const [nullOrgResults, orphanResults, indexResults, rlsResults, migrationResults] =
