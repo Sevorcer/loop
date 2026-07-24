@@ -6,6 +6,7 @@ import {
   getPostRequestTrace,
 } from "@/lib/api/postFailureTelemetry";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { emitAuditEvent } from "@/lib/audit";
 import { createProperty, listProperties } from "@/services/properties";
 
@@ -102,8 +103,16 @@ export async function POST(request: Request) {
     step = "before_insert";
     console.info("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
 
+    step = "build_supabase_client";
+    const supabase = await createSupabaseServerClient();
+
     step = "create_property_service";
-    const result = await createProperty(payload, { userId });
+    const result = await createProperty(payload, {
+      userId,
+      supabase,
+      route,
+      requestId,
+    });
 
     step = "audit_event";
     emitAuditEvent({

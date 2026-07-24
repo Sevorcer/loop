@@ -279,6 +279,22 @@ export async function createPropertyRecord(
     }),
   );
 
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  // TODO: Remove this temporary diagnostic once auth context propagation is verified in production.
+  console.info("API_INSERT_AUTH_CONTEXT", {
+    route: contextInput?.route ?? "/api/properties",
+    requestId: contextInput?.requestId ?? null,
+    table: "properties",
+    hasUserId: Boolean(user?.id),
+    userId: user?.id ?? null,
+    expectedUserId: contextInput?.userId ?? null,
+    authError: authError?.message ?? null,
+  });
+
   const { data, error } = await supabase
     .from("properties")
     .insert({

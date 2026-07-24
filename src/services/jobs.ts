@@ -4,6 +4,7 @@ import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
 import { resolveCustomerIdByName } from "@/repositories/properties";
+import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import {
   countJobs,
   createJob as createJobRecord,
@@ -62,10 +63,13 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   }
 }
 
-async function syncRelatedCounters(job: Pick<Job, "customerName" | "propertyName" | "status">) {
+async function syncRelatedCounters(
+  job: Pick<Job, "customerName" | "propertyName" | "status">,
+  contextInput?: SessionRepositoryContextInput,
+) {
   const [customerId, propertyId] = await Promise.all([
-    resolveCustomerIdByName(job.customerName),
-    resolvePropertyIdByName(job.propertyName),
+    resolveCustomerIdByName(job.customerName, contextInput),
+    resolvePropertyIdByName(job.propertyName, contextInput),
   ]);
 
   if (customerId) {
@@ -73,7 +77,7 @@ async function syncRelatedCounters(job: Pick<Job, "customerName" | "propertyName
   }
 
   if (propertyId) {
-    await syncPropertyCounters(propertyId);
+    await syncPropertyCounters(propertyId, contextInput);
   }
 }
 
@@ -113,22 +117,29 @@ export async function createJobActivity(
   return createJobActivityRecord({ jobId, ...activity });
 }
 
-export async function createJob(input: CreateJobInput) {
+export async function createJob(
+  input: CreateJobInput,
+  contextInput?: SessionRepositoryContextInput,
+) {
   const normalized = normalizeJobInput(input) as CreateJobInput;
   validateJobInput(normalized);
 
-  const nextIndex = (await countJobs()) + 1;
+  const nextIndex = (await countJobs(contextInput)) + 1;
   const [customerId, propertyId] = await Promise.all([
-    resolveCustomerIdByName(normalized.customerName),
-    resolvePropertyIdByName(normalized.propertyName),
+    resolveCustomerIdByName(normalized.customerName, contextInput),
+    resolvePropertyIdByName(normalized.propertyName, contextInput),
   ]);
 
-  const createdJob = await createJobRecord(createJobNumber(nextIndex), {
-    ...normalized,
-    customerId,
-    propertyId,
-    status: "Scheduled",
-  });
+  const createdJob = await createJobRecord(
+    createJobNumber(nextIndex),
+    {
+      ...normalized,
+      customerId,
+      propertyId,
+      status: "Scheduled",
+    },
+    contextInput,
+  );
 
   await Promise.all([
     createJobActivityRecord({
@@ -136,22 +147,22 @@ export async function createJob(input: CreateJobInput) {
       type: "created",
       title: "Job created",
       description: `New ${createdJob.type.toLowerCase()} job created from the job form.`,
-    }),
+    }, contextInput),
     createJobActivityRecord({
       jobId: createdJob.id,
       type: "assigned",
       title: "Technician assigned",
       description: `${createdJob.assignedTo} assigned to this job.`,
-    }),
+    }, contextInput),
     createJobActivityRecord({
       jobId: createdJob.id,
       type: "scheduled",
       title: "Schedule confirmed",
       description: `Job scheduled for ${new Date(createdJob.scheduledFor).toLocaleDateString()}.`,
-    }),
+    }, contextInput),
   ]);
 
-  await syncRelatedCounters(createdJob);
+  await syncRelatedCounters(createdJob, contextInput);
   return createdJob;
 }
 

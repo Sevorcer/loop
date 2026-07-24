@@ -6,6 +6,7 @@ import {
   getPostRequestTrace,
 } from "@/lib/api/postFailureTelemetry";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { emitAuditEvent } from "@/lib/audit";
 import { createJob, listJobsWithActivity } from "@/services/jobs";
 
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
 
     const guard = await requirePermission(request, "jobs", "insert");
     if (!guard.ok) return guard.response;
+    const { userId } = guard.ctx;
 
     step = "body_parse";
     body = await readJsonObject(request);
@@ -97,7 +99,16 @@ export async function POST(request: Request) {
 
     console.info("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
 
-    const job = await createJob(payload);
+    step = "build_supabase_client";
+    const supabase = await createSupabaseServerClient();
+
+    step = "create_job_service";
+    const job = await createJob(payload, {
+      userId,
+      supabase,
+      route,
+      requestId,
+    });
 
     emitAuditEvent({
       role: guard.ctx.role,
