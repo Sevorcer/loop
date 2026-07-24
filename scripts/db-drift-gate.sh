@@ -98,18 +98,25 @@ _section "Check 2 — Unapplied migrations"
 
 PENDING_OUTPUT=$(supabase migration list --linked 2>&1 || true)
 
-# `supabase migration list` marks unapplied migrations with a blank or missing
-# "Applied At" column.  A row that contains the migration name but no ISO date
-# indicates it is pending.  We detect this by looking for lines that have a
-# migration timestamp but no date in the applied column.
+# `supabase migration list --linked` shows local migration files alongside their
+# remote applied state.  Lines that contain a 14-digit timestamp but no ISO-8601
+# date (YYYY-MM-DD) are either pending or not yet applied.
 #
-# Output format (two possible layouts):
-#   LOCAL      │ REMOTE     │ TIME (in newer CLI versions)
-#   Version    │ Name       │ Applied At
-# We treat any line that appears in the LOCAL/Version column but not in the
-# REMOTE/Applied At column as unapplied.
+# Strategy: print all rows that start with a timestamp, then subtract rows that
+# contain an applied date.  Two pipes keeps the logic readable and avoids a
+# single brittle regex trying to handle multiple CLI output formats.
 
-UNAPPLIED=$(echo "$PENDING_OUTPUT" | grep -E '^\s*[0-9]{14}' | grep -Ev '(applied)|[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
+TIMESTAMP_ROWS=$(echo "$PENDING_OUTPUT" | grep -E '^\s*[0-9]{14}' || true)
+APPLIED_ROWS=$(echo "$TIMESTAMP_ROWS" | grep -E '[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
+
+if [ -n "$TIMESTAMP_ROWS" ] && [ "$TIMESTAMP_ROWS" != "$APPLIED_ROWS" ]; then
+  # Rows present locally but not applied remotely.
+  UNAPPLIED=$(comm -23 \
+    <(echo "$TIMESTAMP_ROWS" | sort) \
+    <(echo "$APPLIED_ROWS"   | sort) || true)
+else
+  UNAPPLIED=""
+fi
 
 if [ -n "$UNAPPLIED" ]; then
   _critical "Unapplied migrations detected — deploying now is unsafe."
@@ -134,6 +141,12 @@ DIFF_RAW=$(supabase db diff --linked 2>&1 || true)
 
 # Filter blank lines and pure SQL comment lines — these are structural noise
 # emitted by the CLI even when there is no meaningful diff.
+#
+# Known limitation: this heuristic can theoretically produce false positives if
+# the CLI output format changes significantly.  In that case, disable Check 3 in
+# the script per the bypass policy in docs/runbooks/pre-deploy-gate.md while the
+# root cause is investigated.  The raw diff is always printed so operators can
+# make a manual judgment call.
 DIFF_MEANINGFUL=$(echo "$DIFF_RAW" | grep -v '^\s*$' | grep -v '^\s*--' || true)
 
 if [ -n "$DIFF_MEANINGFUL" ]; then
