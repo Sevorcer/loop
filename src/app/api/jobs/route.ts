@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       notes: String(body.notes ?? "").trim(),
     };
 
-    console.error("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
+    console.info("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
 
     const job = await createJob(payload);
 

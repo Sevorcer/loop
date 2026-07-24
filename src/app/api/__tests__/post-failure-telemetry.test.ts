@@ -43,10 +43,12 @@ import { POST as postProperties } from "@/app/api/properties/route";
 
 describe("POST route failure telemetry", () => {
   let consoleErrorMock: ReturnType<typeof vi.spyOn>;
+  let consoleInfoMock: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleInfoMock = vi.spyOn(console, "info").mockImplementation(() => {});
 
     requirePermissionMock.mockResolvedValue({
       ok: true,
@@ -60,6 +62,7 @@ describe("POST route failure telemetry", () => {
 
   afterEach(() => {
     consoleErrorMock.mockRestore();
+    consoleInfoMock.mockRestore();
   });
 
   it("logs sentinel failure telemetry for POST /api/properties", async () => {
@@ -93,7 +96,7 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(consoleErrorMock).toHaveBeenCalledWith(
+    expect(consoleInfoMock).toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
       expect.objectContaining({
         route: "/api/properties",
@@ -152,7 +155,7 @@ describe("POST route failure telemetry", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(consoleErrorMock).toHaveBeenCalledWith(
+    expect(consoleInfoMock).toHaveBeenCalledWith(
       "API_POST_CHECKPOINT",
       expect.objectContaining({
         route: "/api/jobs",

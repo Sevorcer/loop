@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     };
 
     step = "before_insert";
-    console.error("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
+    console.info("API_POST_CHECKPOINT", { route, step: "before_insert", requestId });
 
     step = "create_property_service";
     const result = await createProperty(payload, { userId });
