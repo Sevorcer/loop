@@ -138,6 +138,7 @@ fi
 _section "Check 3 — Schema drift (db diff)"
 
 DIFF_RAW=$(supabase db diff --linked 2>&1 || true)
+DIFF_CLEAN=$(echo "$DIFF_RAW" | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g')
 
 # Filter blank lines and pure SQL comment lines — these are structural noise
 # emitted by the CLI even when there is no meaningful diff.
@@ -147,9 +148,11 @@ DIFF_RAW=$(supabase db diff --linked 2>&1 || true)
 # the script per the bypass policy in docs/runbooks/pre-deploy-gate.md while the
 # root cause is investigated.  The raw diff is always printed so operators can
 # make a manual judgment call.
-DIFF_MEANINGFUL=$(echo "$DIFF_RAW" | grep -v '^\s*$' | grep -v '^\s*--' || true)
+DIFF_MEANINGFUL=$(echo "$DIFF_CLEAN" | grep -v '^\s*$' | grep -v '^\s*--' || true)
 
-if [ -n "$DIFF_MEANINGFUL" ]; then
+if echo "$DIFF_CLEAN" | grep -q "No schema changes found"; then
+  _pass "No schema drift detected."
+elif [ -n "$DIFF_MEANINGFUL" ]; then
   _critical "Schema drift detected — live DB schema diverges from migration files."
   echo ""
   echo "── Diff output ─────────────────────────────────────────────────────"
