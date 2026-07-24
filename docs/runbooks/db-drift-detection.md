@@ -35,9 +35,13 @@ Two workflows run drift detection automatically:
 ### `db-verify.yml` — Verification stage
 - **Triggers**: every PR targeting `main`, every push to `main`
 - **Purpose**: catch drift early in the review cycle
+- **Secrets**:
+  - `SUPABASE_ACCESS_TOKEN`
+  - `SUPABASE_PROJECT_REF`
+  - `SUPABASE_DB_PASSWORD`
 - **Jobs**:
   - `verify-structure` — migration file naming, ordering, checksum integrity (no secrets)
-  - `verify-schema` — tables, columns, RLS, policies against live DB
+  - `verify-schema` — linked-project schema and policy verification against the live DB
   - `drift-summary` — aggregates results
 
 ### `pre-deploy-gate.yml` — Deploy gate
