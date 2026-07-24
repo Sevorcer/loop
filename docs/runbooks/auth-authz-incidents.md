@@ -1,7 +1,7 @@
 # Runbook: Auth/Authz Production Incidents
 
-Version: 1.0  
-Last reviewed: 2026-07-20  
+Version: 1.1  
+Last reviewed: 2026-07-24  
 Owner: Engineering on-call  
 Severity scope: P0 / P1 authentication and authorization incidents
 
@@ -18,6 +18,17 @@ Triage and recover from production incidents involving:
 
 ---
 
+## Failure Signatures
+
+| Signature | Primary signals | Likely cause | First checks |
+|---|---|---|---|
+| `MISSING_ROLE` | `unauthorized_access_attempt`, 401 on protected API routes, rising `auth_401_total` | Role missing from validated session metadata or identity propagation path failed | Confirm active session, inspect user metadata/app metadata for `app_role`, verify recent auth deploys |
+| `PERMISSION_DENIED` | `unauthorized_access_attempt`, 403 on known protected route, rising `auth_403_total` | Role resolved but permission matrix / route intent / RLS expectation does not match | Confirm role, route, table, action, then compare app permission matrix to expected RLS behavior |
+| `SESSION_NOT_FOUND` / auth session missing errors | `session_refresh_failure`, repeated 401s after navigation or refresh | Expired session, missing cookies, Supabase auth outage, middleware refresh failure | Confirm cookie presence, recent sign-in success, Supabase auth health, and refresh errors by route |
+| `SUPABASE_ENV_MISSING` / `SUPABASE_NOT_CONFIGURED` | sign-in or refresh failures across all routes, startup/runtime auth failures | Missing auth environment configuration | Verify runtime env vars and deployment configuration before deeper auth debugging |
+
+---
+
 ## Fast Triage Flow
 
 1. Confirm blast radius:
@@ -30,12 +41,22 @@ Triage and recover from production incidents involving:
 3. Pull structured auth logs for the same time window:
    - Filter by `category=auth_observability`
    - Group by `event`, `route`, `errorCode`
+   - Separate `MISSING_ROLE`, `PERMISSION_DENIED`, and session refresh failures before choosing a fix
 4. Trace a failing request end-to-end:
    - Use `x-request-id` / `x-correlation-id`
    - Follow middleware auth refresh + authz decision logs
-5. Classify root cause:
+5. Validate the identity path:
+   - Confirm the user has a valid Supabase session
+   - Confirm `app_role` is present in session metadata
+   - In non-prod, use debug headers only to confirm local fallback behavior — never as a production fix
+6. Validate the authorization path:
+   - Confirm route → table/action mapping
+   - Confirm the resolved role should be allowed by the application permission matrix
+   - Confirm the expected DB/RLS behavior matches the application decision
+7. Classify root cause:
    - auth provider outage / network issue
    - token/session lifecycle issue
+   - missing identity propagation
    - permission policy regression
    - deployment/config regression
 
@@ -63,6 +84,13 @@ Triage and recover from production incidents involving:
 - Inspect `unauthorized_access_attempt` logs:
   - `MISSING_ROLE` indicates missing identity propagation.
   - `PERMISSION_DENIED` indicates policy mismatch/regression.
+- For `MISSING_ROLE`:
+  - confirm the request still carries auth cookies/session context
+  - confirm the user record has valid role metadata
+  - confirm the failure is not isolated to a single deployment or environment
+- For `PERMISSION_DENIED`:
+  - confirm the requested table/action pair
+  - compare route intent with the permission matrix and RLS expectation before changing access rules
 - Validate permission matrix assumptions before changing policy.
 
 ---
@@ -86,7 +114,20 @@ Do not change authorization rules ad hoc in production without confirming role-m
 
 ---
 
-## Non-Prod Validation Steps
+## Verification Steps
+
+### Recovery Verification
+
+Run these immediately after mitigation:
+
+1. Re-run the previously failing request with a known-good internal user and verify expected success.
+2. Re-run an anonymous request to the same route and verify the system still fails closed with 401.
+3. Re-run an authenticated but disallowed-role request and verify the system still returns 403.
+4. Confirm `auth_401_total`, `auth_403_total`, and `auth_session_refresh_failure_total` trends are returning to baseline for the impacted routes.
+5. Confirm no new `AUTH_ALERT` warnings fire for the same route during the next observation window.
+6. Inspect sample logs and confirm request IDs, correlation IDs, and redaction are present.
+
+### Staging / Pre-Promotion Verification
 
 Run these in staging before promotion:
 
@@ -94,9 +135,13 @@ Run these in staging before promotion:
    - 401 response
    - `x-request-id` and `x-correlation-id` headers
    - `unauthorized_access_attempt` log with route
-2. Send authenticated but unauthorized request and verify 403 + metrics.
-3. Trigger invalid sign-in attempts and verify sign-in failure alert behavior.
-4. Confirm no secrets/tokens/PII are visible in sample logs.
+2. Send authenticated but unauthorized request and verify:
+   - 403 response
+   - `PERMISSION_DENIED` classification
+   - route-level metrics increment
+3. Send an authenticated allowed request and verify the affected write path succeeds end-to-end.
+4. Trigger invalid sign-in attempts and verify sign-in failure alert behavior.
+5. Confirm no secrets/tokens/PII are visible in sample logs.
 
 ---
 
@@ -115,3 +160,4 @@ Run these in staging before promotion:
 - [Auth & Session Architecture](../architecture/auth.md)
 - [Auth/Authz Observability Baseline](../architecture/security/auth-observability.md)
 - [RLS Role Matrix](../architecture/security/rls-role-matrix.md)
+- [Incident Closeout: Auth/RLS Write-Path Authorization Regression](../incidents/auth-rls-write-path-closeout.md)
