@@ -57,15 +57,14 @@ function extractOperation(ctx: WriteFailureContext): string {
   }
 
   const method = ctx.request?.method?.trim().toLowerCase() ?? "write";
-  const resource = ctx.route
-    .split("/")
-    .filter(Boolean)
-    .reverse()
-    .find((segment) => !segment.startsWith("["))
-    ?.replace(/[^a-z0-9]+/gi, "_")
-    .toLowerCase();
+  const segments = ctx.route.split("/").filter(Boolean);
+  const resource =
+    segments[0] === "api" && segments[1]
+      ? segments[1]
+      : segments.find((segment) => !segment.startsWith("["));
+  const normalizedResource = resource?.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
 
-  return resource ? `${method}_${resource}` : method;
+  return normalizedResource ? `${method}_${normalizedResource}` : method;
 }
 
 function extractErrorFields(error: unknown): {
@@ -94,15 +93,59 @@ function extractErrorFields(error: unknown): {
   };
 }
 
+const SECRET_KEY_PATTERN =
+  /\b(authorization|cookie|set-cookie|token|secret|api[_ -]?key|password)\b\s*([:=])\s*/gi;
+
+function findSecretValueEnd(text: string, startIndex: number): number {
+  const quote = text[startIndex];
+
+  if (quote === '"' || quote === "'") {
+    let index = startIndex + 1;
+    while (index < text.length) {
+      if (text[index] === quote && text[index - 1] !== "\\") {
+        return index + 1;
+      }
+      index += 1;
+    }
+    return text.length;
+  }
+
+  let index = startIndex;
+  while (index < text.length && !/[,\s;]/.test(text[index])) {
+    index += 1;
+  }
+  return index;
+}
+
+function redactKeyValueSecrets(value: string): string {
+  let sanitized = "";
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  SECRET_KEY_PATTERN.lastIndex = 0;
+
+  while ((match = SECRET_KEY_PATTERN.exec(value)) !== null) {
+    const [fullMatch, key, separator] = match;
+    const valueStart = match.index + fullMatch.length;
+    const valueEnd = findSecretValueEnd(value, valueStart);
+
+    sanitized += value.slice(cursor, match.index);
+    sanitized += `${key}${separator}[REDACTED]`;
+
+    cursor = valueEnd;
+    SECRET_KEY_PATTERN.lastIndex = valueEnd;
+  }
+
+  return sanitized + value.slice(cursor);
+}
+
 function sanitizeLogText(value: string): string {
-  return value
+  return redactKeyValueSecrets(
+    value
     .replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+=*\b/gi, "[REDACTED_BEARER_TOKEN]")
-    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[REDACTED_JWT]")
-    .replace(
-      /\b(authorization|cookie|set-cookie|token|secret|api[_ -]?key|password)\b\s*[:=]\s*("(?:\\.|[^"])*"|'(?:\\.|[^'])*'|[^,\s;]+)/gi,
-      "$1=[REDACTED]",
-    )
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]");
+    .replace(/\b[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, "[REDACTED_JWT]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]"),
+  );
 }
 
 // ---------------------------------------------------------------------------
