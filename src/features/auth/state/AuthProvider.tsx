@@ -10,8 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { useRouter } from "next/navigation";
-
+import { beginClientAuthRecovery } from "@/lib/auth/clientRecovery";
 import { createCorrelationId, logAuthEvent } from "@/lib/observability/auth";
 import { ROUTES } from "@/lib/routes";
 import {
@@ -52,8 +51,6 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children, initialSession }: AuthProviderProps) {
-  const router = useRouter();
-
   const [session, setSession] = useState<Session | null>(initialSession);
   const [user, setUser] = useState<User | null>(initialSession?.user ?? null);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,13 +65,13 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
 
       // If the session is lost while on a protected page, redirect to sign-in.
       if (!newSession) {
-        router.push(ROUTES.SIGN_IN);
+        beginClientAuthRecovery("revoked_session");
       }
     });
 
     if (!unsubscribe) return;
     return unsubscribe;
-  }, [router]);
+  }, []);
 
   const signOut = useCallback(async () => {
     setIsLoading(true);

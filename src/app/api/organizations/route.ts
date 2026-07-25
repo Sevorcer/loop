@@ -8,7 +8,6 @@ import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
 import {
   mapOrganizationRouteError,
-  organizationPermissionDenied,
   organizationValidationFailed,
 } from "@/lib/organizationsApiErrors";
 import {
@@ -20,10 +19,7 @@ import {
 
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "organizations", "select");
-  if (!guard.ok) {
-    const denied = organizationPermissionDenied(guard.response.status);
-    return NextResponse.json(denied.error, { status: denied.status });
-  }
+  if (!guard.ok) return guard.response;
 
   const url = new URL(request.url);
   const rawParams = Object.fromEntries(url.searchParams.entries());
@@ -45,10 +41,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const guard = await requirePermission(request, "organizations", "insert");
-  if (!guard.ok) {
-    const denied = organizationPermissionDenied(guard.response.status);
-    return NextResponse.json(denied.error, { status: denied.status });
-  }
+  if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;
   try {

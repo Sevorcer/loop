@@ -1,9 +1,15 @@
 import { buildAdminApiError, buildValidationError } from "@/lib/adminApiError";
 import type { AdminApiError, AdminHttpStatus } from "@/lib/adminApiError";
+import {
+  buildForbiddenErrorBody,
+  buildUnauthorizedErrorBody,
+  classifyUnauthorizedReason,
+  type ApiErrorBody,
+} from "@/lib/api-auth";
 
 interface AdminErrorResponse {
   status: AdminHttpStatus;
-  error: AdminApiError;
+  error: AdminApiError | ApiErrorBody;
 }
 
 export function normalizeFieldErrors(
@@ -34,13 +40,13 @@ export function organizationPermissionDenied(status: number): AdminErrorResponse
     );
     return {
       status: 401,
-      error: buildAdminApiError(401, "Authentication required."),
+      error: buildUnauthorizedErrorBody("Authentication required."),
     };
   }
 
   return {
     status: 403,
-    error: buildAdminApiError(403, "You do not have permission to perform this action."),
+    error: buildForbiddenErrorBody(),
   };
 }
 
@@ -93,7 +99,10 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
     );
     return {
       status: 401,
-      error: buildAdminApiError(401, "A valid session is required."),
+      error: buildUnauthorizedErrorBody(
+        undefined,
+        classifyUnauthorizedReason({ message, code, status: 401 }),
+      ),
     };
   }
 
@@ -106,7 +115,7 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   ) {
     return {
       status: 403,
-      error: buildAdminApiError(403, "You do not have permission to perform this action."),
+      error: buildForbiddenErrorBody(),
     };
   }
 

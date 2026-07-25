@@ -120,9 +120,15 @@ describe("requirePermission — unauthenticated", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.response.status).toBe(401);
-      const body = (await result.response.json()) as { error: string; code: number };
+      const body = (await result.response.json()) as {
+        error: string;
+        code: number;
+        reason: string;
+      };
       expect(body.error).toBe("UNAUTHORIZED");
       expect(body.code).toBe(401);
+      expect(body.reason).toBe("missing_token");
+      expect(result.response.headers.get("www-authenticate")).toContain("Bearer");
     }
   });
 
@@ -202,9 +208,14 @@ describe("requirePermission — denied (403)", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.response.status).toBe(403);
-      const body = (await result.response.json()) as { error: string; code: number };
+      const body = (await result.response.json()) as {
+        error: string;
+        code: number;
+        reason: string;
+      };
       expect(body.error).toBe("FORBIDDEN");
       expect(body.code).toBe(403);
+      expect(body.reason).toBe("insufficient_permission");
     }
   });
 
@@ -291,13 +302,20 @@ describe("unauthorizedResponse", () => {
   });
 
   it("returns UNAUTHORIZED error code in body", async () => {
-    const body = (await unauthorizedResponse().json()) as { error: string };
+    const body = (await unauthorizedResponse().json()) as { error: string; reason: string };
     expect(body.error).toBe("UNAUTHORIZED");
+    expect(body.reason).toBe("missing_token");
   });
 
   it("accepts a custom message", async () => {
     const body = (await unauthorizedResponse("custom msg").json()) as { message: string };
     expect(body.message).toBe("custom msg");
+  });
+
+  it("sets WWW-Authenticate and reason headers", () => {
+    const response = unauthorizedResponse(undefined, "expired_token");
+    expect(response.headers.get("www-authenticate")).toContain('error="invalid_token"');
+    expect(response.headers.get("x-loop-auth-reason")).toBe("expired_token");
   });
 });
 
@@ -307,8 +325,12 @@ describe("forbiddenResponse", () => {
   });
 
   it("returns FORBIDDEN error code in body", async () => {
-    const body = (await forbiddenResponse("tech", "jobs", "delete").json()) as { error: string };
+    const body = (await forbiddenResponse("tech", "jobs", "delete").json()) as {
+      error: string;
+      reason: string;
+    };
     expect(body.error).toBe("FORBIDDEN");
+    expect(body.reason).toBe("insufficient_permission");
   });
 
   it("includes role, table, and action in the message", async () => {

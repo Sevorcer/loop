@@ -1,10 +1,17 @@
+import { beginClientAuthRecovery } from "@/lib/auth/clientRecovery";
+import type { AuthErrorReason, UnauthorizedReason } from "@/lib/api-auth";
+
 export class ApiRequestError extends Error {
   status: number;
+  reason?: AuthErrorReason;
+  code?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, options?: { reason?: AuthErrorReason; code?: string }) {
     super(message);
     this.name = "ApiRequestError";
     this.status = status;
+    this.reason = options?.reason;
+    this.code = options?.code;
   }
 }
 
@@ -41,11 +48,27 @@ export async function requestJson<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
+    const errorPayload = data as
+      | {
+          message?: string;
+          error?: string;
+          reason?: AuthErrorReason;
+        }
+      | null;
+
+    if (response.status === 401) {
+      beginClientAuthRecovery((errorPayload?.reason as UnauthorizedReason | undefined) ?? "missing_token");
+    }
+
     throw new ApiRequestError(
-      (data as { message?: string; error?: string } | null)?.message ??
-        (data as { message?: string; error?: string } | null)?.error ??
+      errorPayload?.message ??
+        errorPayload?.error ??
         "Request failed.",
       response.status,
+      {
+        reason: errorPayload?.reason,
+        code: errorPayload?.error,
+      },
     );
   }
 

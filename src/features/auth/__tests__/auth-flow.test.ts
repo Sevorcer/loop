@@ -123,6 +123,8 @@ describe("negative: unauthenticated request", () => {
 
     const body = await response.json();
     expect(body.error).toBe("UNAUTHORIZED");
+    expect(body.reason).toBe("missing_token");
+    expect(response.headers.get("www-authenticate")).toContain("Bearer");
   });
 
   it("getAuthSession returns null", async () => {
@@ -151,6 +153,9 @@ describe("expiry: expired session triggers re-auth", () => {
     const result = await requireApiSession();
     expect(result.error).not.toBeNull();
     expect(result.user).toBeNull();
+    const response = result.error!;
+    const body = await response.json();
+    expect(body.reason).toBe("expired_token");
   });
 
   it("getAuthSession returns null on expired token", async () => {

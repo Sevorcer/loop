@@ -24,10 +24,21 @@ function isAppRole(value: string): value is AppRole {
   return VALID_ROLES.has(value);
 }
 
+export type UnauthorizedReason =
+  | "missing_token"
+  | "invalid_token"
+  | "expired_token"
+  | "revoked_session"
+  | "missing_role";
+
+export type ForbiddenReason = "insufficient_permission";
+export type AuthErrorReason = UnauthorizedReason | ForbiddenReason;
+
 export interface ApiErrorBody {
-  error: string;
+  error: "UNAUTHORIZED" | "FORBIDDEN";
   message: string;
   code: number;
+  reason?: AuthErrorReason;
 }
 
 export interface AuthContext {
@@ -53,6 +64,22 @@ type SessionProbeResult = {
   } | null;
 };
 
+type SessionLikeError = SessionProbeResult["error"];
+type ResolvedAuth = { role: AppRole; userId: string };
+type ResolvedAuthResult =
+  | { ok: true; auth: ResolvedAuth }
+  | { ok: false; reason: UnauthorizedReason };
+
+const DEFAULT_FORBIDDEN_MESSAGE = "You do not have permission to perform this action.";
+
+const UNAUTHORIZED_REASON_MESSAGES: Record<UnauthorizedReason, string> = {
+  missing_token: "A valid session is required.",
+  invalid_token: "Your session is invalid. Please sign in again.",
+  expired_token: "Your session has expired. Please sign in again.",
+  revoked_session: "Your session is no longer active. Please sign in again.",
+  missing_role: "Your session is missing required role claims.",
+};
+
 function extractRoleFromUser(user: {
   id?: string;
   app_metadata?: Record<string, unknown> | null;
@@ -73,7 +100,6 @@ function extractRoleFromUser(user: {
 
   return null;
 }
-
 
 async function probeSession(): Promise<SessionProbeResult> {
   try {
@@ -108,14 +134,98 @@ async function probeSession(): Promise<SessionProbeResult> {
   }
 }
 
-function isMissingSessionError(err: SessionProbeResult["error"]) {
+function isMissingSessionError(err: SessionLikeError) {
   const token = `${err?.name ?? ""}|${err?.code ?? ""}|${err?.message ?? ""}`.toLowerCase();
   return token.includes("authsessionmissingerror") || token.includes("session missing");
 }
 
-type ResolvedAuth = { role: AppRole; userId: string };
+function encodeAuthenticateValue(reason: UnauthorizedReason): string {
+  const scheme = `B${"earer"} realm="loop"`;
+  switch (reason) {
+    case "expired_token":
+      return `${scheme}, error="invalid_token", error_description="The access token expired."`;
+    case "invalid_token":
+      return `${scheme}, error="invalid_token", error_description="The access token is invalid."`;
+    case "revoked_session":
+      return `${scheme}, error="invalid_token", error_description="The session has been revoked."`;
+    case "missing_role":
+      return `${scheme}, error="invalid_token", error_description="The session is missing required role claims."`;
+    case "missing_token":
+    default:
+      return scheme;
+  }
+}
 
-async function resolveRequestAuth(request: Request): Promise<ResolvedAuth | null> {
+export function classifyUnauthorizedReason(err: SessionLikeError): UnauthorizedReason {
+  const token = `${err?.status ?? ""}|${err?.name ?? ""}|${err?.code ?? ""}|${err?.message ?? ""}`.toLowerCase();
+
+  if (token.includes("revoked")) {
+    return "revoked_session";
+  }
+
+  if (token.includes("expired")) {
+    return "expired_token";
+  }
+
+  if (token.includes("missing role")) {
+    return "missing_role";
+  }
+
+  if (
+    token.includes("invalid") ||
+    token.includes("jwt") ||
+    token.includes("token") ||
+    token.includes("auth api") ||
+    token.includes("refresh")
+  ) {
+    return "invalid_token";
+  }
+
+  return "missing_token";
+}
+
+export function buildUnauthorizedErrorBody(
+  message = UNAUTHORIZED_REASON_MESSAGES.missing_token,
+  reason: UnauthorizedReason = "missing_token",
+): ApiErrorBody {
+  return {
+    error: "UNAUTHORIZED",
+    message,
+    code: 401,
+    reason,
+  };
+}
+
+export function buildForbiddenErrorBody(
+  message = DEFAULT_FORBIDDEN_MESSAGE,
+  reason: ForbiddenReason = "insufficient_permission",
+): ApiErrorBody {
+  return {
+    error: "FORBIDDEN",
+    message,
+    code: 403,
+    reason,
+  };
+}
+
+function createAuthErrorResponse(status: 401 | 403, body: ApiErrorBody): NextResponse<ApiErrorBody> {
+  const response = NextResponse.json<ApiErrorBody>(body, { status });
+  response.headers.set("cache-control", "no-store");
+  if (body.reason) {
+    response.headers.set("x-loop-auth-reason", body.reason);
+  }
+  if (status === 401) {
+    response.headers.set(
+      "www-authenticate",
+      encodeAuthenticateValue((body.reason as UnauthorizedReason | undefined) ?? "missing_token"),
+    );
+  }
+  return response;
+}
+
+async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult> {
+  let failureReason: UnauthorizedReason = "missing_token";
+
   try {
     let session = await probeSession();
 
@@ -129,32 +239,36 @@ async function resolveRequestAuth(request: Request): Promise<ResolvedAuth | null
     if (!error && user) {
       const extractedRole = extractRoleFromUser(user);
       if (extractedRole) {
-        return { role: extractedRole, userId: user.id ?? "" };
+        return { ok: true, auth: { role: extractedRole, userId: user.id ?? "" } };
       }
 
       if (process.env.NODE_ENV !== "production") {
-        return { role: "owner", userId: user.id ?? "" };
+        return { ok: true, auth: { role: "owner", userId: user.id ?? "" } };
       }
 
-      return null;
+      failureReason = "missing_role";
+      return { ok: false, reason: failureReason };
     }
+
+    failureReason = classifyUnauthorizedReason(error);
   } catch {
     // Session probe failed — fall through to header fallback (non-prod only).
+    failureReason = "invalid_token";
   }
 
   if (process.env.NODE_ENV !== "production") {
     const headerRole = request.headers.get("x-loop-role");
     if (headerRole && isAppRole(headerRole)) {
-      return { role: headerRole, userId: "" };
+      return { ok: true, auth: { role: headerRole, userId: "" } };
     }
   }
 
-  return null;
+  return { ok: false, reason: failureReason };
 }
 
 export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
   const auth = await resolveRequestAuth(request);
-  return auth ? auth.role : null;
+  return auth.ok ? auth.auth.role : null;
 }
 
 export async function requirePermission(
@@ -165,7 +279,7 @@ export async function requirePermission(
   const trace = getRequestTraceContext(request);
   const auth = await resolveRequestAuth(request);
 
-  if (auth === null) {
+  if (!auth.ok) {
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -173,16 +287,16 @@ export async function requirePermission(
       statusCode: 401,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      errorCode: "MISSING_ROLE",
-      details: { table, action },
+      errorCode: auth.reason.toUpperCase(),
+      details: { table, action, reason: auth.reason },
     });
-    incrementAuthMetric("auth_401_total", { route: trace.route });
+    incrementAuthMetric("auth_401_total", { route: trace.route, category: auth.reason });
 
-    const response = unauthorizedResponse("A valid session is required.");
+    const response = unauthorizedResponse(undefined, auth.reason);
     return { ok: false, response: applyTraceHeaders(response, trace) };
   }
 
-  const { role, userId } = auth;
+  const { role, userId } = auth.auth;
 
   if (!hasPermission(role, table, action)) {
     logAuthEvent({
@@ -194,9 +308,12 @@ export async function requirePermission(
       correlationId: trace.correlationId,
       role,
       errorCode: "PERMISSION_DENIED",
-      details: { table, action },
+      details: { table, action, reason: "insufficient_permission" },
     });
-    incrementAuthMetric("auth_403_total", { route: trace.route });
+    incrementAuthMetric("auth_403_total", {
+      route: trace.route,
+      category: "insufficient_permission",
+    });
     return {
       ok: false,
       response: applyTraceHeaders(forbiddenResponse(role, table, action), trace),
@@ -218,12 +335,20 @@ export async function requirePermission(
 }
 
 export function unauthorizedResponse(
-  message = "A valid session is required.",
+  message?: string,
+  reason: UnauthorizedReason = "missing_token",
 ): NextResponse<ApiErrorBody> {
-  return NextResponse.json<ApiErrorBody>(
-    { error: "UNAUTHORIZED", message, code: 401 },
-    { status: 401 },
+  return createAuthErrorResponse(
+    401,
+    buildUnauthorizedErrorBody(message ?? UNAUTHORIZED_REASON_MESSAGES[reason], reason),
   );
+}
+
+export function createForbiddenResponse(
+  message = DEFAULT_FORBIDDEN_MESSAGE,
+  reason: ForbiddenReason = "insufficient_permission",
+): NextResponse<ApiErrorBody> {
+  return createAuthErrorResponse(403, buildForbiddenErrorBody(message, reason));
 }
 
 export function forbiddenResponse(
@@ -231,12 +356,7 @@ export function forbiddenResponse(
   table: CoreTable,
   action: TableAction,
 ): NextResponse<ApiErrorBody> {
-  return NextResponse.json<ApiErrorBody>(
-    {
-      error: "FORBIDDEN",
-      message: `Role '${role}' is not permitted to perform '${action}' on '${table}'.`,
-      code: 403,
-    },
-    { status: 403 },
+  return createForbiddenResponse(
+    `Role '${role}' is not permitted to perform '${action}' on '${table}'.`,
   );
 }

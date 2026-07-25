@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Sprint:** 26  
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-25
 
 ---
 
@@ -57,10 +57,12 @@ Counters emitted in-process:
 - `auth_sign_in_failure_total` (tagged by route, usually `/sign-in`)
 - `auth_session_refresh_failure_total` (tagged by route)
 
+Every auth counter now also carries an auth-failure category label (for example `expired_token`, `missing_token`, or `insufficient_permission`) so dashboards can split spikes by both route and failure class.
+
 Suggested dashboard panels:
 
-1. 401 rate by route (5m/1h trend)
-2. 403 rate by route (5m/1h trend)
+1. 401 rate by route + category (5m/1h trend)
+2. 403 rate by route + category (5m/1h trend)
 3. Sign-in failure rate (5m/1h trend)
 4. Session refresh failures by route
 
@@ -75,8 +77,8 @@ Dashboard links (wire to your monitoring tenant):
 
 Current default thresholds:
 
-- `auth_401_total` ≥ 25 per route over 5 minutes
-- `auth_403_total` ≥ 25 per route over 5 minutes
+- `auth_401_total` ≥ 25 per route/category over 5 minutes
+- `auth_403_total` ≥ 25 per route/category over 5 minutes
 - `auth_sign_in_failure_total` ≥ 10 over 10 minutes
 - `auth_session_refresh_failure_total` ≥ 10 over 10 minutes
 

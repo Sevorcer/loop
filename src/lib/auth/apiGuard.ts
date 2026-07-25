@@ -21,9 +21,9 @@
 
 import "server-only";
 
-import { NextResponse } from "next/server";
-
 import {
+  classifyUnauthorizedReason,
+  unauthorizedResponse,
   applyTraceHeaders,
   createCorrelationId,
   getRequestTraceContext,
@@ -72,6 +72,7 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
   } = await supabase.auth.getUser();
 
   if (error || !user) {
+    const reason = classifyUnauthorizedReason(error);
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -79,18 +80,15 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       statusCode: 401,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      errorCode: error?.name ?? "API_SESSION_MISSING",
-      details: { message: error?.message ?? "No authenticated user found." },
+      errorCode: reason.toUpperCase(),
+      details: {
+        message: error?.message ?? "No authenticated user found.",
+        reason,
+      },
     });
-    incrementAuthMetric("auth_401_total", { route: trace.route });
+    incrementAuthMetric("auth_401_total", { route: trace.route, category: reason });
     return {
-      error: applyTraceHeaders(
-        NextResponse.json(
-          { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
-          { status: 401 }
-        ),
-        trace,
-      ),
+      error: applyTraceHeaders(unauthorizedResponse(undefined, reason), trace),
       user: null,
     };
   }

@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Sprint:** 25  
 **Status:** Approved  
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-25
 
 ---
 
@@ -72,6 +72,13 @@ if (sessionResult.error) return sessionResult.error;
 const { user } = sessionResult;
 ```
 
+### `src/lib/api-auth.ts`
+Single source of truth for protected API authorization failures:
+
+- `requirePermission(request, table, action)` — resolves session + role, returns 401 or 403 using the shared auth error contract
+- `unauthorizedResponse(...)` — canonical 401 builder, including `WWW-Authenticate`
+- `forbiddenResponse(...)` / `createForbiddenResponse(...)` — canonical 403 builders
+
 ### `src/middleware.ts`
 Runs on every request. Responsibilities:
 1. Refresh the Supabase session token (token auto-rotation).
@@ -119,9 +126,76 @@ Server-side sign-out endpoint (`POST /api/auth/sign-out`) also available for pro
 
 - Middleware calls `supabase.auth.getUser()` on every request, which automatically refreshes the access token if it's expired (using the refresh token).
 - If the refresh token itself is expired, `getUser()` returns `null` and the middleware redirects to `/sign-in`.
-- Client-side: `onAuthStateChange` in `AuthProvider` fires on expiry events and redirects to `/sign-in`.
+- Client-side: `requestJson()` and `AuthProvider` both funnel 401s through a shared recovery helper that uses `location.replace("/sign-in?next=...")`.
 
 There is **no silent broken state** — expired sessions always route back to sign-in.
+
+---
+
+## Auth Error Contract
+
+All protected internal API routes must use the same authorization contract.
+
+### Status rules
+
+| Condition | Status | Client expectation |
+|---|---|---|
+| Missing token / missing session / expired token / invalid token / revoked session / missing required role claim | `401` | Treat as unauthenticated and start session recovery |
+| Authenticated user lacks the required permission for the route | `403` | Keep the current session and show an access-denied state |
+
+### Response shape
+
+```json
+// 401
+{
+  "error": "UNAUTHORIZED",
+  "message": "Your session has expired. Please sign in again.",
+  "code": 401,
+  "reason": "expired_token"
+}
+
+// 403
+{
+  "error": "FORBIDDEN",
+  "message": "Role 'office' is not permitted to perform 'select' on 'db_health_check_runs'.",
+  "code": 403,
+  "reason": "insufficient_permission"
+}
+```
+
+`reason` is machine-readable and currently uses:
+
+- `missing_token`
+- `invalid_token`
+- `expired_token`
+- `revoked_session`
+- `missing_role`
+- `insufficient_permission`
+
+### Headers
+
+- `401` responses include a `WWW-Authenticate` header using the `B` + `earer realm="loop"` scheme and an `invalid_token` detail when applicable
+- `401` and `403` responses include trace headers when emitted from route guards/middleware
+- Auth error responses are sent with `Cache-Control: no-store`
+
+### Client handling
+
+- `401` → `requestJson()` starts the shared sign-in recovery path and uses `location.replace` to avoid redirect loops/back-button churn
+- `403` → no redirect; surfaces a deterministic permission-denied message/state
+
+### Normalized endpoints
+
+This contract is enforced across:
+
+- middleware-protected `/api/*` requests
+- all `requirePermission(...)` routes under `src/app/api/`
+- all `requireApiSession(...)` routes
+- admin bearer-token routes for DB health checks and smoke tests
+- organization admin routes and route-level auth error mappers
+
+### RLS mapping
+
+Application-layer permission denials and repository/RLS denials both map to `403` when the user is authenticated but not allowed. Session/auth failures map to `401` and must not be masked as `403`.
 
 ---
 

@@ -14,12 +14,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = await requirePermission(request, "db_health_check_runs", "select");
-  if (!guard.ok) {
-    return NextResponse.json(
-      { error: "Forbidden", message: "You do not have permission to view DB health data." },
-      { status: guard.response.status },
-    );
-  }
+  if (!guard.ok) return guard.response;
 
   const { id } = await params;
 

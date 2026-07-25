@@ -36,19 +36,31 @@ describe("organizationPermissionDenied", () => {
   it("maps 401 to unauthenticated contract", () => {
     const result = organizationPermissionDenied(401);
     expect(result.status).toBe(401);
-    expect(result.error.code).toBe("unauthenticated");
+    expect(result.error).toMatchObject({
+      error: "UNAUTHORIZED",
+      code: 401,
+      reason: "missing_token",
+    });
   });
 
   it("maps non-401 to forbidden contract", () => {
     const result = organizationPermissionDenied(403);
     expect(result.status).toBe(403);
-    expect(result.error.code).toBe("forbidden");
+    expect(result.error).toMatchObject({
+      error: "FORBIDDEN",
+      code: 403,
+      reason: "insufficient_permission",
+    });
   });
 
   it("maps unexpected statuses to forbidden contract", () => {
     const result = organizationPermissionDenied(418);
     expect(result.status).toBe(403);
-    expect(result.error.code).toBe("forbidden");
+    expect(result.error).toMatchObject({
+      error: "FORBIDDEN",
+      code: 403,
+      reason: "insufficient_permission",
+    });
   });
 });
 
@@ -87,7 +99,11 @@ describe("mapOrganizationRouteError", () => {
   it("maps auth errors to unauthenticated", () => {
     const result = mapOrganizationRouteError(new Error("SUPABASE_SESSION_REQUIRED"));
     expect(result.status).toBe(401);
-    expect(result.error.code).toBe("unauthenticated");
+    expect(result.error).toMatchObject({
+      error: "UNAUTHORIZED",
+      code: 401,
+      reason: "missing_token",
+    });
   });
 
   it("maps invalid payload errors to validation_failure", () => {

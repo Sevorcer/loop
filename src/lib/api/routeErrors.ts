@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 
+import {
+  classifyUnauthorizedReason,
+  createForbiddenResponse,
+  unauthorizedResponse,
+} from "@/lib/api-auth";
 import { getRepositoryErrorStatus } from "@/lib/repositories/http";
 import type { RepositoryError } from "@/lib/repositories/contracts";
 
@@ -89,16 +94,16 @@ export function mapRouteError(error: unknown) {
     message === "USER_PROFILE_NOT_FOUND" ||
     code === "USER_PROFILE_NOT_FOUND"
   ) {
-    return createApiErrorResponse("UNAUTHORIZED", "A valid session is required.", 401);
+    return unauthorizedResponse();
   }
 
   // Honor explicit upstream status/code when present.
   if (status === 401 || code === "UNAUTHORIZED") {
-    return createApiErrorResponse("UNAUTHORIZED", "A valid session is required.", 401);
+    return unauthorizedResponse(undefined, classifyUnauthorizedReason({ message, code, status }));
   }
 
   if (status === 403 || code === "FORBIDDEN") {
-    return createApiErrorResponse("FORBIDDEN", message, 403);
+    return createForbiddenResponse(message);
   }
 
   if (status === 404 || code === "NOT_FOUND") {
@@ -110,7 +115,7 @@ export function mapRouteError(error: unknown) {
     lowerMessage.includes("forbidden") ||
     lowerMessage.includes("denied")
   ) {
-    return createApiErrorResponse("FORBIDDEN", message, 403);
+    return createForbiddenResponse(message);
   }
 
   if (lowerMessage.includes("not found")) {
