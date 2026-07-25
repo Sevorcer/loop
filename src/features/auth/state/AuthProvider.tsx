@@ -61,10 +61,38 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
   useEffect(() => {
     // Subscribe to auth state changes so the UI reacts to token refresh,
     // sign-out from another tab, and session expiry.
-    const unsubscribe = subscribeToAuthSession((_event, newSession: Session | null) => {
+    const unsubscribe = subscribeToAuthSession((event, newSession: Session | null) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setIsLoading(false);
+
+      if (event === "TOKEN_REFRESHED" && newSession) {
+        const traceId = createCorrelationId();
+        logAuthEvent({
+          event: "session_refresh_success",
+          outcome: "success",
+          route: ROUTES.SIGN_IN,
+          requestId: traceId,
+          correlationId: traceId,
+          userId: newSession.user?.id,
+          refreshOutcome: "success",
+          refreshAttempts: 1,
+        });
+      }
+
+      if (event === "TOKEN_REFRESHED" && !newSession) {
+        const traceId = createCorrelationId();
+        logAuthEvent({
+          event: "session_refresh_failure",
+          outcome: "failure",
+          route: ROUTES.SIGN_IN,
+          requestId: traceId,
+          correlationId: traceId,
+          errorCode: "CLIENT_TOKEN_REFRESH_FAILED",
+          refreshOutcome: "unknown_failure",
+          refreshAttempts: 1,
+        });
+      }
 
       // If the session is lost while on a protected page, redirect to sign-in.
       if (!newSession) {

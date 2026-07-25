@@ -1,6 +1,16 @@
 const SENSITIVE_KEY_PATTERN =
   /(token|password|secret|authorization|cookie|session|email|phone|ssn|address)/i;
 
+export type AuthRefreshOutcome =
+  | "success"
+  | "expired"
+  | "revoked"
+  | "replay_denied"
+  | "concurrency_conflict"
+  | "malformed"
+  | "missing"
+  | "unknown_failure";
+
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
@@ -31,6 +41,8 @@ export interface AuthLogEvent {
   role?: string;
   details?: Record<string, unknown>;
   errorCode?: string;
+  refreshOutcome?: AuthRefreshOutcome;
+  refreshAttempts?: number;
 }
 
 export interface RequestTraceContext {
@@ -146,6 +158,8 @@ export function logAuthEvent(event: AuthLogEvent): void {
     userId: event.userId ?? null,
     role: event.role ?? null,
     errorCode: event.errorCode ?? null,
+    refreshOutcome: event.refreshOutcome ?? null,
+    refreshAttempts: event.refreshAttempts ?? null,
     details: redactSensitiveValue(event.details ?? {}),
   };
 

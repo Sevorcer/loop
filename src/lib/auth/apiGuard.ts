@@ -30,6 +30,8 @@ import {
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
+import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
+import { unauthorizedResponse } from "@/lib/auth/unauthorized";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -65,13 +67,14 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     ? getRequestTraceContext(request)
     : { route: "unknown", requestId: generatedId, correlationId: generatedId };
   const supabase = await createSupabaseServerClient();
+  const resolved = await resolveAuthRefresh({
+    getUser: () => supabase.auth.getUser(),
+    clearSession: async () => {
+      await supabase.auth.signOut();
+    },
+  });
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
+  if (resolved.status !== "authenticated" || !resolved.user) {
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -79,16 +82,17 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       statusCode: 401,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      errorCode: error?.name ?? "API_SESSION_MISSING",
-      details: { message: error?.message ?? "No authenticated user found." },
+      errorCode: resolved.error?.name ?? resolved.resolution,
+      refreshOutcome: resolved.resolution,
+      refreshAttempts: resolved.attempts,
+      details: {
+        message: resolved.error?.message ?? "No authenticated user found.",
+      },
     });
     incrementAuthMetric("auth_401_total", { route: trace.route });
     return {
       error: applyTraceHeaders(
-        NextResponse.json(
-          { error: "UNAUTHORIZED", message: "A valid session is required.", code: 401 },
-          { status: 401 }
-        ),
+        unauthorizedResponse(),
         trace,
       ),
       user: null,
@@ -102,8 +106,13 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     statusCode: 200,
     requestId: trace.requestId,
     correlationId: trace.correlationId,
-    userId: user.id,
+    userId: resolved.user.id,
+    refreshOutcome: resolved.resolution,
+    refreshAttempts: resolved.attempts,
+    details: {
+      resolution: resolved.resolution,
+    },
   });
 
-  return { error: null, user };
+  return { error: null, user: resolved.user };
 }

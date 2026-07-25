@@ -18,6 +18,8 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
+import { unauthorizedResponse } from "@/lib/auth/unauthorized";
 import {
   applyTraceHeaders,
   getRequestTraceContext,
@@ -130,15 +132,16 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Refresh session — IMPORTANT: call getUser() not getSession() so the JWT
-  // is validated server-side.
-  const {
-    data: { user },
-    error: refreshError,
-  } = await supabase.auth.getUser();
+  const resolved = await resolveAuthRefresh({
+    getUser: () => supabase.auth.getUser(),
+    getSession: () => supabase.auth.getSession(),
+    clearSession: async () => {
+      await supabase.auth.signOut();
+    },
+  });
 
-  const isAuthenticated = Boolean(user);
-  if (refreshError) {
+  const isAuthenticated = resolved.status === "authenticated" && Boolean(resolved.user);
+  if (!isAuthenticated) {
     logAuthEvent({
       event: "session_refresh_failure",
       outcome: "failure",
@@ -146,8 +149,12 @@ export async function proxy(request: NextRequest) {
       statusCode: 401,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      errorCode: refreshError.name ?? "SESSION_REFRESH_ERROR",
-      details: { message: refreshError.message },
+      errorCode: resolved.error?.name ?? resolved.resolution,
+      refreshOutcome: resolved.resolution,
+      refreshAttempts: resolved.attempts,
+      details: {
+        message: resolved.error?.message ?? "No authenticated user found.",
+      },
     });
     incrementAuthMetric("auth_session_refresh_failure_total", { route: pathname });
   } else {
@@ -158,7 +165,12 @@ export async function proxy(request: NextRequest) {
       statusCode: 200,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      userId: user?.id,
+      userId: resolved.user?.id,
+      refreshOutcome: resolved.resolution,
+      refreshAttempts: resolved.attempts,
+      details: {
+        resolution: resolved.resolution,
+      },
     });
   }
 
@@ -197,10 +209,7 @@ export async function proxy(request: NextRequest) {
       });
       incrementAuthMetric("auth_401_total", { route: pathname });
       return applyTraceHeaders(
-        NextResponse.json(
-        { error: "Unauthorized", message: "A valid session is required." },
-        { status: 401 }
-        ),
+        unauthorizedResponse(),
         trace,
       );
     }

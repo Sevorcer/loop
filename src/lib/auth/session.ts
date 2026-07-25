@@ -25,6 +25,7 @@ import {
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
+import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ROUTES } from "@/lib/routes";
 import type { Session, User } from "@supabase/supabase-js";
@@ -74,13 +75,15 @@ export async function getAuthSession(): Promise<AuthSession | null> {
   }
 
   const supabase = await createSupabaseServerClient();
+  const resolved = await resolveAuthRefresh({
+    getUser: () => supabase.auth.getUser(),
+    getSession: () => supabase.auth.getSession(),
+    clearSession: async () => {
+      await supabase.auth.signOut();
+    },
+  });
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
+  if (resolved.status !== "authenticated" || !resolved.user || !resolved.session) {
     logAuthEvent({
       event: "session_refresh_failure",
       outcome: "failure",
@@ -88,30 +91,12 @@ export async function getAuthSession(): Promise<AuthSession | null> {
       requestId,
       correlationId: requestId,
       statusCode: 401,
-      errorCode: error?.name ?? "USER_NOT_FOUND",
-      details: { message: error?.message ?? "No authenticated user found." },
-    });
-    incrementAuthMetric("auth_session_refresh_failure_total", {
-      route: "server:getAuthSession",
-    });
-    return null;
-  }
-
-  // Re-fetch the full session object after confirming the user is valid.
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    logAuthEvent({
-      event: "session_refresh_failure",
-      outcome: "failure",
-      route: "server:getAuthSession",
-      requestId,
-      correlationId: requestId,
-      statusCode: 401,
-      userId: user.id,
-      errorCode: "SESSION_NOT_FOUND",
+      errorCode: resolved.error?.name ?? resolved.resolution,
+      refreshOutcome: resolved.resolution,
+      refreshAttempts: resolved.attempts,
+      details: {
+        message: resolved.error?.message ?? "No authenticated user found.",
+      },
     });
     incrementAuthMetric("auth_session_refresh_failure_total", {
       route: "server:getAuthSession",
@@ -126,10 +111,15 @@ export async function getAuthSession(): Promise<AuthSession | null> {
     requestId,
     correlationId: requestId,
     statusCode: 200,
-    userId: user.id,
+    userId: resolved.user.id,
+    refreshOutcome: resolved.resolution,
+    refreshAttempts: resolved.attempts,
+    details: {
+      resolution: resolved.resolution,
+    },
   });
 
-  return { user, session };
+  return { user: resolved.user, session: resolved.session };
 }
 
 /**
