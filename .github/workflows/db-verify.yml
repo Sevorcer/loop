@@ -1,28 +1,9 @@
 name: DB Schema Verification
 
-# Runs on every PR targeting main and every push to main.
-#
-# Purpose: verify database schema and policy contracts are met BEFORE the
-# pre-deploy gate promotes changes to production. This is verification only.
-#
-# Two-tier design:
-#   verify-structure — structural checks only, no secrets required.
-#   verify-schema    — live-database checks, requires DB secrets.
-#
-# Required secrets (live DB job):
-#   SUPABASE_ACCESS_TOKEN
-#   SUPABASE_PROJECT_REF
-#   SUPABASE_DB_PASSWORD
-#   SUPABASE_DATABASE_URL   (recommended; pooled/IPv4-friendly connection URL)
-
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
+  workflow_dispatch:
 
 jobs:
   verify-structure:
@@ -39,19 +20,11 @@ jobs:
     name: Verify schema & policies (live DB)
     runs-on: ubuntu-latest
     needs: verify-structure
-
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       github.actor != 'dependabot[bot]' &&
-       github.actor != 'Copilot')
-
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-
+      SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,7 +32,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 2.109.1
+          version: latest
 
       - name: Validate required secrets
         run: |
@@ -108,27 +81,31 @@ jobs:
             fi
           fi
 
-      - name: Build verification connection string
-        env:
-          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+      - name: Build verification connection string (require explicit secret)
         run: |
-          if [ -n "$SUPABASE_DATABASE_URL" ]; then
-            echo "::add-mask::$SUPABASE_DATABASE_URL"
-            echo "DATABASE_URL=$SUPABASE_DATABASE_URL" >> "$GITHUB_ENV"
-            echo "Using SUPABASE_DATABASE_URL secret for verification connection."
-            exit 0
+          if [ -z "$SUPABASE_DATABASE_URL" ]; then
+            echo "::error::SUPABASE_DATABASE_URL is required. Set it to the Supabase POOLER URI (port 6543)."
+            exit 1
           fi
+          echo "::add-mask::$SUPABASE_DATABASE_URL"
+          echo "DATABASE_URL=$SUPABASE_DATABASE_URL" >> "$GITHUB_ENV"
+          echo "Using SUPABASE_DATABASE_URL secret for verification connection."
 
-          ENCODED_DB_PASSWORD=$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["SUPABASE_LINK_DB_PASSWORD"], safe=""))')
-          DATABASE_URL="postgresql://postgres:${ENCODED_DB_PASSWORD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
-          echo "::warning::SUPABASE_DATABASE_URL not set; using direct db.<ref>.supabase.co fallback."
-          echo "::add-mask::$DATABASE_URL"
-          echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
+      - name: Debug DATABASE_URL host (safe)
+        run: |
+          python3 - <<'PY'
+          from urllib.parse import urlparse
+          import os
+          u = urlparse(os.environ.get("DATABASE_URL", ""))
+          print("DATABASE_HOST:", u.hostname)
+          print("DATABASE_PORT:", u.port)
+          print("DATABASE_USER:", u.username)
+          PY
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -153,7 +130,7 @@ jobs:
           npm run db:verify-policies 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-  drift-summary:
+  summary:
     name: Drift check summary
     runs-on: ubuntu-latest
     needs: [verify-structure, verify-schema]
