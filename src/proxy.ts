@@ -18,7 +18,11 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { classifyUnauthorizedReason, unauthorizedResponse } from "@/lib/auth/errorContract";
+import {
+  classifyUnauthorizedRefreshReason,
+  unauthorizedResponse,
+} from "@/lib/auth/errorContract";
+import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import {
   applyTraceHeaders,
   getRequestTraceContext,
@@ -131,16 +135,21 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Refresh session — IMPORTANT: call getUser() not getSession() so the JWT
-  // is validated server-side.
-  const {
-    data: { user },
-    error: refreshError,
-  } = await supabase.auth.getUser();
+  const resolved = await resolveAuthRefresh({
+    getUser: () => supabase.auth.getUser(),
+    getSession: () => supabase.auth.getSession(),
+    clearSession: async () => {
+      await supabase.auth.signOut();
+    },
+  });
 
-  const isAuthenticated = Boolean(user);
-  if (refreshError) {
-    const authFailureReason = classifyUnauthorizedReason(refreshError);
+  const isAuthenticated = resolved.status === "authenticated" && Boolean(resolved.user);
+  const authFailureReason = classifyUnauthorizedRefreshReason(
+    resolved.resolution,
+    resolved.error,
+  );
+
+  if (!isAuthenticated) {
     logAuthEvent({
       event: "session_refresh_failure",
       outcome: "failure",
@@ -149,7 +158,12 @@ export async function proxy(request: NextRequest) {
       requestId: trace.requestId,
       correlationId: trace.correlationId,
       errorCode: authFailureReason.toUpperCase(),
-      details: { message: refreshError.message, reason: authFailureReason },
+      refreshOutcome: resolved.resolution,
+      refreshAttempts: resolved.attempts,
+      details: {
+        message: resolved.error?.message ?? "No authenticated user found.",
+        reason: authFailureReason,
+      },
     });
     incrementAuthMetric("auth_session_refresh_failure_total", {
       route: pathname,
@@ -163,14 +177,18 @@ export async function proxy(request: NextRequest) {
       statusCode: 200,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      userId: user?.id,
+      userId: resolved.user?.id,
+      refreshOutcome: resolved.resolution,
+      refreshAttempts: resolved.attempts,
+      details: {
+        resolution: resolved.resolution,
+      },
     });
   }
 
   // ── Shell routes ──────────────────────────────────────────────────────────
   if (isShellRoute(pathname)) {
     if (!isAuthenticated) {
-      const authFailureReason = refreshError ? classifyUnauthorizedReason(refreshError) : "missing_token";
       const signInUrl = new URL("/sign-in", request.url);
       // Preserve the intended destination so we can redirect after sign-in.
       signInUrl.searchParams.set("next", pathname);
@@ -193,7 +211,6 @@ export async function proxy(request: NextRequest) {
   // ── Protected API routes ──────────────────────────────────────────────────
   if (isProtectedApiRoute(pathname)) {
     if (!isAuthenticated) {
-      const authFailureReason = refreshError ? classifyUnauthorizedReason(refreshError) : "missing_token";
       logAuthEvent({
         event: "unauthorized_access_attempt",
         outcome: "deny",

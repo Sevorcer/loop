@@ -24,7 +24,7 @@ import "server-only";
 import type { NextResponse } from "next/server";
 
 import {
-  classifyUnauthorizedReason,
+  classifyUnauthorizedRefreshReason,
   unauthorizedResponse,
 } from "@/lib/auth/errorContract";
 import {
@@ -34,6 +34,7 @@ import {
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
+import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -69,14 +70,18 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     ? getRequestTraceContext(request)
     : { route: "unknown", requestId: generatedId, correlationId: generatedId };
   const supabase = await createSupabaseServerClient();
+  const resolved = await resolveAuthRefresh({
+    getUser: () => supabase.auth.getUser(),
+    clearSession: async () => {
+      await supabase.auth.signOut();
+    },
+  });
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    const reason = classifyUnauthorizedReason(error);
+  if (resolved.status !== "authenticated" || !resolved.user) {
+    const reason = classifyUnauthorizedRefreshReason(
+      resolved.resolution,
+      resolved.error,
+    );
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -85,8 +90,10 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       requestId: trace.requestId,
       correlationId: trace.correlationId,
       errorCode: reason.toUpperCase(),
+      refreshOutcome: resolved.resolution,
+      refreshAttempts: resolved.attempts,
       details: {
-        message: error?.message ?? "No authenticated user found.",
+        message: resolved.error?.message ?? "No authenticated user found.",
         reason,
       },
     });
@@ -104,8 +111,13 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     statusCode: 200,
     requestId: trace.requestId,
     correlationId: trace.correlationId,
-    userId: user.id,
+    userId: resolved.user.id,
+    refreshOutcome: resolved.resolution,
+    refreshAttempts: resolved.attempts,
+    details: {
+      resolution: resolved.resolution,
+    },
   });
 
-  return { error: null, user };
+  return { error: null, user: resolved.user };
 }

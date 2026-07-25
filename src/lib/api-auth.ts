@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 
 import {
-  classifyUnauthorizedReason,
+  classifyUnauthorizedRefreshReason,
   createForbiddenResponse,
   unauthorizedResponse,
   type ApiErrorBody,
-  type SessionLikeError,
   type UnauthorizedReason,
 } from "@/lib/auth/errorContract";
 import {
@@ -14,6 +13,7 @@ import {
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
+import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasPermission } from "@/services/authorization";
 import type { AppRole, CoreTable, TableAction } from "@/services/authorization";
@@ -22,6 +22,7 @@ export {
   buildForbiddenErrorBody,
   buildUnauthorizedErrorBody,
   classifyUnauthorizedReason,
+  classifyUnauthorizedRefreshReason,
   createForbiddenResponse,
   unauthorizedResponse,
 } from "@/lib/auth/errorContract";
@@ -56,19 +57,6 @@ export type PermissionResult =
   | { ok: true; ctx: AuthContext }
   | { ok: false; response: NextResponse<ApiErrorBody> };
 
-type SessionProbeResult = {
-  user: {
-    id?: string;
-    app_metadata?: Record<string, unknown> | null;
-    user_metadata?: Record<string, unknown> | null;
-  } | null;
-  error: {
-    message?: string;
-    name?: string;
-    code?: string;
-    status?: number;
-  } | null;
-};
 type ResolvedAuth = { role: AppRole; userId: string };
 type ResolvedAuthResult =
   | { ok: true; auth: ResolvedAuth }
@@ -95,59 +83,41 @@ function extractRoleFromUser(user: {
   return null;
 }
 
-async function probeSession(): Promise<SessionProbeResult> {
-  try {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.auth.getUser();
-
-    return {
-      user: data.user
-        ? {
-            id: data.user.id,
-            app_metadata: data.user.app_metadata,
-            user_metadata: data.user.user_metadata,
-          }
-        : null,
-      error: error
-        ? {
-            message: error.message,
-            name: (error as { name?: string }).name,
-            code: (error as { code?: string }).code,
-            status: (error as { status?: number }).status,
-          }
-        : null,
-    };
-  } catch (error) {
-    return {
-      user: null,
-      error: {
-        message: error instanceof Error ? error.message : "unknown",
-        name: "ProbeSessionException",
-      },
-    };
-  }
-}
-
-function isMissingSessionError(err: SessionLikeError | null | undefined) {
-  const token = `${err?.name ?? ""}|${err?.code ?? ""}|${err?.message ?? ""}`.toLowerCase();
-  return token.includes("authsessionmissingerror") || token.includes("session missing");
-}
-
-
 async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult> {
   let failureReason: UnauthorizedReason = "missing_token";
 
   try {
-    let session = await probeSession();
+    const supabase = await createSupabaseServerClient();
+    const resolved = await resolveAuthRefresh({
+      getUser: async () => {
+        const { data, error } = await supabase.auth.getUser();
+        return {
+          data: {
+            user: data.user
+              ? {
+                  id: data.user.id,
+                  app_metadata: data.user.app_metadata,
+                  user_metadata: data.user.user_metadata,
+                }
+              : null,
+          },
+          error: error
+            ? {
+                message: error.message,
+                name: (error as { name?: string }).name,
+                code: (error as { code?: string }).code,
+                status: (error as { status?: number }).status,
+              }
+            : null,
+        };
+      },
+      clearSession: async () => {
+        await supabase.auth.signOut();
+      },
+    });
 
-    if (!session.user && isMissingSessionError(session.error)) {
-      session = await probeSession();
-    }
-
-    const user = session.user;
-    const error = session.error;
-
-    if (!error && user) {
+    const user = resolved.user;
+    if (resolved.status === "authenticated" && user) {
       const extractedRole = extractRoleFromUser(user);
       if (extractedRole) {
         return { ok: true, auth: { role: extractedRole, userId: user.id ?? "" } };
@@ -160,7 +130,7 @@ async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult>
       return { ok: false, reason: "missing_role" };
     }
 
-    failureReason = error ? classifyUnauthorizedReason(error) : "missing_token";
+    failureReason = classifyUnauthorizedRefreshReason(resolved.resolution, resolved.error);
   } catch {
     // Session probe failed — fall through to header fallback (non-prod only).
     failureReason = "invalid_token";

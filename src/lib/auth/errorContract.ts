@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { RefreshResolution } from "@/lib/auth/refreshResolver";
 
 export type UnauthorizedReason =
   | "missing_token"
@@ -82,6 +83,26 @@ export function classifyUnauthorizedReason(
   }
 
   return "missing_token";
+}
+
+export function classifyUnauthorizedRefreshReason(
+  resolution: RefreshResolution,
+  err: SessionLikeError | null | undefined,
+): UnauthorizedReason {
+  switch (resolution) {
+    case "expired":
+      return "expired_token";
+    case "revoked":
+    case "replay_denied":
+      return "revoked_session";
+    case "missing":
+      return "missing_token";
+    case "malformed":
+    case "concurrency_conflict":
+    case "unknown_failure":
+    default:
+      return err ? classifyUnauthorizedReason(err) : "missing_token";
+  }
 }
 
 export function buildUnauthorizedErrorBody(
