@@ -3,18 +3,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Route modules import @/lib/supabase/server which uses the server-only guard.
 // Mock both the guard module and the server client before any route imports.
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/server", () => ({
-  createSupabaseServerClient: vi.fn().mockResolvedValue({}),
-}));
 
 const {
   requirePermissionMock,
   readJsonObjectMock,
   createPropertyMock,
+  createSupabaseServerClientMock,
+  supabaseClientMock,
 } = vi.hoisted(() => ({
   requirePermissionMock: vi.fn(),
   readJsonObjectMock: vi.fn(),
   createPropertyMock: vi.fn(),
+  createSupabaseServerClientMock: vi.fn(),
+  supabaseClientMock: { kind: "supabase-server-client" },
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createSupabaseServerClient: createSupabaseServerClientMock,
 }));
 
 vi.mock("@/lib/api-auth", async () => {
@@ -94,6 +99,7 @@ describe("POST /api/properties — owner happy path", () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.spyOn(console, "info").mockImplementation(() => {});
+    createSupabaseServerClientMock.mockResolvedValue(supabaseClientMock);
   });
 
   afterEach(() => {
@@ -121,6 +127,13 @@ describe("POST /api/properties — owner happy path", () => {
 
     expect(response.status).toBe(201);
     expect(createPropertyMock).toHaveBeenCalledOnce();
+    expect(createSupabaseServerClientMock).toHaveBeenCalledOnce();
+    expect(createPropertyMock).toHaveBeenCalledWith(validPropertyBody(), {
+      userId: "user-owner-1",
+      supabase: supabaseClientMock,
+      route: "/api/properties",
+      requestId: "req-owner-1",
+    });
 
     const body = await response.json() as { property: { id: string } };
     expect(body.property.id).toBe("property-1");

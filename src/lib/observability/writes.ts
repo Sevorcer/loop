@@ -21,6 +21,8 @@
 export interface WriteFailureContext {
   /** Canonical route path, e.g. "/api/jobs". */
   route: string;
+  /** Stable operation name, e.g. "create_job". */
+  operation: string;
   /**
    * Incoming Request object — used to extract requestId/correlationId from
    * standard trace headers when `requestId` is not provided explicitly.
@@ -31,11 +33,6 @@ export interface WriteFailureContext {
    * Use this when the route handler has already read the trace context.
    */
   requestId?: string | null;
-  /**
-   * Optional step label from step-tracking POST handlers.
-   * Identifies the exact execution point at which the failure occurred.
-   */
-  step?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,12 +52,11 @@ function extractRequestId(ctx: WriteFailureContext): string | null {
 }
 
 function extractErrorFields(error: unknown): {
-  errorName: string;
-  errorMessage: string;
+  sanitizedMessage: string;
   errorCode: string | null;
+  stack: string | null;
 } {
   const isError = error instanceof Error;
-  const errorName = isError ? error.name : typeof error;
   const errorMessage = isError ? error.message : String(error);
 
   let errorCode: string | null = null;
@@ -71,7 +67,25 @@ function extractErrorFields(error: unknown): {
     }
   }
 
-  return { errorName, errorMessage, errorCode };
+  return {
+    sanitizedMessage: sanitizeLogText(errorMessage),
+    errorCode,
+    stack:
+      process.env.NODE_ENV === "production" || !isError || typeof error.stack !== "string"
+        ? null
+        : sanitizeLogText(error.stack),
+  };
+}
+
+function sanitizeLogText(value: string): string {
+  return value
+    .replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+=*\b/gi, "******")
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[REDACTED_JWT]")
+    .replace(
+      /\b(authorization|cookie|set-cookie|token|secret|api[_ -]?key|password)\b\s*[:=]\s*("[^"]*"|'[^']*'|[^,\s;]+)/gi,
+      "$1=[REDACTED]",
+    )
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]");
 }
 
 // ---------------------------------------------------------------------------
@@ -86,19 +100,18 @@ function extractErrorFields(error: unknown): {
  */
 export function logWriteFailure(ctx: WriteFailureContext, error: unknown): void {
   try {
-    const { errorName, errorMessage, errorCode } = extractErrorFields(error);
+    const { sanitizedMessage, errorCode, stack } = extractErrorFields(error);
 
     const payload = {
       category: "write_failure",
-      schemaVersion: "1.0",
+      schema_version: "1.0",
       timestamp: new Date().toISOString(),
-      event: "write_failure",
+      request_id: extractRequestId(ctx),
       route: ctx.route,
-      requestId: extractRequestId(ctx),
-      step: ctx.step ?? null,
-      errorName,
-      errorMessage,
-      errorCode,
+      operation: ctx.operation,
+      error_code: errorCode,
+      sanitized_message: sanitizedMessage,
+      ...(stack ? { stack } : {}),
     };
 
     console.error("[WRITE_FAILURE]", JSON.stringify(payload));

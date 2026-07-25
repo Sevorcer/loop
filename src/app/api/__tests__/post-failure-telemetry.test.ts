@@ -119,15 +119,19 @@ describe("POST route write-failure telemetry — [WRITE_FAILURE] is emitted on w
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "[WRITE_FAILURE]",
-      expect.stringContaining('"requestId":"req-prop-1"'),
+      expect.stringContaining('"request_id":"req-prop-1"'),
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "[WRITE_FAILURE]",
-      expect.stringContaining('"errorMessage":"insert failed"'),
+      expect.stringContaining('"sanitized_message":"insert failed"'),
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "[WRITE_FAILURE]",
-      expect.stringContaining('"errorCode":"23505"'),
+      expect.stringContaining('"error_code":"23505"'),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"operation":"create_property"'),
     );
     // Old format must NOT be present.
     expect(consoleErrorMock).not.toHaveBeenCalledWith(
@@ -170,15 +174,19 @@ describe("POST route write-failure telemetry — [WRITE_FAILURE] is emitted on w
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "[WRITE_FAILURE]",
-      expect.stringContaining('"requestId":"req-job-1"'),
+      expect.stringContaining('"request_id":"req-job-1"'),
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "[WRITE_FAILURE]",
-      expect.stringContaining('"errorMessage":"jobs insert failed"'),
+      expect.stringContaining('"sanitized_message":"jobs insert failed"'),
     );
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "[WRITE_FAILURE]",
-      expect.stringContaining('"errorCode":"PGRST301"'),
+      expect.stringContaining('"error_code":"PGRST301"'),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "[WRITE_FAILURE]",
+      expect.stringContaining('"operation":"create_job"'),
     );
     // Old format must NOT be present.
     expect(consoleErrorMock).not.toHaveBeenCalledWith(
@@ -187,7 +195,7 @@ describe("POST route write-failure telemetry — [WRITE_FAILURE] is emitted on w
     );
   });
 
-  it("includes step label in [WRITE_FAILURE] payload", async () => {
+  it("includes operation in [WRITE_FAILURE] payload", async () => {
     readJsonObjectMock.mockResolvedValue({
       name: "Smoke Test Property",
       customer: "Acme",
@@ -209,7 +217,7 @@ describe("POST route write-failure telemetry — [WRITE_FAILURE] is emitted on w
 
     expect(consoleErrorMock).toHaveBeenCalledWith(
       "[WRITE_FAILURE]",
-      expect.stringContaining('"step":"create_property_service"'),
+      expect.stringContaining('"operation":"create_property"'),
     );
   });
 });

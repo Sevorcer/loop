@@ -51,6 +51,17 @@ export interface RequestTraceContext {
   correlationId: string;
 }
 
+export interface AuthorizationDecisionLog {
+  route: string;
+  method?: string;
+  org?: string | null;
+  actorRole?: string | null;
+  policy: string;
+  action: string;
+  decision: "allow" | "deny";
+  reasonCode: string;
+}
+
 interface MetricSample {
   timestamp: number;
   count: number;
@@ -88,6 +99,12 @@ function createFallbackId(): string {
     globalThis.crypto.getRandomValues(bytes);
     const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
     return `req_${token}`;
+  }
+
+  function normalizeMethod(method?: string): string {
+    if (!method) return "UNKNOWN";
+    const normalized = method.trim().toUpperCase();
+    return normalized.length > 0 ? normalized : "UNKNOWN";
   }
 
   // Last-resort deterministic fallback for runtimes without Web Crypto.
@@ -169,6 +186,24 @@ export function logAuthEvent(event: AuthLogEvent): void {
   };
 
   console.info("[AUTH_EVENT]", JSON.stringify(payload));
+}
+
+export function logAuthorizationDecision(event: AuthorizationDecisionLog): void {
+  const payload = {
+    category: "authz_decision",
+    schema_version: "1.0",
+    timestamp: new Date().toISOString(),
+    route: normalizeRoute(event.route),
+    method: normalizeMethod(event.method),
+    org: event.org ?? null,
+    actor_role: event.actorRole ?? null,
+    policy: event.policy,
+    action: event.action,
+    decision: event.decision,
+    reason_code: event.reasonCode,
+  };
+
+  console.info("[AUTHZ_DECISION]", JSON.stringify(payload));
 }
 
 function getMetricBucketKey(metric: AuthMetricName, route: string, category: string): string {
