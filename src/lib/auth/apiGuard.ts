@@ -21,8 +21,12 @@
 
 import "server-only";
 
-import { NextResponse } from "next/server";
+import type { NextResponse } from "next/server";
 
+import {
+  classifyUnauthorizedRefreshReason,
+  unauthorizedResponse,
+} from "@/lib/auth/errorContract";
 import {
   applyTraceHeaders,
   createCorrelationId,
@@ -31,7 +35,6 @@ import {
   logAuthEvent,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
-import { unauthorizedResponse } from "@/lib/auth/unauthorized";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -75,6 +78,10 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
   });
 
   if (resolved.status !== "authenticated" || !resolved.user) {
+    const reason = classifyUnauthorizedRefreshReason(
+      resolved.resolution,
+      resolved.error,
+    );
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -82,19 +89,17 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       statusCode: 401,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      errorCode: resolved.error?.name ?? resolved.resolution,
+      errorCode: reason.toUpperCase(),
       refreshOutcome: resolved.resolution,
       refreshAttempts: resolved.attempts,
       details: {
         message: resolved.error?.message ?? "No authenticated user found.",
+        reason,
       },
     });
-    incrementAuthMetric("auth_401_total", { route: trace.route });
+    incrementAuthMetric("auth_401_total", { route: trace.route, category: reason });
     return {
-      error: applyTraceHeaders(
-        unauthorizedResponse(),
-        trace,
-      ),
+      error: applyTraceHeaders(unauthorizedResponse(undefined, reason), trace),
       user: null,
     };
   }

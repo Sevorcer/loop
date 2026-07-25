@@ -1,10 +1,17 @@
+import { beginClientAuthRecovery } from "@/lib/auth/clientRecovery";
+import type { AuthErrorReason, UnauthorizedReason } from "@/lib/auth/errorContract";
+
 export class ApiRequestError extends Error {
   status: number;
+  reason?: AuthErrorReason;
+  code?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, options?: { reason?: AuthErrorReason; code?: string }) {
     super(message);
     this.name = "ApiRequestError";
     this.status = status;
+    this.reason = options?.reason;
+    this.code = options?.code;
   }
 }
 
@@ -13,6 +20,19 @@ type RequestJsonOptions = Omit<RequestInit, "body" | "headers"> & {
   headers?: HeadersInit;
   role?: string | null;
 };
+
+function parseApiErrorPayload(
+  value: unknown,
+): { message?: string; error?: string; reason?: AuthErrorReason } | null {
+  if (!value || typeof value !== "object") return null;
+
+  const payload = value as Record<string, unknown>;
+  return {
+    message: typeof payload.message === "string" ? payload.message : undefined,
+    error: typeof payload.error === "string" ? payload.error : undefined,
+    reason: typeof payload.reason === "string" ? (payload.reason as AuthErrorReason) : undefined,
+  };
+}
 
 export async function requestJson<T>(
   input: RequestInfo | URL,
@@ -41,11 +61,21 @@ export async function requestJson<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
+    const errorPayload = parseApiErrorPayload(data);
+
+    if (response.status === 401) {
+      beginClientAuthRecovery((errorPayload?.reason as UnauthorizedReason | undefined) ?? "missing_token");
+    }
+
     throw new ApiRequestError(
-      (data as { message?: string; error?: string } | null)?.message ??
-        (data as { message?: string; error?: string } | null)?.error ??
+      errorPayload?.message ??
+        errorPayload?.error ??
         "Request failed.",
       response.status,
+      {
+        reason: errorPayload?.reason,
+        code: errorPayload?.error,
+      },
     );
   }
 

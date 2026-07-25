@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { unauthorizedResponse } from "@/lib/api-auth";
 import { runDbHealthChecks } from "@/services/dbHealth";
 import type { RunTrigger } from "@/features/admin/db-health/types";
 
@@ -37,9 +38,9 @@ export async function POST(request: Request) {
   const supplied = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
 
   if (!supplied || supplied !== token) {
-    return NextResponse.json(
-      { error: "Unauthorized." },
-      { status: 401 },
+    return unauthorizedResponse(
+      "A valid bearer token is required.",
+      supplied ? "invalid_token" : "missing_token",
     );
   }
 

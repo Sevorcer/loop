@@ -96,6 +96,7 @@ describe("auth observability", () => {
     for (let index = 0; index < 10; index += 1) {
       incrementAuthMetric("auth_sign_in_failure_total", {
         route: "/sign-in",
+        category: "invalid_credentials",
         now: now + index,
       });
     }
@@ -104,5 +105,6 @@ describe("auth observability", () => {
     const [, payload] = warnSpy.mock.calls[0] as [string, string];
     expect(payload).toContain('"metric":"auth_sign_in_failure_total"');
     expect(payload).toContain('"route":"/sign-in"');
+    expect(payload).toContain('"authCategory":"invalid_credentials"');
   });
 });

@@ -47,14 +47,14 @@ export interface RefreshResolutionResult<TUser extends UserLike = User> {
   error: AuthErrorLike | null;
 }
 
-// One retry balances resilience for transient refresh races without creating
-// long retry chains that could hide persistent auth failures.
+// One retry (two total attempts) balances resilience for transient refresh
+// races without creating long retry chains that could hide persistent auth failures.
 const DEFAULT_MAX_RETRIES = 1;
 // Treat sessions expiring within 30s as expired to account for clock skew and
 // network latency between refresh and downstream authorization checks.
 const DEFAULT_EXPIRY_SKEW_MS = 30_000;
 
-function normalizeText(error: AuthErrorLike | null | undefined): string {
+function buildErrorSearchToken(error: AuthErrorLike | null | undefined): string {
   return `${error?.name ?? ""}|${error?.code ?? ""}|${error?.message ?? ""}`.toLowerCase();
 }
 
@@ -79,7 +79,7 @@ function classifyFailure(
   }
 
   const status = error?.status;
-  const token = normalizeText(error);
+  const token = buildErrorSearchToken(error);
 
   if (
     token.includes("jwt expired") ||

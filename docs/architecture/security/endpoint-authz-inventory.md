@@ -2,7 +2,7 @@
 **Version:** 1.0  
 **Sprint:** 26  
 **Status:** Approved  
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-25
 
 This document is the committed, source-of-truth inventory of every LOOP API endpoint and its authorization mapping. It satisfies the Sprint 26 acceptance criteria for "endpoint inventory exists and is committed" and "100% of in-scope sensitive actions have explicit policy mapping."
 
@@ -29,10 +29,10 @@ All authorization failures return a consistent JSON envelope regardless of which
 
 ```json
 // 401 — unauthenticated
-{ "error": "UNAUTHORIZED", "message": "...", "code": 401 }
+{ "error": "UNAUTHORIZED", "message": "...", "code": 401, "reason": "missing_token" }
 
 // 403 — authenticated, insufficient role
-{ "error": "FORBIDDEN", "message": "Role 'X' is not permitted to perform 'Y' on 'Z'.", "code": 403 }
+{ "error": "FORBIDDEN", "message": "Role 'X' is not permitted to perform 'Y' on 'Z'.", "code": 403, "reason": "insufficient_permission" }
 ```
 
 ### Endpoint × Method → Authorization mapping
@@ -69,10 +69,10 @@ All authorization failures return a consistent JSON envelope regardless of which
 
 ## 401 vs 403 Behavior
 
-| Condition | HTTP Status | `error` field | `code` field |
-|-----------|-------------|---------------|--------------|
-| No identity (missing or invalid `X-Loop-Role` header / no Supabase session) | **401** | `"UNAUTHORIZED"` | `401` |
-| Identity resolved but role is not in the allowed set for the requested table × action | **403** | `"FORBIDDEN"` | `403` |
+| Condition | HTTP Status | `error` field | `code` field | `reason` |
+|-----------|-------------|---------------|--------------|----------|
+| Missing token / invalid token / expired token / revoked session / missing role claim | **401** | `"UNAUTHORIZED"` | `401` | `missing_token`, `invalid_token`, `expired_token`, `revoked_session`, or `missing_role` |
+| Identity resolved but role is not in the allowed set for the requested table × action | **403** | `"FORBIDDEN"` | `403` | `insufficient_permission` |
 
 This behavior is consistent across all 20 endpoints. Both `requirePermission` (via `src/lib/api-auth.ts`) and `requireApiSession` (via `src/lib/auth/apiGuard.ts`) use the same envelope format.
 

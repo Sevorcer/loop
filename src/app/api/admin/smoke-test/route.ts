@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { unauthorizedResponse } from "@/lib/api-auth";
 
 /**
  * POST /api/admin/smoke-test
@@ -86,7 +87,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   const authHeader = request.headers.get("Authorization") ?? "";
   const supplied = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   if (!supplied || supplied !== token) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    return unauthorizedResponse(
+      "A valid bearer token is required.",
+      supplied ? "invalid_token" : "missing_token",
+    );
   }
 
   // ── Parse body ─────────────────────────────────────────────────────────────

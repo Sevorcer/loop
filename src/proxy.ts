@@ -18,8 +18,11 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import {
+  classifyUnauthorizedRefreshReason,
+  unauthorizedResponse,
+} from "@/lib/auth/errorContract";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
-import { unauthorizedResponse } from "@/lib/auth/unauthorized";
 import {
   applyTraceHeaders,
   getRequestTraceContext,
@@ -141,6 +144,11 @@ export async function proxy(request: NextRequest) {
   });
 
   const isAuthenticated = resolved.status === "authenticated" && Boolean(resolved.user);
+  const authFailureReason = classifyUnauthorizedRefreshReason(
+    resolved.resolution,
+    resolved.error,
+  );
+
   if (!isAuthenticated) {
     logAuthEvent({
       event: "session_refresh_failure",
@@ -149,14 +157,18 @@ export async function proxy(request: NextRequest) {
       statusCode: 401,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      errorCode: resolved.error?.name ?? resolved.resolution,
+      errorCode: authFailureReason.toUpperCase(),
       refreshOutcome: resolved.resolution,
       refreshAttempts: resolved.attempts,
       details: {
         message: resolved.error?.message ?? "No authenticated user found.",
+        reason: authFailureReason,
       },
     });
-    incrementAuthMetric("auth_session_refresh_failure_total", { route: pathname });
+    incrementAuthMetric("auth_session_refresh_failure_total", {
+      route: pathname,
+      category: authFailureReason,
+    });
   } else {
     logAuthEvent({
       event: "session_refresh_success",
@@ -187,9 +199,10 @@ export async function proxy(request: NextRequest) {
         statusCode: 401,
         requestId: trace.requestId,
         correlationId: trace.correlationId,
-        errorCode: "SHELL_ROUTE_UNAUTHENTICATED",
+        errorCode: authFailureReason.toUpperCase(),
+        details: { reason: authFailureReason },
       });
-      incrementAuthMetric("auth_401_total", { route: pathname });
+      incrementAuthMetric("auth_401_total", { route: pathname, category: authFailureReason });
       return applyTraceHeaders(NextResponse.redirect(signInUrl), trace);
     }
     return applyTraceHeaders(response, trace);
@@ -205,13 +218,11 @@ export async function proxy(request: NextRequest) {
         statusCode: 401,
         requestId: trace.requestId,
         correlationId: trace.correlationId,
-        errorCode: "API_ROUTE_UNAUTHENTICATED",
+        errorCode: authFailureReason.toUpperCase(),
+        details: { reason: authFailureReason },
       });
-      incrementAuthMetric("auth_401_total", { route: pathname });
-      return applyTraceHeaders(
-        unauthorizedResponse(),
-        trace,
-      );
+      incrementAuthMetric("auth_401_total", { route: pathname, category: authFailureReason });
+      return applyTraceHeaders(unauthorizedResponse(undefined, authFailureReason), trace);
     }
     return applyTraceHeaders(response, trace);
   }

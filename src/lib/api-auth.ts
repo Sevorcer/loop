@@ -1,16 +1,38 @@
 import { NextResponse } from "next/server";
 
 import {
+  classifyUnauthorizedRefreshReason,
+  createForbiddenResponse,
+  unauthorizedResponse,
+  type ApiErrorBody,
+  type UnauthorizedReason,
+} from "@/lib/auth/errorContract";
+import {
   applyTraceHeaders,
   getRequestTraceContext,
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
-import { unauthorizedResponse as buildUnauthorizedResponse } from "@/lib/auth/unauthorized";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasPermission } from "@/services/authorization";
 import type { AppRole, CoreTable, TableAction } from "@/services/authorization";
+
+export {
+  buildForbiddenErrorBody,
+  buildUnauthorizedErrorBody,
+  classifyUnauthorizedReason,
+  classifyUnauthorizedRefreshReason,
+  createForbiddenResponse,
+  unauthorizedResponse,
+} from "@/lib/auth/errorContract";
+export type {
+  ApiErrorBody,
+  AuthErrorReason,
+  ForbiddenReason,
+  SessionLikeError,
+  UnauthorizedReason,
+} from "@/lib/auth/errorContract";
 
 const VALID_ROLES: ReadonlySet<string> = new Set<AppRole>([
   "owner",
@@ -26,12 +48,6 @@ function isAppRole(value: string): value is AppRole {
   return VALID_ROLES.has(value);
 }
 
-export interface ApiErrorBody {
-  error: string;
-  message: string;
-  code: number;
-}
-
 export interface AuthContext {
   role: AppRole;
   userId: string;
@@ -40,6 +56,11 @@ export interface AuthContext {
 export type PermissionResult =
   | { ok: true; ctx: AuthContext }
   | { ok: false; response: NextResponse<ApiErrorBody> };
+
+type ResolvedAuth = { role: AppRole; userId: string };
+type ResolvedAuthResult =
+  | { ok: true; auth: ResolvedAuth }
+  | { ok: false; reason: UnauthorizedReason };
 
 function extractRoleFromUser(user: {
   id?: string;
@@ -62,9 +83,9 @@ function extractRoleFromUser(user: {
   return null;
 }
 
-type ResolvedAuth = { role: AppRole; userId: string };
+async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult> {
+  let failureReason: UnauthorizedReason = "missing_token";
 
-async function resolveRequestAuth(request: Request): Promise<ResolvedAuth | null> {
   try {
     const supabase = await createSupabaseServerClient();
     const resolved = await resolveAuthRefresh({
@@ -99,32 +120,35 @@ async function resolveRequestAuth(request: Request): Promise<ResolvedAuth | null
     if (resolved.status === "authenticated" && user) {
       const extractedRole = extractRoleFromUser(user);
       if (extractedRole) {
-        return { role: extractedRole, userId: user.id ?? "" };
+        return { ok: true, auth: { role: extractedRole, userId: user.id ?? "" } };
       }
 
       if (process.env.NODE_ENV !== "production") {
-        return { role: "owner", userId: user.id ?? "" };
+        return { ok: true, auth: { role: "owner", userId: user.id ?? "" } };
       }
 
-      return null;
+      return { ok: false, reason: "missing_role" };
     }
+
+    failureReason = classifyUnauthorizedRefreshReason(resolved.resolution, resolved.error);
   } catch {
     // Session probe failed — fall through to header fallback (non-prod only).
+    failureReason = "invalid_token";
   }
 
   if (process.env.NODE_ENV !== "production") {
     const headerRole = request.headers.get("x-loop-role");
     if (headerRole && isAppRole(headerRole)) {
-      return { role: headerRole, userId: "" };
+      return { ok: true, auth: { role: headerRole, userId: "" } };
     }
   }
 
-  return null;
+  return { ok: false, reason: failureReason };
 }
 
 export async function resolveRequestRole(request: Request): Promise<AppRole | null> {
   const auth = await resolveRequestAuth(request);
-  return auth ? auth.role : null;
+  return auth.ok ? auth.auth.role : null;
 }
 
 export async function requirePermission(
@@ -135,7 +159,7 @@ export async function requirePermission(
   const trace = getRequestTraceContext(request);
   const auth = await resolveRequestAuth(request);
 
-  if (auth === null) {
+  if (!auth.ok) {
     logAuthEvent({
       event: "unauthorized_access_attempt",
       outcome: "deny",
@@ -143,16 +167,16 @@ export async function requirePermission(
       statusCode: 401,
       requestId: trace.requestId,
       correlationId: trace.correlationId,
-      errorCode: "MISSING_ROLE",
-      details: { table, action },
+      errorCode: auth.reason.toUpperCase(),
+      details: { table, action, reason: auth.reason },
     });
-    incrementAuthMetric("auth_401_total", { route: trace.route });
+    incrementAuthMetric("auth_401_total", { route: trace.route, category: auth.reason });
 
-    const response = unauthorizedResponse("A valid session is required.");
+    const response = unauthorizedResponse(undefined, auth.reason);
     return { ok: false, response: applyTraceHeaders(response, trace) };
   }
 
-  const { role, userId } = auth;
+  const { role, userId } = auth.auth;
 
   if (!hasPermission(role, table, action)) {
     logAuthEvent({
@@ -164,9 +188,12 @@ export async function requirePermission(
       correlationId: trace.correlationId,
       role,
       errorCode: "PERMISSION_DENIED",
-      details: { table, action },
+      details: { table, action, reason: "insufficient_permission" },
     });
-    incrementAuthMetric("auth_403_total", { route: trace.route });
+    incrementAuthMetric("auth_403_total", {
+      route: trace.route,
+      category: "insufficient_permission",
+    });
     return {
       ok: false,
       response: applyTraceHeaders(forbiddenResponse(role, table, action), trace),
@@ -187,23 +214,12 @@ export async function requirePermission(
   return { ok: true, ctx: { role, userId } };
 }
 
-export function unauthorizedResponse(
-  message = "A valid session is required.",
-): NextResponse<ApiErrorBody> {
-  return buildUnauthorizedResponse(message) as NextResponse<ApiErrorBody>;
-}
-
 export function forbiddenResponse(
   role: AppRole,
   table: CoreTable,
   action: TableAction,
 ): NextResponse<ApiErrorBody> {
-  return NextResponse.json<ApiErrorBody>(
-    {
-      error: "FORBIDDEN",
-      message: `Role '${role}' is not permitted to perform '${action}' on '${table}'.`,
-      code: 403,
-    },
-    { status: 403 },
+  return createForbiddenResponse(
+    `Role '${role}' is not permitted to perform '${action}' on '${table}'.`,
   );
 }

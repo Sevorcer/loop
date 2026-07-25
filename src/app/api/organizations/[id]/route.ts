@@ -9,7 +9,6 @@ import { logWriteFailure } from "@/lib/observability/writes";
 import {
   mapOrganizationRouteError,
   organizationNotFound,
-  organizationPermissionDenied,
   organizationValidationFailed,
 } from "@/lib/organizationsApiErrors";
 import {
@@ -24,10 +23,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = await requirePermission(request, "organizations", "select");
-  if (!guard.ok) {
-    const denied = organizationPermissionDenied(guard.response.status);
-    return NextResponse.json(denied.error, { status: denied.status });
-  }
+  if (!guard.ok) return guard.response;
 
   try {
     const { id } = await params;
@@ -50,10 +46,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = await requirePermission(request, "organizations", "update");
-  if (!guard.ok) {
-    const denied = organizationPermissionDenied(guard.response.status);
-    return NextResponse.json(denied.error, { status: denied.status });
-  }
+  if (!guard.ok) return guard.response;
 
   let body: Record<string, unknown>;
   try {
@@ -102,10 +95,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = await requirePermission(request, "organizations", "delete");
-  if (!guard.ok) {
-    const denied = organizationPermissionDenied(guard.response.status);
-    return NextResponse.json(denied.error, { status: denied.status });
-  }
+  if (!guard.ok) return guard.response;
 
   try {
     const { id } = await params;

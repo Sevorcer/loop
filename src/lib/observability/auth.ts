@@ -56,6 +56,11 @@ interface MetricSample {
   count: number;
 }
 
+function normalizeMetricCategory(category?: string): string {
+  if (!category) return "unspecified";
+  return category.trim() || "unspecified";
+}
+
 interface AlertThreshold {
   metric: AuthMetricName;
   threshold: number;
@@ -166,8 +171,8 @@ export function logAuthEvent(event: AuthLogEvent): void {
   console.info("[AUTH_EVENT]", JSON.stringify(payload));
 }
 
-function getMetricBucketKey(metric: AuthMetricName, route: string): string {
-  return `${metric}::${route}`;
+function getMetricBucketKey(metric: AuthMetricName, route: string, category: string): string {
+  return `${metric}::${route}::${category}`;
 }
 
 function getThreshold(metric: AuthMetricName): AlertThreshold | undefined {
@@ -186,12 +191,13 @@ function getWindowCount(samples: MetricSample[], windowStart: number): number {
 
 export function incrementAuthMetric(
   metric: AuthMetricName,
-  options: { route?: string; count?: number; now?: number } = {},
+  options: { route?: string; category?: string; count?: number; now?: number } = {},
 ): void {
   const route = normalizeRoute(options.route);
+  const category = normalizeMetricCategory(options.category);
   const count = options.count ?? 1;
   const now = options.now ?? Date.now();
-  const key = getMetricBucketKey(metric, route);
+  const key = getMetricBucketKey(metric, route, category);
   const samples = metricSamples.get(key) ?? [];
   samples.push({ timestamp: now, count });
   metricSamples.set(key, samples);
@@ -218,6 +224,7 @@ export function incrementAuthMetric(
       timestamp: new Date(now).toISOString(),
       metric,
       route,
+      authCategory: category,
       count: windowCount,
       threshold: threshold.threshold,
       windowMs: threshold.windowMs,
