@@ -137,3 +137,199 @@ describe("auth observability", () => {
     expect(payload).toContain('"authCategory":"invalid_credentials"');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Canonical metrics — Sprint S3
+// ---------------------------------------------------------------------------
+
+import {
+  getAuthLatencyPercentiles,
+  recordAuthDuration,
+  startAuthTimer,
+} from "@/lib/observability/auth";
+
+describe("canonical auth metrics — S3", () => {
+  beforeEach(() => {
+    resetAuthObservabilityStateForTests();
+    vi.restoreAllMocks();
+  });
+
+  it("auth_refresh_success_total is incrementable", () => {
+    // Should not throw.
+    incrementAuthMetric("auth_refresh_success_total", { route: "/api/session", category: "success" });
+  });
+
+  it("auth_refresh_expired_total triggers alert at threshold", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const now = Date.now();
+
+    for (let index = 0; index < 20; index += 1) {
+      incrementAuthMetric("auth_refresh_expired_total", {
+        route: "/api/jobs",
+        category: "expired",
+        now: now + index,
+      });
+    }
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [, payload] = warnSpy.mock.calls[0] as [string, string];
+    expect(payload).toContain('"metric":"auth_refresh_expired_total"');
+  });
+
+  it("auth_refresh_revoked_total triggers alert at threshold (10 in 5min)", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const now = Date.now();
+
+    for (let index = 0; index < 10; index += 1) {
+      incrementAuthMetric("auth_refresh_revoked_total", {
+        route: "/api/properties",
+        category: "revoked",
+        now: now + index,
+      });
+    }
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [, payload] = warnSpy.mock.calls[0] as [string, string];
+    expect(payload).toContain('"metric":"auth_refresh_revoked_total"');
+  });
+
+  it("auth_refresh_replay_denied_total triggers alert at threshold (5 in 5min)", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const now = Date.now();
+
+    for (let index = 0; index < 5; index += 1) {
+      incrementAuthMetric("auth_refresh_replay_denied_total", {
+        route: "/api/customers",
+        category: "replay_denied",
+        now: now + index,
+      });
+    }
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [, payload] = warnSpy.mock.calls[0] as [string, string];
+    expect(payload).toContain('"metric":"auth_refresh_replay_denied_total"');
+  });
+
+  it("auth_refresh_concurrency_conflict_total triggers alert at threshold (15 in 5min)", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const now = Date.now();
+
+    for (let index = 0; index < 15; index += 1) {
+      incrementAuthMetric("auth_refresh_concurrency_conflict_total", {
+        route: "/api/jobs",
+        category: "concurrency_conflict",
+        now: now + index,
+      });
+    }
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [, payload] = warnSpy.mock.calls[0] as [string, string];
+    expect(payload).toContain('"metric":"auth_refresh_concurrency_conflict_total"');
+  });
+
+  it("auth_authz_allow_total is incrementable without alert", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    incrementAuthMetric("auth_authz_allow_total", { route: "/api/jobs", category: "owner" });
+    // No alert threshold for allow metric — expected non-failure path.
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it("alert deduplication prevents duplicate alerts in same window", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const now = Date.now();
+
+    // Cross the threshold once.
+    for (let index = 0; index < 10; index += 1) {
+      incrementAuthMetric("auth_refresh_revoked_total", {
+        route: "/api/test",
+        category: "revoked",
+        now: now + index,
+      });
+    }
+
+    // Try to cross it again within the same window.
+    for (let index = 0; index < 10; index += 1) {
+      incrementAuthMetric("auth_refresh_revoked_total", {
+        route: "/api/test",
+        category: "revoked",
+        now: now + 10 + index,
+      });
+    }
+
+    // Should still be exactly 1 alert due to deduplication.
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Latency tracking — Sprint S3
+// ---------------------------------------------------------------------------
+
+describe("auth latency tracking — S3", () => {
+  beforeEach(() => {
+    resetAuthObservabilityStateForTests();
+    vi.restoreAllMocks();
+  });
+
+  it("startAuthTimer returns a numeric timestamp", () => {
+    const start = startAuthTimer();
+    expect(typeof start).toBe("number");
+    expect(start).toBeGreaterThan(0);
+  });
+
+  it("recordAuthDuration stores latency samples", () => {
+    const start = startAuthTimer();
+    recordAuthDuration("session_refresh", start);
+
+    const percentiles = getAuthLatencyPercentiles("session_refresh");
+    expect(percentiles.count).toBe(1);
+    // p50/p95/p99 return 0 when fewer than 2 samples.
+    expect(percentiles.p50).toBe(0);
+  });
+
+  it("percentiles are calculated correctly from samples with known durations", () => {
+    // Inject samples with known durations by mocking performance.now to control
+    // what recordAuthDuration measures as (endedAt - startedAt).
+    //
+    // Strategy: set startedAt = 0 and mock performance.now() to return the
+    // desired duration so that durationMs = performance.now() - 0 = desired value.
+    const durations = [10, 50, 100, 200, 300, 400, 500, 600, 700, 1000]; // ms
+    const fakeNow = Date.now();
+
+    for (const duration of durations) {
+      vi.spyOn(performance, "now").mockReturnValueOnce(duration);
+      // startedAt = 0 so durationMs = performance.now() - 0 = duration
+      recordAuthDuration("api_guard", 0, fakeNow);
+    }
+
+    const percentiles = getAuthLatencyPercentiles("api_guard");
+    expect(percentiles.count).toBe(10);
+    // Sorted: [10, 50, 100, 200, 300, 400, 500, 600, 700, 1000]
+    // Nearest-rank method: index = floor(n * q) clamped to [0, n-1]
+    // p50 = sorted[floor(10*0.5)] = sorted[5] = 400
+    expect(percentiles.p50).toBe(400);
+    // p95 = sorted[min(floor(10*0.95), 9)] = sorted[9] = 1000
+    expect(percentiles.p95).toBe(1000);
+    // p99 = sorted[min(floor(10*0.99), 9)] = sorted[9] = 1000
+    expect(percentiles.p99).toBe(1000);
+  });
+
+  it("different labels maintain separate sample reservoirs", () => {
+    const start = startAuthTimer();
+    recordAuthDuration("session_refresh", start);
+    recordAuthDuration("api_guard", start);
+    recordAuthDuration("api_guard", start);
+
+    expect(getAuthLatencyPercentiles("session_refresh").count).toBe(1);
+    expect(getAuthLatencyPercentiles("api_guard").count).toBe(2);
+    expect(getAuthLatencyPercentiles("permission_check").count).toBe(0);
+  });
+
+  it("resetAuthObservabilityStateForTests clears latency samples", () => {
+    const start = startAuthTimer();
+    recordAuthDuration("session_refresh", start);
+    resetAuthObservabilityStateForTests();
+
+    expect(getAuthLatencyPercentiles("session_refresh").count).toBe(0);
+  });
+});

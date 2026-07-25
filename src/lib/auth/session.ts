@@ -24,6 +24,9 @@ import {
   createCorrelationId,
   incrementAuthMetric,
   logAuthEvent,
+  recordAuthDuration,
+  refreshResolutionToMetric,
+  startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -52,6 +55,7 @@ export interface AuthSession {
  */
 export async function getAuthSession(): Promise<AuthSession | null> {
   const requestId = createCorrelationId();
+  const timerStart = startAuthTimer();
   // Gracefully return null when Supabase env vars are not configured (e.g.
   // during static prerendering at build time or local dev without a project).
   if (
@@ -83,6 +87,8 @@ export async function getAuthSession(): Promise<AuthSession | null> {
     },
   });
 
+  recordAuthDuration("session_refresh", timerStart);
+
   if (resolved.status !== "authenticated" || !resolved.user || !resolved.session) {
     logAuthEvent({
       event: "session_refresh_failure",
@@ -98,8 +104,14 @@ export async function getAuthSession(): Promise<AuthSession | null> {
         message: resolved.error?.message ?? "No authenticated user found.",
       },
     });
+    // Emit aggregate failure counter.
     incrementAuthMetric("auth_session_refresh_failure_total", {
       route: "server:getAuthSession",
+    });
+    // Emit resolution-specific counter for dashboard breakdown.
+    incrementAuthMetric(refreshResolutionToMetric(resolved.resolution), {
+      route: "server:getAuthSession",
+      category: resolved.resolution,
     });
     return null;
   }
@@ -117,6 +129,9 @@ export async function getAuthSession(): Promise<AuthSession | null> {
     details: {
       resolution: resolved.resolution,
     },
+  });
+  incrementAuthMetric("auth_refresh_success_total", {
+    route: "server:getAuthSession",
   });
 
   return { user: resolved.user, session: resolved.session };

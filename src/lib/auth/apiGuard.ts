@@ -33,6 +33,9 @@ import {
   getRequestTraceContext,
   incrementAuthMetric,
   logAuthEvent,
+  recordAuthDuration,
+  refreshResolutionToMetric,
+  startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -69,6 +72,7 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
   const trace = request
     ? getRequestTraceContext(request)
     : { route: "unknown", requestId: generatedId, correlationId: generatedId };
+  const timerStart = startAuthTimer();
   const supabase = await createSupabaseServerClient();
   const resolved = await resolveAuthRefresh({
     getUser: () => supabase.auth.getUser(),
@@ -76,6 +80,8 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       await supabase.auth.signOut();
     },
   });
+
+  recordAuthDuration("api_guard", timerStart);
 
   if (resolved.status !== "authenticated" || !resolved.user) {
     const reason = classifyUnauthorizedRefreshReason(
@@ -98,6 +104,11 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       },
     });
     incrementAuthMetric("auth_401_total", { route: trace.route, category: reason });
+    // Emit resolution-specific refresh metric for dashboard breakdown.
+    incrementAuthMetric(refreshResolutionToMetric(resolved.resolution), {
+      route: trace.route,
+      category: resolved.resolution,
+    });
     return {
       error: applyTraceHeaders(unauthorizedResponse(undefined, reason), trace),
       user: null,
@@ -117,6 +128,9 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     details: {
       resolution: resolved.resolution,
     },
+  });
+  incrementAuthMetric("auth_refresh_success_total", {
+    route: trace.route,
   });
 
   return { error: null, user: resolved.user };
