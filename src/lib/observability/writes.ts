@@ -96,10 +96,10 @@ function extractErrorFields(error: unknown): {
 
 function sanitizeLogText(value: string): string {
   return value
-    .replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+=*\b/gi, "******")
+    .replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+=*\b/gi, "[REDACTED_BEARER_TOKEN]")
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[REDACTED_JWT]")
     .replace(
-      /\b(authorization|cookie|set-cookie|token|secret|api[_ -]?key|password)\b\s*[:=]\s*("[^"]*"|'[^']*'|[^,\s;]+)/gi,
+      /\b(authorization|cookie|set-cookie|token|secret|api[_ -]?key|password)\b\s*[:=]\s*("(?:\\.|[^"])*"|'(?:\\.|[^'])*'|[^,\s;]+)/gi,
       "$1=[REDACTED]",
     )
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]");

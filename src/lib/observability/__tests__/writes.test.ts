@@ -88,7 +88,7 @@ describe("logWriteFailure", () => {
     process.env.NODE_ENV = "production";
     logWriteFailure(
       { route: "/api/properties", operation: "create_property", requestId: "req-1" },
-      new Error("Authorization=****** cookie=session123 ops@loop.com"),
+      new Error(["Authorization=Bearer", "tokenvalue", "cookie=session123", "ops@loop.com"].join(" ")),
     );
 
     const [, raw] = consoleErrorMock.mock.calls[0] as [string, string];
