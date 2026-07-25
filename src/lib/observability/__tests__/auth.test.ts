@@ -72,6 +72,8 @@ describe("auth observability", () => {
       route: "/sign-in",
       requestId: "req-log",
       correlationId: "corr-log",
+      refreshOutcome: "replay_denied",
+      refreshAttempts: 2,
       details: {
         refresh_token: "sensitive",
         message: "Invalid login credentials",
@@ -81,6 +83,8 @@ describe("auth observability", () => {
     expect(infoSpy).toHaveBeenCalledTimes(1);
     const [, payload] = infoSpy.mock.calls[0] as [string, string];
     expect(payload).toContain('"event":"sign_in_failure"');
+    expect(payload).toContain('"refreshOutcome":"replay_denied"');
+    expect(payload).toContain('"refreshAttempts":2');
     expect(payload).toContain('"refresh_token":"[REDACTED]"');
     expect(payload).not.toContain("sensitive");
   });

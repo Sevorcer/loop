@@ -28,12 +28,14 @@ vi.mock("next/navigation", () => ({
 
 const mockGetUser = vi.fn();
 const mockGetSession = vi.fn();
+const mockSignOut = vi.fn();
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: vi.fn(() => ({
     auth: {
       getUser: mockGetUser,
       getSession: mockGetSession,
+      signOut: mockSignOut,
     },
   })),
 }));
@@ -68,6 +70,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-key";
+  mockSignOut.mockResolvedValue({ error: null });
 });
 
 // ---------------------------------------------------------------------------
@@ -170,5 +173,55 @@ describe("regression: partial auth state", () => {
 
     const session = await getAuthSession();
     expect(session).toBeNull();
+  });
+});
+
+describe("regression: refresh edge-cases", () => {
+  it("fails closed on refresh token replay/reuse denial", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { name: "AuthApiError", message: "Refresh token already used", status: 401 },
+    });
+
+    const apiResult = await requireApiSession();
+    expect(apiResult.error?.status).toBe(401);
+    expect(apiResult.user).toBeNull();
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
+
+    const sessionResult = await getAuthSession();
+    expect(sessionResult).toBeNull();
+    expect(mockSignOut).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed on malformed refresh state", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { name: "AuthApiError", message: "Malformed JWT", status: 400 },
+    });
+
+    const apiResult = await requireApiSession();
+    expect(apiResult.error?.status).toBe(401);
+    expect(apiResult.user).toBeNull();
+  });
+
+  it("retries and recovers from a transient refresh conflict", async () => {
+    mockGetUser
+      .mockResolvedValueOnce({
+        data: { user: null },
+        error: {
+          name: "AuthApiError",
+          message: "Concurrent refresh conflict",
+          status: 409,
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { user: mockUser },
+        error: null,
+      });
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+
+    const sessionResult = await getAuthSession();
+    expect(sessionResult?.user.id).toBe("staff-user-456");
+    expect(mockGetUser).toHaveBeenCalledTimes(2);
   });
 });
