@@ -6,6 +6,11 @@
 -- Systems domains, replacing the previous localStorage / mock-data paths.
 --
 -- Apply after: migrations/001_core_schema.sql
+--
+-- DOWN (manual rollback — create a new forward migration to apply):
+--   DROP TABLE IF EXISTS technical_profiles, installed_systems, dispatch_events,
+--     schedule_blocks, crew_assignments, dispatch_plans, crews,
+--     daily_plan_job_overrides, daily_plan_activations, daily_plan_notes CASCADE;
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------

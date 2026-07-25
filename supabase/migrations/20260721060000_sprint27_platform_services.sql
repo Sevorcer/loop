@@ -14,6 +14,12 @@
 -- Note: installed_systems is intentionally excluded — it was already created
 -- with a richer schema in 20260720000001_wave2_domains.sql and its RLS
 -- policies were included there.
+--
+-- DOWN (manual rollback — create a new forward migration to apply):
+--   DROP TABLE IF EXISTS performance_models, portal_photos, portal_documents,
+--     portal_milestones, portal_projects, knowledge_usage,
+--     knowledge_relationships, knowledge_items, gc_issue_attachments,
+--     gc_issue_requests, storage_objects CASCADE;
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------

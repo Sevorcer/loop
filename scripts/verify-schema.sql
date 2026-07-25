@@ -228,3 +228,62 @@ FROM information_schema.routines
 WHERE routine_schema = 'public'
   AND routine_name IN ('current_org_id', 'current_app_role')
 ORDER BY routine_name;
+
+-- ---------------------------------------------------------------------------
+-- 5. Required PostgreSQL extensions present
+-- ---------------------------------------------------------------------------
+
+WITH required_extensions (extname) AS (
+  VALUES
+    ('uuid-ossp'),
+    ('pgcrypto')
+)
+SELECT
+  r.extname,
+  CASE WHEN e.extname IS NOT NULL THEN 'OK' ELSE 'MISSING' END AS status
+FROM required_extensions r
+LEFT JOIN pg_extension e ON e.extname = r.extname
+ORDER BY status DESC, r.extname;
+
+-- ---------------------------------------------------------------------------
+-- 6. Required indexes present
+-- ---------------------------------------------------------------------------
+
+WITH required_indexes (tablename, indexname) AS (
+  VALUES
+    -- baseline core schema (20260719000001)
+    ('user_profiles',        'user_profiles_org_id_idx'),
+    ('customers',            'customers_org_id_idx'),
+    ('properties',           'properties_org_id_idx'),
+    ('properties',           'properties_customer_id_idx'),
+    ('contractors',          'contractors_org_id_idx'),
+    ('jobs',                 'jobs_org_id_idx'),
+    ('jobs',                 'jobs_assigned_user_id_idx'),
+    ('jobs',                 'jobs_status_idx'),
+    ('job_activity',         'job_activity_job_id_idx'),
+    ('job_activity',         'job_activity_org_id_idx'),
+    ('portal_users',         'portal_users_org_id_idx'),
+    ('portal_users',         'portal_users_auth_uid_idx'),
+    ('portal_memberships',   'portal_memberships_portal_user_id_idx'),
+    ('portal_memberships',   'portal_memberships_org_id_idx'),
+    -- wave 2 domains (20260720000001)
+    ('daily_plan_notes',        'daily_plan_notes_org_date_idx'),
+    ('daily_plan_activations',  'daily_plan_activations_org_date_idx'),
+    ('dispatch_plans',          'dispatch_plans_org_date_idx'),
+    ('installed_systems',       'installed_systems_property_id_idx'),
+    -- organizations soft-delete (20260721023800)
+    ('organizations',        'organizations_deleted_at_idx'),
+    -- db health checks (20260724000001)
+    ('db_health_check_runs',    'db_health_check_runs_run_at_idx'),
+    ('db_health_check_results', 'db_health_check_results_run_id_idx')
+)
+SELECT
+  r.tablename,
+  r.indexname,
+  CASE WHEN i.indexname IS NOT NULL THEN 'OK' ELSE 'MISSING' END AS status
+FROM required_indexes r
+LEFT JOIN pg_indexes i
+  ON  i.schemaname = 'public'
+  AND i.tablename  = r.tablename
+  AND i.indexname  = r.indexname
+ORDER BY status DESC, r.tablename, r.indexname;

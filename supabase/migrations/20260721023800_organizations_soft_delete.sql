@@ -5,6 +5,10 @@
 -- delete operations can be soft-deletes (preserve row, stamp timestamp)
 -- rather than hard-deletes.  A partial index ensures efficient filtering
 -- of live (non-deleted) records.
+--
+-- DOWN (manual rollback — create a new forward migration to apply):
+--   DROP INDEX IF EXISTS organizations_deleted_at_idx;
+--   ALTER TABLE organizations DROP COLUMN IF EXISTS deleted_at;
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE organizations

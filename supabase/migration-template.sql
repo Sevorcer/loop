@@ -60,10 +60,13 @@
 --      - Expected policies are present (for new/changed policies)
 --      - Expected indexes are present (for new indexes)
 --
---   3. Update docs/architecture/security/rls-role-matrix.md if a new table
+--   3. Ensure a "-- DOWN" rollback notes section is present in this file
+--      (CI check 7 will fail without it — see the DOWN comment above).
+--
+--   4. Update docs/architecture/security/rls-role-matrix.md if a new table
 --      was added.
 --
---   4. Run local hygiene check (no database credentials needed):
+--   5. Run local hygiene check (no database credentials needed):
 --        bash scripts/verify-migrations.sh
 --
 --   See docs/migration-verification-standard.md for the full standard.

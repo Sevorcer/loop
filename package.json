@@ -14,7 +14,10 @@
     "db:verify-schema": "psql \"$DATABASE_URL\" -f scripts/verify-schema.sql",
     "db:verify-policies": "bash scripts/verify-policies.sh",
     "db:verify-migrations": "bash scripts/verify-migrations.sh",
-    "db:verify-verification": "bash scripts/verify-migration-verification.sh"
+    "db:verify-verification": "bash scripts/verify-migration-verification.sh",
+    "db:integrity-check": "bash scripts/db-integrity-check.sh",
+    "db:bootstrap-validate": "bash scripts/db-bootstrap-validate.sh",
+    "db:bootstrap-validate:structure": "bash scripts/db-bootstrap-validate.sh --structure-only"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
