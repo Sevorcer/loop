@@ -3,47 +3,31 @@ name: DB Schema Verification
 # Runs on every PR targeting main and every push to main.
 #
 # Purpose: verify database schema and policy contracts are met BEFORE the
-# pre-deploy gate promotes changes to production.  This is the verification
-# stage — it does not deploy anything.
+# pre-deploy gate promotes changes to production. This is verification only.
 #
 # Two-tier design:
-#   verify-structure   — structural checks only, no secrets required.
-#                        Always runs (including fork PRs).
-#   verify-schema      — live-database checks, requires DB secrets.
-#                        Skipped on fork PRs where secrets are unavailable.
+#   verify-structure — structural checks only, no secrets required.
+#   verify-schema    — live-database checks, requires DB secrets.
 #
-# What is checked:
-#   - Migration file naming / ordering / checksums (verify-migrations.sh)
-#   - Required tables and columns present (db:verify-schema)
-#   - RLS enabled on all required tables (db:verify-schema)
-#   - All expected policies present (db:verify-policies)
-#
-# Required GitHub secrets (for live-DB jobs):
-#   SUPABASE_ACCESS_TOKEN   — Personal access token from app.supabase.com/account/tokens
-#   SUPABASE_PROJECT_REF    — Project reference ID (e.g. "abcdefghijklmnop")
-#   SUPABASE_DB_PASSWORD    — Database password for the linked project
-#
-# See docs/runbooks/db-drift-detection.md for full instructions.
+# Required secrets (live DB job):
+#   SUPABASE_ACCESS_TOKEN
+#   SUPABASE_PROJECT_REF
+#   SUPABASE_DB_PASSWORD
+#   SUPABASE_DATABASE_URL   (recommended; pooled/IPv4-friendly connection URL)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  # ── Structural verification (no secrets) ─────────────────────────────────
-  # Validates migration file structure and checksums.  Runs unconditionally,
-  # including on fork PRs.  Does not require any database connection.
   verify-structure:
     name: Verify migration structure & checksums
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,17 +35,11 @@ jobs:
       - name: Verify migration file sequence and checksums
         run: bash scripts/verify-migrations.sh
 
-  # ── Live-DB schema verification (secrets required) ────────────────────────
-  # Connects to the linked Supabase project and verifies tables, columns, RLS,
-  # and policies match the expected state from migration files.
-  # Skipped on fork PRs, dependabot PRs, and Copilot-authored PRs where
-  # GitHub does not expose repository secrets to the workflow run.
   verify-schema:
     name: Verify schema & policies (live DB)
     runs-on: ubuntu-latest
     needs: verify-structure
 
-    # Skip on fork PRs plus bot-authored PRs where secrets are unavailable.
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
@@ -100,27 +78,27 @@ jobs:
             --project-ref "$SUPABASE_PROJECT_REF" \
             --password "$SUPABASE_LINK_DB_PASSWORD"
 
-      # Free-tier Supabase projects are paused after inactivity. Restore and
-      # wait before running read-only verification queries.
       - name: Ensure database is active
         run: |
           STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-            -H "Authorization: ******" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
           echo "Project status: $STATUS"
+
           if [ "$STATUS" = "INACTIVE" ]; then
             echo "Project is paused — requesting restore..."
             curl -sf -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/restore" \
-              -H "Authorization: ******" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
               -H "Content-Type: application/json" \
               -d '{}' || true
           fi
+
           if [ "$STATUS" = "INACTIVE" ] || [ "$STATUS" = "COMING_UP" ]; then
             echo "Waiting up to 3 min for database to become active..."
             for i in $(seq 1 18); do
               sleep 10
               STATUS=$(curl -sf "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF" \
-                -H "Authorization: ******" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
                 | jq -r '.status // "UNKNOWN"' || echo "UNKNOWN")
               echo "  Status: $STATUS (attempt $i/18)"
               [ "$STATUS" = "ACTIVE_HEALTHY" ] && break
@@ -131,17 +109,27 @@ jobs:
           fi
 
       - name: Build verification connection string
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
+          if [ -n "$SUPABASE_DATABASE_URL" ]; then
+            echo "::add-mask::$SUPABASE_DATABASE_URL"
+            echo "DATABASE_URL=$SUPABASE_DATABASE_URL" >> "$GITHUB_ENV"
+            echo "Using SUPABASE_DATABASE_URL secret for verification connection."
+            exit 0
+          fi
+
           ENCODED_DB_PASSWORD=$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["SUPABASE_LINK_DB_PASSWORD"], safe=""))')
           DATABASE_URL="postgresql://postgres:${ENCODED_DB_PASSWORD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
+          echo "::warning::SUPABASE_DATABASE_URL not set; using direct db.<ref>.supabase.co fallback."
           echo "::add-mask::$DATABASE_URL"
           echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: "22"
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -165,14 +153,11 @@ jobs:
           npm run db:verify-policies 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-  # ── Drift summary ─────────────────────────────────────────────────────────
-  # Aggregates results and posts a summary.  Runs after both prior jobs.
   drift-summary:
     name: Drift check summary
     runs-on: ubuntu-latest
     needs: [verify-structure, verify-schema]
     if: always()
-
     steps:
       - name: Evaluate gate result
         run: |
