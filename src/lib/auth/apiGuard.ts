@@ -33,8 +33,11 @@ import {
   getRequestTraceContext,
   incrementAuthMetric,
   logAuthEvent,
+  recordAuthDuration,
+  startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
+import type { RefreshResolution } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -45,6 +48,30 @@ import type { User } from "@supabase/supabase-js";
 type ApiSessionSuccess = { error: null; user: User };
 type ApiSessionFailure = { error: NextResponse; user: null };
 export type ApiSessionResult = ApiSessionSuccess | ApiSessionFailure;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function apiGuardResolutionMetric(
+  resolution: RefreshResolution,
+): "auth_refresh_success_total"
+  | "auth_refresh_expired_total"
+  | "auth_refresh_revoked_total"
+  | "auth_refresh_replay_denied_total"
+  | "auth_refresh_concurrency_conflict_total"
+  | "auth_refresh_malformed_total"
+  | "auth_session_refresh_failure_total" {
+  switch (resolution) {
+    case "success": return "auth_refresh_success_total";
+    case "expired": return "auth_refresh_expired_total";
+    case "revoked": return "auth_refresh_revoked_total";
+    case "replay_denied": return "auth_refresh_replay_denied_total";
+    case "concurrency_conflict": return "auth_refresh_concurrency_conflict_total";
+    case "malformed": return "auth_refresh_malformed_total";
+    default: return "auth_session_refresh_failure_total";
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -69,6 +96,7 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
   const trace = request
     ? getRequestTraceContext(request)
     : { route: "unknown", requestId: generatedId, correlationId: generatedId };
+  const timerStart = startAuthTimer();
   const supabase = await createSupabaseServerClient();
   const resolved = await resolveAuthRefresh({
     getUser: () => supabase.auth.getUser(),
@@ -76,6 +104,8 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       await supabase.auth.signOut();
     },
   });
+
+  recordAuthDuration("api_guard", timerStart);
 
   if (resolved.status !== "authenticated" || !resolved.user) {
     const reason = classifyUnauthorizedRefreshReason(
@@ -98,6 +128,11 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
       },
     });
     incrementAuthMetric("auth_401_total", { route: trace.route, category: reason });
+    // Emit resolution-specific refresh metric for dashboard breakdown.
+    incrementAuthMetric(apiGuardResolutionMetric(resolved.resolution), {
+      route: trace.route,
+      category: resolved.resolution,
+    });
     return {
       error: applyTraceHeaders(unauthorizedResponse(undefined, reason), trace),
       user: null,
@@ -117,6 +152,9 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     details: {
       resolution: resolved.resolution,
     },
+  });
+  incrementAuthMetric("auth_refresh_success_total", {
+    route: trace.route,
   });
 
   return { error: null, user: resolved.user };

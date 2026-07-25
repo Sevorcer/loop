@@ -24,8 +24,11 @@ import {
   createCorrelationId,
   incrementAuthMetric,
   logAuthEvent,
+  recordAuthDuration,
+  startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
+import type { RefreshResolution } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ROUTES } from "@/lib/routes";
 import type { Session, User } from "@supabase/supabase-js";
@@ -37,6 +40,30 @@ import type { Session, User } from "@supabase/supabase-js";
 export interface AuthSession {
   user: User;
   session: Session;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function refreshResolutionMetric(
+  resolution: RefreshResolution,
+): "auth_refresh_success_total"
+  | "auth_refresh_expired_total"
+  | "auth_refresh_revoked_total"
+  | "auth_refresh_replay_denied_total"
+  | "auth_refresh_concurrency_conflict_total"
+  | "auth_refresh_malformed_total"
+  | "auth_session_refresh_failure_total" {
+  switch (resolution) {
+    case "success": return "auth_refresh_success_total";
+    case "expired": return "auth_refresh_expired_total";
+    case "revoked": return "auth_refresh_revoked_total";
+    case "replay_denied": return "auth_refresh_replay_denied_total";
+    case "concurrency_conflict": return "auth_refresh_concurrency_conflict_total";
+    case "malformed": return "auth_refresh_malformed_total";
+    default: return "auth_session_refresh_failure_total";
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -52,6 +79,7 @@ export interface AuthSession {
  */
 export async function getAuthSession(): Promise<AuthSession | null> {
   const requestId = createCorrelationId();
+  const timerStart = startAuthTimer();
   // Gracefully return null when Supabase env vars are not configured (e.g.
   // during static prerendering at build time or local dev without a project).
   if (
@@ -83,6 +111,8 @@ export async function getAuthSession(): Promise<AuthSession | null> {
     },
   });
 
+  recordAuthDuration("session_refresh", timerStart);
+
   if (resolved.status !== "authenticated" || !resolved.user || !resolved.session) {
     logAuthEvent({
       event: "session_refresh_failure",
@@ -98,8 +128,14 @@ export async function getAuthSession(): Promise<AuthSession | null> {
         message: resolved.error?.message ?? "No authenticated user found.",
       },
     });
+    // Emit aggregate failure counter.
     incrementAuthMetric("auth_session_refresh_failure_total", {
       route: "server:getAuthSession",
+    });
+    // Emit resolution-specific counter for dashboard breakdown.
+    incrementAuthMetric(refreshResolutionMetric(resolved.resolution), {
+      route: "server:getAuthSession",
+      category: resolved.resolution,
     });
     return null;
   }
@@ -117,6 +153,9 @@ export async function getAuthSession(): Promise<AuthSession | null> {
     details: {
       resolution: resolved.resolution,
     },
+  });
+  incrementAuthMetric("auth_refresh_success_total", {
+    route: "server:getAuthSession",
   });
 
   return { user: resolved.user, session: resolved.session };

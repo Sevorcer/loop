@@ -12,6 +12,8 @@ import {
   getRequestTraceContext,
   incrementAuthMetric,
   logAuthorizationDecision,
+  recordAuthDuration,
+  startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -157,7 +159,9 @@ export async function requirePermission(
   action: TableAction,
 ): Promise<PermissionResult> {
   const trace = getRequestTraceContext(request);
+  const timerStart = startAuthTimer();
   const auth = await resolveRequestAuth(request);
+  recordAuthDuration("permission_check", timerStart);
 
   if (!auth.ok) {
     logAuthorizationDecision({
@@ -206,6 +210,7 @@ export async function requirePermission(
     decision: "allow",
     reasonCode: "PERMISSION_ALLOWED",
   });
+  incrementAuthMetric("auth_authz_allow_total", { route: trace.route, category: role });
 
   return { ok: true, ctx: { role, userId } };
 }
