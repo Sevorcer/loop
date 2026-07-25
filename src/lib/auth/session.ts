@@ -25,10 +25,10 @@ import {
   incrementAuthMetric,
   logAuthEvent,
   recordAuthDuration,
+  refreshResolutionToMetric,
   startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
-import type { RefreshResolution } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ROUTES } from "@/lib/routes";
 import type { Session, User } from "@supabase/supabase-js";
@@ -40,30 +40,6 @@ import type { Session, User } from "@supabase/supabase-js";
 export interface AuthSession {
   user: User;
   session: Session;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function refreshResolutionMetric(
-  resolution: RefreshResolution,
-): "auth_refresh_success_total"
-  | "auth_refresh_expired_total"
-  | "auth_refresh_revoked_total"
-  | "auth_refresh_replay_denied_total"
-  | "auth_refresh_concurrency_conflict_total"
-  | "auth_refresh_malformed_total"
-  | "auth_session_refresh_failure_total" {
-  switch (resolution) {
-    case "success": return "auth_refresh_success_total";
-    case "expired": return "auth_refresh_expired_total";
-    case "revoked": return "auth_refresh_revoked_total";
-    case "replay_denied": return "auth_refresh_replay_denied_total";
-    case "concurrency_conflict": return "auth_refresh_concurrency_conflict_total";
-    case "malformed": return "auth_refresh_malformed_total";
-    default: return "auth_session_refresh_failure_total";
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +109,7 @@ export async function getAuthSession(): Promise<AuthSession | null> {
       route: "server:getAuthSession",
     });
     // Emit resolution-specific counter for dashboard breakdown.
-    incrementAuthMetric(refreshResolutionMetric(resolved.resolution), {
+    incrementAuthMetric(refreshResolutionToMetric(resolved.resolution), {
       route: "server:getAuthSession",
       category: resolved.resolution,
     });

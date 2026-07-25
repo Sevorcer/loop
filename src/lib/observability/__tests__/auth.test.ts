@@ -287,22 +287,30 @@ describe("auth latency tracking — S3", () => {
     expect(percentiles.p50).toBe(0);
   });
 
-  it("percentiles are calculated from multiple samples", () => {
-    // Insert 10 dummy samples using performance.now() directly won't work reliably
-    // so we use the function signature that accepts a start value.
+  it("percentiles are calculated correctly from samples with known durations", () => {
+    // Inject samples with known durations by mocking performance.now to control
+    // what recordAuthDuration measures as (endedAt - startedAt).
+    //
+    // Strategy: set startedAt = 0 and mock performance.now() to return the
+    // desired duration so that durationMs = performance.now() - 0 = desired value.
+    const durations = [10, 50, 100, 200, 300, 400, 500, 600, 700, 1000]; // ms
     const fakeNow = Date.now();
-    for (let index = 0; index < 10; index += 1) {
-      // Each call records the real elapsed time since startAuthTimer().
-      const start = startAuthTimer();
-      recordAuthDuration("api_guard", start, fakeNow + index);
+
+    for (const duration of durations) {
+      vi.spyOn(performance, "now").mockReturnValueOnce(duration);
+      // startedAt = 0 so durationMs = performance.now() - 0 = duration
+      recordAuthDuration("api_guard", 0, fakeNow);
     }
 
     const percentiles = getAuthLatencyPercentiles("api_guard");
     expect(percentiles.count).toBe(10);
-    // All samples are near-zero (immediate calls) but percentiles must be numeric.
-    expect(typeof percentiles.p50).toBe("number");
-    expect(typeof percentiles.p95).toBe("number");
-    expect(typeof percentiles.p99).toBe("number");
+    // Sorted: [10, 50, 100, 200, 300, 400, 500, 600, 700, 1000]
+    // p50 = sorted[floor(10*0.5)] = sorted[5] = 400
+    expect(percentiles.p50).toBe(400);
+    // p95 = sorted[floor(10*0.95)] = sorted[9] = 1000
+    expect(percentiles.p95).toBe(1000);
+    // p99 = sorted[min(floor(10*0.99), 9)] = sorted[9] = 1000
+    expect(percentiles.p99).toBe(1000);
   });
 
   it("different labels maintain separate sample reservoirs", () => {

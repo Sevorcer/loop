@@ -34,10 +34,10 @@ import {
   incrementAuthMetric,
   logAuthEvent,
   recordAuthDuration,
+  refreshResolutionToMetric,
   startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
-import type { RefreshResolution } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -48,30 +48,6 @@ import type { User } from "@supabase/supabase-js";
 type ApiSessionSuccess = { error: null; user: User };
 type ApiSessionFailure = { error: NextResponse; user: null };
 export type ApiSessionResult = ApiSessionSuccess | ApiSessionFailure;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function apiGuardResolutionMetric(
-  resolution: RefreshResolution,
-): "auth_refresh_success_total"
-  | "auth_refresh_expired_total"
-  | "auth_refresh_revoked_total"
-  | "auth_refresh_replay_denied_total"
-  | "auth_refresh_concurrency_conflict_total"
-  | "auth_refresh_malformed_total"
-  | "auth_session_refresh_failure_total" {
-  switch (resolution) {
-    case "success": return "auth_refresh_success_total";
-    case "expired": return "auth_refresh_expired_total";
-    case "revoked": return "auth_refresh_revoked_total";
-    case "replay_denied": return "auth_refresh_replay_denied_total";
-    case "concurrency_conflict": return "auth_refresh_concurrency_conflict_total";
-    case "malformed": return "auth_refresh_malformed_total";
-    default: return "auth_session_refresh_failure_total";
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -129,7 +105,7 @@ export async function requireApiSession(request?: Request): Promise<ApiSessionRe
     });
     incrementAuthMetric("auth_401_total", { route: trace.route, category: reason });
     // Emit resolution-specific refresh metric for dashboard breakdown.
-    incrementAuthMetric(apiGuardResolutionMetric(resolved.resolution), {
+    incrementAuthMetric(refreshResolutionToMetric(resolved.resolution), {
       route: trace.route,
       category: resolved.resolution,
     });

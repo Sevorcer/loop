@@ -337,10 +337,16 @@ export function startAuthTimer(): number {
  * Records the duration of an auth operation for latency percentile tracking.
  * Samples are kept in a rolling window (LATENCY_WINDOW_MS) capped at
  * LATENCY_RESERVOIR_MAX entries to bound memory usage.
+ *
+ * Both `startedAt` and the end measurement use the same clock source
+ * (`performance.now` when available, `Date.now` otherwise) to ensure
+ * duration calculations are consistent.
  */
 export function recordAuthDuration(label: AuthLatencyLabel, startedAt: number, now?: number): void {
+  // Use the same clock source that startAuthTimer() used so that
+  // (endedAt - startedAt) produces a valid elapsed duration.
   const endedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const durationMs = endedAt - startedAt;
+  const durationMs = Math.max(0, endedAt - startedAt);
   const wallTime = now ?? Date.now();
 
   const existing = latencySamples.get(label) ?? [];
@@ -357,7 +363,8 @@ export function recordAuthDuration(label: AuthLatencyLabel, startedAt: number, n
   // Emit a latency alert when p99 exceeds 2 seconds (regression threshold).
   if (trimmed.length >= 20) {
     const sorted = trimmed.map((s) => s.durationMs).sort((a, b) => a - b);
-    const p99 = sorted[Math.floor(sorted.length * 0.99)] ?? sorted[sorted.length - 1] ?? 0;
+    const p99Index = Math.min(Math.floor(sorted.length * 0.99), sorted.length - 1);
+    const p99 = sorted[p99Index] ?? 0;
     if (p99 > 2000) {
       console.warn(
         "[AUTH_ALERT]",
@@ -380,6 +387,9 @@ export function recordAuthDuration(label: AuthLatencyLabel, startedAt: number, n
 /**
  * Returns p50/p95/p99 latency percentiles from the rolling sample window.
  * Returns zeros when fewer than 2 samples are available.
+ *
+ * Uses a nearest-rank percentile: p = sorted[floor(n * q)] where q ∈ (0,1).
+ * Clamped to [0, n-1] to prevent out-of-bounds access.
  */
 export function getAuthLatencyPercentiles(label: AuthLatencyLabel): AuthLatencyPercentiles {
   const samples = latencySamples.get(label) ?? [];
@@ -387,12 +397,13 @@ export function getAuthLatencyPercentiles(label: AuthLatencyLabel): AuthLatencyP
     return { p50: 0, p95: 0, p99: 0, count: samples.length };
   }
   const sorted = samples.map((s) => s.durationMs).sort((a, b) => a - b);
-  const percentile = (p: number) => sorted[Math.max(0, Math.floor(sorted.length * p) - 1)] ?? 0;
+  const n = sorted.length;
+  const percentile = (q: number) => sorted[Math.min(Math.floor(n * q), n - 1)] ?? 0;
   return {
     p50: percentile(0.5),
     p95: percentile(0.95),
     p99: percentile(0.99),
-    count: samples.length,
+    count: n,
   };
 }
 
@@ -400,4 +411,36 @@ export function resetAuthObservabilityStateForTests(): void {
   metricSamples.clear();
   lastAlertTimestamps.clear();
   latencySamples.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Shared refresh resolution → metric mapping
+// ---------------------------------------------------------------------------
+
+import type { RefreshResolution } from "@/lib/auth/refreshResolver";
+
+/**
+ * Maps a `RefreshResolution` to its canonical resolution-specific metric name.
+ *
+ * Exported here so both `session.ts` and `apiGuard.ts` use the same
+ * single-source mapping without duplication.
+ */
+export function refreshResolutionToMetric(
+  resolution: RefreshResolution,
+): "auth_refresh_success_total"
+  | "auth_refresh_expired_total"
+  | "auth_refresh_revoked_total"
+  | "auth_refresh_replay_denied_total"
+  | "auth_refresh_concurrency_conflict_total"
+  | "auth_refresh_malformed_total"
+  | "auth_session_refresh_failure_total" {
+  switch (resolution) {
+    case "success": return "auth_refresh_success_total";
+    case "expired": return "auth_refresh_expired_total";
+    case "revoked": return "auth_refresh_revoked_total";
+    case "replay_denied": return "auth_refresh_replay_denied_total";
+    case "concurrency_conflict": return "auth_refresh_concurrency_conflict_total";
+    case "malformed": return "auth_refresh_malformed_total";
+    default: return "auth_session_refresh_failure_total";
+  }
 }
