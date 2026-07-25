@@ -21,6 +21,8 @@
 
 import "server-only";
 
+import type { NextResponse } from "next/server";
+
 import {
   classifyUnauthorizedReason,
   unauthorizedResponse,

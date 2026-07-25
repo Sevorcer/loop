@@ -128,7 +128,7 @@ async function probeSession(): Promise<SessionProbeResult> {
   }
 }
 
-function isMissingSessionError(err: SessionLikeError) {
+function isMissingSessionError(err: SessionLikeError | null | undefined) {
   const token = `${err?.name ?? ""}|${err?.code ?? ""}|${err?.message ?? ""}`.toLowerCase();
   return token.includes("authsessionmissingerror") || token.includes("session missing");
 }

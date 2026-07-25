@@ -101,7 +101,7 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
       status: 401,
       error: buildUnauthorizedErrorBody(
         undefined,
-        classifyUnauthorizedReason({ message, code, status: 401 }),
+        classifyUnauthorizedReason({ message, code: code ?? undefined, status: 401 }),
       ),
     };
   }

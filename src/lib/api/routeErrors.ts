@@ -99,7 +99,10 @@ export function mapRouteError(error: unknown) {
 
   // Honor explicit upstream status/code when present.
   if (status === 401 || code === "UNAUTHORIZED") {
-    return unauthorizedResponse(undefined, classifyUnauthorizedReason({ message, code, status }));
+    return unauthorizedResponse(
+      undefined,
+      classifyUnauthorizedReason({ message, code: code ?? undefined, status: status ?? undefined }),
+    );
   }
 
   if (status === 403 || code === "FORBIDDEN") {
