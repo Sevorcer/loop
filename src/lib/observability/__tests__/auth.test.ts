@@ -4,6 +4,7 @@ import {
   applyTraceHeaders,
   getRequestTraceContext,
   incrementAuthMetric,
+  logAuthorizationDecision,
   logAuthEvent,
   redactSensitiveValue,
   resetAuthObservabilityStateForTests,
@@ -87,6 +88,34 @@ describe("auth observability", () => {
     expect(payload).toContain('"refreshAttempts":2');
     expect(payload).toContain('"refresh_token":"[REDACTED]"');
     expect(payload).not.toContain("sensitive");
+  });
+
+  it("logs minimal authorization decisions without request payload details", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    logAuthorizationDecision({
+      route: "/api/jobs",
+      method: "post",
+      actorRole: "owner",
+      policy: "jobs",
+      action: "insert",
+      decision: "allow",
+      reasonCode: "PERMISSION_ALLOWED",
+    });
+
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    const [prefix, payload] = infoSpy.mock.calls[0] as [string, string];
+    expect(prefix).toBe("[AUTHZ_DECISION]");
+    expect(payload).toContain('"route":"/api/jobs"');
+    expect(payload).toContain('"method":"POST"');
+    expect(payload).toContain('"actor_role":"owner"');
+    expect(payload).toContain('"policy":"jobs"');
+    expect(payload).toContain('"action":"insert"');
+    expect(payload).toContain('"decision":"allow"');
+    expect(payload).toContain('"reason_code":"PERMISSION_ALLOWED"');
+    expect(payload).not.toContain("requestId");
+    expect(payload).not.toContain("correlationId");
+    expect(payload).not.toContain("details");
   });
 
   it("emits alerts when metric thresholds are crossed", () => {

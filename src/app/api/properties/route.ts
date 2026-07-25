@@ -46,23 +46,20 @@ export async function GET(request: Request) {
 
 
 export async function POST(request: Request) {
+  const route = "/api/properties";
+  const operation = "create_property";
   let requestId: string | undefined;
-  let step: string | undefined;
 
   try {
     requestId = getPostRequestTrace(request, "prop-post").requestId;
-    step = "permission_guard";
-    const route = "/api/properties";
     let body: Record<string, unknown> = {};
 
     const guard = await requirePermission(request, "properties", "insert");
     if (!guard.ok) return guard.response;
 
-    step = "body_parse";
     body = await readJsonObject(request);
 
     const { userId } = guard.ctx;
-    step = "payload_build";
 
     const payload = {
       name: String(body.name ?? "").trim(),
@@ -74,10 +71,8 @@ export async function POST(request: Request) {
       primarySystem: String(body.primarySystem ?? "").trim(),
     };
 
-    step = "build_supabase_client";
     const supabase = await createSupabaseServerClient();
 
-    step = "create_property_service";
     const result = await createProperty(payload, {
       userId,
       supabase,
@@ -85,7 +80,6 @@ export async function POST(request: Request) {
       requestId,
     });
 
-    step = "audit_event";
     emitAuditEvent({
       role: guard.ctx.role,
       action: "create",
@@ -104,12 +98,11 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    const route = "/api/properties";
     const tracedRequestId = requestId ?? getPostRequestTrace(request, "prop-post").requestId;
 
-    logWriteFailure({ route, requestId: tracedRequestId, step }, error);
+    logWriteFailure({ route, operation, requestId: tracedRequestId }, error);
 
-    if (step === "body_parse") {
+    if (error instanceof SyntaxError) {
       return invalidJsonResponse();
     }
 

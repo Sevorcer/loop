@@ -11,7 +11,7 @@ import {
   applyTraceHeaders,
   getRequestTraceContext,
   incrementAuthMetric,
-  logAuthEvent,
+  logAuthorizationDecision,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -160,15 +160,14 @@ export async function requirePermission(
   const auth = await resolveRequestAuth(request);
 
   if (!auth.ok) {
-    logAuthEvent({
-      event: "unauthorized_access_attempt",
-      outcome: "deny",
+    logAuthorizationDecision({
       route: trace.route,
-      statusCode: 401,
-      requestId: trace.requestId,
-      correlationId: trace.correlationId,
-      errorCode: auth.reason.toUpperCase(),
-      details: { table, action, reason: auth.reason },
+      method: request.method,
+      actorRole: null,
+      policy: table,
+      action,
+      decision: "deny",
+      reasonCode: auth.reason.toUpperCase(),
     });
     incrementAuthMetric("auth_401_total", { route: trace.route, category: auth.reason });
 
@@ -179,16 +178,14 @@ export async function requirePermission(
   const { role, userId } = auth.auth;
 
   if (!hasPermission(role, table, action)) {
-    logAuthEvent({
-      event: "authz_decision_deny",
-      outcome: "deny",
+    logAuthorizationDecision({
       route: trace.route,
-      statusCode: 403,
-      requestId: trace.requestId,
-      correlationId: trace.correlationId,
-      role,
-      errorCode: "PERMISSION_DENIED",
-      details: { table, action, reason: "insufficient_permission" },
+      method: request.method,
+      actorRole: role,
+      policy: table,
+      action,
+      decision: "deny",
+      reasonCode: "PERMISSION_DENIED",
     });
     incrementAuthMetric("auth_403_total", {
       route: trace.route,
@@ -200,15 +197,14 @@ export async function requirePermission(
     };
   }
 
-  logAuthEvent({
-    event: "authz_decision_allow",
-    outcome: "success",
+  logAuthorizationDecision({
     route: trace.route,
-    statusCode: 200,
-    requestId: trace.requestId,
-    correlationId: trace.correlationId,
-    role,
-    details: { table, action },
+    method: request.method,
+    actorRole: role,
+    policy: table,
+    action,
+    decision: "allow",
+    reasonCode: "PERMISSION_ALLOWED",
   });
 
   return { ok: true, ctx: { role, userId } };

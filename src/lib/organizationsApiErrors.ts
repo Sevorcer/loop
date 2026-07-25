@@ -29,15 +29,6 @@ export function normalizeFieldErrors(
 
 export function organizationPermissionDenied(status: number): AdminErrorResponse {
   if (status === 401) {
-    console.error(
-      "[AUTH_FLOW]",
-      JSON.stringify({
-        event: "organizationPermissionDenied.emit401",
-        reason: "authentication_required",
-        statusCode: 401,
-        stack: new Error("AUTH_FLOW_STACK").stack,
-      }),
-    );
     return {
       status: 401,
       error: buildUnauthorizedErrorBody("Authentication required."),
@@ -71,7 +62,6 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   const errorObject = error && typeof error === "object" ? (error as { code?: unknown; details?: unknown }) : null;
   const code =
     errorObject && typeof errorObject.code === "string" ? errorObject.code : null;
-  const details = errorObject?.details ?? null;
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
     return {
@@ -87,16 +77,6 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
     message.toLowerCase().includes("unauthorized") ||
     message.toLowerCase().includes("authentication")
   ) {
-    console.error(
-      "[AUTH_FLOW]",
-      JSON.stringify({
-        event: "mapOrganizationRouteError.emit401",
-        reason: code ?? message,
-        statusCode: 401,
-        details,
-        stack: new Error("AUTH_FLOW_STACK").stack,
-      }),
-    );
     return {
       status: 401,
       error: buildUnauthorizedErrorBody(

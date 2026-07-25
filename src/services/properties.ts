@@ -126,40 +126,7 @@ export async function createProperty(
   const normalized = normalizePropertyInput(input);
   validatePropertyInput(normalized);
 
-  // Checkpoint (c-i): fields ready — log sanitized payload for diagnosis
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "createProperty.validated",
-      type: normalized.type,
-      status: normalized.status,
-      primarySystem: normalized.primarySystem,
-      openJobs: normalized.openJobs ?? 0,
-      hasName: Boolean(normalized.name),
-      hasCustomer: Boolean(normalized.customer),
-      hasAddress: Boolean(normalized.address),
-      hasCity: Boolean(normalized.city),
-    }),
-  );
-
-  // Checkpoint (c-ii): before geocoding (non-fatal step before insert)
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({ event: "createProperty.geocode_start" }),
-  );
-
   const { location, geocoded } = await resolveLocation(normalized.address, normalized.city);
-
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({ event: "createProperty.geocode_done", geocoded }),
-  );
-
-  // Checkpoint (c-iii): before supabase insert
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({ event: "createProperty.insert_start" }),
-  );
 
   const property = await createPropertyRecord(
     {
@@ -171,35 +138,8 @@ export async function createProperty(
     contextInput,
   );
 
-  // Checkpoint (d): insert succeeded
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "createProperty.insert_done",
-      propertyId: property.id,
-    }),
-  );
-
-  // Checkpoint (e-i): post-insert — customer sync
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "createProperty.customer_sync_start",
-      hasCustomer: Boolean(property.customer),
-    }),
-  );
-
   const customerId = await resolveCustomerIdByName(property.customer, contextInput);
   if (customerId) await syncCustomerCounters(customerId);
-
-  // Checkpoint (e-ii): customer sync done
-  console.log(
-    "[PROP_CREATE_DIAG]",
-    JSON.stringify({
-      event: "createProperty.customer_sync_done",
-      customerId: customerId ?? null,
-    }),
-  );
 
   return {
     property,

@@ -42,23 +42,20 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const route = "/api/jobs";
+  const operation = "create_job";
   let requestId: string | undefined;
-  let step: string | undefined;
 
   try {
     requestId = getPostRequestTrace(request, "jobs-post").requestId;
-    step = "permission_guard";
-    const route = "/api/jobs";
     let body: Record<string, unknown> = {};
 
     const guard = await requirePermission(request, "jobs", "insert");
     if (!guard.ok) return guard.response;
     const { userId } = guard.ctx;
 
-    step = "body_parse";
     body = await readJsonObject(request);
 
-    step = "create_job_service";
     const payload = {
       estimateId: body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
       equipmentBundleId:
@@ -77,10 +74,8 @@ export async function POST(request: Request) {
       notes: String(body.notes ?? "").trim(),
     };
 
-    step = "build_supabase_client";
     const supabase = await createSupabaseServerClient();
 
-    step = "create_job_service";
     const job = await createJob(payload, {
       userId,
       supabase,
@@ -97,12 +92,11 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ job }, { status: 201 });
   } catch (error) {
-    const route = "/api/jobs";
     const tracedRequestId = requestId ?? getPostRequestTrace(request, "jobs-post").requestId;
 
-    logWriteFailure({ route, requestId: tracedRequestId, step }, error);
+    logWriteFailure({ route, operation, requestId: tracedRequestId }, error);
 
-    if (step === "body_parse") {
+    if (error instanceof SyntaxError) {
       return invalidJsonResponse();
     }
 

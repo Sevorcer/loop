@@ -9,7 +9,7 @@
  *
  * Usage — in a route catch block:
  *   } catch (error) {
- *     logWriteFailure({ route: "/api/jobs", request }, error);
+ *     logWriteFailure({ route: "/api/jobs", request, operation: "create_job" }, error);
  *     return mapRouteError(error);
  *   }
  */
@@ -21,6 +21,8 @@
 export interface WriteFailureContext {
   /** Canonical route path, e.g. "/api/jobs". */
   route: string;
+  /** Stable operation name, e.g. "create_job". Falls back to a route+method label. */
+  operation?: string;
   /**
    * Incoming Request object — used to extract requestId/correlationId from
    * standard trace headers when `requestId` is not provided explicitly.
@@ -31,11 +33,6 @@ export interface WriteFailureContext {
    * Use this when the route handler has already read the trace context.
    */
   requestId?: string | null;
-  /**
-   * Optional step label from step-tracking POST handlers.
-   * Identifies the exact execution point at which the failure occurred.
-   */
-  step?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,13 +51,28 @@ function extractRequestId(ctx: WriteFailureContext): string | null {
   return null;
 }
 
+function extractOperation(ctx: WriteFailureContext): string {
+  if (ctx.operation && ctx.operation.trim().length > 0) {
+    return ctx.operation;
+  }
+
+  const method = ctx.request?.method?.trim().toLowerCase() ?? "write";
+  const segments = ctx.route.split("/").filter(Boolean);
+  const resource =
+    segments[0] === "api" && segments[1]
+      ? segments[1]
+      : segments.find((segment) => !segment.startsWith("["));
+  const normalizedResource = resource?.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+
+  return normalizedResource ? `${method}_${normalizedResource}` : method;
+}
+
 function extractErrorFields(error: unknown): {
-  errorName: string;
-  errorMessage: string;
+  sanitizedMessage: string;
   errorCode: string | null;
+  stack: string | null;
 } {
   const isError = error instanceof Error;
-  const errorName = isError ? error.name : typeof error;
   const errorMessage = isError ? error.message : String(error);
 
   let errorCode: string | null = null;
@@ -71,7 +83,69 @@ function extractErrorFields(error: unknown): {
     }
   }
 
-  return { errorName, errorMessage, errorCode };
+  return {
+    sanitizedMessage: sanitizeLogText(errorMessage),
+    errorCode,
+    stack:
+      process.env.NODE_ENV === "production" || !isError || typeof error.stack !== "string"
+        ? null
+        : sanitizeLogText(error.stack),
+  };
+}
+
+const SECRET_KEY_PATTERN =
+  /\b(authorization|cookie|set-cookie|token|secret|api[_ -]?key|password)\b\s*([:=])\s*/gi;
+
+function findSecretValueEnd(text: string, startIndex: number): number {
+  const quote = text[startIndex];
+
+  if (quote === '"' || quote === "'") {
+    let index = startIndex + 1;
+    while (index < text.length) {
+      if (text[index] === quote && text[index - 1] !== "\\") {
+        return index + 1;
+      }
+      index += 1;
+    }
+    return text.length;
+  }
+
+  let index = startIndex;
+  while (index < text.length && !/[,\s;]/.test(text[index])) {
+    index += 1;
+  }
+  return index;
+}
+
+function redactKeyValueSecrets(value: string): string {
+  let sanitized = "";
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  SECRET_KEY_PATTERN.lastIndex = 0;
+
+  while ((match = SECRET_KEY_PATTERN.exec(value)) !== null) {
+    const [fullMatch, key, separator] = match;
+    const valueStart = match.index + fullMatch.length;
+    const valueEnd = findSecretValueEnd(value, valueStart);
+
+    sanitized += value.slice(cursor, match.index);
+    sanitized += `${key}${separator}[REDACTED]`;
+
+    cursor = valueEnd;
+    SECRET_KEY_PATTERN.lastIndex = valueEnd;
+  }
+
+  return sanitized + value.slice(cursor);
+}
+
+function sanitizeLogText(value: string): string {
+  return redactKeyValueSecrets(
+    value
+    .replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+=*\b/gi, "[REDACTED_BEARER_TOKEN]")
+    .replace(/\b[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, "[REDACTED_JWT]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]"),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -86,19 +160,18 @@ function extractErrorFields(error: unknown): {
  */
 export function logWriteFailure(ctx: WriteFailureContext, error: unknown): void {
   try {
-    const { errorName, errorMessage, errorCode } = extractErrorFields(error);
+    const { sanitizedMessage, errorCode, stack } = extractErrorFields(error);
 
     const payload = {
       category: "write_failure",
-      schemaVersion: "1.0",
+      schema_version: "1.0",
       timestamp: new Date().toISOString(),
-      event: "write_failure",
+      request_id: extractRequestId(ctx),
       route: ctx.route,
-      requestId: extractRequestId(ctx),
-      step: ctx.step ?? null,
-      errorName,
-      errorMessage,
-      errorCode,
+      operation: extractOperation(ctx),
+      error_code: errorCode,
+      sanitized_message: sanitizedMessage,
+      ...(stack ? { stack } : {}),
     };
 
     console.error("[WRITE_FAILURE]", JSON.stringify(payload));
