@@ -305,9 +305,10 @@ describe("auth latency tracking — S3", () => {
     const percentiles = getAuthLatencyPercentiles("api_guard");
     expect(percentiles.count).toBe(10);
     // Sorted: [10, 50, 100, 200, 300, 400, 500, 600, 700, 1000]
+    // Nearest-rank method: index = floor(n * q) clamped to [0, n-1]
     // p50 = sorted[floor(10*0.5)] = sorted[5] = 400
     expect(percentiles.p50).toBe(400);
-    // p95 = sorted[floor(10*0.95)] = sorted[9] = 1000
+    // p95 = sorted[min(floor(10*0.95), 9)] = sorted[9] = 1000
     expect(percentiles.p95).toBe(1000);
     // p99 = sorted[min(floor(10*0.99), 9)] = sorted[9] = 1000
     expect(percentiles.p99).toBe(1000);

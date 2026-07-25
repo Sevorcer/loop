@@ -388,8 +388,11 @@ export function recordAuthDuration(label: AuthLatencyLabel, startedAt: number, n
  * Returns p50/p95/p99 latency percentiles from the rolling sample window.
  * Returns zeros when fewer than 2 samples are available.
  *
- * Uses a nearest-rank percentile: p = sorted[floor(n * q)] where q ∈ (0,1).
- * Clamped to [0, n-1] to prevent out-of-bounds access.
+ * Uses a nearest-rank percentile method: p = sorted[floor(n * q)].
+ * The index is clamped to [0, n-1] to prevent out-of-bounds access —
+ * this is an intentional design choice so that extreme quantiles (e.g. q=0.99
+ * with a small sample) always return the closest available value rather than
+ * undefined.
  */
 export function getAuthLatencyPercentiles(label: AuthLatencyLabel): AuthLatencyPercentiles {
   const samples = latencySamples.get(label) ?? [];
