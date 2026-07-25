@@ -1,5 +1,5 @@
 import { beginClientAuthRecovery } from "@/lib/auth/clientRecovery";
-import type { AuthErrorReason, UnauthorizedReason } from "@/lib/api-auth";
+import type { AuthErrorReason, UnauthorizedReason } from "@/lib/auth/errorContract";
 
 export class ApiRequestError extends Error {
   status: number;

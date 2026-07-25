@@ -17,9 +17,13 @@ const {
   createJobMock: vi.fn(),
 }));
 
-vi.mock("@/lib/api-auth", () => ({
-  requirePermission: requirePermissionMock,
-}));
+vi.mock("@/lib/api-auth", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api-auth")>("@/lib/api-auth");
+  return {
+    ...actual,
+    requirePermission: requirePermissionMock,
+  };
+});
 
 vi.mock("@/lib/api/routeErrors", () => ({
   readJsonObject: readJsonObjectMock,

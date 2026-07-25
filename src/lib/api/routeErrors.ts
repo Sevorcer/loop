@@ -4,7 +4,7 @@ import {
   classifyUnauthorizedReason,
   createForbiddenResponse,
   unauthorizedResponse,
-} from "@/lib/api-auth";
+} from "@/lib/auth/errorContract";
 import { getRepositoryErrorStatus } from "@/lib/repositories/http";
 import type { RepositoryError } from "@/lib/repositories/contracts";
 

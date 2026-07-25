@@ -24,6 +24,8 @@ import "server-only";
 import {
   classifyUnauthorizedReason,
   unauthorizedResponse,
+} from "@/lib/auth/errorContract";
+import {
   applyTraceHeaders,
   createCorrelationId,
   getRequestTraceContext,

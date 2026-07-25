@@ -5,7 +5,7 @@ import {
   buildUnauthorizedErrorBody,
   classifyUnauthorizedReason,
   type ApiErrorBody,
-} from "@/lib/api-auth";
+} from "@/lib/auth/errorContract";
 
 interface AdminErrorResponse {
   status: AdminHttpStatus;

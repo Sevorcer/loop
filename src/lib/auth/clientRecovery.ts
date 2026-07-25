@@ -1,5 +1,5 @@
 import { ROUTES } from "@/lib/routes";
-import type { UnauthorizedReason } from "@/lib/api-auth";
+import type { UnauthorizedReason } from "@/lib/auth/errorContract";
 
 let recoveryInFlight = false;
 

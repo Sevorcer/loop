@@ -18,7 +18,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { classifyUnauthorizedReason, unauthorizedResponse } from "@/lib/api-auth";
+import { classifyUnauthorizedReason, unauthorizedResponse } from "@/lib/auth/errorContract";
 import {
   applyTraceHeaders,
   getRequestTraceContext,
