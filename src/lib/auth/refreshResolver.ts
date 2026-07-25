@@ -17,8 +17,10 @@ type AuthErrorLike = {
   status?: number;
 };
 
-type UserResult = {
-  data: { user: User | null };
+type UserLike = { id?: string };
+
+type UserResult<TUser extends UserLike> = {
+  data: { user: TUser | null };
   error: AuthErrorLike | null;
 };
 
@@ -27,8 +29,8 @@ type SessionResult = {
   error?: AuthErrorLike | null;
 };
 
-export interface ResolveRefreshOptions {
-  getUser: () => Promise<UserResult>;
+export interface ResolveRefreshOptions<TUser extends UserLike = UserLike> {
+  getUser: () => Promise<UserResult<TUser>>;
   getSession?: () => Promise<SessionResult>;
   clearSession?: () => Promise<void>;
   now?: () => number;
@@ -36,16 +38,20 @@ export interface ResolveRefreshOptions {
   maxRetries?: number;
 }
 
-export interface RefreshResolutionResult {
+export interface RefreshResolutionResult<TUser extends UserLike = User> {
   status: "authenticated" | "unauthenticated";
   resolution: RefreshResolution;
-  user: User | null;
+  user: TUser | null;
   session: Session | null;
   attempts: number;
   error: AuthErrorLike | null;
 }
 
+// One retry balances resilience for transient refresh races without creating
+// long retry chains that could hide persistent auth failures.
 const DEFAULT_MAX_RETRIES = 1;
+// Treat sessions expiring within 30s as expired to account for clock skew and
+// network latency between refresh and downstream authorization checks.
 const DEFAULT_EXPIRY_SKEW_MS = 30_000;
 
 function normalizeText(error: AuthErrorLike | null | undefined): string {
@@ -62,8 +68,13 @@ function isSessionExpired(
   return expiresAtMs <= now + expirySkewMs;
 }
 
-function classifyFailure(error: AuthErrorLike | null, session: Session | null): RefreshResolution {
-  if (session && isSessionExpired(session, Date.now(), DEFAULT_EXPIRY_SKEW_MS)) {
+function classifyFailure(
+  error: AuthErrorLike | null,
+  session: Session | null,
+  now: number,
+  expirySkewMs: number,
+): RefreshResolution {
+  if (session && isSessionExpired(session, now, expirySkewMs)) {
     return "expired";
   }
 
@@ -128,6 +139,14 @@ function shouldRetry(resolution: RefreshResolution): boolean {
   return resolution === "missing" || resolution === "concurrency_conflict";
 }
 
+function canRetry(
+  attempts: number,
+  maxAttempts: number,
+  resolution: RefreshResolution,
+): boolean {
+  return attempts < maxAttempts && shouldRetry(resolution);
+}
+
 async function clearSessionIfNeeded(
   clearSession: (() => Promise<void>) | undefined,
   resolution: RefreshResolution,
@@ -141,17 +160,18 @@ async function clearSessionIfNeeded(
   }
 }
 
-export async function resolveAuthRefresh(
-  options: ResolveRefreshOptions,
-): Promise<RefreshResolutionResult> {
-  const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
-  const now = options.now ?? Date.now;
+export async function resolveAuthRefresh<TUser extends UserLike = User>(
+  options: ResolveRefreshOptions<TUser>,
+): Promise<RefreshResolutionResult<TUser>> {
+  const maxRetries = Math.max(0, options.maxRetries ?? DEFAULT_MAX_RETRIES);
+  const maxAttempts = maxRetries + 1;
+  const now = options.now ?? (() => Date.now());
   const expirySkewMs = options.expirySkewMs ?? DEFAULT_EXPIRY_SKEW_MS;
 
   let attempts = 0;
   let lastError: AuthErrorLike | null = null;
 
-  while (attempts <= maxRetries) {
+  while (attempts < maxAttempts) {
     attempts += 1;
     const userResult = await options.getUser();
     const user = userResult.data.user;
@@ -193,9 +213,11 @@ export async function resolveAuthRefresh(
               message: "No session returned for authenticated user.",
             },
             session,
+            now(),
+            expirySkewMs,
           );
 
-      if (attempts <= maxRetries && shouldRetry(resolution)) {
+      if (canRetry(attempts, maxAttempts, resolution)) {
         continue;
       }
 
@@ -210,8 +232,8 @@ export async function resolveAuthRefresh(
       };
     }
 
-    const resolution = classifyFailure(lastError, null);
-    if (attempts <= maxRetries && shouldRetry(resolution)) {
+    const resolution = classifyFailure(lastError, null, now(), expirySkewMs);
+    if (canRetry(attempts, maxAttempts, resolution)) {
       continue;
     }
 

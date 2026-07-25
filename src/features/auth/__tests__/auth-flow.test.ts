@@ -186,10 +186,11 @@ describe("regression: refresh edge-cases", () => {
     const apiResult = await requireApiSession();
     expect(apiResult.error?.status).toBe(401);
     expect(apiResult.user).toBeNull();
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
 
     const sessionResult = await getAuthSession();
     expect(sessionResult).toBeNull();
-    expect(mockSignOut).toHaveBeenCalled();
+    expect(mockSignOut).toHaveBeenCalledTimes(2);
   });
 
   it("fails closed on malformed refresh state", async () => {

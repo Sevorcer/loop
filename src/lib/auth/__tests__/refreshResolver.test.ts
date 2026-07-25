@@ -92,6 +92,7 @@ describe("resolveAuthRefresh", () => {
     const now = Date.now();
     const expiringSession: Session = {
       ...validSession,
+      // 5s keeps expiry inside the 30s skew window to force "expired".
       expires_at: Math.floor((now + 5_000) / 1000),
     } as Session;
 
