@@ -96,6 +96,7 @@ _info "Connected to database successfully."
 _section "1a. Required PostgreSQL extensions"
 
 REQUIRED_EXTENSIONS=("uuid-ossp" "pgcrypto")
+EXTENSIONS_OK=true
 for EXT in "${REQUIRED_EXTENSIONS[@]}"; do
   FOUND=$(_query "SELECT COUNT(*) FROM pg_extension WHERE extname = '$EXT'")
   if [ "$FOUND" = "1" ]; then
@@ -103,9 +104,10 @@ for EXT in "${REQUIRED_EXTENSIONS[@]}"; do
   else
     _critical "Extension $EXT is missing — required by baseline migration"
     _hint "Apply 20260719000001_baseline_core_schema.sql to install it."
+    EXTENSIONS_OK=false
   fi
 done
-[ "$FOUND" != "0" ] && [ "$CRITICAL_FAILURES" -eq 0 ] && _pass "All required extensions present"
+[ "$EXTENSIONS_OK" = "true" ] && _pass "All required extensions present"
 
 _section "1b. Required helper functions"
 
