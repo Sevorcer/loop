@@ -12,6 +12,13 @@
 --
 -- All table DDL uses CREATE … IF NOT EXISTS so the migration is safe to apply
 -- against an environment that already has some tables in place.
+--
+-- DOWN (manual rollback — create a new forward migration to apply):
+--   DROP TABLE IF EXISTS performance_models, portal_memberships, portal_users,
+--     job_activity, jobs, contractors, properties, customers,
+--     user_profiles, organizations CASCADE;
+--   DROP FUNCTION IF EXISTS current_org_id();
+--   DROP FUNCTION IF EXISTS current_app_role();
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------

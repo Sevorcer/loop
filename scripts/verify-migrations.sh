@@ -10,6 +10,7 @@
 #   4. No file is empty (zero-byte guard).
 #   5. Every migration has a companion verification file in supabase/verifications/.
 #   6. Migration checksum integrity (files not modified after commit).
+#   7. Every migration contains a rollback notes section (-- DOWN).
 #
 # Usage:
 #   bash scripts/verify-migrations.sh
@@ -168,6 +169,27 @@ else
     fail "If this is a legitimate change, run: bash scripts/update-migration-checksums.sh"
   fi
 fi
+
+# ── check 7: rollback notes present ──────────────────────────────────────────
+# Every migration must contain a "-- DOWN" section documenting how the schema
+# change can be reversed.  This is a documentation requirement — a missing
+# rollback note does not prevent the migration from applying, but it does
+# indicate that the deployment risk assessment is incomplete.
+#
+# The check matches a line containing "-- DOWN" (case-insensitive, leading
+# spaces allowed) so both inline and header-style notes are accepted.
+
+info ""
+info "7. Rollback notes present (-- DOWN section)"
+
+for FILE in "${FILES[@]}"; do
+  BASENAME="$(basename "$FILE")"
+  if grep -qiE '^\s*--\s*DOWN' "$FILE"; then
+    pass "$BASENAME has rollback notes"
+  else
+    fail "$BASENAME — missing rollback notes (add a '-- DOWN' section describing how to reverse this migration)"
+  fi
+done
 
 # ── summary ───────────────────────────────────────────────────────────────────
 

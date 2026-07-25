@@ -8,6 +8,10 @@
 --
 -- All migrations are applied in timestamp order and are irreversible by default.
 -- To roll back a change, create a new forward migration that reverses it.
+--
+-- DOWN (manual rollback — create a new forward migration to apply):
+--   DROP EXTENSION IF EXISTS pgcrypto;
+--   DROP EXTENSION IF EXISTS "uuid-ossp";
 
 -- Enable commonly-used Postgres extensions.
 -- These are safe to run multiple times (IF NOT EXISTS semantics).

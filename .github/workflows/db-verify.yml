@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify-structure:
     name: Verify migration structure & checksums
@@ -16,6 +19,23 @@ jobs:
       - name: Verify migration file sequence and checksums
         run: bash scripts/verify-migrations.sh
 
+  bootstrap-structure:
+    name: Bootstrap validation (structure-only)
+    runs-on: ubuntu-latest
+    needs: verify-structure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap validation — structure stage
+        run: |
+          set -o pipefail
+          echo "## Bootstrap Validation (structure-only)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          bash scripts/db-bootstrap-validate.sh --structure-only 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
   verify-schema:
     name: Verify schema & policies (live DB)
     runs-on: ubuntu-latest
@@ -25,6 +45,9 @@ jobs:
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+    # Skip on Copilot-authored PRs — GitHub does not expose repository secrets.
+    if: |
+      github.actor != 'Copilot'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,7 +134,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify schema (tables, columns, RLS)
+      - name: Verify schema (tables, columns, RLS, indexes, extensions)
         run: |
           set -o pipefail
           echo "## Schema Verification" >> "$GITHUB_STEP_SUMMARY"
@@ -130,25 +153,38 @@ jobs:
           npm run db:verify-policies 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Integrity check (relational & security)
+        run: |
+          set -o pipefail
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Integrity Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm run db:integrity-check 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
   summary:
     name: Drift check summary
     runs-on: ubuntu-latest
-    needs: [verify-structure, verify-schema]
+    needs: [verify-structure, bootstrap-structure, verify-schema]
     if: always()
     steps:
       - name: Evaluate gate result
         run: |
           STRUCTURE="${{ needs.verify-structure.result }}"
+          BOOTSTRAP="${{ needs.bootstrap-structure.result }}"
           SCHEMA="${{ needs.verify-schema.result }}"
 
-          echo "verify-structure: $STRUCTURE"
-          echo "verify-schema   : $SCHEMA"
+          echo "verify-structure   : $STRUCTURE"
+          echo "bootstrap-structure: $BOOTSTRAP"
+          echo "verify-schema      : $SCHEMA"
 
-          if [ "$STRUCTURE" = "failure" ] || [ "$SCHEMA" = "failure" ]; then
+          if [ "$STRUCTURE" = "failure" ] || [ "$BOOTSTRAP" = "failure" ] || [ "$SCHEMA" = "failure" ]; then
             echo "::error::DB verification failed — see job details for drift categories."
             exit 1
           fi
 
-          if [ "$STRUCTURE" = "success" ] && { [ "$SCHEMA" = "success" ] || [ "$SCHEMA" = "skipped" ]; }; then
+          if [ "$STRUCTURE" = "success" ] && [ "$BOOTSTRAP" = "success" ] && \
+             { [ "$SCHEMA" = "success" ] || [ "$SCHEMA" = "skipped" ]; }; then
             echo "DB verification passed — no drift detected."
           fi

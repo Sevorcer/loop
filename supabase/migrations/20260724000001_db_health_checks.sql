@@ -17,6 +17,14 @@
 --
 -- RLS: service_role may insert; owner/manager roles may select.
 --      No sensitive DB details are returned — only counts and boolean flags.
+--
+-- DOWN (manual rollback — create a new forward migration to apply):
+--   DROP FUNCTION IF EXISTS dbhc_migration_count();
+--   DROP FUNCTION IF EXISTS dbhc_rls_coverage();
+--   DROP FUNCTION IF EXISTS dbhc_required_indexes();
+--   DROP FUNCTION IF EXISTS dbhc_orphan_fk();
+--   DROP FUNCTION IF EXISTS dbhc_null_org_id();
+--   DROP TABLE IF EXISTS db_health_check_results, db_health_check_runs CASCADE;
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------

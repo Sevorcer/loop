@@ -144,10 +144,15 @@ assertion description so failures are immediately actionable.
 ## CI enforcement
 
 `scripts/verify-migrations.sh` runs on every PR that touches migration or
-verification files. Check 5 (verification file required) will fail and block
-merge if any migration in `supabase/migrations/` does not have a matching
-`.verify.sql` in `supabase/verifications/`. No database credentials are
-needed for this check.
+verification files. It enforces all of the following (exit code 1 on any failure):
+
+- Check 1: Naming convention (`YYYYMMDDHHMMSS_description.sql`)
+- Check 2: No duplicate timestamps
+- Check 3: Ascending timestamp order
+- Check 4: No empty files
+- Check 5: Companion `.verify.sql` required for every migration
+- Check 6: Checksum integrity (no in-place edits to committed migrations)
+- Check 7: Rollback notes required — every migration must contain a `-- DOWN` section
 
 The GitHub Actions workflow at `.github/workflows/db-migrations.yml` also
 triggers on changes to `supabase/verifications/**`.

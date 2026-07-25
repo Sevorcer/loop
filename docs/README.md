@@ -13,6 +13,7 @@
 | [DB Drift Detection](runbooks/db-drift-detection.md) | Local run instructions, drift categories, and remediation steps |
 | [Daily DB Health Check Runbook](runbooks/db-health-check.md) | Where the check runs, how to run it manually, how to interpret failures |
 | [DB Health Dashboard Runbook](runbooks/db-health-dashboard.md) | Dashboard location, alert thresholds, and escalation path for DB health checks |
+| [Bootstrap Validation Runbook](runbooks/bootstrap-validation.md) | End-to-end validation of a freshly provisioned environment |
 | [Drill Reports README](drills/README.md) | Location and expectations for completed drill reports |
 
 ## Architecture & Reference
