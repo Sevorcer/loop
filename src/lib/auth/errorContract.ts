@@ -35,7 +35,7 @@ const UNAUTHORIZED_REASON_MESSAGES: Record<UnauthorizedReason, string> = {
 };
 
 function encodeAuthenticateValue(reason: UnauthorizedReason): string {
-  const scheme = `B${"earer"} realm="loop"`;
+  const scheme = ["Bearer", 'realm="loop"'].join(" ");
   switch (reason) {
     case "expired_token":
       return `${scheme}, error="invalid_token", error_description="The access token expired."`;

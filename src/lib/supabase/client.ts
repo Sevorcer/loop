@@ -6,6 +6,8 @@ export function getSupabaseBrowserClient(): ReturnType<typeof createBrowserClien
   if (_client) return _client;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Support either public key name so local/dev/test environments match the
+  // server-side auth client fallback and existing auth-client contract tests.
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

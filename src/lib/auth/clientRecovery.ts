@@ -34,7 +34,12 @@ export function beginClientAuthRecovery(reason: UnauthorizedReason) {
   if (recoveryInFlight) return;
 
   recoveryInFlight = true;
-  window.location.replace(buildSignInHref(window.location));
+  try {
+    window.location.replace(buildSignInHref(window.location));
+  } catch (error) {
+    recoveryInFlight = false;
+    throw error;
+  }
 }
 
 export function resetClientAuthRecoveryForTests() {

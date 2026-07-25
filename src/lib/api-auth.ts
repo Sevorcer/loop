@@ -157,11 +157,10 @@ async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult>
         return { ok: true, auth: { role: "owner", userId: user.id ?? "" } };
       }
 
-      failureReason = "missing_role";
-      return { ok: false, reason: failureReason };
+      return { ok: false, reason: "missing_role" };
     }
 
-    failureReason = classifyUnauthorizedReason(error);
+    failureReason = error ? classifyUnauthorizedReason(error) : "missing_token";
   } catch {
     // Session probe failed — fall through to header fallback (non-prod only).
     failureReason = "invalid_token";

@@ -139,8 +139,8 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAuthenticated = Boolean(user);
-  const authFailureReason = refreshError ? classifyUnauthorizedReason(refreshError) : "missing_token";
   if (refreshError) {
+    const authFailureReason = classifyUnauthorizedReason(refreshError);
     logAuthEvent({
       event: "session_refresh_failure",
       outcome: "failure",
@@ -170,6 +170,7 @@ export async function proxy(request: NextRequest) {
   // ── Shell routes ──────────────────────────────────────────────────────────
   if (isShellRoute(pathname)) {
     if (!isAuthenticated) {
+      const authFailureReason = refreshError ? classifyUnauthorizedReason(refreshError) : "missing_token";
       const signInUrl = new URL("/sign-in", request.url);
       // Preserve the intended destination so we can redirect after sign-in.
       signInUrl.searchParams.set("next", pathname);
@@ -192,6 +193,7 @@ export async function proxy(request: NextRequest) {
   // ── Protected API routes ──────────────────────────────────────────────────
   if (isProtectedApiRoute(pathname)) {
     if (!isAuthenticated) {
+      const authFailureReason = refreshError ? classifyUnauthorizedReason(refreshError) : "missing_token";
       logAuthEvent({
         event: "unauthorized_access_attempt",
         outcome: "deny",
