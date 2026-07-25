@@ -21,6 +21,19 @@ type RequestJsonOptions = Omit<RequestInit, "body" | "headers"> & {
   role?: string | null;
 };
 
+function parseApiErrorPayload(
+  value: unknown,
+): { message?: string; error?: string; reason?: AuthErrorReason } | null {
+  if (!value || typeof value !== "object") return null;
+
+  const payload = value as Record<string, unknown>;
+  return {
+    message: typeof payload.message === "string" ? payload.message : undefined,
+    error: typeof payload.error === "string" ? payload.error : undefined,
+    reason: typeof payload.reason === "string" ? (payload.reason as AuthErrorReason) : undefined,
+  };
+}
+
 export async function requestJson<T>(
   input: RequestInfo | URL,
   options: RequestJsonOptions = {},
@@ -48,13 +61,7 @@ export async function requestJson<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const errorPayload = data as
-      | {
-          message?: string;
-          error?: string;
-          reason?: AuthErrorReason;
-        }
-      | null;
+    const errorPayload = parseApiErrorPayload(data);
 
     if (response.status === 401) {
       beginClientAuthRecovery((errorPayload?.reason as UnauthorizedReason | undefined) ?? "missing_token");

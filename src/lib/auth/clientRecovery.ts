@@ -1,6 +1,8 @@
-import { ROUTES } from "@/lib/routes";
 import type { UnauthorizedReason } from "@/lib/auth/errorContract";
+import { ROUTES } from "@/lib/routes";
 
+// Single-flight guard: concurrent 401s may emit more than one event, but only
+// the first call should trigger navigation so clients do not loop or thrash history.
 let recoveryInFlight = false;
 
 function buildSignInHref(location: Location) {

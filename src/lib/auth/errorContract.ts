@@ -34,26 +34,29 @@ const UNAUTHORIZED_REASON_MESSAGES: Record<UnauthorizedReason, string> = {
   missing_role: "Your session is missing required role claims.",
 };
 
+const AUTHENTICATE_SCHEME = ["Bearer", 'realm="loop"'].join(" ");
+
 function encodeAuthenticateValue(reason: UnauthorizedReason): string {
-  const scheme = ["Bearer", 'realm="loop"'].join(" ");
   switch (reason) {
     case "expired_token":
-      return `${scheme}, error="invalid_token", error_description="The access token expired."`;
+      return `${AUTHENTICATE_SCHEME}, error="invalid_token", error_description="The access token expired."`;
     case "invalid_token":
-      return `${scheme}, error="invalid_token", error_description="The access token is invalid."`;
+      return `${AUTHENTICATE_SCHEME}, error="invalid_token", error_description="The access token is invalid."`;
     case "revoked_session":
-      return `${scheme}, error="invalid_token", error_description="The session has been revoked."`;
+      return `${AUTHENTICATE_SCHEME}, error="invalid_token", error_description="The session has been revoked."`;
     case "missing_role":
-      return `${scheme}, error="invalid_token", error_description="The session is missing required role claims."`;
+      return `${AUTHENTICATE_SCHEME}, error="invalid_token", error_description="The session is missing required role claims."`;
     case "missing_token":
     default:
-      return scheme;
+      return AUTHENTICATE_SCHEME;
   }
 }
 
 export function classifyUnauthorizedReason(
   err: SessionLikeError | null | undefined,
 ): UnauthorizedReason {
+  // Join the small normalized scalar fields into one lowercase token so the
+  // classifier can match across message/name/code variants with simple substring checks.
   const token = `${err?.status ?? ""}|${err?.name ?? ""}|${err?.code ?? ""}|${err?.message ?? ""}`.toLowerCase();
 
   if (token.includes("revoked")) {
