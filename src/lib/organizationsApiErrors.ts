@@ -62,7 +62,6 @@ export function mapOrganizationRouteError(error: unknown): AdminErrorResponse {
   const errorObject = error && typeof error === "object" ? (error as { code?: unknown; details?: unknown }) : null;
   const code =
     errorObject && typeof errorObject.code === "string" ? errorObject.code : null;
-  const details = errorObject?.details ?? null;
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
     return {

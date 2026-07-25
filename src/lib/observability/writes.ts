@@ -9,7 +9,7 @@
  *
  * Usage — in a route catch block:
  *   } catch (error) {
- *     logWriteFailure({ route: "/api/jobs", request }, error);
+ *     logWriteFailure({ route: "/api/jobs", request, operation: "create_job" }, error);
  *     return mapRouteError(error);
  *   }
  */
@@ -21,8 +21,8 @@
 export interface WriteFailureContext {
   /** Canonical route path, e.g. "/api/jobs". */
   route: string;
-  /** Stable operation name, e.g. "create_job". */
-  operation: string;
+  /** Stable operation name, e.g. "create_job". Falls back to a route+method label. */
+  operation?: string;
   /**
    * Incoming Request object — used to extract requestId/correlationId from
    * standard trace headers when `requestId` is not provided explicitly.
@@ -49,6 +49,23 @@ function extractRequestId(ctx: WriteFailureContext): string | null {
     );
   }
   return null;
+}
+
+function extractOperation(ctx: WriteFailureContext): string {
+  if (ctx.operation && ctx.operation.trim().length > 0) {
+    return ctx.operation;
+  }
+
+  const method = ctx.request?.method?.trim().toLowerCase() ?? "write";
+  const resource = ctx.route
+    .split("/")
+    .filter(Boolean)
+    .reverse()
+    .find((segment) => !segment.startsWith("["))
+    ?.replace(/[^a-z0-9]+/gi, "_")
+    .toLowerCase();
+
+  return resource ? `${method}_${resource}` : method;
 }
 
 function extractErrorFields(error: unknown): {
@@ -108,7 +125,7 @@ export function logWriteFailure(ctx: WriteFailureContext, error: unknown): void 
       timestamp: new Date().toISOString(),
       request_id: extractRequestId(ctx),
       route: ctx.route,
-      operation: ctx.operation,
+      operation: extractOperation(ctx),
       error_code: errorCode,
       sanitized_message: sanitizedMessage,
       ...(stack ? { stack } : {}),

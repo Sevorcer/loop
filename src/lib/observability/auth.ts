@@ -101,14 +101,14 @@ function createFallbackId(): string {
     return `req_${token}`;
   }
 
-  function normalizeMethod(method?: string): string {
-    if (!method) return "UNKNOWN";
-    const normalized = method.trim().toUpperCase();
-    return normalized.length > 0 ? normalized : "UNKNOWN";
-  }
-
   // Last-resort deterministic fallback for runtimes without Web Crypto.
   return `req_${Date.now().toString(36)}_${performance.now().toString(36).replace(".", "")}`;
+}
+
+function normalizeMethod(method?: string): string {
+  if (!method) return "UNKNOWN";
+  const normalized = method.trim().toUpperCase();
+  return normalized.length > 0 ? normalized : "UNKNOWN";
 }
 
 export function createCorrelationId(): string {
