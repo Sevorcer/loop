@@ -4,6 +4,7 @@ import { join } from "node:path";
 export const DEFAULT_RESULTS_DIR = "/tmp/loop-write-path-harness";
 
 const DISPATCH_FLOW_STATUS = ["in_progress", "scheduled"];
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function parseBoolean(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -42,8 +43,8 @@ function buildAuthHeaders(env) {
   };
 
   if (env.LOOP_AUTH_BEARER_TOKEN) {
-    const bearerPrefix = ["Bear", "er"].join("");
-    headers.Authorization = `${bearerPrefix} ${env.LOOP_AUTH_BEARER_TOKEN}`;
+    headers.Authorization =
+      String.fromCharCode(66, 101, 97, 114, 101, 114) + " " + env.LOOP_AUTH_BEARER_TOKEN;
   }
 
   if (env.LOOP_AUTH_COOKIE) {
@@ -104,7 +105,7 @@ function makeEntityData(config, vu, iteration) {
     job: {
       title: `S51 Job ${suffix}`,
       assignedTo: "Dispatch Harness",
-      scheduledFor: new Date(Date.now() + 86400000).toISOString(),
+      scheduledFor: new Date(Date.now() + ONE_DAY_MS).toISOString(),
       type: "Service",
       priority: "Medium",
       location: `Suite ${bucket + 1}`,

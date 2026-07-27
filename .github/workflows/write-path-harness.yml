@@ -56,7 +56,7 @@ jobs:
       - name: Validate runtime config
         if: inputs.dry_run == false
         run: |
-          [ -n "$LOOP_BASE_URL" ] || { echo "::error::Missing LOOP_DEPLOY_URL secret"; exit 1; }
+          [ -n "$LOOP_BASE_URL" ] || { echo "::error::Missing LOOP_BASE_URL (set from LOOP_DEPLOY_URL secret)"; exit 1; }
           if [ -z "$LOOP_AUTH_BEARER_TOKEN" ] && [ -z "$LOOP_AUTH_COOKIE" ] && [ -z "$LOOP_AUTH_ROLE" ]; then
             echo "::error::Set one of LOOP_HEALTH_CHECK_TOKEN, LOOP_AUTH_COOKIE, or LOOP_AUTH_ROLE for non-dry-run execution"
             exit 1
