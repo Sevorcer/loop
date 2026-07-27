@@ -1,0 +1,78 @@
+name: Write-Path Smoke & Load Harness
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run without calling live endpoints"
+        type: boolean
+        default: true
+      run_load:
+        description: "Run load harness after smoke"
+        type: boolean
+        default: false
+      load_concurrency:
+        description: "Load concurrency"
+        type: string
+        default: "2"
+      load_iterations:
+        description: "Load workflow iterations"
+        type: string
+        default: "10"
+
+permissions:
+  contents: read
+
+jobs:
+  write-path-harness:
+    name: Smoke${{ inputs.run_load && ' + Load' || '' }}
+    runs-on: ubuntu-latest
+
+    env:
+      LOOP_DRY_RUN: ${{ inputs.dry_run }}
+      LOOP_BASE_URL: ${{ secrets.LOOP_DEPLOY_URL }}
+      LOOP_AUTH_BEARER_TOKEN: ${{ secrets.LOOP_HEALTH_CHECK_TOKEN }}
+      LOOP_AUTH_COOKIE: ${{ secrets.LOOP_AUTH_COOKIE }}
+      LOOP_AUTH_ROLE: ${{ vars.LOOP_AUTH_ROLE }}
+      LOOP_DISPATCH_PLAN_ID: ${{ vars.LOOP_DISPATCH_PLAN_ID }}
+      LOOP_INCLUDE_DOCUMENT_WRITES: ${{ vars.LOOP_INCLUDE_DOCUMENT_WRITES }}
+      LOOP_RESULTS_DIR: /tmp/loop-write-path-harness
+      LOOP_LOAD_CONCURRENCY: ${{ inputs.load_concurrency }}
+      LOOP_LOAD_ITERATIONS: ${{ inputs.load_iterations }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate runtime config
+        if: inputs.dry_run == false
+        run: |
+          [ -n "$LOOP_BASE_URL" ] || { echo "::error::Missing LOOP_BASE_URL (set LOOP_DEPLOY_URL secret in repository settings)"; exit 1; }
+          if [ -z "$LOOP_AUTH_BEARER_TOKEN" ] && [ -z "$LOOP_AUTH_COOKIE" ] && [ -z "$LOOP_AUTH_ROLE" ]; then
+            echo "::error::Set one of LOOP_HEALTH_CHECK_TOKEN, LOOP_AUTH_COOKIE, or LOOP_AUTH_ROLE for non-dry-run execution"
+            exit 1
+          fi
+
+      - name: Run write-path smoke harness
+        run: npm run smoke:write-path
+
+      - name: Run write-path load harness
+        if: inputs.run_load == true
+        run: npm run load:write-path
+
+      - name: Upload harness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: write-path-harness-${{ github.run_id }}
+          path: /tmp/loop-write-path-harness
+          if-no-files-found: warn
