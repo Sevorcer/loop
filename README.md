@@ -51,6 +51,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+## Temporary Security Checks
+
+The following automated checks run in CI on every PR and push to `main`, plus weekly:
+
+- **Semgrep** — runs locally in CI with no token required, scanning against `p/javascript`, `p/typescript`, `p/nodejs`, and `p/owasp-top-ten` rulesets. Any finding fails the build.
+- **npm audit** — checks production dependencies (`--omit=dev`) at `--audit-level=high`.
+
+These checks are temporary until native GitHub code scanning (CodeQL) is fully available for this repository. No `SEMGREP_APP_TOKEN` or other external secrets are required.
+
+---
+
 ## Deployment
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for Vercel private staging setup.
