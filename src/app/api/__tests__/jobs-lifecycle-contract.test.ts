@@ -327,6 +327,20 @@ describe("PATCH /api/jobs/[id] action=status — contract", () => {
     );
     expect(res.status).toBe(404);
   });
+
+  it("propagates a transition error from the service when the move is not allowed", async () => {
+    requirePermissionMock.mockResolvedValue(authorizedCtx());
+    readJsonObjectMock.mockResolvedValue({ action: "status", status: "In Progress" });
+    updateJobStatusMock.mockRejectedValue(
+      new Error("Invalid transition: job cannot move from 'Completed' to 'In Progress'."),
+    );
+    const res = await patchJobById(
+      new Request("http://localhost/api/jobs/j-1", { method: "PATCH" }),
+      makeParams("j-1"),
+    );
+    expect(res.status).not.toBe(200);
+    expect(updateJobStatusMock).toHaveBeenCalledWith("j-1", "In Progress");
+  });
 });
 
 // ---------------------------------------------------------------------------
