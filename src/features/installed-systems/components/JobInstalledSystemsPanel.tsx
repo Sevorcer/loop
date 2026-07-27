@@ -1,9 +1,9 @@
 "use client";
 
-import { Cpu, FileCheck2, Link2, ShieldAlert } from "lucide-react";
+import { Cpu, FileCheck2, Link2, PlusCircle, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
-import { StatusBadge } from "@/components/atlas";
+import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTES } from "@/lib/routes";
 
@@ -22,63 +22,96 @@ function getLifecycleVariant(system: InstalledSystem) {
   return "warning" as const;
 }
 
-export function JobInstalledSystemsPanel({ jobId }: { jobId: string }) {
+interface JobInstalledSystemsPanelProps {
+  jobId: string;
+  jobNumber?: string;
+  propertyId?: string;
+  customerName?: string;
+  propertyName?: string;
+}
+
+export function JobInstalledSystemsPanel({
+  jobId,
+  jobNumber,
+  propertyId,
+  customerName,
+  propertyName,
+}: JobInstalledSystemsPanelProps) {
   const { getInstalledSystemsForJob, getTechnicalProfileById } =
     useInstalledSystems();
 
   const systems = getInstalledSystemsForJob(jobId);
 
-  if (systems.length === 0) {
-    return null;
-  }
+  const addSystemParams = new URLSearchParams({
+    ...(jobId ? { jobId } : {}),
+    ...(jobNumber ? { jobNumber } : {}),
+    ...(propertyId ? { propertyId } : {}),
+    ...(customerName ? { customerName } : {}),
+    ...(propertyName ? { propertyName } : {}),
+  });
+  const addSystemHref = `${ROUTES.INSTALLED_SYSTEMS}/new?${addSystemParams.toString()}`;
 
   return (
     <SurfaceCard>
       <div className="border-b border-white/10 px-6 py-5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/15 to-cyan-500/10 ring-1 ring-white/10">
-            <Cpu className="h-5 w-5 text-blue-300" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/15 to-cyan-500/10 ring-1 ring-white/10">
+              <Cpu className="h-5 w-5 text-blue-300" />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold text-white">
+                Installed System Truth
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">
+                {systems.length > 0
+                  ? "This job references technical truth from the installed system instead of duplicating permit and equipment data inside the job."
+                  : "No installed systems have been recorded for this job yet."}
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h2 className="text-lg font-semibold text-white">
-              Installed System Truth
-            </h2>
-            <p className="mt-1 text-sm text-slate-400">
-              This job references technical truth from the installed system
-              instead of duplicating permit and equipment data inside the job.
-            </p>
-          </div>
+          <PermissionGuard table="installed_systems" action="insert">
+            <Link
+              href={addSystemHref}
+              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Add System
+            </Link>
+          </PermissionGuard>
         </div>
       </div>
 
-      <div className="space-y-4 p-6">
-        {systems.map((system) => {
-          const profile = getTechnicalProfileById(system.technicalProfileId);
+      {systems.length > 0 ? (
+        <div className="space-y-4 p-6">
+          {systems.map((system) => {
+            const profile = getTechnicalProfileById(system.technicalProfileId);
 
-          return (
-            <div
-              key={system.id}
-              className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge variant={getMatchVariant(system)}>
-                      {system.matchState === "exact"
-                        ? "Catalog matched"
-                        : system.matchState === "possible"
-                          ? "Needs confirmation"
-                          : "Unmatched"}
-                    </StatusBadge>
-                    <StatusBadge variant={getLifecycleVariant(system)}>
-                      {system.lifecycleStatus}
-                    </StatusBadge>
-                    <StatusBadge
-                      variant={system.permitReady ? "success" : "warning"}
-                    >
-                      {system.permitReady ? "Permit ready" : "Permit on hold"}
-                    </StatusBadge>
+            return (
+              <div
+                key={system.id}
+                className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge variant={getMatchVariant(system)}>
+                        {system.matchState === "exact"
+                          ? "Catalog matched"
+                          : system.matchState === "possible"
+                            ? "Needs confirmation"
+                            : "Unmatched"}
+                      </StatusBadge>
+                      <StatusBadge variant={getLifecycleVariant(system)}>
+                        {system.lifecycleStatus}
+                      </StatusBadge>
+                      <StatusBadge
+                        variant={system.permitReady ? "success" : "warning"}
+                      >
+                        {system.permitReady ? "Permit ready" : "Permit on hold"}
+                      </StatusBadge>
                   </div>
 
                   <div>
@@ -160,7 +193,8 @@ export function JobInstalledSystemsPanel({ jobId }: { jobId: string }) {
             </div>
           );
         })}
-      </div>
+        </div>
+      ) : null}
     </SurfaceCard>
   );
 }

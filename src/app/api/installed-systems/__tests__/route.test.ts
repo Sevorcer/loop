@@ -5,21 +5,36 @@ vi.mock("server-only", () => ({}));
 const {
   getInstalledSystemsSnapshotMock,
   getInstalledSystemByIdMock,
+  createInstalledSystemMock,
 } = vi.hoisted(() => ({
   getInstalledSystemsSnapshotMock: vi.fn(),
   getInstalledSystemByIdMock: vi.fn(),
+  createInstalledSystemMock: vi.fn(),
 }));
 
 vi.mock("@/services/installedSystems", () => ({
   getInstalledSystemsSnapshot: getInstalledSystemsSnapshotMock,
+  createInstalledSystem: createInstalledSystemMock,
 }));
 
 vi.mock("@/repositories/installedSystems", () => ({
   getInstalledSystemById: getInstalledSystemByIdMock,
 }));
 
-import { GET as getInstalledSystems } from "@/app/api/installed-systems/route";
+import { GET as getInstalledSystems, POST as postInstalledSystem } from "@/app/api/installed-systems/route";
 import { GET as getInstalledSystemById } from "@/app/api/installed-systems/[id]/route";
+
+function validBody() {
+  return {
+    systemName: "Test Heat Pump",
+    manufacturer: "Mitsubishi",
+    modelNumber: "MXZ-3C24NAHZ2",
+    serialNumbers: ["SN-001"],
+    installDate: "2026-07-01",
+    customerName: "ACME Corp",
+    propertyName: "ACME HQ",
+  };
+}
 
 describe("GET /api/installed-systems", () => {
   beforeEach(() => {
@@ -132,5 +147,95 @@ describe("GET /api/installed-systems/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(body.installedSystem.id).toBe("sys-200");
+  });
+});
+
+// ─── POST /api/installed-systems — required field validation ──────────────────
+
+describe("POST /api/installed-systems — required field validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createInstalledSystemMock.mockResolvedValue({ id: "new-sys", ...validBody() });
+  });
+
+  it("returns 400 when systemName is missing", async () => {
+    const body = { ...validBody(), systemName: "" };
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "tech", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+    const json = (await response.json()) as { error: string; code: number };
+    expect(response.status).toBe(400);
+    expect(json.error).toBe("VALIDATION");
+  });
+
+  it("returns 400 when manufacturer is missing", async () => {
+    const body = { ...validBody(), manufacturer: "" };
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "tech", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+    const json = (await response.json()) as { error: string; code: number };
+    expect(response.status).toBe(400);
+    expect(json.error).toBe("VALIDATION");
+  });
+
+  it("returns 400 when modelNumber is missing", async () => {
+    const body = { ...validBody(), modelNumber: "" };
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "tech", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+    const json = (await response.json()) as { error: string; code: number };
+    expect(response.status).toBe(400);
+    expect(json.error).toBe("VALIDATION");
+  });
+
+  it("returns 400 when serialNumbers is empty", async () => {
+    const body = { ...validBody(), serialNumbers: [] };
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "tech", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+    const json = (await response.json()) as { error: string; code: number };
+    expect(response.status).toBe(400);
+    expect(json.error).toBe("VALIDATION");
+  });
+
+  it("returns 400 when installDate is missing", async () => {
+    const body = { ...validBody(), installDate: "" };
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "tech", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+    const json = (await response.json()) as { error: string; code: number };
+    expect(response.status).toBe(400);
+    expect(json.error).toBe("VALIDATION");
+  });
+
+  it("returns 201 with a valid payload", async () => {
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "tech", "content-type": "application/json" },
+        body: JSON.stringify(validBody()),
+      }),
+    );
+    expect(response.status).toBe(201);
   });
 });

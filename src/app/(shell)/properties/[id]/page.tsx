@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 
 import { PropertyDetailScreen } from "@/features/properties";
+import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import { getCustomer, getCustomerProperties } from "@/services/customers";
 import { listJobsForProperty } from "@/services/jobs";
+import { getInstalledSystemsForProperty } from "@/services/installedSystems";
 import { getProperty } from "@/services/properties";
 
 interface PropertyDetailPageProps {
@@ -18,14 +20,18 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     notFound();
   }
 
-  const jobs = await listJobsForProperty(id);
+  const [jobs, installedSystems, customerAndProperties] = await Promise.all([
+    listJobsForProperty(id),
+    getInstalledSystemsForProperty(id).catch(() => []),
+    property.customerId
+      ? Promise.all([
+          getCustomer(property.customerId),
+          getCustomerProperties(property.customerId),
+        ])
+      : Promise.resolve([null, [] as CustomerPropertyItem[]] as const),
+  ]);
 
-  const [customer, customerProperties] = property.customerId
-    ? await Promise.all([
-        getCustomer(property.customerId),
-        getCustomerProperties(property.customerId),
-      ])
-    : [null, []];
+  const [customer, customerProperties] = customerAndProperties;
 
   return (
     <PropertyDetailScreen
@@ -33,6 +39,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
       customer={customer}
       customerProperties={customerProperties}
       jobs={jobs}
+      installedSystems={installedSystems}
     />
   );
 }

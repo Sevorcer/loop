@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   Building2,
   ClipboardList,
+  Cpu,
   FileText,
   HardHat,
   ImageIcon,
@@ -26,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
+import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
 
 import type { Job } from "@/features/jobs/types/job";
 import type { Property } from "../types/property";
@@ -251,7 +253,81 @@ function OverviewSection({
   );
 }
 
-function EquipmentSection({ details }: { details: PropertyDetails }) {
+function EquipmentSection({
+  details,
+  installedSystems,
+}: {
+  details: PropertyDetails;
+  installedSystems: InstalledSystem[];
+}) {
+  if (installedSystems.length > 0) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-2">
+        {installedSystems.map((system) => (
+          <Link
+            key={system.id}
+            href={ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id)}
+          >
+            <Card className="h-full transition-colors hover:border-white/20">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle>{system.systemName}</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {system.manufacturer}
+                      {system.modelNumber ? ` · ${system.modelNumber}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 ring-1 ring-white/10">
+                    <Cpu className="h-4 w-4 text-blue-300" />
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Status</span>
+                  <StatusBadge
+                    variant={
+                      system.lifecycleStatus === "Active"
+                        ? "success"
+                        : system.lifecycleStatus === "Planned"
+                          ? "info"
+                          : "warning"
+                    }
+                  >
+                    {system.lifecycleStatus}
+                  </StatusBadge>
+                </div>
+
+                {system.serialNumbers.length > 0 ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Serial</span>
+                    <span className="font-medium">{system.serialNumbers[0]}</span>
+                  </div>
+                ) : null}
+
+                {system.installDate ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Installed</span>
+                    <span className="font-medium">{formatDate(system.installDate)}</span>
+                  </div>
+                ) : null}
+
+                {system.warrantyExpiry ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Warranty expires</span>
+                    <span className="font-medium">{formatDate(system.warrantyExpiry)}</span>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    );
+  }
+
   if (details.equipment.length === 0) {
     return (
       <EmptyState
@@ -718,6 +794,7 @@ interface PropertyDetailTabsProps {
   customer: Customer | null;
   customerProperties: CustomerPropertyItem[];
   jobs: Job[];
+  installedSystems?: InstalledSystem[];
 }
 
 export function PropertyDetailTabs({
@@ -725,10 +802,35 @@ export function PropertyDetailTabs({
   customer,
   customerProperties,
   jobs,
+  installedSystems = [],
 }: PropertyDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<PropertyDetailTabKey>("overview");
 
   const details = useMemo(() => getPropertyDetails(property), [property]);
+
+  // Merge installed-system install events into the timeline so each system
+  // creates a visible entry in property history (Epic 4 context).
+  const timelineDetails = useMemo((): PropertyDetails => {
+    if (installedSystems.length === 0) return details;
+    const systemEvents: PropertyTimelineEvent[] = installedSystems.map((s) => ({
+      id: `installed-${s.id}`,
+      title: `${s.systemName} installed`,
+      date: s.installDate,
+      description: [
+        s.manufacturer && s.modelNumber ? `${s.manufacturer} ${s.modelNumber}` : "",
+        s.serialNumbers.length > 0 ? `Serial: ${s.serialNumbers[0]}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ") || "Equipment record added to this property.",
+      icon: "install" as const,
+    }));
+    return {
+      ...details,
+      timeline: [...systemEvents, ...details.timeline].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+    };
+  }, [details, installedSystems]);
 
   return (
     <div className="space-y-6">
@@ -750,7 +852,7 @@ export function PropertyDetailTabs({
       ) : null}
 
       {activeTab === "equipment" ? (
-        <EquipmentSection details={details} />
+        <EquipmentSection details={details} installedSystems={installedSystems} />
       ) : null}
 
       {activeTab === "jobs" ? (
@@ -758,7 +860,7 @@ export function PropertyDetailTabs({
       ) : null}
 
       {activeTab === "timeline" ? (
-        <TimelineSection details={details} />
+        <TimelineSection details={timelineDetails} />
       ) : null}
 
       {activeTab === "documents" ? (

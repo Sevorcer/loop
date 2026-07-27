@@ -134,8 +134,21 @@ export function InstalledSystemDetailScreen({
               <FactTile label="Identity" value={installedSystem.technicalIdentityId} />
               <FactTile label="Estimate" value={installedSystem.estimateId ?? "Historical asset"} />
               <FactTile label="Workflow" value={installedSystem.jobNumber ?? "Service linked"} />
-              <FactTile label="Manufacturer" value={profile?.manufacturer ?? "Pending"} />
-              <FactTile label="Equipment type" value={profile?.equipmentType ?? "Pending"} />
+              <FactTile
+                label="Manufacturer"
+                value={installedSystem.manufacturer || profile?.manufacturer || "Pending"}
+              />
+              <FactTile
+                label="Model"
+                value={installedSystem.modelNumber || profile?.equipmentType || "Pending"}
+              />
+              <FactTile
+                label="Serial"
+                value={installedSystem.serialNumbers[0] ?? "Pending"}
+              />
+              {installedSystem.warrantyExpiry ? (
+                <FactTile label="Warranty expiry" value={installedSystem.warrantyExpiry} />
+              ) : null}
               <FactTile
                 label="Match confidence"
                 value={`${Math.round(installedSystem.matchConfidence * 100)}%`}

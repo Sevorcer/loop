@@ -13,6 +13,7 @@ import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Job } from "@/features/jobs/types/job";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
+import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
 import type { Property } from "../types/property";
 import { MapViewCard } from "../components/MapViewCard";
 import { PropertyDeleteButton } from "../components/PropertyDeleteButton";
@@ -24,6 +25,7 @@ interface PropertyDetailScreenProps {
   customer?: Customer | null;
   customerProperties?: CustomerPropertyItem[];
   jobs?: Job[];
+  installedSystems?: InstalledSystem[];
 }
 
 function formatDate(value: string) {
@@ -36,6 +38,7 @@ export function PropertyDetailScreen({
   customer = null,
   customerProperties = [],
   jobs = [],
+  installedSystems = [],
 }: PropertyDetailScreenProps) {
   const statusVariant =
     property.status === "Active"
@@ -206,6 +209,7 @@ export function PropertyDetailScreen({
         customer={customer}
         customerProperties={customerProperties}
         jobs={jobs}
+        installedSystems={installedSystems}
       />
     </div>
   );

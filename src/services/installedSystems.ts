@@ -6,6 +6,7 @@ import type {
 import {
   deleteInstalledSystem as repoDeleteInstalledSystem,
   getInstalledSystemById,
+  listInstalledSystemsByProperty,
   loadInstalledSystemsSnapshot,
   upsertInstalledSystem,
   type InstalledSystemsRepositorySnapshot,
@@ -14,6 +15,14 @@ import {
 
 export async function getInstalledSystemsSnapshot(): Promise<InstalledSystemsRepositorySnapshot> {
   return loadInstalledSystemsSnapshot();
+}
+
+export async function getInstalledSystemsForProperty(
+  propertyId: string,
+): Promise<InstalledSystem[]> {
+  const result = await listInstalledSystemsByProperty(propertyId);
+  if (!result.ok) throw new Error(result.error.message);
+  return result.data;
 }
 
 export async function createInstalledSystem(
@@ -47,7 +56,10 @@ export async function updateInstalledSystem(
     matchState: input.matchState ?? current.data.matchState,
     matchConfidence: input.matchConfidence ?? current.data.matchConfidence,
     installDate: input.installDate ?? current.data.installDate,
+    manufacturer: input.manufacturer ?? current.data.manufacturer,
+    modelNumber: input.modelNumber ?? current.data.modelNumber,
     serialNumbers: input.serialNumbers ?? current.data.serialNumbers,
+    warrantyExpiry: input.warrantyExpiry ?? current.data.warrantyExpiry,
     accessories: input.accessories ?? current.data.accessories,
     linkedWorkflowIds: input.linkedWorkflowIds ?? current.data.linkedWorkflowIds,
     permitReady: input.permitReady ?? current.data.permitReady,

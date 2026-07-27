@@ -318,9 +318,12 @@ function buildInstalledSystemFromJob(job: Job) {
     matchState: profile.matchState,
     matchConfidence: profile.matchConfidence,
     installDate: job.scheduledFor,
+    manufacturer: profile.manufacturer !== "Pending" ? profile.manufacturer : "",
+    modelNumber: bundle.equipment[0]?.modelNumber ?? "",
     serialNumbers: bundle.equipment
       .map((equipment) => equipment.serialNumber)
       .filter((value): value is string => Boolean(value)),
+    warrantyExpiry: "",
     accessories: bundle.accessories,
     linkedWorkflowIds: [job.id],
     permitReady: profile.matchState === "exact",

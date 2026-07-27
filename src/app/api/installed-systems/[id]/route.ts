@@ -64,6 +64,14 @@ export async function PATCH(
     if (typeof body.propertyName === "string") patch.propertyName = body.propertyName.trim();
     if (typeof body.location === "string") patch.location = body.location.trim();
     if (typeof body.installDate === "string") patch.installDate = body.installDate.trim();
+    if (typeof body.manufacturer === "string") patch.manufacturer = body.manufacturer.trim();
+    if (typeof body.modelNumber === "string") patch.modelNumber = body.modelNumber.trim();
+    if (typeof body.warrantyExpiry === "string") patch.warrantyExpiry = body.warrantyExpiry.trim();
+    if (Array.isArray(body.serialNumbers)) {
+      patch.serialNumbers = (body.serialNumbers as unknown[]).filter(
+        (s): s is string => typeof s === "string",
+      );
+    }
     if (
       typeof body.lifecycleStatus === "string" &&
       ["Planned", "Active", "Needs Review"].includes(body.lifecycleStatus)
