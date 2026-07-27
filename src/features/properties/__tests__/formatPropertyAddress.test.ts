@@ -9,7 +9,7 @@ describe("formatPropertyAddress", () => {
     ).toBe("245 Maple Ave, Seattle");
   });
 
-  it("preserves address and city exactly as given (no normalisation)", () => {
+  it("preserves address and city exactly as given (no normalization)", () => {
     expect(
       formatPropertyAddress({ address: "1 Infinite Loop", city: "Cupertino" }),
     ).toBe("1 Infinite Loop, Cupertino");
