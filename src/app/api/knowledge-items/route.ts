@@ -14,32 +14,16 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import {
+  VALID_KNOWLEDGE_STATUSES,
+  VALID_KNOWLEDGE_TYPES,
+} from "@/lib/constants/knowledge";
 import { createKnowledgeItem, getKnowledgeSnapshot } from "@/services/knowledgeItems";
 import type {
   KnowledgeRelatedDomain,
   KnowledgeStatus,
   KnowledgeType,
 } from "@/features/company-brain/types/knowledgeItem";
-
-const VALID_TYPES = new Set<string>([
-  "sop",
-  "installation_guide",
-  "service_bulletin",
-  "troubleshooting",
-  "safety_procedure",
-  "best_practice",
-  "policy",
-  "training",
-  "faq",
-]);
-
-const VALID_STATUSES = new Set<string>([
-  "draft",
-  "reviewed",
-  "published",
-  "improved",
-  "archived",
-]);
 
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "knowledge_items", "select");
@@ -70,7 +54,7 @@ export async function POST(request: Request) {
     const bodyText = typeof body.body === "string" ? body.body.trim() : "";
     const knowledgeType = typeof body.knowledgeType === "string" ? body.knowledgeType : "";
     const status =
-      typeof body.status === "string" && VALID_STATUSES.has(body.status)
+      typeof body.status === "string" && VALID_KNOWLEDGE_STATUSES.has(body.status)
         ? (body.status as KnowledgeStatus)
         : "draft";
 
@@ -80,7 +64,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (!VALID_TYPES.has(knowledgeType)) {
+    if (!VALID_KNOWLEDGE_TYPES.has(knowledgeType)) {
       return NextResponse.json(
         { error: "VALIDATION", message: "Invalid knowledgeType.", code: 400 },
         { status: 400 },

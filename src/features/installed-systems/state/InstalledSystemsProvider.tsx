@@ -69,6 +69,10 @@ export function InstalledSystemsProvider({
 
   useEffect(() => {
     if (!role) return;
+    // queueMicrotask defers the setState calls out of the synchronous effect
+    // body, satisfying the react-hooks/set-state-in-effect lint rule.
+    // This is the same pattern used by PropertiesProvider, CustomersProvider,
+    // and JobsProvider throughout this codebase.
     queueMicrotask(() => {
       void refreshSystems();
     });

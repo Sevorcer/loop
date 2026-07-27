@@ -64,7 +64,7 @@ export function CompanyBrainScreen() {
   const [selectedItem, setSelectedItem] = useState<KnowledgeItem | null>(null);
 
   // Keep selectedItem in sync after provider refreshes
-  const syncedSelectedItem = selectedItem
+  const currentSelectedItem = selectedItem
     ? (snapshot.items.find((i) => i.id === selectedItem.id) ?? selectedItem)
     : null;
 
@@ -297,10 +297,10 @@ export function CompanyBrainScreen() {
       </section>
 
       {/* ── Knowledge Detail Panel ── */}
-      {syncedSelectedItem && (
+      {currentSelectedItem && (
         <KnowledgeDetailPanel
-          item={syncedSelectedItem}
-          relationships={getRelationshipsForItem(syncedSelectedItem.id)}
+          item={currentSelectedItem}
+          relationships={getRelationshipsForItem(currentSelectedItem.id)}
           onClose={() => setSelectedItem(null)}
         />
       )}

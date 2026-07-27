@@ -16,6 +16,10 @@ import {
 } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
 import {
+  VALID_KNOWLEDGE_STATUSES,
+  VALID_KNOWLEDGE_TYPES,
+} from "@/lib/constants/knowledge";
+import {
   getKnowledgeItem,
   updateKnowledgeItem,
 } from "@/services/knowledgeItems";
@@ -24,26 +28,6 @@ import type {
   KnowledgeStatus,
   KnowledgeType,
 } from "@/features/company-brain/types/knowledgeItem";
-
-const VALID_TYPES = new Set<string>([
-  "sop",
-  "installation_guide",
-  "service_bulletin",
-  "troubleshooting",
-  "safety_procedure",
-  "best_practice",
-  "policy",
-  "training",
-  "faq",
-]);
-
-const VALID_STATUSES = new Set<string>([
-  "draft",
-  "reviewed",
-  "published",
-  "improved",
-  "archived",
-]);
 
 export async function GET(
   request: Request,
@@ -89,11 +73,11 @@ export async function PATCH(
     if (typeof body.body === "string") patch.body = body.body.trim();
     if (typeof body.owner === "string") patch.owner = body.owner.trim();
 
-    if (typeof body.knowledgeType === "string" && VALID_TYPES.has(body.knowledgeType)) {
+    if (typeof body.knowledgeType === "string" && VALID_KNOWLEDGE_TYPES.has(body.knowledgeType)) {
       patch.knowledgeType = body.knowledgeType as KnowledgeType;
     }
 
-    if (typeof body.status === "string" && VALID_STATUSES.has(body.status)) {
+    if (typeof body.status === "string" && VALID_KNOWLEDGE_STATUSES.has(body.status)) {
       patch.status = body.status as KnowledgeStatus;
     }
 
