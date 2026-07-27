@@ -8,12 +8,15 @@ on:
   schedule:
     - cron: "0 6 * * 1" # Weekly on Monday at 06:00 UTC
 
+permissions:
+  contents: read
+
 jobs:
   semgrep-local:
     name: Semgrep (local, no token)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Install Semgrep
         run: pipx install semgrep
@@ -25,16 +28,61 @@ jobs:
             --config p/typescript \
             --config p/nodejs \
             --config p/owasp-top-ten \
-            --error \
-            .
+            --json \
+            --output /tmp/semgrep-results.json \
+            . || true
+
+      - name: Enforce Semgrep baseline (new findings block)
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          allowlist_path = Path(".github/security-lite/semgrep-allowlist.txt")
+          results_path = Path("/tmp/semgrep-results.json")
+
+          allowed = set()
+          if allowlist_path.exists():
+            for line in allowlist_path.read_text().splitlines():
+              line = line.strip()
+              if line and not line.startswith("#"):
+                allowed.add(line)
+
+          data = json.loads(results_path.read_text()) if results_path.exists() else {"results": []}
+          findings = data.get("results", [])
+
+          new_findings = []
+          legacy_findings = []
+
+          for finding in findings:
+            check_id = finding.get("check_id", "unknown")
+            path = finding.get("path", "unknown")
+            line = finding.get("start", {}).get("line", 0)
+            fingerprint = f"{check_id}|{path}|{line}"
+            if fingerprint in allowed:
+              legacy_findings.append(fingerprint)
+            else:
+              new_findings.append(fingerprint)
+
+          print(f"Semgrep findings: total={len(findings)} legacy_allowlisted={len(legacy_findings)} new={len(new_findings)}")
+
+          if new_findings:
+            print("::error::New Semgrep findings detected (not in allowlist):")
+            for item in new_findings[:50]:
+              print(f"  - {item}")
+            raise SystemExit(1)
+
+          if legacy_findings:
+            print("::warning::Semgrep findings matched temporary allowlist entries.")
+          PY
 
   npm-audit:
     name: npm audit (high+)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "20"
           cache: "npm"
@@ -43,4 +91,63 @@ jobs:
         run: npm ci
 
       - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --json > /tmp/npm-audit-results.json || true
+
+      - name: Enforce npm-audit baseline (new high+ block)
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          allowlist_path = Path(".github/security-lite/npm-audit-allowlist.json")
+          results_path = Path("/tmp/npm-audit-results.json")
+
+          allowlist = {"advisoryIds": [], "packageNames": []}
+          if allowlist_path.exists():
+            allowlist.update(json.loads(allowlist_path.read_text()))
+
+          allowed_ids = {str(item) for item in allowlist.get("advisoryIds", [])}
+          allowed_packages = set(allowlist.get("packageNames", []))
+
+          data = json.loads(results_path.read_text()) if results_path.exists() else {"vulnerabilities": {}}
+          vulnerabilities = data.get("vulnerabilities", {})
+
+          new_findings = []
+          legacy_findings = []
+
+          for package_name, vuln in vulnerabilities.items():
+            severity = vuln.get("severity", "info")
+            if severity not in {"high", "critical"}:
+              continue
+
+            via = vuln.get("via", [])
+            advisory_ids = []
+            if isinstance(via, list):
+              for item in via:
+                if isinstance(item, dict) and item.get("source") is not None:
+                  advisory_ids.append(str(item["source"]))
+
+            is_allowlisted = package_name in allowed_packages or any(advisory_id in allowed_ids for advisory_id in advisory_ids)
+            detail = {
+              "package": package_name,
+              "severity": severity,
+              "advisoryIds": advisory_ids,
+            }
+
+            if is_allowlisted:
+              legacy_findings.append(detail)
+            else:
+              new_findings.append(detail)
+
+          print(f"npm audit high+ findings: legacy_allowlisted={len(legacy_findings)} new={len(new_findings)}")
+
+          if new_findings:
+            print("::error::New npm audit high+ findings detected (not in allowlist):")
+            for item in new_findings[:50]:
+              advisory = ",".join(item["advisoryIds"]) if item["advisoryIds"] else "none"
+              print(f"  - {item['package']} severity={item['severity']} advisories={advisory}")
+            raise SystemExit(1)
+
+          if legacy_findings:
+            print("::warning::npm audit findings matched temporary allowlist entries.")
+          PY

@@ -2,6 +2,26 @@
 
 
 
+## Sprint 30 — S5 Security Hardening + Debt Burn-Down
+
+Status: In Progress
+
+### Status snapshot (2026-07-27)
+
+- S5.2 — Complete
+- S5.3 — Complete
+- S5.4 — In progress:
+  - S5.4a Dependencies
+  - S5.4b CI/Workflow Hardening
+  - S5.4c Gate Policy Re-enforcement
+
+### Tracking
+
+See `/home/runner/work/loop/loop/docs/perf/s5-4-hardening-roadmap.md` for acceptance criteria, exit criteria, milestone targets, and owner placeholders.
+
+---
+
+
 \## Sprint 24 — P0: RLS Baseline + Role Matrix Enforcement
 
 Status: Complete
@@ -160,4 +180,3 @@ Sprint 12 now has a stable screen architecture and mock data contract for the fu
 \- Reporting
 
 \- AI
-

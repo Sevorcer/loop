@@ -50,19 +50,28 @@ jobs:
 
       - name: Determine trigger type
         id: trigger
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_INPUT_TRIGGER: ${{ inputs.trigger || 'manual' }}
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
+          if [ "$GH_EVENT_NAME" = "schedule" ]; then
             echo "type=scheduled" >> "$GITHUB_OUTPUT"
           else
-            echo "type=${{ inputs.trigger || 'manual' }}" >> "$GITHUB_OUTPUT"
+            echo "type=$WORKFLOW_INPUT_TRIGGER" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run DB health checks
         id: health
+        env:
+          TRIGGER_TYPE: ${{ steps.trigger.outputs.type }}
+          GH_SERVER_URL: ${{ github.server_url }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_SHA: ${{ github.sha }}
         run: |
-          TRIGGER="${{ steps.trigger.outputs.type }}"
-          CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          GIT_SHA="${{ github.sha }}"
+          TRIGGER="$TRIGGER_TYPE"
+          CI_RUN_URL="$GH_SERVER_URL/$GH_REPOSITORY/actions/runs/$GH_RUN_ID"
+          GIT_SHA="$GH_SHA"
 
           # Mask the token so it never appears in logs.
           echo "::add-mask::$LOOP_HEALTH_CHECK_TOKEN"
@@ -125,10 +134,17 @@ jobs:
 
       - name: Summarize results
         if: always()
+        env:
+          OVERALL_STATUS: ${{ steps.health.outputs.overall_status }}
+          FAIL_COUNT: ${{ steps.health.outputs.fail_count }}
+          CRITICAL_COUNT: ${{ steps.health.outputs.critical_count }}
+          GH_SERVER_URL: ${{ github.server_url }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
         run: |
-          OVERALL="${{ steps.health.outputs.overall_status }}"
-          FAILS="${{ steps.health.outputs.fail_count }}"
-          CRITICAL="${{ steps.health.outputs.critical_count }}"
+          OVERALL="$OVERALL_STATUS"
+          FAILS="$FAIL_COUNT"
+          CRITICAL="$CRITICAL_COUNT"
 
           echo "## DB Health Check Summary" >> "$GITHUB_STEP_SUMMARY"
           echo ""                           >> "$GITHUB_STEP_SUMMARY"
@@ -138,10 +154,12 @@ jobs:
           echo "| Failed checks   | $FAILS  |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Critical issues | $CRITICAL |" >> "$GITHUB_STEP_SUMMARY"
           echo ""                           >> "$GITHUB_STEP_SUMMARY"
-          echo "Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run URL: $GH_SERVER_URL/$GH_REPOSITORY/actions/runs/$GH_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail on critical issues
         if: steps.health.outputs.critical_count != '0'
+        env:
+          CRITICAL_COUNT: ${{ steps.health.outputs.critical_count }}
         run: |
-          echo "::error::${{ steps.health.outputs.critical_count }} critical DB health check(s) failed. Check the dashboard at /admin/db-health for details."
+          echo "::error::$CRITICAL_COUNT critical DB health check(s) failed. Check the dashboard at /admin/db-health for details."
           exit 1
