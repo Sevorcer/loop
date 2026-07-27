@@ -47,6 +47,18 @@ export function InstalledSystemsProvider({
   const [installedSystems, setInstalledSystems] = useState<InstalledSystem[]>([]);
   const [technicalProfiles, setTechnicalProfiles] = useState<TechnicalProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const technicalProfilesById = useMemo(
+    () => {
+      const map = new Map<string, TechnicalProfile>();
+
+      for (const technicalProfile of technicalProfiles) {
+        map.set(technicalProfile.id, technicalProfile);
+      }
+
+      return map;
+    },
+    [technicalProfiles]
+  );
 
   const refreshSystems = useCallback(async () => {
     if (!role) return;
@@ -91,7 +103,7 @@ export function InstalledSystemsProvider({
     }
 
     function getTechnicalProfileById(id: string) {
-      return technicalProfiles.find((profile) => profile.id === id);
+      return technicalProfilesById.get(id);
     }
 
     function getCatalogEntryById(id: string) {
@@ -110,7 +122,7 @@ export function InstalledSystemsProvider({
       getCatalogEntryById,
       refreshSystems,
     };
-  }, [installedSystems, technicalProfiles, loading, refreshSystems]);
+  }, [installedSystems, technicalProfiles, technicalProfilesById, loading, refreshSystems]);
 
   return (
     <InstalledSystemsContext.Provider value={value}>

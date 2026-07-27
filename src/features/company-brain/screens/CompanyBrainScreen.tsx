@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import {
   BookOpen,
@@ -62,6 +62,7 @@ export function CompanyBrainScreen() {
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState<KnowledgeType | "all">("all");
   const [selectedItem, setSelectedItem] = useState<KnowledgeItem | null>(null);
+  const deferredSearchText = useDeferredValue(searchText);
 
   // Keep selectedItem in sync after provider refreshes
   const currentSelectedItem = selectedItem
@@ -72,12 +73,15 @@ export function CompanyBrainScreen() {
 
   // Derive filtered results
   const searchResults = searchKnowledge({
-    text: searchText || undefined,
+    text: deferredSearchText || undefined,
     types: typeFilter !== "all" ? [typeFilter] : undefined,
     statuses: ["draft", "reviewed", "published", "improved"],
   });
 
-  const recentUsage = getRecentUsage(snapshot.usage, 7);
+  const recentUsage = useMemo(
+    () => getRecentUsage(snapshot.usage, 7),
+    [snapshot.usage]
+  );
 
   const isSearchActive = searchText.trim().length > 0 || typeFilter !== "all";
   const uiState = resolveCompanyBrainUiState({
