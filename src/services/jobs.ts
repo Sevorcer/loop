@@ -3,6 +3,7 @@ import "server-only";
 import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
+import { canTransitionStatus } from "@/features/jobs/utils/jobWorkspace";
 import { resolveCustomerIdByName } from "@/repositories/properties";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import {
@@ -234,28 +235,23 @@ export async function updateJobStatus(id: string, status: JobStatus) {
     return null;
   }
 
+  if (!canTransitionStatus(existing.status, status)) {
+    throw new Error(
+      `Invalid transition: job cannot move from '${existing.status}' to '${status}'.`,
+    );
+  }
+
   const updatedJob = await updateJobRecord(id, { status });
 
   if (!updatedJob) {
     return null;
   }
 
-  const description =
-    status === "In Progress"
-      ? "Job moved to In Progress from the detail view."
-      : status === "On Hold"
-        ? "Job placed On Hold pending follow-up or issue resolution."
-        : status === "Completed"
-          ? "Job marked Completed from the detail view."
-          : status === "Cancelled"
-            ? "Job cancelled from the detail view."
-            : "Job status updated from the detail view.";
-
   await createJobActivityRecord({
     jobId: id,
     type: "status",
     title: "Status updated",
-    description,
+    description: `Status changed from ${existing.status} to ${status}.`,
   });
 
   if (existing.status !== updatedJob.status) {
