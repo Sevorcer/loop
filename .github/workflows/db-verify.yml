@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Verify migration file sequence and checksums
         run: bash scripts/verify-migrations.sh
@@ -25,7 +25,7 @@ jobs:
     needs: verify-structure
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Bootstrap validation — structure stage
         run: |
@@ -50,10 +50,10 @@ jobs:
       github.actor != 'Copilot'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
         with:
           version: latest
 
@@ -126,7 +126,7 @@ jobs:
           PY
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: npm
@@ -170,10 +170,14 @@ jobs:
     if: always()
     steps:
       - name: Evaluate gate result
+        env:
+          VERIFY_STRUCTURE_RESULT: ${{ needs.verify-structure.result }}
+          BOOTSTRAP_STRUCTURE_RESULT: ${{ needs.bootstrap-structure.result }}
+          VERIFY_SCHEMA_RESULT: ${{ needs.verify-schema.result }}
         run: |
-          STRUCTURE="${{ needs.verify-structure.result }}"
-          BOOTSTRAP="${{ needs.bootstrap-structure.result }}"
-          SCHEMA="${{ needs.verify-schema.result }}"
+          STRUCTURE="$VERIFY_STRUCTURE_RESULT"
+          BOOTSTRAP="$BOOTSTRAP_STRUCTURE_RESULT"
+          SCHEMA="$VERIFY_SCHEMA_RESULT"
 
           echo "verify-structure   : $STRUCTURE"
           echo "bootstrap-structure: $BOOTSTRAP"

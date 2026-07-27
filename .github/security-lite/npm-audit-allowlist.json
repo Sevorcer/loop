@@ -1,0 +1,12 @@
+{
+  "advisoryIds": [
+    "1124066",
+    "1124252",
+    "1124288"
+  ],
+  "packageNames": [
+    "next",
+    "postcss",
+    "sharp"
+  ]
+}

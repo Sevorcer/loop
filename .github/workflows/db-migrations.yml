@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Verify migration file sequence
         run: bash scripts/verify-migrations.sh
@@ -69,10 +69,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
         with:
           version: 2.109.1
 
@@ -203,7 +203,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Validate required secrets
         run: |
@@ -213,9 +213,14 @@ jobs:
 
       - name: Run verification SQL
         id: verify
+        env:
+          GH_SERVER_URL: ${{ github.server_url }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_SHA: ${{ github.sha }}
         run: |
-          CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          GIT_SHA="${{ github.sha }}"
+          CI_RUN_URL="$GH_SERVER_URL/$GH_REPOSITORY/actions/runs/$GH_RUN_ID"
+          GIT_SHA="$GH_SHA"
           MIGRATION_COUNT=$(find supabase/migrations -maxdepth 1 -name "*.sql" | wc -l | tr -d '[:space:]')
           echo "Migration files found: $MIGRATION_COUNT"
 
@@ -273,9 +278,12 @@ jobs:
 
       - name: Summarize verification result
         if: always()
+        env:
+          OVERALL_STATUS: ${{ steps.verify.outputs.overall_status }}
+          CRITICAL_COUNT: ${{ steps.verify.outputs.critical_count }}
         run: |
-          OVERALL="${{ steps.verify.outputs.overall_status }}"
-          CRITICAL="${{ steps.verify.outputs.critical_count }}"
+          OVERALL="$OVERALL_STATUS"
+          CRITICAL="$CRITICAL_COUNT"
           echo "## Verification SQL Gate" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
@@ -303,7 +311,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Validate required secrets
         run: |
@@ -333,6 +341,11 @@ jobs:
 
     steps:
       - name: Declare deploy healthy
+        env:
+          GH_SHA: ${{ github.sha }}
+          GH_SERVER_URL: ${{ github.server_url }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
         run: |
           echo "════════════════════════════════════════════════════"
           echo "  ✓ DEPLOY HEALTHY — all gates passed"
@@ -342,15 +355,17 @@ jobs:
           echo "  Gate 2 — Verification SQL: all DB health checks     ✓"
           echo "  Gate 3 — Smoke test: login → create → delete        ✓"
           echo ""
-          echo "  Commit : ${{ github.sha }}"
-          echo "  Run    : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "  Commit : $GH_SHA"
+          echo "  Run    : $GH_SERVER_URL/$GH_REPOSITORY/actions/runs/$GH_RUN_ID"
           echo ""
 
       - name: Write step summary
+        env:
+          GH_SHA: ${{ github.sha }}
         run: |
           echo "## ✓ Deploy Healthy" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "All three deploy gates passed for commit \`${{ github.sha }}\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "All three deploy gates passed for commit \`$GH_SHA\`." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Gate | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"

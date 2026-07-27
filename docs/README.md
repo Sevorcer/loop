@@ -15,6 +15,7 @@
 | [DB Health Dashboard Runbook](runbooks/db-health-dashboard.md) | Dashboard location, alert thresholds, and escalation path for DB health checks |
 | [Bootstrap Validation Runbook](runbooks/bootstrap-validation.md) | End-to-end validation of a freshly provisioned environment |
 | [Write-Path Smoke & Load Harness](runbooks/write-path-harness.md) | Repeatable write-path smoke/load validation, baseline thresholds, and artifacts |
+| [Security-Lite Gate Policy](runbooks/security-lite-policy.md) | Triage, temporary exception policy, and allowlist sunset plan for security-lite checks |
 | [Drill Reports README](drills/README.md) | Location and expectations for completed drill reports |
 
 ## Architecture & Reference
@@ -24,3 +25,4 @@
 - [RLS Role Matrix](architecture/security/rls-role-matrix.md)
 - [Database Overview](database.md)
 - [Migration Verification Standard](migration-verification-standard.md)
+- [S5.4 Hardening Roadmap Update](perf/s5-4-hardening-roadmap.md)

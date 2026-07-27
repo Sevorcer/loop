@@ -55,9 +55,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 The following automated checks run in CI on every PR and push to `main`, plus weekly:
 
-- **Semgrep** — runs locally in CI with no token required, scanning against `p/javascript`, `p/typescript`, `p/nodejs`, and `p/owasp-top-ten` rulesets. Any finding fails the build.
-- **npm audit** — checks production dependencies (`--omit=dev`) at `--audit-level=high`.
+- **Semgrep** — runs locally in CI with no token required, scanning against `p/javascript`, `p/typescript`, `p/nodejs`, and `p/owasp-top-ten` rulesets. New findings fail CI by default; temporary legacy findings can be explicitly allowlisted.
+- **npm audit** — checks production dependencies (`--omit=dev`) and blocks on new high/critical findings unless they are in the documented temporary allowlist.
 
+Security-lite allowlist policy and exception process: `docs/runbooks/security-lite-policy.md`.  
 These checks are temporary until native GitHub code scanning (CodeQL) is fully available for this repository. No `SEMGREP_APP_TOKEN` or other external secrets are required.
 
 ---

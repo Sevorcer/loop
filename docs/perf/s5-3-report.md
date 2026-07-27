@@ -62,3 +62,9 @@
    Capture real TTFB/LCP/API timings with stable credentials and trend over time.
 3. **Add response-time instrumentation headers for key APIs (medium impact, low effort).**  
    Emit server-timing metrics to make route/API regressions objective in CI artifacts.
+
+## Roadmap transition
+- **S5.2:** Complete
+- **S5.3:** Complete (this report)
+- **S5.4:** In progress — dependency remediation, workflow hardening, and security-lite gate re-enforcement.
+- Tracking doc: `/home/runner/work/loop/loop/docs/perf/s5-4-hardening-roadmap.md`
