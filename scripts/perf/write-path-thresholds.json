@@ -1,0 +1,13 @@
+{
+  "smoke": {
+    "successRate": 1,
+    "errorRate": 0
+  },
+  "load": {
+    "successRate": 0.95,
+    "errorRate": 0.05,
+    "p95LatencyMs": 1500,
+    "p99LatencyMs": 2500,
+    "throughputRps": 1
+  }
+}
