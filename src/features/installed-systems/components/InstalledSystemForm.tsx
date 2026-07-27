@@ -81,14 +81,19 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
     ? ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system!.id)
     : ROUTES.INSTALLED_SYSTEMS;
 
-  const canSubmit =
-    form.systemName.trim().length > 0 &&
-    form.manufacturer.trim().length > 0 &&
-    form.modelNumber.trim().length > 0 &&
-    form.serialNumber.trim().length > 0 &&
-    form.installDate.trim().length > 0 &&
-    form.customerName.trim().length > 0 &&
-    form.propertyName.trim().length > 0;
+  function isFormValid(f: FormValues): boolean {
+    return (
+      f.systemName.trim().length > 0 &&
+      f.manufacturer.trim().length > 0 &&
+      f.modelNumber.trim().length > 0 &&
+      f.serialNumber.trim().length > 0 &&
+      f.installDate.trim().length > 0 &&
+      f.customerName.trim().length > 0 &&
+      f.propertyName.trim().length > 0
+    );
+  }
+
+  const canSubmit = isFormValid(form);
 
   function updateField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -106,7 +111,7 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
     if (!form.customerName.trim()) errors.customerName = "Customer name is required.";
     if (!form.propertyName.trim()) errors.propertyName = "Property name is required.";
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    return isFormValid(form);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

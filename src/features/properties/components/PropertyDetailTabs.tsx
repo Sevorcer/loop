@@ -824,11 +824,13 @@ export function PropertyDetailTabs({
         .join(" · ") || "Equipment record added to this property.",
       icon: "install" as const,
     }));
+    const combined = [...systemEvents, ...details.timeline];
+    // Pre-compute timestamps to avoid repeated Date construction during sort.
+    const withTs = combined.map((e) => ({ e, ts: new Date(e.date).getTime() }));
+    withTs.sort((a, b) => b.ts - a.ts);
     return {
       ...details,
-      timeline: [...systemEvents, ...details.timeline].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
+      timeline: withTs.map(({ e }) => e),
     };
   }, [details, installedSystems]);
 
