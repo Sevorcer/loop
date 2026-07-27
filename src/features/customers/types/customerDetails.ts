@@ -5,10 +5,13 @@ export interface CustomerPropertyItem {
   city: string;
   status: string;
   primarySystem: string;
+  createdAt?: string;
+  lastVisit?: string;
 }
 
 export interface CustomerJobItem {
   id: string;
+  jobNumber?: string;
   title: string;
   status: string;
   scheduledFor: string;

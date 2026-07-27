@@ -10,11 +10,14 @@ import { CustomerDeleteButton } from "../components/CustomerDeleteButton";
 import { CustomerDetailTabs } from "../components/CustomerDetailTabs";
 import type { Customer } from "../types/customer";
 import type { CustomerJobItem, CustomerPropertyItem } from "../types/customerDetails";
+import type { TimelineEventItem } from "@/lib/timeline";
 
 interface CustomerDetailScreenProps {
   customer: Customer;
   properties: CustomerPropertyItem[];
   jobs: CustomerJobItem[];
+  timelineItems: TimelineEventItem[];
+  timelineError?: string;
 }
 
 function formatDate(value: string) {
@@ -25,6 +28,8 @@ export function CustomerDetailScreen({
   customer,
   properties,
   jobs,
+  timelineItems,
+  timelineError,
 }: CustomerDetailScreenProps) {
   const statusVariant =
     customer.status === "Active"
@@ -142,7 +147,13 @@ export function CustomerDetailScreen({
         </div>
       </div>
 
-      <CustomerDetailTabs customer={customer} properties={properties} jobs={jobs} />
+      <CustomerDetailTabs
+        customer={customer}
+        properties={properties}
+        jobs={jobs}
+        timelineItems={timelineItems}
+        timelineError={timelineError}
+      />
     </div>
   );
 }

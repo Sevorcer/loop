@@ -6,6 +6,8 @@ import {
   ArrowUpRight,
   Building2,
   ClipboardList,
+  Cpu,
+  CalendarClock,
   FileText,
   HardHat,
   ImageIcon,
@@ -20,9 +22,12 @@ import {
   AtlasTabs,
   AtlasTimeline,
   EmptyState,
+  ErrorState,
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
+import type { TimelineEventItem } from "@/lib/timeline";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
@@ -33,7 +38,6 @@ import type {
   PropertyDetails,
   PropertyDocumentItem,
   PropertyPhotoItem,
-  PropertyTimelineEvent,
 } from "../types/propertyDetails";
 
 type PropertyDetailTabKey =
@@ -68,12 +72,6 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
 }
 
-function getTimelineIcon(icon: PropertyTimelineEvent["icon"]) {
-  if (icon === "property") return Building2;
-  if (icon === "install") return HardHat;
-  return ClipboardList;
-}
-
 function getPropertyDetails(property: Property): PropertyDetails {
   return {
     propertyId: property.id,
@@ -100,24 +98,7 @@ function getPropertyDetails(property: Property): PropertyDetails {
         ]
       : [],
     jobs: [],
-    timeline: [
-      {
-        id: `${property.id}-timeline-created`,
-        title: "Property created in LOOP",
-        date: property.createdAt,
-        description:
-          "Property profile added and made available for scheduling.",
-        icon: "property",
-      },
-      {
-        id: `${property.id}-timeline-last-visit`,
-        title: "Last recorded property visit",
-        date: property.lastVisit,
-        description:
-          "Latest property activity recorded for historical visibility.",
-        icon: "service",
-      },
-    ],
+    timeline: [],
     contacts: [
       {
         id: `${property.id}-contact-primary`,
@@ -251,8 +232,14 @@ function OverviewSection({
   );
 }
 
-function EquipmentSection({ details }: { details: PropertyDetails }) {
-  if (details.equipment.length === 0) {
+function EquipmentSection({
+  details,
+  installedSystems,
+}: {
+  details: PropertyDetails;
+  installedSystems: InstalledSystem[];
+}) {
+  if (details.equipment.length === 0 && installedSystems.length === 0) {
     return (
       <EmptyState
         title="No equipment recorded yet"
@@ -263,6 +250,62 @@ function EquipmentSection({ details }: { details: PropertyDetails }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {installedSystems.map((system) => (
+        <Card key={system.id}>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>{system.systemName}</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Installed system record
+                </p>
+              </div>
+
+              <Cpu className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Lifecycle</span>
+              <StatusBadge
+                variant={
+                  system.lifecycleStatus === "Active"
+                    ? "success"
+                    : system.lifecycleStatus === "Planned"
+                      ? "info"
+                      : "warning"
+                }
+              >
+                {system.lifecycleStatus}
+              </StatusBadge>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Installed</span>
+              <span className="font-medium">
+                {system.installDate ? formatDate(system.installDate) : "Not recorded"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Permit Readiness</span>
+              <StatusBadge variant={system.permitReady ? "success" : "warning"}>
+                {system.permitReady ? "Ready" : "Needs review"}
+              </StatusBadge>
+            </div>
+
+            <Link
+              href={ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+            >
+              Open installed system
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      ))}
+
       {details.equipment.map((item) => (
         <Card key={item.id}>
           <CardHeader>
@@ -378,18 +421,59 @@ function JobsSection({
   );
 }
 
-function TimelineSection({ details }: { details: PropertyDetails }) {
-  const timelineItems = useMemo(
-    () =>
-      details.timeline.map((event) => ({
-        id: event.id,
-        title: event.title,
-        date: formatDate(event.date),
-        description: event.description,
-        icon: getTimelineIcon(event.icon),
-      })),
-    [details.timeline]
-  );
+function getTimelineIcon(source: TimelineEventItem["source"]) {
+  switch (source) {
+    case "property":
+      return Building2;
+    case "job":
+      return CalendarClock;
+    case "job_activity":
+      return ClipboardList;
+    case "dispatch_event":
+      return HardHat;
+    case "installed_system":
+      return Cpu;
+    default:
+      return Building2;
+  }
+}
+
+function getSourceLabel(source: TimelineEventItem["source"]) {
+  switch (source) {
+    case "property":
+      return "Property";
+    case "job":
+      return "Job";
+    case "job_activity":
+      return "Job Activity";
+    case "dispatch_event":
+      return "Dispatch";
+    case "installed_system":
+      return "Installed System";
+    default:
+      return "Timeline";
+  }
+}
+
+function TimelineSection({
+  timelineItems,
+  timelineError,
+}: {
+  timelineItems: TimelineEventItem[];
+  timelineError?: string;
+}) {
+  if (timelineError) {
+    return <ErrorState description={timelineError} />;
+  }
+
+  if (timelineItems.length === 0) {
+    return (
+      <EmptyState
+        title="No property history yet"
+        description="Property events will appear here as service, dispatch, and system updates happen."
+      />
+    );
+  }
 
   return (
     <Card>
@@ -398,7 +482,13 @@ function TimelineSection({ details }: { details: PropertyDetails }) {
       </CardHeader>
 
       <CardContent>
-        <AtlasTimeline items={timelineItems} />
+        <AtlasTimeline
+          items={timelineItems.map((event) => ({
+            ...event,
+            icon: getTimelineIcon(event.source),
+            sourceLabel: getSourceLabel(event.source),
+          }))}
+        />
       </CardContent>
     </Card>
   );
@@ -718,6 +808,9 @@ interface PropertyDetailTabsProps {
   customer: Customer | null;
   customerProperties: CustomerPropertyItem[];
   jobs: Job[];
+  installedSystems: InstalledSystem[];
+  timelineItems: TimelineEventItem[];
+  timelineError?: string;
 }
 
 export function PropertyDetailTabs({
@@ -725,6 +818,9 @@ export function PropertyDetailTabs({
   customer,
   customerProperties,
   jobs,
+  installedSystems,
+  timelineItems,
+  timelineError,
 }: PropertyDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<PropertyDetailTabKey>("overview");
 
@@ -750,7 +846,7 @@ export function PropertyDetailTabs({
       ) : null}
 
       {activeTab === "equipment" ? (
-        <EquipmentSection details={details} />
+        <EquipmentSection details={details} installedSystems={installedSystems} />
       ) : null}
 
       {activeTab === "jobs" ? (
@@ -758,7 +854,7 @@ export function PropertyDetailTabs({
       ) : null}
 
       {activeTab === "timeline" ? (
-        <TimelineSection details={details} />
+        <TimelineSection timelineItems={timelineItems} timelineError={timelineError} />
       ) : null}
 
       {activeTab === "documents" ? (

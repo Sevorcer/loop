@@ -16,6 +16,11 @@ export async function getInstalledSystemsSnapshot(): Promise<InstalledSystemsRep
   return loadInstalledSystemsSnapshot();
 }
 
+export async function listInstalledSystemsForProperty(propertyId: string): Promise<InstalledSystem[]> {
+  const snapshot = await loadInstalledSystemsSnapshot();
+  return snapshot.installedSystems.filter((system) => system.propertyId === propertyId);
+}
+
 export async function createInstalledSystem(
   input: InstalledSystemWriteInput,
 ): Promise<InstalledSystem> {
