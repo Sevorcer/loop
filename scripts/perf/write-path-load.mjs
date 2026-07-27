@@ -103,7 +103,17 @@ async function main() {
   if (failedRun) {
     const failedStep = failedRun.steps.find((step) => !step.ok);
     const message = failedStep
-      ? `Load workflow failure: ${failedStep.operation} ${failedStep.method} ${failedStep.path} status=${failedStep.status} error=${failedStep.error ?? "n/a"}`
+      ? `Load workflow failure: ${JSON.stringify(
+          {
+            operation: failedStep.operation,
+            method: failedStep.method,
+            path: failedStep.path,
+            status: failedStep.status,
+            error: failedStep.error ?? "n/a",
+          },
+          null,
+          2,
+        )}`
       : "Load workflow failed with unknown error.";
     throw new Error(message);
   }

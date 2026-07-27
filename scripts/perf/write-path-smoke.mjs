@@ -40,7 +40,17 @@ async function main() {
   if (!workflowRun.success) {
     const failedStep = workflowRun.steps.find((step) => !step.ok);
     const message = failedStep
-      ? `Smoke step failed: ${failedStep.operation} ${failedStep.method} ${failedStep.path} status=${failedStep.status} error=${failedStep.error ?? "n/a"}`
+      ? `Smoke step failed: ${JSON.stringify(
+          {
+            operation: failedStep.operation,
+            method: failedStep.method,
+            path: failedStep.path,
+            status: failedStep.status,
+            error: failedStep.error ?? "n/a",
+          },
+          null,
+          2,
+        )}`
       : "Smoke workflow failed with unknown error.";
     throw new Error(message);
   }
