@@ -3,7 +3,15 @@ import "server-only";
 import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
+import type { AppRole } from "@/services/authorization";
 import { canTransitionStatus } from "@/features/jobs/utils/jobWorkspace";
+import {
+  isRequiredQaChecklistComplete,
+  normalizeQaChecklist,
+  parseLatestQaChecklist,
+  type JobCompletionChecklistStatus,
+  type RequiredQaChecklist,
+} from "@/features/jobs/utils/jobCompletionChecklist";
 import { resolveCustomerIdByName } from "@/repositories/properties";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import {
@@ -21,8 +29,11 @@ import {
   toJob,
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
+import { updateDispatchPlanStatusByJobId } from "@/repositories/dispatch";
 import { syncCustomerCounters } from "@/services/customers";
 import { resolvePropertyIdByName, syncPropertyCounters } from "@/services/properties";
+import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
+import { listFiles } from "@/services/storage";
 
 const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection"]);
 const JOB_STATUSES = new Set<JobStatus>([
@@ -33,6 +44,11 @@ const JOB_STATUSES = new Set<JobStatus>([
   "Cancelled",
 ]);
 const JOB_PRIORITIES = new Set<JobPriority>(["Low", "Medium", "High"]);
+
+interface JobMutationContext {
+  actorId?: string;
+  role?: AppRole;
+}
 
 function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInput | UpdateJobInput {
   return {
@@ -224,7 +240,7 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   return updatedJob;
 }
 
-export async function updateJobStatus(id: string, status: JobStatus) {
+export async function updateJobStatus(id: string, status: JobStatus, context?: JobMutationContext) {
   if (!JOB_STATUSES.has(status)) {
     throw new Error("Invalid job status.");
   }
@@ -241,6 +257,18 @@ export async function updateJobStatus(id: string, status: JobStatus) {
     );
   }
 
+  if (status === "Completed") {
+    const checklist = await getJobCompletionChecklist(id, context?.role);
+    if (!checklist.canComplete) {
+      const blockers: string[] = [];
+      if (!checklist.photosUploaded) blockers.push("at least one photo uploaded");
+      if (!checklist.installedSystemsEntered) blockers.push("installed systems entered");
+      if (!checklist.jobNotesCompleted) blockers.push("job notes completed");
+      if (!checklist.requiredQaItemsComplete) blockers.push("required QA items complete");
+      throw new Error(`Completion checklist incomplete: ${blockers.join(", ")}.`);
+    }
+  }
+
   const updatedJob = await updateJobRecord(id, { status });
 
   if (!updatedJob) {
@@ -249,19 +277,32 @@ export async function updateJobStatus(id: string, status: JobStatus) {
 
   await createJobActivityRecord({
     jobId: id,
+    actorId: context?.actorId,
     type: "status",
-    title: "Status updated",
-    description: `Status changed from ${existing.status} to ${status}.`,
+    title:
+      status === "In Progress"
+        ? "Job started"
+        : status === "Completed"
+          ? "Job completed"
+          : "Status updated",
+    description: `Status changed from ${existing.status} to ${status}${context?.actorId ? ` by ${context.actorId}` : ""}.`,
   });
 
   if (existing.status !== updatedJob.status) {
     await syncRelatedCounters(updatedJob);
+    if (updatedJob.status === "In Progress" || updatedJob.status === "Completed") {
+      const dispatchStatus = updatedJob.status === "In Progress" ? "in_progress" : "completed";
+      const dispatchResult = await updateDispatchPlanStatusByJobId(updatedJob.id, dispatchStatus);
+      if (!dispatchResult.ok) {
+        throw new Error(dispatchResult.error.message);
+      }
+    }
   }
 
   return updatedJob;
 }
 
-export async function addJobNote(id: string, note: string) {
+export async function addJobNote(id: string, note: string, context?: JobMutationContext) {
   const trimmedNote = note.trim();
 
   if (!trimmedNote) {
@@ -283,12 +324,133 @@ export async function addJobNote(id: string, note: string) {
 
   await createJobActivityRecord({
     jobId: id,
+    actorId: context?.actorId,
     type: "note",
     title: "Note added",
     description: trimmedNote,
   });
 
   return updatedJob;
+}
+
+export async function setJobNotes(id: string, notes: string, context?: JobMutationContext) {
+  const trimmedNotes = notes.trim();
+  if (!trimmedNotes) {
+    throw new Error("Notes are required.");
+  }
+
+  const existing = await getJobById(id);
+  if (!existing) {
+    return null;
+  }
+
+  const updatedJob = await updateJobRecord(id, { notes: trimmedNotes });
+  if (!updatedJob) {
+    return null;
+  }
+
+  await createJobActivityRecord({
+    jobId: id,
+    actorId: context?.actorId,
+    type: "note",
+    title: "Notes updated",
+    description: "Job notes updated.",
+  });
+
+  return updatedJob;
+}
+
+export async function updateRequiredQaChecklist(
+  id: string,
+  checklist: RequiredQaChecklist,
+  context?: JobMutationContext,
+) {
+  const existing = await getJobById(id);
+  if (!existing) {
+    return null;
+  }
+
+  const normalizedChecklist = normalizeQaChecklist(checklist);
+
+  await createJobActivityRecord({
+    jobId: id,
+    actorId: context?.actorId,
+    type: "qa",
+    title: "QA checklist updated",
+    description: JSON.stringify(normalizedChecklist),
+  });
+
+  return normalizedChecklist;
+}
+
+export async function getJobCompletionChecklist(
+  jobId: string,
+  role?: AppRole,
+): Promise<JobCompletionChecklistStatus> {
+  if (!role) {
+    throw new Error("Unable to validate completion checklist for this user.");
+  }
+
+  const [job, activity, files, snapshot] = await Promise.all([
+    getJobById(jobId),
+    listActivityByJobId(jobId),
+    listFiles(role, { jobId }),
+    getInstalledSystemsSnapshot(),
+  ]);
+
+  if (!job) {
+    throw new Error(`Job '${jobId}' not found.`);
+  }
+
+  const qaChecklist = parseLatestQaChecklist(activity);
+  const photosUploaded = files.some((file) => file.mimeType.toLowerCase().startsWith("image/"));
+  const installedSystemsEntered = snapshot.installedSystems.some(
+    (system) => system.jobId === jobId || system.linkedWorkflowIds.includes(jobId),
+  );
+  const jobNotesCompleted = job.notes.trim().length > 0;
+  const requiredQaItemsComplete = isRequiredQaChecklistComplete(qaChecklist);
+
+  return {
+    photosUploaded,
+    installedSystemsEntered,
+    jobNotesCompleted,
+    requiredQaItemsComplete,
+    customerSignaturePlaceholder: "optional",
+    canComplete:
+      photosUploaded &&
+      installedSystemsEntered &&
+      jobNotesCompleted &&
+      requiredQaItemsComplete,
+  };
+}
+
+export async function listJobFiles(jobId: string, role?: AppRole) {
+  if (!role) {
+    throw new Error("Unable to list job files for this user.");
+  }
+  return listFiles(role, { jobId });
+}
+
+export async function recordJobFileUpload(
+  jobId: string,
+  fileName: string,
+  mimeType: string,
+  context?: JobMutationContext,
+) {
+  const existing = await getJobById(jobId);
+  if (!existing) {
+    return null;
+  }
+
+  await createJobActivityRecord({
+    jobId,
+    actorId: context?.actorId,
+    type: "file",
+    title: "File uploaded",
+    description: `${fileName} (${mimeType}) uploaded.`,
+  });
+
+  return true;
 }
 
 export async function deleteJob(id: string) {

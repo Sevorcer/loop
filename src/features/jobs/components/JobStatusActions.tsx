@@ -48,6 +48,7 @@ export function JobStatusActions({
 }) {
   const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const helperText = getJobStatusIntent(status);
 
   const validNextStatuses = getValidNextStatuses(status);
@@ -58,8 +59,10 @@ export function JobStatusActions({
   async function handleChange(nextStatus: JobStatus) {
     try {
       setError(null);
+      setSuccess(null);
       setPendingStatus(nextStatus);
       await onChangeStatus(nextStatus);
+      setSuccess(`Job moved to ${nextStatus}.`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to update job status. Please try again.",
@@ -90,6 +93,11 @@ export function JobStatusActions({
             {error}
           </p>
         )}
+        {success && !error ? (
+          <p className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+            {success}
+          </p>
+        ) : null}
 
         {availableActions.length === 0 ? (
           <p className="mt-6 text-sm text-slate-500">No further actions available for this job.</p>

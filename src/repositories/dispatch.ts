@@ -327,6 +327,24 @@ export async function updateDispatchPlanStatus(id: string, status: DispatchStatu
   });
 }
 
+export async function updateDispatchPlanStatusByJobId(jobId: string, status: DispatchStatus) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+
+    const { data, error } = await supabase
+      .from("dispatch_plans")
+      .update({ dispatch_status: status, updated_at: new Date().toISOString() })
+      .eq("org_id", orgId)
+      .eq("job_id", jobId)
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
+      );
+
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as DispatchPlanRow[]).map(mapDispatchPlan);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // CRUD — Crew Assignments
 // ---------------------------------------------------------------------------

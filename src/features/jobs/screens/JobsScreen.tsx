@@ -1,7 +1,10 @@
+"use client";
+
 import { Briefcase, ClipboardList, Wrench } from "lucide-react";
 import Link from "next/link";
 
 import { PermissionGuard } from "@/components/atlas";
+import { useCurrentRole } from "@/features/auth";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +12,9 @@ import { JobTable } from "../components/JobTable";
 import { JobsMetrics } from "../components/JobsMetrics";
 
 export function JobsScreen() {
+  const { role } = useCurrentRole();
+  const isTech = role === "tech";
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <SurfaceCard className="overflow-hidden">
@@ -21,11 +27,12 @@ export function JobsScreen() {
 
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
-                Jobs
+                {isTech ? "My Jobs Today" : "Jobs"}
               </h2>
               <p className="mt-1 hidden max-w-2xl text-sm leading-6 text-slate-400 sm:block">
-                Track installs, service work, inspections, and maintenance jobs
-                across the full execution lifecycle.
+                {isTech
+                  ? "Start assigned work, capture field updates, and complete jobs from your mobile workflow."
+                  : "Track installs, service work, inspections, and maintenance jobs across the full execution lifecycle."}
               </p>
             </div>
           </div>

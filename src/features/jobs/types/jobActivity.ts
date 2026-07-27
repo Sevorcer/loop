@@ -4,11 +4,14 @@ export type JobActivityType =
   | "scheduled"
   | "assigned"
   | "status"
-  | "note";
+  | "note"
+  | "qa"
+  | "file";
 
 export interface JobActivity {
   id: string;
   jobId: string;
+  actorId?: string;
   type: JobActivityType;
   title: string;
   description: string;
