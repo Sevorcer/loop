@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
   Building2,
@@ -23,8 +23,6 @@ import {
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCurrentRole } from "@/features/auth";
-import { requestJson } from "@/lib/api/client";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
@@ -719,41 +717,18 @@ interface PropertyDetailTabsProps {
   property: Property;
   customer: Customer | null;
   customerProperties: CustomerPropertyItem[];
+  jobs: Job[];
 }
 
 export function PropertyDetailTabs({
   property,
   customer,
   customerProperties,
+  jobs,
 }: PropertyDetailTabsProps) {
-  const { role } = useCurrentRole();
   const [activeTab, setActiveTab] = useState<PropertyDetailTabKey>("overview");
 
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [jobsFetched, setJobsFetched] = useState(false);
-
   const details = useMemo(() => getPropertyDetails(property), [property]);
-
-  // Derive loading from whether the tab is relevant and data hasn't been fetched yet
-  const jobsLoading = (activeTab === "jobs" || activeTab === "overview") && !jobsFetched && Boolean(role);
-
-  useEffect(() => {
-    if ((activeTab !== "jobs" && activeTab !== "overview") || jobsFetched || !role) {
-      return;
-    }
-
-    requestJson<{ jobs: Job[] }>(
-      `/api/properties/${property.id}/jobs`,
-      { role, cache: "no-store" },
-    )
-      .then((response) => {
-        setJobs(response.jobs);
-        setJobsFetched(true);
-      })
-      .catch(() => {
-        setJobsFetched(true);
-      });
-  }, [activeTab, property.id, jobsFetched, role]);
 
   return (
     <div className="space-y-6">
@@ -767,7 +742,7 @@ export function PropertyDetailTabs({
       {activeTab === "overview" ? (
         <OverviewSection
           recentJobs={jobs}
-          jobsLoading={jobsLoading}
+          jobsLoading={false}
           lastVisit={property.lastVisit}
           beforeYouGoItems={details.beforeYouGoItems}
           homeIntelligenceItems={details.homeIntelligenceItems}
@@ -779,7 +754,7 @@ export function PropertyDetailTabs({
       ) : null}
 
       {activeTab === "jobs" ? (
-        <JobsSection jobs={jobs} loading={jobsLoading} />
+        <JobsSection jobs={jobs} loading={false} />
       ) : null}
 
       {activeTab === "timeline" ? (
