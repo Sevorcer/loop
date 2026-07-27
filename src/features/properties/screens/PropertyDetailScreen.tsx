@@ -3,15 +3,18 @@ import {
   Building2,
   Heart,
   MapPin,
+  Pencil,
 } from "lucide-react";
 
-import { StatusBadge } from "@/components/atlas";
+import { PermissionGuard, StatusBadge } from "@/components/atlas";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import type { Property } from "../types/property";
 import { MapViewCard } from "../components/MapViewCard";
+import { PropertyDeleteButton } from "../components/PropertyDeleteButton";
 import { PropertyDetailTabs } from "../components/PropertyDetailTabs";
 import { formatPropertyAddress } from "../utils/formatPropertyAddress";
 
@@ -118,49 +121,69 @@ export function PropertyDetailScreen({
             </div>
           </div>
 
-          <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:min-w-[360px]">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Home Health
-                </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-green-500" />
-                  <p className="text-lg font-semibold">
-                    {property.status === "Inactive" ? "Needs Review" : "Good"}
+          <div className="flex flex-col gap-3 lg:w-auto lg:min-w-[360px]">
+            <div className="grid w-full gap-3 sm:grid-cols-2">
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Home Health
                   </p>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Heart className="h-4 w-4 text-green-500" />
+                    <p className="text-lg font-semibold">
+                      {property.status === "Inactive" ? "Needs Review" : "Good"}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Last Visit
-                </p>
-                <p className="mt-2 text-lg font-semibold">
-                  {formatDate(property.lastVisit)}
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Last Visit
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">
+                    {formatDate(property.lastVisit)}
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Open Jobs
-                </p>
-                <p className="mt-2 text-lg font-semibold">{property.openJobs}</p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Open Jobs
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">{property.openJobs}</p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Active Systems
-                </p>
-                <p className="mt-2 text-lg font-semibold">{activeSystems}</p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Active Systems
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">{activeSystems}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <PermissionGuard table="properties" action="update">
+                <Link href={ROUTE_BUILDERS.PROPERTY_EDIT(property.id)}>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                </Link>
+              </PermissionGuard>
+
+              <PermissionGuard table="properties" action="delete">
+                <PropertyDeleteButton
+                  propertyId={property.id}
+                  propertyName={property.name}
+                />
+              </PermissionGuard>
+            </div>
           </div>
         </div>
       </div>

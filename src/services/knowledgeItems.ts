@@ -19,10 +19,14 @@ import { assembleKnowledgeSnapshot, searchKnowledgeItems } from "@/features/comp
 
 import {
   getKnowledgeItemById,
+  insertKnowledgeItem,
   listKnowledgeItems,
   listKnowledgeRelationships,
   listKnowledgeUsage,
   recordKnowledgeUsage,
+  updateKnowledgeItem as repoUpdateKnowledgeItem,
+  type KnowledgeItemCreateInput,
+  type KnowledgeItemUpdateInput,
 } from "@/repositories/knowledgeItems";
 
 // ─── Snapshot — full Company Brain state for the UI ───────────────────────────
@@ -74,4 +78,19 @@ export async function trackKnowledgeUsage(
 export async function searchKnowledge(query: KnowledgeSearchQuery): Promise<KnowledgeItem[]> {
   const items = await listKnowledgeItems();
   return searchKnowledgeItems(items, query);
+}
+
+// ─── Writes ───────────────────────────────────────────────────────────────────
+
+export async function createKnowledgeItem(
+  input: KnowledgeItemCreateInput,
+): Promise<KnowledgeItem> {
+  return insertKnowledgeItem(input);
+}
+
+export async function updateKnowledgeItem(
+  id: string,
+  input: KnowledgeItemUpdateInput,
+): Promise<KnowledgeItem | null> {
+  return repoUpdateKnowledgeItem(id, input);
 }

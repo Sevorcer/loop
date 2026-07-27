@@ -22,10 +22,15 @@ export const ROUTE_BUILDERS = {
   JOB_DETAIL: (jobId: string) => `${ROUTES.JOBS}/${jobId}`,
   JOB_EDIT: (jobId: string) => `${ROUTES.JOBS}/${jobId}/edit`,
   PROPERTY_DETAIL: (propertyId: string) => `${ROUTES.PROPERTIES}/${propertyId}`,
+  PROPERTY_EDIT: (propertyId: string) => `${ROUTES.PROPERTIES}/${propertyId}/edit`,
   CUSTOMER_DETAIL: (customerId: string) => `${ROUTES.CUSTOMERS}/${customerId}`,
   CUSTOMER_EDIT: (customerId: string) => `${ROUTES.CUSTOMERS}/${customerId}/edit`,
   INSTALLED_SYSTEM_DETAIL: (installedSystemId: string) =>
     `${ROUTES.INSTALLED_SYSTEMS}/${installedSystemId}`,
+  INSTALLED_SYSTEM_EDIT: (installedSystemId: string) =>
+    `${ROUTES.INSTALLED_SYSTEMS}/${installedSystemId}/edit`,
+  COMPANY_BRAIN_NEW: () => `${ROUTES.COMPANY_BRAIN}/new`,
+  COMPANY_BRAIN_EDIT: (id: string) => `${ROUTES.COMPANY_BRAIN}/${id}/edit`,
 } as const;
 
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
