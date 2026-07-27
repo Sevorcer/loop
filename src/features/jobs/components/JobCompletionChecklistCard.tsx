@@ -7,6 +7,7 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import {
   isRequiredQaChecklistComplete,
+  REQUIRED_QA_CHECKLIST_ITEMS,
   type RequiredQaChecklist,
 } from "@/features/jobs/utils/jobCompletionChecklist";
 
@@ -93,13 +94,7 @@ export function JobCompletionChecklistCard({
             Required QA items
           </p>
           <div className="mt-3 space-y-2">
-            {(
-              [
-                ["startupVerificationComplete", "Startup verification complete"],
-                ["safetyReviewComplete", "Safety review complete"],
-                ["workAreaCleaned", "Work area cleaned"],
-              ] as const
-            ).map(([key, label]) => (
+            {REQUIRED_QA_CHECKLIST_ITEMS.map(({ key, label }) => (
               <label key={key} className="flex items-center gap-2 text-sm text-slate-200">
                 <input
                   type="checkbox"

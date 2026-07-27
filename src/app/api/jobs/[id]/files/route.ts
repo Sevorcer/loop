@@ -10,8 +10,16 @@ import { uploadStorageFile } from "@/services/storage";
 const JOB_FILES_BUCKET = "job-files";
 
 function normalizeFileName(value: string): string {
-  const cleaned = value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
-  return cleaned.length > 0 ? cleaned : "upload.bin";
+  const trimmed = value.trim();
+  const extensionMatch = /\.([a-zA-Z0-9]{1,10})$/.exec(trimmed);
+  const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : "";
+  const baseName = extensionMatch ? trimmed.slice(0, -extension.length) : trimmed;
+  const normalizedBase = baseName
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const safeBaseName = normalizedBase.length > 0 ? normalizedBase : "upload";
+  return `${safeBaseName}${extension || ".bin"}`;
 }
 
 export async function GET(

@@ -6,6 +6,21 @@ export interface RequiredQaChecklist {
   workAreaCleaned: boolean;
 }
 
+export const REQUIRED_QA_CHECKLIST_ITEMS = [
+  {
+    key: "startupVerificationComplete",
+    label: "Startup verification complete",
+  },
+  {
+    key: "safetyReviewComplete",
+    label: "Safety review complete",
+  },
+  {
+    key: "workAreaCleaned",
+    label: "Work area cleaned",
+  },
+] as const satisfies ReadonlyArray<{ key: keyof RequiredQaChecklist; label: string }>;
+
 export interface JobCompletionChecklistStatus {
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
