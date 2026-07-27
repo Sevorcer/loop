@@ -5,7 +5,7 @@ export const DEFAULT_RESULTS_DIR = "/tmp/loop-write-path-harness";
 
 const DISPATCH_FLOW_STATUS = ["in_progress", "scheduled"];
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const BEARER_PREFIX = "Bear" + "er";
+const MIN_ELAPSED_SECONDS = 0.001;
 
 function parseBoolean(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -44,7 +44,7 @@ function buildAuthHeaders(env) {
   };
 
   if (env.LOOP_AUTH_BEARER_TOKEN) {
-    headers.Authorization = `${BEARER_PREFIX} ${env.LOOP_AUTH_BEARER_TOKEN}`;
+    headers.Authorization = "Bearer " + env.LOOP_AUTH_BEARER_TOKEN;
   }
 
   if (env.LOOP_AUTH_COOKIE) {
@@ -337,7 +337,7 @@ export function summarizeExecution({ startedAt, completedAt, workflowRuns, thres
 
   const elapsedMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
   // Clamp to a minimum non-zero value to avoid divide-by-zero in very short dry runs.
-  const elapsedSeconds = elapsedMs > 0 ? elapsedMs / 1000 : 0.001;
+  const elapsedSeconds = elapsedMs > 0 ? elapsedMs / 1000 : MIN_ELAPSED_SECONDS;
 
   const metrics = {
     totalRequests,
