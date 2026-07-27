@@ -110,7 +110,7 @@ export async function POST(request: Request) {
 
     emitAuditEvent({
       role: guard.ctx.role,
-      action: "insert",
+      action: "create",
       resource: "knowledge_items",
       resourceId: item.id,
     });

@@ -1,8 +1,12 @@
 "use client";
 
-import { CheckCircle2, Cpu, FileCheck2, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Cpu, FileCheck2, Plus, ShieldAlert } from "lucide-react";
+import Link from "next/link";
 
+import { PermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 import { InstalledSystemsList } from "../components/InstalledSystemsList";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
@@ -57,6 +61,15 @@ export function InstalledSystemsScreen() {
               label="Needs confirmation"
             />
           </div>
+
+          <PermissionGuard table="installed_systems" action="insert">
+            <Link href={`${ROUTES.INSTALLED_SYSTEMS}/new`}>
+              <Button className="gap-2 border border-blue-500/20 bg-gradient-to-r from-blue-500/80 to-cyan-600 text-white hover:from-blue-500 hover:to-cyan-700">
+                <Plus className="h-4 w-4" />
+                New System
+              </Button>
+            </Link>
+          </PermissionGuard>
         </div>
       </SurfaceCard>
 

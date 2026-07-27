@@ -1,14 +1,16 @@
 "use client";
 
-import { ArrowLeft, Building2, Cpu, FileCheck2, HardHat, Wrench } from "lucide-react";
+import { ArrowLeft, Building2, Cpu, FileCheck2, HardHat, Pencil, Wrench } from "lucide-react";
 import Link from "next/link";
 
-import { StatusBadge } from "@/components/atlas";
+import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
-import { ROUTES } from "@/lib/routes";
+import { Button } from "@/components/ui/button";
+import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import type { InstalledSystem } from "../types/installedSystem";
+import { InstalledSystemDeleteButton } from "./InstalledSystemDeleteButton";
 
 function getMatchVariant(state: InstalledSystem["matchState"]) {
   if (state === "exact") return "success" as const;
@@ -36,7 +38,7 @@ export function InstalledSystemDetailScreen({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
         <Link href={ROUTES.INSTALLED_SYSTEMS}>
           <button className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]">
             <ArrowLeft className="h-4 w-4" />
@@ -44,15 +46,33 @@ export function InstalledSystemDetailScreen({
           </button>
         </Link>
 
-        {installedSystem.propertyId ? (
-          <Link
-            href={`${ROUTES.PROPERTIES}/${installedSystem.propertyId}`}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
-          >
-            <Building2 className="h-4 w-4" />
-            Open property
-          </Link>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {installedSystem.propertyId ? (
+            <Link
+              href={`${ROUTES.PROPERTIES}/${installedSystem.propertyId}`}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
+            >
+              <Building2 className="h-4 w-4" />
+              Open property
+            </Link>
+          ) : null}
+
+          <PermissionGuard table="installed_systems" action="update">
+            <Link href={ROUTE_BUILDERS.INSTALLED_SYSTEM_EDIT(installedSystem.id)}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+            </Link>
+          </PermissionGuard>
+
+          <PermissionGuard table="installed_systems" action="delete">
+            <InstalledSystemDeleteButton
+              systemId={installedSystem.id}
+              systemName={installedSystem.systemName}
+            />
+          </PermissionGuard>
+        </div>
       </div>
 
       <SurfaceCard className="overflow-hidden">

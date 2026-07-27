@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -31,6 +32,7 @@ interface InstalledSystemsContextValue {
   getInstalledSystemsForJob: (jobId: string) => InstalledSystem[];
   getTechnicalProfileById: (id: string) => TechnicalProfile | undefined;
   getCatalogEntryById: (id: string) => EquipmentCatalogEntry | undefined;
+  refreshSystems: () => Promise<void>;
 }
 
 const InstalledSystemsContext =
@@ -46,26 +48,31 @@ export function InstalledSystemsProvider({
   const [technicalProfiles, setTechnicalProfiles] = useState<TechnicalProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const refreshSystems = useCallback(async () => {
     if (!role) return;
 
-    void (async () => {
-      setLoading(true);
-      try {
-        const snapshot = await requestJson<{
-          installedSystems: InstalledSystem[];
-          technicalProfiles: TechnicalProfile[];
-        }>("/api/installed-systems", { role, cache: "no-store" });
+    setLoading(true);
+    try {
+      const snapshot = await requestJson<{
+        installedSystems: InstalledSystem[];
+        technicalProfiles: TechnicalProfile[];
+      }>("/api/installed-systems", { role, cache: "no-store" });
 
-        setInstalledSystems(snapshot.installedSystems ?? []);
-        setTechnicalProfiles(snapshot.technicalProfiles ?? []);
-      } catch {
-        // Supabase not configured or network failure — start empty.
-      } finally {
-        setLoading(false);
-      }
-    })();
+      setInstalledSystems(snapshot.installedSystems ?? []);
+      setTechnicalProfiles(snapshot.technicalProfiles ?? []);
+    } catch {
+      // Supabase not configured or network failure — start empty.
+    } finally {
+      setLoading(false);
+    }
   }, [role]);
+
+  useEffect(() => {
+    if (!role) return;
+    queueMicrotask(() => {
+      void refreshSystems();
+    });
+  }, [role, refreshSystems]);
 
   const value = useMemo<InstalledSystemsContextValue>(() => {
     function getInstalledSystemById(id: string) {
@@ -97,8 +104,9 @@ export function InstalledSystemsProvider({
       getInstalledSystemsForJob,
       getTechnicalProfileById,
       getCatalogEntryById,
+      refreshSystems,
     };
-  }, [installedSystems, technicalProfiles, loading]);
+  }, [installedSystems, technicalProfiles, loading, refreshSystems]);
 
   return (
     <InstalledSystemsContext.Provider value={value}>

@@ -30,7 +30,9 @@ export type AuditResource =
   | "job_activity"
   | "portal_users"
   | "portal_memberships"
-  | "organizations";
+  | "organizations"
+  | "installed_systems"
+  | "knowledge_items";
 
 export interface AuditEvent {
   /** The role that performed the action. */
