@@ -1,5 +1,5 @@
 -- =============================================================================
--- S5.2 Query & Latency Optimisation — Critical-path composite indexes
+-- S5.2 Query & Latency Optimization — Critical-path composite indexes
 --
 -- Adds four composite indexes identified as bottlenecks in S5.2 profiling:
 --

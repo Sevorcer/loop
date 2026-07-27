@@ -2,7 +2,7 @@
 -- Verification — 20260727000001_s5_2_query_latency_indexes
 --
 -- Asserts that the four composite indexes added for the S5.2 query/latency
--- optimisation sprint exist in the database.
+-- optimization sprint exist in the database.
 -- =============================================================================
 
 DO $$ BEGIN
