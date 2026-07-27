@@ -18,17 +18,14 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     notFound();
   }
 
-  const [customer, customerProperties, jobs] = property.customerId
+  const jobs = await listJobsForProperty(id);
+
+  const [customer, customerProperties] = property.customerId
     ? await Promise.all([
         getCustomer(property.customerId),
         getCustomerProperties(property.customerId),
-        listJobsForProperty(id),
       ])
-    : await Promise.all([
-        Promise.resolve(null),
-        Promise.resolve([]),
-        listJobsForProperty(id),
-      ]);
+    : [null, []];
 
   return (
     <PropertyDetailScreen
