@@ -13,6 +13,7 @@ import {
 } from "@/repositories/customers";
 import { listPropertiesByCustomerId } from "@/repositories/properties";
 import { listJobsByCustomerId } from "@/repositories/jobs";
+import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 
 export interface CustomerInput {
   name: string;
@@ -92,7 +93,12 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput) {
   return updateCustomerRecord(id, merged);
 }
 
-export async function syncCustomerCounters(customerId: string) {
+export async function syncCustomerCounters(
+  customerId: string,
+  // contextInput is accepted for forward-compatibility; full threading to
+  // count/update repository functions is deferred to a follow-up sprint.
+  _contextInput?: SessionRepositoryContextInput,
+) {
   const [propertyCount, openJobs] = await Promise.all([
     countPropertiesForCustomer(customerId),
     countOpenJobsForCustomer(customerId),

@@ -64,21 +64,28 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
 }
 
 async function syncRelatedCounters(
-  job: Pick<Job, "customerName" | "propertyName" | "status">,
+  job: Pick<Job, "customerId" | "propertyId" | "customerName" | "propertyName" | "status">,
   contextInput?: SessionRepositoryContextInput,
 ) {
-  const [customerId, propertyId] = await Promise.all([
-    resolveCustomerIdByName(job.customerName, contextInput),
-    resolvePropertyIdByName(job.propertyName, contextInput),
+  // Use pre-resolved IDs from the Job record to avoid redundant name-to-ID
+  // lookups. Fall back to name resolution only when IDs are absent (legacy
+  // paths where the job row pre-dates ID tracking).
+  let customerId = job.customerId ?? null;
+  let propertyId = job.propertyId ?? null;
+
+  if (!customerId || !propertyId) {
+    const [resolvedCustomerId, resolvedPropertyId] = await Promise.all([
+      customerId ? Promise.resolve(customerId) : resolveCustomerIdByName(job.customerName, contextInput),
+      propertyId ? Promise.resolve(propertyId) : resolvePropertyIdByName(job.propertyName, contextInput),
+    ]);
+    customerId = resolvedCustomerId;
+    propertyId = resolvedPropertyId;
+  }
+
+  await Promise.all([
+    customerId ? syncCustomerCounters(customerId, contextInput) : Promise.resolve(),
+    propertyId ? syncPropertyCounters(propertyId, contextInput) : Promise.resolve(),
   ]);
-
-  if (customerId) {
-    await syncCustomerCounters(customerId);
-  }
-
-  if (propertyId) {
-    await syncPropertyCounters(propertyId, contextInput);
-  }
 }
 
 function createJobNumber(index: number) {
@@ -218,7 +225,19 @@ export async function updateJob(id: string, input: UpdateJobInput) {
     });
   }
 
-  await Promise.all([syncRelatedCounters(previousJob), syncRelatedCounters(updatedJob)]);
+  // Deduplicate counter syncs: only sync each unique customer/property ID once.
+  // When customer and property haven't changed, the naive two-call approach would
+  // run 2× the DB work for the same entities. Collect distinct IDs and sync once.
+  const uniqueCustomerIds = new Set<string>(
+    [previousJob.customerId, updatedJob.customerId].filter((id): id is string => Boolean(id)),
+  );
+  const uniquePropertyIds = new Set<string>(
+    [previousJob.propertyId, updatedJob.propertyId].filter((id): id is string => Boolean(id)),
+  );
+  await Promise.all([
+    ...[...uniqueCustomerIds].map((cid) => syncCustomerCounters(cid)),
+    ...[...uniquePropertyIds].map((pid) => syncPropertyCounters(pid)),
+  ]);
 
   return updatedJob;
 }
