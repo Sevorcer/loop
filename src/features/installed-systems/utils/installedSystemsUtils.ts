@@ -282,7 +282,12 @@ function buildTechnicalProfile(
 }
 
 function buildInstalledSystemFromJob(job: Job) {
-  if (job.type !== "Install" || !job.equipmentBundleId || !job.estimateId) {
+  if (
+    job.type !== "Install" ||
+    !job.equipmentBundleId ||
+    !job.estimateId ||
+    job.status === "Cancelled"
+  ) {
     return undefined;
   }
 
