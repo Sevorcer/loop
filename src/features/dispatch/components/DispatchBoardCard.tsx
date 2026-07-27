@@ -101,6 +101,10 @@ export function DispatchBoardCard({
     (c) => c.severity === "blocking"
   );
 
+  // Crew assignment is intentionally allowed for all non-completed plans,
+  // including scheduled and in-progress. Dispatchers need to be able to
+  // reassign crews in real time (equipment failures, crew emergencies, etc.)
+  // without waiting for a job to return to a "ready" state.
   const canAssign =
     plan.dispatchStatus !== "completed" &&
     !!onAssignCrew &&
