@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { PropertyDetailScreen } from "@/features/properties";
 import { getCustomer, getCustomerProperties } from "@/services/customers";
+import { listJobsForProperty } from "@/services/jobs";
 import { getProperty } from "@/services/properties";
 
 interface PropertyDetailPageProps {
@@ -17,18 +18,24 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     notFound();
   }
 
-  const [customer, customerProperties] = property.customerId
+  const [customer, customerProperties, jobs] = property.customerId
     ? await Promise.all([
         getCustomer(property.customerId),
         getCustomerProperties(property.customerId),
+        listJobsForProperty(id),
       ])
-    : [null, []];
+    : await Promise.all([
+        Promise.resolve(null),
+        Promise.resolve([]),
+        listJobsForProperty(id),
+      ]);
 
   return (
     <PropertyDetailScreen
       property={property}
       customer={customer}
       customerProperties={customerProperties}
+      jobs={jobs}
     />
   );
 }

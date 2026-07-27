@@ -10,6 +10,7 @@ import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROUTE_BUILDERS } from "@/lib/routes";
+import type { Job } from "@/features/jobs/types/job";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import type { Property } from "../types/property";
@@ -22,6 +23,7 @@ interface PropertyDetailScreenProps {
   property: Property;
   customer?: Customer | null;
   customerProperties?: CustomerPropertyItem[];
+  jobs?: Job[];
 }
 
 function formatDate(value: string) {
@@ -33,6 +35,7 @@ export function PropertyDetailScreen({
   property,
   customer = null,
   customerProperties = [],
+  jobs = [],
 }: PropertyDetailScreenProps) {
   const statusVariant =
     property.status === "Active"
@@ -202,6 +205,7 @@ export function PropertyDetailScreen({
         property={property}
         customer={customer}
         customerProperties={customerProperties}
+        jobs={jobs}
       />
     </div>
   );

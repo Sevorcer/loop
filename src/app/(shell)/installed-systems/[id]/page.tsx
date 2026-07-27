@@ -1,4 +1,7 @@
-import { InstalledSystemDetailPageClient } from "@/features/installed-systems/components/InstalledSystemDetailPageClient";
+import { notFound } from "next/navigation";
+
+import { InstalledSystemDetailScreen } from "@/features/installed-systems/components/InstalledSystemDetailScreen";
+import { getInstalledSystemById } from "@/repositories/installedSystems";
 
 export default async function InstalledSystemDetailPage({
   params,
@@ -7,5 +10,11 @@ export default async function InstalledSystemDetailPage({
 }) {
   const { id } = await params;
 
-  return <InstalledSystemDetailPageClient id={id} />;
+  const result = await getInstalledSystemById(id);
+
+  if (!result.ok || !result.data) {
+    notFound();
+  }
+
+  return <InstalledSystemDetailScreen installedSystem={result.data} />;
 }
