@@ -2,15 +2,25 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  Building2,
+  CalendarClock,
+  ClipboardList,
+  User,
+  Users,
+  Wrench,
+} from "lucide-react";
 
 import {
   AtlasTabs,
   AtlasTimeline,
   EmptyState,
+  ErrorState,
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { TimelineEventItem } from "@/lib/timeline";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { Customer } from "../types/customer";
@@ -19,7 +29,6 @@ import type {
   CustomerJobItem,
   CustomerNoteItem,
   CustomerPropertyItem,
-  CustomerTimelineItem,
 } from "../types/customerDetails";
 
 type CustomerDetailTabKey =
@@ -60,21 +69,6 @@ function buildDerivedDetails(customer: Customer) {
     },
   ];
 
-  const timeline: CustomerTimelineItem[] = [
-    {
-      id: `${customer.id}-timeline-created`,
-      title: "Customer created in LOOP",
-      date: customer.createdAt,
-      description: "Customer account was added and made available for operations.",
-    },
-    {
-      id: `${customer.id}-timeline-activity`,
-      title: "Latest recorded activity",
-      date: customer.lastActivity,
-      description: "Latest account activity recorded for historical visibility.",
-    },
-  ];
-
   const notes: CustomerNoteItem[] = [
     {
       id: `${customer.id}-note-default`,
@@ -82,7 +76,7 @@ function buildDerivedDetails(customer: Customer) {
     },
   ];
 
-  return { contacts, timeline, notes };
+  return { contacts, notes };
 }
 
 function OverviewSection({ customer }: { customer: Customer }) {
@@ -258,17 +252,43 @@ function ContactsSection({ contacts }: { contacts: CustomerContactItem[] }) {
   );
 }
 
-function TimelineSection({ timeline }: { timeline: CustomerTimelineItem[] }) {
-  const timelineItems = useMemo(
-    () =>
-      timeline.map((event) => ({
-        id: event.id,
-        title: event.title,
-        date: formatDate(event.date),
-        description: event.description,
-      })),
-    [timeline],
-  );
+function getTimelineIcon(source: TimelineEventItem["source"]) {
+  if (source === "customer") return Users;
+  if (source === "property") return Building2;
+  if (source === "job") return CalendarClock;
+  if (source === "job_activity") return ClipboardList;
+  if (source === "dispatch_event") return Wrench;
+  return User;
+}
+
+function getSourceLabel(source: TimelineEventItem["source"]) {
+  if (source === "customer") return "Customer";
+  if (source === "property") return "Property";
+  if (source === "job") return "Job";
+  if (source === "job_activity") return "Job Activity";
+  if (source === "dispatch_event") return "Dispatch";
+  return "System";
+}
+
+function TimelineSection({
+  timelineItems,
+  timelineError,
+}: {
+  timelineItems: TimelineEventItem[];
+  timelineError?: string;
+}) {
+  if (timelineError) {
+    return <ErrorState description={timelineError} />;
+  }
+
+  if (timelineItems.length === 0) {
+    return (
+      <EmptyState
+        title="No timeline history yet"
+        description="Customer events will appear here as scheduling, dispatch, and field updates happen."
+      />
+    );
+  }
 
   return (
     <Card>
@@ -277,7 +297,13 @@ function TimelineSection({ timeline }: { timeline: CustomerTimelineItem[] }) {
       </CardHeader>
 
       <CardContent>
-        <AtlasTimeline items={timelineItems} />
+        <AtlasTimeline
+          items={timelineItems.map((event) => ({
+            ...event,
+            icon: getTimelineIcon(event.source),
+            sourceLabel: getSourceLabel(event.source),
+          }))}
+        />
       </CardContent>
     </Card>
   );
@@ -308,12 +334,20 @@ interface CustomerDetailTabsProps {
   customer: Customer;
   properties: CustomerPropertyItem[];
   jobs: CustomerJobItem[];
+  timelineItems: TimelineEventItem[];
+  timelineError?: string;
 }
 
-export function CustomerDetailTabs({ customer, properties, jobs }: CustomerDetailTabsProps) {
+export function CustomerDetailTabs({
+  customer,
+  properties,
+  jobs,
+  timelineItems,
+  timelineError,
+}: CustomerDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<CustomerDetailTabKey>("overview");
 
-  const { contacts, timeline, notes } = useMemo(
+  const { contacts, notes } = useMemo(
     () => buildDerivedDetails(customer),
     [customer],
   );
@@ -330,7 +364,9 @@ export function CustomerDetailTabs({ customer, properties, jobs }: CustomerDetai
 
       {activeTab === "contacts" ? <ContactsSection contacts={contacts} /> : null}
 
-      {activeTab === "timeline" ? <TimelineSection timeline={timeline} /> : null}
+      {activeTab === "timeline" ? (
+        <TimelineSection timelineItems={timelineItems} timelineError={timelineError} />
+      ) : null}
 
       {activeTab === "notes" ? <NotesSection notes={notes} /> : null}
     </div>

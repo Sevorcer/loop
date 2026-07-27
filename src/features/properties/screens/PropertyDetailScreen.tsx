@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Job } from "@/features/jobs/types/job";
+import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
+import type { TimelineEventItem } from "@/lib/timeline";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import type { Property } from "../types/property";
@@ -24,6 +26,9 @@ interface PropertyDetailScreenProps {
   customer?: Customer | null;
   customerProperties?: CustomerPropertyItem[];
   jobs?: Job[];
+  installedSystems?: InstalledSystem[];
+  timelineItems: TimelineEventItem[];
+  timelineError?: string;
 }
 
 function formatDate(value: string) {
@@ -36,6 +41,9 @@ export function PropertyDetailScreen({
   customer = null,
   customerProperties = [],
   jobs = [],
+  installedSystems = [],
+  timelineItems,
+  timelineError,
 }: PropertyDetailScreenProps) {
   const statusVariant =
     property.status === "Active"
@@ -206,6 +214,9 @@ export function PropertyDetailScreen({
         customer={customer}
         customerProperties={customerProperties}
         jobs={jobs}
+        installedSystems={installedSystems}
+        timelineItems={timelineItems}
+        timelineError={timelineError}
       />
     </div>
   );

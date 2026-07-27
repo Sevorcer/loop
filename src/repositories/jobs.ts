@@ -320,6 +320,26 @@ export async function listActivityByJobId(jobId: string): Promise<JobActivity[]>
   return ((data ?? []) as JobActivityRow[]).map(mapActivity);
 }
 
+export async function listActivityByJobIds(jobIds: string[]): Promise<JobActivity[]> {
+  if (jobIds.length === 0) {
+    return [];
+  }
+
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("job_activity")
+    .select("id,job_id,actor_id,type,title,description,created_at")
+    .eq("org_id", orgId)
+    .in("job_id", jobIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as JobActivityRow[]).map(mapActivity);
+}
+
 export async function countJobs(
   contextInput?: SessionRepositoryContextInput,
 ): Promise<number> {
