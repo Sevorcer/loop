@@ -261,6 +261,20 @@ export async function upsertInstalledSystem(id: string | undefined, input: Insta
   });
 }
 
+export async function deleteInstalledSystem(id: string) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { error } = await supabase
+      .from("installed_systems")
+      .delete()
+      .eq("org_id", orgId)
+      .eq("id", id);
+
+    if (error) throw new Error(error.message);
+    return true;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Snapshot load
 // ---------------------------------------------------------------------------

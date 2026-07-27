@@ -201,3 +201,81 @@ export async function recordKnowledgeUsage(
 
   if (error) throw new Error(error.message);
 }
+
+// ─── Writes ───────────────────────────────────────────────────────────────────
+
+export type KnowledgeItemCreateInput = Omit<
+  KnowledgeItem,
+  "id" | "createdAt" | "updatedAt" | "version"
+>;
+
+export type KnowledgeItemUpdateInput = Partial<
+  Omit<KnowledgeItem, "id" | "createdAt" | "updatedAt">
+>;
+
+export async function insertKnowledgeItem(
+  input: KnowledgeItemCreateInput,
+): Promise<KnowledgeItem> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("knowledge_items")
+    .insert({
+      org_id: orgId,
+      title: input.title,
+      summary: input.summary,
+      body: input.body,
+      knowledge_type: input.knowledgeType,
+      status: input.status,
+      version: 1,
+      tags: input.tags,
+      owner: input.owner,
+      related_domains: input.relatedDomains,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(
+      "id,org_id,title,summary,body,knowledge_type,status,version,tags,owner,related_domains,created_at,updated_at",
+    )
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return mapItem(data as KnowledgeItemRow);
+}
+
+export async function updateKnowledgeItem(
+  id: string,
+  input: KnowledgeItemUpdateInput,
+): Promise<KnowledgeItem | null> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.summary !== undefined) patch.summary = input.summary;
+  if (input.body !== undefined) patch.body = input.body;
+  if (input.knowledgeType !== undefined) patch.knowledge_type = input.knowledgeType;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.tags !== undefined) patch.tags = input.tags;
+  if (input.owner !== undefined) patch.owner = input.owner;
+  if (input.relatedDomains !== undefined) patch.related_domains = input.relatedDomains;
+  if (input.version !== undefined) patch.version = input.version;
+
+  const { data, error } = await supabase
+    .from("knowledge_items")
+    .update(patch)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select(
+      "id,org_id,title,summary,body,knowledge_type,status,version,tags,owner,related_domains,created_at,updated_at",
+    )
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  return mapItem(data as KnowledgeItemRow);
+}

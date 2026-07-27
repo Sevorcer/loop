@@ -9,6 +9,8 @@ import {
   Clock,
   FileText,
   Link2,
+  Pencil,
+  Plus,
   Search,
   Sparkles,
   TrendingUp,
@@ -16,8 +18,11 @@ import {
   Zap,
 } from "lucide-react";
 
-import { EmptyState, ErrorState, LoadingState } from "@/components/atlas";
+import { EmptyState, ErrorState, LoadingState, PermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import { KnowledgeItemCard } from "../components/KnowledgeItemCard";
 import { useCompanyBrain } from "../state/CompanyBrainProvider";
@@ -57,6 +62,11 @@ export function CompanyBrainScreen() {
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState<KnowledgeType | "all">("all");
   const [selectedItem, setSelectedItem] = useState<KnowledgeItem | null>(null);
+
+  // Keep selectedItem in sync after provider refreshes
+  const currentSelectedItem = selectedItem
+    ? (snapshot.items.find((i) => i.id === selectedItem.id) ?? selectedItem)
+    : null;
 
   const { metrics } = snapshot;
 
@@ -98,6 +108,16 @@ export function CompanyBrainScreen() {
         title="No company knowledge is available yet"
         description="Knowledge items will appear here once published."
         icon={<Brain className="h-5 w-5" />}
+        action={
+          <PermissionGuard table="knowledge_items" action="insert">
+            <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_NEW()}>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Knowledge
+              </Button>
+            </Link>
+          </PermissionGuard>
+        }
       />
     );
   }
@@ -129,31 +149,42 @@ export function CompanyBrainScreen() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MetricCard
-              icon={CheckCircle2}
-              value={String(metrics.published)}
-              label="Published"
-              variant="success"
-            />
-            <MetricCard
-              icon={TrendingUp}
-              value={String(metrics.improved)}
-              label="Improved"
-              variant="info"
-            />
-            <MetricCard
-              icon={Clock}
-              value={String(metrics.draft + metrics.reviewed)}
-              label="In Review"
-              variant="warning"
-            />
-            <MetricCard
-              icon={BookOpen}
-              value={String(metrics.totalItems)}
-              label="Total Items"
-              variant="neutral"
-            />
+          <div className="flex flex-col items-start gap-4 sm:items-end">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MetricCard
+                icon={CheckCircle2}
+                value={String(metrics.published)}
+                label="Published"
+                variant="success"
+              />
+              <MetricCard
+                icon={TrendingUp}
+                value={String(metrics.improved)}
+                label="Improved"
+                variant="info"
+              />
+              <MetricCard
+                icon={Clock}
+                value={String(metrics.draft + metrics.reviewed)}
+                label="In Review"
+                variant="warning"
+              />
+              <MetricCard
+                icon={BookOpen}
+                value={String(metrics.totalItems)}
+                label="Total Items"
+                variant="neutral"
+              />
+            </div>
+
+            <PermissionGuard table="knowledge_items" action="insert">
+              <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_NEW()}>
+                <Button className="gap-2 border border-violet-500/20 bg-gradient-to-r from-violet-500/80 to-purple-600 text-white hover:from-violet-500 hover:to-purple-700">
+                  <Plus className="h-4 w-4" />
+                  New Knowledge
+                </Button>
+              </Link>
+            </PermissionGuard>
           </div>
         </div>
       </SurfaceCard>
@@ -266,10 +297,10 @@ export function CompanyBrainScreen() {
       </section>
 
       {/* ── Knowledge Detail Panel ── */}
-      {selectedItem && (
+      {currentSelectedItem && (
         <KnowledgeDetailPanel
-          item={selectedItem}
-          relationships={getRelationshipsForItem(selectedItem.id)}
+          item={currentSelectedItem}
+          relationships={getRelationshipsForItem(currentSelectedItem.id)}
           onClose={() => setSelectedItem(null)}
         />
       )}
@@ -602,12 +633,22 @@ function KnowledgeDetailPanel({
             </h3>
             <p className="mt-1.5 text-sm text-slate-400">{item.summary}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 rounded-lg border border-white/10 p-2 text-slate-500 transition-colors hover:border-white/20 hover:text-slate-300"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <PermissionGuard table="knowledge_items" action="update">
+              <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_EDIT(item.id)}>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              </Link>
+            </PermissionGuard>
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-white/10 p-2 text-slate-500 transition-colors hover:border-white/20 hover:text-slate-300"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tags */}
