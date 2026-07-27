@@ -5,12 +5,15 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  ExternalLink,
   UserPlus,
   Users,
   XCircle,
 } from "lucide-react";
+import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { Crew, DispatchPlan } from "../types/dispatch";
 import {
@@ -99,13 +102,13 @@ export function DispatchBoardCard({
   );
 
   const canAssign =
-    (plan.dispatchStatus === "ready_to_schedule" ||
-      plan.dispatchStatus === "awaiting_crew_availability") &&
+    plan.dispatchStatus !== "completed" &&
     !!onAssignCrew &&
     availableCrews.length > 0;
 
   const canSchedule =
-    plan.dispatchStatus === "ready_to_schedule" &&
+    (plan.dispatchStatus === "ready_to_schedule" ||
+      plan.dispatchStatus === "scheduled") &&
     !!crewName &&
     !!onSchedulePlan;
 
@@ -194,7 +197,7 @@ export function DispatchBoardCard({
           )}
 
           {canAssign && (
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <UserPlus className="h-3.5 w-3.5 text-slate-500" />
               <select
                 defaultValue=""
@@ -208,7 +211,7 @@ export function DispatchBoardCard({
                 aria-label="Assign crew"
               >
                 <option value="" disabled>
-                  Assign crew…
+                  {crewName ? "Reassign crew…" : "Assign crew…"}
                 </option>
                 {availableCrews.map((crew) => (
                   <option key={crew.id} value={crew.id}>
@@ -220,7 +223,7 @@ export function DispatchBoardCard({
           )}
 
           {canSchedule && (
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
               <input
                 type="date"
@@ -232,9 +235,20 @@ export function DispatchBoardCard({
                   }
                 }}
                 className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-blue-500/40"
-                aria-label="Schedule date"
+                aria-label={plan.dispatchStatus === "scheduled" ? "Reschedule date" : "Schedule date"}
               />
             </div>
+          )}
+
+          {plan.jobId && (
+            <Link
+              href={ROUTE_BUILDERS.JOB_DETAIL(plan.jobId)}
+              className="ml-auto flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-blue-300"
+              title="Open job detail"
+            >
+              <ExternalLink className="h-3 w-3" />
+              View job
+            </Link>
           )}
         </div>
       </div>
