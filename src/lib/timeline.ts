@@ -26,7 +26,7 @@ export function timelineTimestampToEpochMs(value: string): number {
   }
 
   const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
 }
 
 export function compareTimelineEventsDesc(
@@ -40,7 +40,9 @@ export function compareTimelineEventsDesc(
     return timestampDelta;
   }
 
-  return left.id.localeCompare(right.id);
+  if (left.id < right.id) return -1;
+  if (left.id > right.id) return 1;
+  return 0;
 }
 
 export function formatTimelineTimestamp(value: string): string {

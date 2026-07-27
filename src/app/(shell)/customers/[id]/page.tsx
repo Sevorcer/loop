@@ -26,11 +26,17 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
     properties,
     jobs,
   })
-    .then((items) => ({ items, error: undefined as string | undefined }))
-    .catch(() => ({
-      items: [],
-      error: "Timeline history is temporarily unavailable. Core customer details remain available.",
-    }));
+    .then((items) => ({ items, error: undefined }))
+    .catch((error: unknown) => {
+      console.error("[customers] failed to build customer timeline", {
+        customerId: id,
+        error,
+      });
+      return {
+        items: [],
+        error: "Timeline history is temporarily unavailable. Customer contact and property details remain available.",
+      };
+    });
 
   return (
     <CustomerDetailScreen

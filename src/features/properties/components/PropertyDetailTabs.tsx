@@ -283,7 +283,9 @@ function EquipmentSection({
 
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Installed</span>
-              <span className="font-medium">{formatDate(system.installDate)}</span>
+              <span className="font-medium">
+                {system.installDate ? formatDate(system.installDate) : "Not recorded"}
+              </span>
             </div>
 
             <div className="flex items-center justify-between gap-4">
@@ -420,21 +422,37 @@ function JobsSection({
 }
 
 function getTimelineIcon(source: TimelineEventItem["source"]) {
-  if (source === "property") return Building2;
-  if (source === "job") return CalendarClock;
-  if (source === "job_activity") return ClipboardList;
-  if (source === "dispatch_event") return HardHat;
-  if (source === "installed_system") return Cpu;
-  return Building2;
+  switch (source) {
+    case "property":
+      return Building2;
+    case "job":
+      return CalendarClock;
+    case "job_activity":
+      return ClipboardList;
+    case "dispatch_event":
+      return HardHat;
+    case "installed_system":
+      return Cpu;
+    default:
+      return Building2;
+  }
 }
 
 function getSourceLabel(source: TimelineEventItem["source"]) {
-  if (source === "property") return "Property";
-  if (source === "job") return "Job";
-  if (source === "job_activity") return "Job Activity";
-  if (source === "dispatch_event") return "Dispatch";
-  if (source === "installed_system") return "Installed System";
-  return "Timeline";
+  switch (source) {
+    case "property":
+      return "Property";
+    case "job":
+      return "Job";
+    case "job_activity":
+      return "Job Activity";
+    case "dispatch_event":
+      return "Dispatch";
+    case "installed_system":
+      return "Installed System";
+    default:
+      return "Timeline";
+  }
 }
 
 function TimelineSection({

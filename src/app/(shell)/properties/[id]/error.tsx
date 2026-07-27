@@ -4,11 +4,14 @@ import { ErrorState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
 export default function PropertyDetailError({
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  void _error;
+
   return (
     <ErrorState
       title="Property detail unavailable"

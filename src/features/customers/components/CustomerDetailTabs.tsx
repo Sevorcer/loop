@@ -253,21 +253,37 @@ function ContactsSection({ contacts }: { contacts: CustomerContactItem[] }) {
 }
 
 function getTimelineIcon(source: TimelineEventItem["source"]) {
-  if (source === "customer") return Users;
-  if (source === "property") return Building2;
-  if (source === "job") return CalendarClock;
-  if (source === "job_activity") return ClipboardList;
-  if (source === "dispatch_event") return Wrench;
-  return User;
+  switch (source) {
+    case "customer":
+      return Users;
+    case "property":
+      return Building2;
+    case "job":
+      return CalendarClock;
+    case "job_activity":
+      return ClipboardList;
+    case "dispatch_event":
+      return Wrench;
+    default:
+      return User;
+  }
 }
 
 function getSourceLabel(source: TimelineEventItem["source"]) {
-  if (source === "customer") return "Customer";
-  if (source === "property") return "Property";
-  if (source === "job") return "Job";
-  if (source === "job_activity") return "Job Activity";
-  if (source === "dispatch_event") return "Dispatch";
-  return "System";
+  switch (source) {
+    case "customer":
+      return "Customer";
+    case "property":
+      return "Property";
+    case "job":
+      return "Job";
+    case "job_activity":
+      return "Job Activity";
+    case "dispatch_event":
+      return "Dispatch";
+    default:
+      return "System";
+  }
 }
 
 function TimelineSection({

@@ -37,11 +37,17 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     jobs,
     installedSystems,
   })
-    .then((items) => ({ items, error: undefined as string | undefined }))
-    .catch(() => ({
-      items: [],
-      error: "Property timeline history is temporarily unavailable. Property details remain available.",
-    }));
+    .then((items) => ({ items, error: undefined }))
+    .catch((error: unknown) => {
+      console.error("[properties] failed to build property timeline", {
+        propertyId: id,
+        error,
+      });
+      return {
+        items: [],
+        error: "Property timeline history is temporarily unavailable. Basic property details and linked records remain available.",
+      };
+    });
 
   return (
     <PropertyDetailScreen

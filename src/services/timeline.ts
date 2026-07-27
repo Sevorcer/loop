@@ -12,13 +12,22 @@ import { listActivityByJobIds } from "@/repositories/jobs";
 import { loadDispatchSnapshot } from "@/services/dispatch";
 
 function getDispatchEventTitle(type: string) {
-  if (type === "job_scheduled") return "Dispatch scheduled job";
-  if (type === "crew_assigned") return "Crew assignment updated";
-  if (type === "schedule_changed") return "Dispatch schedule changed";
-  if (type === "crew_dispatched") return "Crew dispatched";
-  if (type === "job_rescheduled") return "Job rescheduled";
-  if (type === "crew_delayed") return "Crew delay logged";
-  return "Dispatch plan created";
+  switch (type) {
+    case "job_scheduled":
+      return "Dispatch scheduled job";
+    case "crew_assigned":
+      return "Crew assignment updated";
+    case "schedule_changed":
+      return "Dispatch schedule changed";
+    case "crew_dispatched":
+      return "Crew dispatched";
+    case "job_rescheduled":
+      return "Job rescheduled";
+    case "crew_delayed":
+      return "Crew delay logged";
+    default:
+      return "Dispatch event recorded";
+  }
 }
 
 async function buildJobEventFeed(jobIds: string[]) {
@@ -47,15 +56,17 @@ async function buildJobEventFeed(jobIds: string[]) {
 }
 
 function buildJobScheduledEvents(jobs: Array<Pick<Job, "id" | "jobNumber" | "title" | "scheduledFor">>): TimelineEventItem[] {
-  return jobs.map((job) => ({
-    id: `job-${job.id}-scheduled`,
-    title: "Job scheduled",
-    description: `${job.title} (${job.jobNumber}) is scheduled.`,
-    occurredAt: job.scheduledFor,
-    source: "job",
-    href: ROUTE_BUILDERS.JOB_DETAIL(job.id),
-    hrefLabel: "Open job detail",
-  }));
+  return jobs
+    .filter((job) => Boolean(job.scheduledFor))
+    .map((job) => ({
+      id: `job-${job.id}-scheduled`,
+      title: "Job scheduled",
+      description: `${job.title} (${job.jobNumber}) is scheduled.`,
+      occurredAt: job.scheduledFor,
+      source: "job",
+      href: ROUTE_BUILDERS.JOB_DETAIL(job.id),
+      hrefLabel: "Open job detail",
+    }));
 }
 
 export async function buildCustomerTimelineEvents({
@@ -88,7 +99,7 @@ export async function buildCustomerTimelineEvents({
       id: `property-${property.id}-linked`,
       title: "Property linked to customer",
       description: `${property.name} was added to this customer portfolio.`,
-      occurredAt: property.createdAt ?? customer.createdAt,
+      occurredAt: property.createdAt!,
       source: "property",
       href: ROUTE_BUILDERS.PROPERTY_DETAIL(property.id),
       hrefLabel: "Open property",
@@ -97,7 +108,7 @@ export async function buildCustomerTimelineEvents({
   const jobEvents = buildJobScheduledEvents(
     jobs.map((job) => ({
       id: job.id,
-      jobNumber: job.jobNumber ?? job.id,
+      jobNumber: job.jobNumber ?? "Draft job",
       title: job.title,
       scheduledFor: job.scheduledFor,
     })),
@@ -191,7 +202,7 @@ export async function buildPropertyTimelineEvents({
       source: "job_activity",
       actor: entry.actorId,
       href: ROUTE_BUILDERS.JOB_DETAIL(entry.jobId),
-      hrefLabel: job ? `Open ${job.jobNumber}` : "Open job detail",
+      hrefLabel: job ? `Open ${job.title}` : "Open job detail",
     };
   });
 

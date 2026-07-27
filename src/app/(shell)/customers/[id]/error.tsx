@@ -4,11 +4,14 @@ import { ErrorState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 
 export default function CustomerDetailError({
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  void _error;
+
   return (
     <ErrorState
       title="Customer detail unavailable"
