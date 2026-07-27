@@ -16,7 +16,7 @@ const checks = [
   },
   {
     file: "src/features/properties/components/PropertyDetailTabs.tsx",
-    test: (content) => !content.includes("/api/properties/${property.id}/jobs"),
+    test: (content) => !/\/api\/properties\/.+\/jobs/.test(content),
     warning:
       "Detected client-side /api/properties/:id/jobs fetch in PropertyDetailTabs. This likely reintroduces a jobs waterfall.",
   },
