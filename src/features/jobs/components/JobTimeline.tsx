@@ -1,8 +1,10 @@
 import {
   CalendarClock,
   ClipboardList,
-  FileText,
+  FileCheck2,
+  FileImage,
   FilePenLine,
+  FileText,
   User,
   Wrench,
 } from "lucide-react";
@@ -31,6 +33,10 @@ function getActivityIcon(type: JobActivity["type"]) {
       return <Wrench className="h-4 w-4 text-amber-300" />;
     case "note":
       return <FileText className="h-4 w-4 text-slate-300" />;
+    case "qa":
+      return <FileCheck2 className="h-4 w-4 text-emerald-300" />;
+    case "file":
+      return <FileImage className="h-4 w-4 text-blue-300" />;
     default:
       return <ClipboardList className="h-4 w-4 text-red-300" />;
   }
@@ -75,6 +81,11 @@ export function JobTimeline({ activity }: { activity: JobActivity[] }) {
                       <p className="mt-1 text-sm leading-6 text-slate-400">
                         {item.description}
                       </p>
+                      {item.actorId ? (
+                        <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                          Actor: {item.actorId}
+                        </p>
+                      ) : null}
                     </div>
 
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">

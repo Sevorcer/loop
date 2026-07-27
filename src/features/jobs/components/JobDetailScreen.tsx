@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   Briefcase,
@@ -14,14 +14,18 @@ import Link from "next/link";
 
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
+import { useInstalledSystems } from "@/features/installed-systems/state/InstalledSystemsProvider";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
+import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCompletionChecklist";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import { AssignContractorPanel } from "./AssignContractorPanel";
+import { JobCompletionChecklistCard } from "./JobCompletionChecklistCard";
+import { JobFilesPanel } from "./JobFilesPanel";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTimeline } from "./JobTimeline";
@@ -48,19 +52,27 @@ interface JobDetailScreenProps {
   job: Job;
   activity: JobActivity[];
   onUpdateStatus: (status: JobStatus) => Promise<void>;
-  onAddNote: (note: string) => Promise<void>;
+  onSaveNotes: (notes: string) => Promise<void>;
+  onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
 }
 
 export function JobDetailScreen({
   job,
   activity,
   onUpdateStatus,
-  onAddNote,
+  onSaveNotes,
+  onUpdateQaChecklist,
 }: JobDetailScreenProps) {
+  const { getInstalledSystemsForJob } = useInstalledSystems();
+  const [fileCount, setFileCount] = useState(0);
+  const [photoCount, setPhotoCount] = useState(0);
   const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
   const statusVariant = getStatusVariant(job.status);
   const priorityVariant = getPriorityVariant(job.priority);
   const statusIntent = getJobStatusIntent(job.status);
+  const qaChecklist = useMemo(() => parseLatestQaChecklist(activity), [activity]);
+  const installedSystemsEntered = getInstalledSystemsForJob(job.id).length > 0;
+  const jobNotesCompleted = job.notes.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -261,11 +273,33 @@ export function JobDetailScreen({
             />
           </PermissionGuard>
 
+          <JobFilesPanel
+            jobId={job.id}
+            onFilesChanged={(files) => {
+              setFileCount(files.length);
+              setPhotoCount(
+                files.filter((file) => file.mimeType.toLowerCase().startsWith("image/")).length,
+              );
+            }}
+          />
+
+          <JobCompletionChecklistCard
+            photosUploaded={photoCount > 0}
+            installedSystemsEntered={installedSystemsEntered}
+            jobNotesCompleted={jobNotesCompleted}
+            initialChecklist={qaChecklist}
+            onSaveChecklist={onUpdateQaChecklist}
+          />
+
           <AssignContractorPanel jobId={job.id} />
 
           <JobInstalledSystemsPanel jobId={job.id} />
 
-          <JobNoteComposer onAddNote={onAddNote} />
+          <JobNoteComposer notes={job.notes} onSaveNotes={onSaveNotes} />
+
+          <p className="text-center text-xs text-slate-500">
+            Uploaded files: {fileCount}
+          </p>
         </div>
       </div>
 

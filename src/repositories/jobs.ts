@@ -29,6 +29,7 @@ interface JobRow {
 interface JobActivityRow {
   id: string;
   job_id: string;
+  actor_id: string | null;
   type: JobActivityType;
   title: string;
   description: string;
@@ -55,6 +56,7 @@ export interface JobWriteInput {
 
 export interface JobActivityWriteInput {
   jobId: string;
+  actorId?: string;
   type: JobActivityType;
   title: string;
   description: string;
@@ -86,6 +88,7 @@ function mapActivity(row: JobActivityRow): JobActivity {
   return {
     id: row.id,
     jobId: row.job_id,
+    actorId: row.actor_id ?? undefined,
     type: row.type,
     title: row.title,
     description: row.description,
@@ -132,7 +135,7 @@ export async function listJobActivity(): Promise<JobActivity[]> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("job_activity")
-    .select("id,job_id,type,title,description,created_at")
+    .select("id,job_id,actor_id,type,title,description,created_at")
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
@@ -286,11 +289,12 @@ export async function createJobActivity(
     .insert({
       org_id: orgId,
       job_id: input.jobId,
+      actor_id: input.actorId ?? null,
       type: input.type,
       title: input.title,
       description: input.description,
     })
-    .select("id,job_id,type,title,description,created_at")
+    .select("id,job_id,actor_id,type,title,description,created_at")
     .single();
 
   if (error) {
@@ -304,7 +308,7 @@ export async function listActivityByJobId(jobId: string): Promise<JobActivity[]>
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("job_activity")
-    .select("id,job_id,type,title,description,created_at")
+    .select("id,job_id,actor_id,type,title,description,created_at")
     .eq("org_id", orgId)
     .eq("job_id", jobId)
     .order("created_at", { ascending: false });

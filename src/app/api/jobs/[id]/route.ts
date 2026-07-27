@@ -4,9 +4,19 @@ import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
-import { addJobNote, deleteJob, getJob, listJobActivity, updateJob, updateJobStatus } from "@/services/jobs";
+import {
+  addJobNote,
+  deleteJob,
+  getJob,
+  listJobActivity,
+  updateJob,
+  updateJobStatus,
+  updateRequiredQaChecklist,
+  setJobNotes,
+} from "@/services/jobs";
+import { normalizeQaChecklist } from "@/features/jobs/utils/jobCompletionChecklist";
 
-const JOB_ACTIONS = new Set(["update", "status", "note"]);
+const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa"]);
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
 const JOB_STATUSES = new Set([
@@ -100,11 +110,31 @@ export async function PATCH(
       );
     }
 
-    const job =
+    const result =
       action === "status"
-        ? await updateJobStatus(id, readJobStatus(body.status))
+        ? await updateJobStatus(id, readJobStatus(body.status), {
+            actorId: guard.ctx.userId,
+            role: guard.ctx.role,
+          })
         : action === "note"
-          ? await addJobNote(id, String(body.note ?? ""))
+          ? await addJobNote(id, String(body.note ?? ""), {
+              actorId: guard.ctx.userId,
+              role: guard.ctx.role,
+            })
+          : action === "notes"
+            ? await setJobNotes(id, String(body.notes ?? ""), {
+                actorId: guard.ctx.userId,
+                role: guard.ctx.role,
+              })
+            : action === "qa"
+              ? await updateRequiredQaChecklist(
+                  id,
+                  normalizeQaChecklist(body.checklist),
+                  {
+                    actorId: guard.ctx.userId,
+                    role: guard.ctx.role,
+                  },
+                )
           : await updateJob(id, {
               estimateId:
                 body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
@@ -124,7 +154,7 @@ export async function PATCH(
               notes: String(body.notes ?? "").trim(),
             });
 
-    if (!job) {
+    if (!result) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Job '${id}' not found.`, code: 404 },
         { status: 404 },
@@ -139,7 +169,11 @@ export async function PATCH(
       details: body,
     });
 
-    return NextResponse.json({ job });
+    if (action === "qa") {
+      return NextResponse.json({ checklist: result });
+    }
+
+    return NextResponse.json({ job: result });
   } catch (error) {
     logWriteFailure({ route: "/api/jobs/[id]", request }, error);
     return mapRouteError(error);

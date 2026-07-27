@@ -7,6 +7,7 @@ import { requestJson } from "@/lib/api/client";
 
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
+import type { RequiredQaChecklist } from "../utils/jobCompletionChecklist";
 import { JobDetailScreen } from "./JobDetailScreen";
 
 interface JobDetailClientProps {
@@ -27,11 +28,20 @@ export function JobDetailClient({ job, activity }: JobDetailClientProps) {
     router.refresh();
   }
 
-  async function handleAddNote(note: string) {
+  async function handleSaveNotes(notes: string) {
     await requestJson(`/api/jobs/${job.id}`, {
       method: "PATCH",
       role,
-      body: { action: "note", note },
+      body: { action: "notes", notes },
+    });
+    router.refresh();
+  }
+
+  async function handleUpdateQaChecklist(checklist: RequiredQaChecklist) {
+    await requestJson(`/api/jobs/${job.id}`, {
+      method: "PATCH",
+      role,
+      body: { action: "qa", checklist },
     });
     router.refresh();
   }
@@ -41,7 +51,8 @@ export function JobDetailClient({ job, activity }: JobDetailClientProps) {
       job={job}
       activity={activity}
       onUpdateStatus={handleUpdateStatus}
-      onAddNote={handleAddNote}
+      onSaveNotes={handleSaveNotes}
+      onUpdateQaChecklist={handleUpdateQaChecklist}
     />
   );
 }

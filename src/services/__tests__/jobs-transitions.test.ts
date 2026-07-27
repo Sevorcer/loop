@@ -13,6 +13,10 @@ const {
   getJobByIdMock,
   updateJobMock,
   createJobActivityMock,
+  listActivityByJobIdMock,
+  updateDispatchPlanStatusByJobIdMock,
+  listFilesMock,
+  getInstalledSystemsSnapshotMock,
   resolveCustomerIdByNameMock,
   resolvePropertyIdByNameMock,
   syncCustomerCountersMock,
@@ -21,6 +25,10 @@ const {
   getJobByIdMock: vi.fn(),
   updateJobMock: vi.fn(),
   createJobActivityMock: vi.fn(),
+  listActivityByJobIdMock: vi.fn(),
+  updateDispatchPlanStatusByJobIdMock: vi.fn(),
+  listFilesMock: vi.fn(),
+  getInstalledSystemsSnapshotMock: vi.fn(),
   resolveCustomerIdByNameMock: vi.fn(),
   resolvePropertyIdByNameMock: vi.fn(),
   syncCustomerCountersMock: vi.fn(),
@@ -34,7 +42,7 @@ vi.mock("@/repositories/jobs", () => ({
   createJobActivity: createJobActivityMock,
   listJobs: vi.fn(),
   listJobActivity: vi.fn(),
-  listActivityByJobId: vi.fn(),
+  listActivityByJobId: listActivityByJobIdMock,
   listJobsByCustomerId: vi.fn(),
   listJobsByPropertyId: vi.fn(),
   createJob: vi.fn(),
@@ -47,6 +55,10 @@ vi.mock("@/repositories/properties", () => ({
   resolveCustomerIdByName: resolveCustomerIdByNameMock,
 }));
 
+vi.mock("@/repositories/dispatch", () => ({
+  updateDispatchPlanStatusByJobId: updateDispatchPlanStatusByJobIdMock,
+}));
+
 vi.mock("@/services/customers", () => ({
   syncCustomerCounters: syncCustomerCountersMock,
 }));
@@ -54,6 +66,14 @@ vi.mock("@/services/customers", () => ({
 vi.mock("@/services/properties", () => ({
   resolvePropertyIdByName: resolvePropertyIdByNameMock,
   syncPropertyCounters: syncPropertyCountersMock,
+}));
+
+vi.mock("@/services/storage", () => ({
+  listFiles: listFilesMock,
+}));
+
+vi.mock("@/services/installedSystems", () => ({
+  getInstalledSystemsSnapshot: getInstalledSystemsSnapshotMock,
 }));
 
 import { updateJobStatus } from "@/services/jobs";
@@ -138,6 +158,27 @@ describe("updateJobStatus — valid transitions", () => {
     syncCustomerCountersMock.mockResolvedValue(undefined);
     syncPropertyCountersMock.mockResolvedValue(undefined);
     createJobActivityMock.mockResolvedValue({ id: "act-1" });
+    listActivityByJobIdMock.mockResolvedValue([]);
+    updateDispatchPlanStatusByJobIdMock.mockResolvedValue({ ok: true, data: [] });
+    listFilesMock.mockResolvedValue([{ id: "file-1", mimeType: "image/jpeg" }]);
+    getInstalledSystemsSnapshotMock.mockResolvedValue({
+      installedSystems: [{ jobId: "job-001", linkedWorkflowIds: [] }],
+      technicalProfiles: [],
+    });
+    listActivityByJobIdMock.mockResolvedValue([
+      {
+        id: "qa-1",
+        jobId: "job-001",
+        type: "qa",
+        title: "QA checklist updated",
+        description: JSON.stringify({
+          startupVerificationComplete: true,
+          safetyReviewComplete: true,
+          workAreaCleaned: true,
+        }),
+        timestamp: new Date().toISOString(),
+      },
+    ]);
   });
 
   it("Scheduled → In Progress succeeds and logs status change", async () => {
@@ -165,12 +206,12 @@ describe("updateJobStatus — valid transitions", () => {
   });
 
   it("In Progress → Completed succeeds", async () => {
-    const original = makeJob({ status: "In Progress" });
-    const updated = makeJob({ status: "Completed" });
+    const original = makeJob({ status: "In Progress", notes: "Existing completion notes." });
+    const updated = makeJob({ status: "Completed", notes: "Existing completion notes." });
     getJobByIdMock.mockResolvedValue(original);
     updateJobMock.mockResolvedValue(updated);
 
-    const result = await updateJobStatus("job-001", "Completed");
+    const result = await updateJobStatus("job-001", "Completed", { role: "tech" });
     expect(result).toEqual(updated);
     expect(updateJobMock).toHaveBeenCalledWith("job-001", { status: "Completed" });
   });

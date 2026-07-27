@@ -29,6 +29,8 @@ const {
   updateJobMock,
   updateJobStatusMock,
   addJobNoteMock,
+  setJobNotesMock,
+  updateRequiredQaChecklistMock,
   deleteJobMock,
   createSupabaseServerClientMock,
 } = vi.hoisted(() => ({
@@ -40,6 +42,8 @@ const {
   updateJobMock: vi.fn(),
   updateJobStatusMock: vi.fn(),
   addJobNoteMock: vi.fn(),
+  setJobNotesMock: vi.fn(),
+  updateRequiredQaChecklistMock: vi.fn(),
   deleteJobMock: vi.fn(),
   createSupabaseServerClientMock: vi.fn(),
 }));
@@ -72,6 +76,9 @@ vi.mock("@/services/jobs", () => ({
   updateJob: updateJobMock,
   updateJobStatus: updateJobStatusMock,
   addJobNote: addJobNoteMock,
+  setJobNotes: setJobNotesMock,
+  updateRequiredQaChecklist: updateRequiredQaChecklistMock,
+  getJobCompletionChecklist: vi.fn(),
   deleteJob: deleteJobMock,
   createJob: vi.fn(),
 }));
@@ -314,7 +321,11 @@ describe("PATCH /api/jobs/[id] action=status — contract", () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { job: { id: string } };
     expect(body.job.id).toBe("j-1");
-    expect(updateJobStatusMock).toHaveBeenCalledWith("j-1", "In Progress");
+    expect(updateJobStatusMock).toHaveBeenCalledWith(
+      "j-1",
+      "In Progress",
+      expect.objectContaining({ actorId: "user-1", role: "owner" }),
+    );
   });
 
   it("returns 404 when job not found during status transition", async () => {
@@ -339,7 +350,11 @@ describe("PATCH /api/jobs/[id] action=status — contract", () => {
       makeParams("j-1"),
     );
     expect(res.status).not.toBe(200);
-    expect(updateJobStatusMock).toHaveBeenCalledWith("j-1", "In Progress");
+    expect(updateJobStatusMock).toHaveBeenCalledWith(
+      "j-1",
+      "In Progress",
+      expect.objectContaining({ actorId: "user-1", role: "owner" }),
+    );
   });
 });
 
@@ -361,7 +376,11 @@ describe("PATCH /api/jobs/[id] action=note — contract", () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { job: { id: string } };
     expect(body.job.id).toBe("j-1");
-    expect(addJobNoteMock).toHaveBeenCalledWith("j-1", "Check breaker panel.");
+    expect(addJobNoteMock).toHaveBeenCalledWith(
+      "j-1",
+      "Check breaker panel.",
+      expect.objectContaining({ actorId: "user-1", role: "owner" }),
+    );
   });
 });
 

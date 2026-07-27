@@ -6,6 +6,7 @@ import { Funnel } from "lucide-react";
 
 import { DataTable, ErrorState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
+import { useAuth, useCurrentRole } from "@/features/auth";
 import { Button } from "@/components/ui/button";
 
 import { useJobs } from "../state/JobsProvider";
@@ -38,6 +39,8 @@ const priorityOptions: Array<JobPriority | "All"> = [
 
 export function JobTable() {
   const router = useRouter();
+  const { role } = useCurrentRole();
+  const { user } = useAuth();
   const { jobs, loading, hydrated, error, refreshJobs } = useJobs();
 
   const [searchValue, setSearchValue] = useState("");
@@ -47,8 +50,33 @@ export function JobTable() {
 
   const filteredJobs = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
+    const isTechView = role === "tech";
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const scopedTechnicianNames = new Set<string>();
+    const fullName = user?.user_metadata?.full_name;
+    if (typeof fullName === "string" && fullName.trim()) {
+      scopedTechnicianNames.add(fullName.trim().toLowerCase());
+    }
+    if (typeof user?.email === "string" && user.email.trim()) {
+      scopedTechnicianNames.add(user.email.trim().toLowerCase());
+    }
 
     return jobs.filter((job) => {
+      if (isTechView) {
+        const scheduledDate = job.scheduledFor.slice(0, 10);
+        const isTodaysJob = scheduledDate === todayIso || job.status === "In Progress";
+        if (!isTodaysJob) {
+          return false;
+        }
+
+        if (scopedTechnicianNames.size > 0) {
+          const assigned = job.assignedTo.trim().toLowerCase();
+          if (!scopedTechnicianNames.has(assigned)) {
+            return false;
+          }
+        }
+      }
+
       const matchesSearch =
         query.length === 0 ||
         job.jobNumber.toLowerCase().includes(query) ||
@@ -64,7 +92,7 @@ export function JobTable() {
 
       return matchesSearch && matchesStatus && matchesType && matchesPriority;
     });
-  }, [jobs, priorityFilter, searchValue, statusFilter, typeFilter]);
+  }, [jobs, priorityFilter, role, searchValue, statusFilter, typeFilter, user]);
 
   const hasActiveFilters =
     searchValue.length > 0 ||
@@ -103,7 +131,11 @@ export function JobTable() {
   return (
     <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.02]">
       <DataTableToolbar
-        searchPlaceholder="Search jobs, customers, properties, or technicians..."
+      searchPlaceholder={
+        role === "tech"
+          ? "Search my jobs for today..."
+          : "Search jobs, customers, properties, or technicians..."
+      }
         searchValue={searchValue}
         onSearchChange={setSearchValue}
         primaryAction={
