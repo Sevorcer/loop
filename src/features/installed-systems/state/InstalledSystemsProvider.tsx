@@ -48,8 +48,15 @@ export function InstalledSystemsProvider({
   const [technicalProfiles, setTechnicalProfiles] = useState<TechnicalProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const technicalProfilesById = useMemo(
-    () =>
-      new Map(technicalProfiles.map((technicalProfile) => [technicalProfile.id, technicalProfile])),
+    () => {
+      const map = new Map<string, TechnicalProfile>();
+
+      for (const technicalProfile of technicalProfiles) {
+        map.set(technicalProfile.id, technicalProfile);
+      }
+
+      return map;
+    },
     [technicalProfiles]
   );
 
