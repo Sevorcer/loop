@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
   Clock,
+  Filter,
   XCircle,
 } from "lucide-react";
 
@@ -82,6 +83,41 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   );
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
 
+  // ── Filters ──────────────────────────────────────────────────────
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "ready" | "scheduled" | "blocked">("all");
+  const [crewFilter, setCrewFilter] = useState<string>("all");
+
+  const crewNames = useMemo(() => {
+    const names = new Set(crews.map((c) => c.name));
+    return [...names].sort();
+  }, [crews]);
+
+  const filteredPlans = useMemo(() => {
+    return plans.filter((plan) => {
+      if (statusFilter !== "all") {
+        const groupMap: Record<string, string[]> = {
+          active: ["in_progress"],
+          ready: ["ready_to_schedule"],
+          scheduled: ["scheduled"],
+          blocked: [
+            "awaiting_materials",
+            "awaiting_technical_readiness",
+            "awaiting_customer_confirmation",
+            "awaiting_crew_availability",
+          ],
+        };
+        if (!groupMap[statusFilter]?.includes(plan.dispatchStatus)) return false;
+      }
+
+      if (crewFilter !== "all") {
+        const assigned = assignments.find((a) => a.dispatchPlanId === plan.id);
+        if (!assigned || assigned.crewName !== crewFilter) return false;
+      }
+
+      return true;
+    });
+  }, [plans, assignments, statusFilter, crewFilter]);
+
   const handleAssignCrew = useCallback(
     async (planId: string, crewId: string) => {
       if (!role) return;
@@ -155,6 +191,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         return;
       }
 
+      const isReschedule = plan.dispatchStatus === "scheduled";
       const previousPlans = plans;
       setPlans((current) =>
         updatePlan(current, planId, (item) => ({
@@ -170,7 +207,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           role,
           method: "PATCH",
           body: {
-            action: "schedule",
+            action: isReschedule ? "reschedule" : "schedule",
             dispatchPlanId: planId,
             jobId: plan.jobId || undefined,
             crewAssignmentId: crewAssignment.id,
@@ -198,10 +235,66 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
     [assignments, plans, role, router],
   );
 
-  const sections = buildDispatchQueueSections(plans);
+  const sections = buildDispatchQueueSections(filteredPlans);
+  const hasActiveFilters = statusFilter !== "all" || crewFilter !== "all";
 
   return (
     <div className="space-y-6">
+      {/* ── Filter Bar ── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+          <Filter className="h-3.5 w-3.5" />
+          Filter:
+        </span>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+          aria-label="Filter by status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">In Progress</option>
+          <option value="ready">Ready to Schedule</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="blocked">Blocked</option>
+        </select>
+
+        {crewNames.length > 0 && (
+          <select
+            value={crewFilter}
+            onChange={(e) => setCrewFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+            aria-label="Filter by crew"
+          >
+            <option value="all">All crews</option>
+            {crewNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("all");
+              setCrewFilter("all");
+            }}
+            className="text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+          >
+            Clear filters
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-slate-600">
+          {filteredPlans.length} {filteredPlans.length === 1 ? "plan" : "plans"}
+        </span>
+      </div>
+
+      {/* ── Sections ── */}
       {sections.map((section) => {
         return (
           <div key={section.key}>

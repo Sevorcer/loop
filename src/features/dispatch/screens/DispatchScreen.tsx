@@ -10,11 +10,10 @@ import {
 import { EmptyState } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
-import { CrewScheduleCard } from "../components/CrewScheduleCard";
+import { CrewDayBoard } from "../components/CrewDayBoard";
 import { DispatchJobBoard } from "../components/DispatchJobBoard";
 import type { DispatchEvent, DispatchEventType, DispatchSnapshot } from "../types/dispatch";
 import { getDispatchQueueMetrics, sortDispatchEvents } from "../utils/dispatchWorkspace";
-import { getLocalTodayISO } from "../utils/dispatchUtils";
 
 // ------------------------------------------------------------------
 // Dispatch Screen
@@ -25,10 +24,6 @@ interface DispatchScreenProps {
 }
 
 export function DispatchScreen({ snapshot }: DispatchScreenProps) {
-  const todayStr = getLocalTodayISO();
-  const todayBlocks = snapshot.scheduleBlocks.filter(
-    (b) => b.scheduledDate === todayStr
-  );
   const queueMetrics = getDispatchQueueMetrics(snapshot.metrics);
 
   const recentEvents = sortDispatchEvents(snapshot.dispatchEvents).slice(0, 8);
@@ -97,34 +92,16 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
         <DispatchJobBoard initialSnapshot={snapshot} />
       </div>
 
-      {/* ── Crew Schedule — Today ── */}
+      {/* ── Crew Day Board ── */}
       <div>
         <div className="mb-4 flex items-center gap-3">
           <Users className="h-5 w-5 text-slate-400" />
           <h3 className="text-lg font-semibold text-white">
-            Crew Schedule — Today
+            Crew Schedule
           </h3>
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs text-slate-400">
-            {todayBlocks.length} blocks
-          </span>
         </div>
 
-        {todayBlocks.length === 0 ? (
-          <SurfaceCard>
-            <div className="p-8 text-center">
-              <CalendarDays className="mx-auto h-8 w-8 text-slate-600" />
-              <p className="mt-3 text-sm text-slate-500">
-                No schedule blocks for today.
-              </p>
-            </div>
-          </SurfaceCard>
-        ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {todayBlocks.map((block) => (
-              <CrewScheduleCard key={block.id} block={block} />
-            ))}
-          </div>
-        )}
+        <CrewDayBoard initialSnapshot={snapshot} />
       </div>
 
       {/* ── Dispatch Events ── */}

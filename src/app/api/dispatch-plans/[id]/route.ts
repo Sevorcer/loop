@@ -68,7 +68,9 @@ export async function PATCH(
         return NextResponse.json({ assignment: result.data });
       }
 
+      case "reschedule":
       case "schedule": {
+        const isReschedule = action === "reschedule";
         const result = await schedulePlan(
           {
             dispatchPlanId: id,
@@ -93,8 +95,10 @@ export async function PATCH(
 
         await emitDispatchEvent(
           id,
-          "job_scheduled",
-          `Plan scheduled for ${String(body.scheduledDate ?? "")}.`,
+          isReschedule ? "job_rescheduled" : "job_scheduled",
+          isReschedule
+            ? `Plan rescheduled to ${String(body.scheduledDate ?? "")}.`
+            : `Plan scheduled for ${String(body.scheduledDate ?? "")}.`,
         );
 
         return NextResponse.json({ block: result.blockResult.data });
