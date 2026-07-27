@@ -31,15 +31,18 @@ async function runLoad(config) {
 
   const startTimeMs = Date.now();
   const deadlineMs = maxDurationSeconds > 0 ? startTimeMs + maxDurationSeconds * 1000 : null;
-  let issuedIterations = 0;
+  const workerCount = Math.min(concurrency, totalIterations);
+  const workerAssignments = Array.from({ length: workerCount }, (_, index) => {
+    const assigned = [];
+    for (let iteration = index + 1; iteration <= totalIterations; iteration += workerCount) {
+      assigned.push(iteration);
+    }
+    return assigned;
+  });
 
-  const worker = async (vu) => {
+  const worker = async (vu, assignedIterations) => {
     const runs = [];
-    while (true) {
-      if (issuedIterations >= totalIterations) break;
-      const iteration = issuedIterations + 1;
-      issuedIterations += 1;
-
+    for (const iteration of assignedIterations) {
       if (deadlineMs && Date.now() > deadlineMs) break;
       const run = await runWritePathWorkflow(config, { vu, iteration });
       runs.push(run);
@@ -47,8 +50,9 @@ async function runLoad(config) {
     return runs;
   };
 
-  const workerCount = Math.min(concurrency, totalIterations);
-  const settled = await Promise.all(Array.from({ length: workerCount }, (_, index) => worker(index + 1)));
+  const settled = await Promise.all(
+    workerAssignments.map((assignedIterations, index) => worker(index + 1, assignedIterations)),
+  );
   return {
     workflowRuns: settled.flat(),
     concurrency,
