@@ -53,7 +53,8 @@ export interface FeedbackReport {
   id: string;
   orgId: string;
   createdAt: string;
-  createdByUserId: string | null;
+  updatedAt: string;
+  createdByUserId: string;
   createdByRole: string;
   severity: FeedbackSeverity;
   intendedAction: string;
