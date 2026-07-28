@@ -3,9 +3,8 @@ import { notFound } from "next/navigation";
 import { PropertyDetailScreen } from "@/features/properties";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import { getCustomer, getCustomerProperties } from "@/services/customers";
-import { listInstalledSystemsForProperty } from "@/services/installedSystems";
-import { listJobsForProperty } from "@/services/jobs";
 import { getInstalledSystemsForProperty } from "@/services/installedSystems";
+import { listJobsForProperty } from "@/services/jobs";
 import { getProperty } from "@/services/properties";
 import { buildPropertyTimelineEvents } from "@/services/timeline";
 
@@ -22,7 +21,6 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     notFound();
   }
 
-<<<<<<< HEAD
   const [jobs, installedSystems, customerAndProperties] = await Promise.all([
     listJobsForProperty(id),
     getInstalledSystemsForProperty(id).catch(() => []),
@@ -32,11 +30,6 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
           getCustomerProperties(property.customerId),
         ])
       : Promise.resolve([null, [] as CustomerPropertyItem[]] as const),
-=======
-  const [jobs, installedSystems] = await Promise.all([
-    listJobsForProperty(id),
-    listInstalledSystemsForProperty(id),
->>>>>>> origin/main
   ]);
 
   const [customer, customerProperties] = customerAndProperties;
@@ -65,11 +58,9 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
       customerProperties={customerProperties}
       jobs={jobs}
       installedSystems={installedSystems}
-<<<<<<< HEAD
-=======
       timelineItems={timelineState.items}
       timelineError={timelineState.error}
->>>>>>> origin/main
     />
   );
 }
+

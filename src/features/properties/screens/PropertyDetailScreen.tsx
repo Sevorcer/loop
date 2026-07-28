@@ -15,7 +15,6 @@ import type { InstalledSystem } from "@/features/installed-systems/types/install
 import type { TimelineEventItem } from "@/lib/timeline";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
-import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
 import type { Property } from "../types/property";
 import { MapViewCard } from "../components/MapViewCard";
 import { PropertyDeleteButton } from "../components/PropertyDeleteButton";
@@ -28,11 +27,8 @@ interface PropertyDetailScreenProps {
   customerProperties?: CustomerPropertyItem[];
   jobs?: Job[];
   installedSystems?: InstalledSystem[];
-<<<<<<< HEAD
-=======
   timelineItems: TimelineEventItem[];
   timelineError?: string;
->>>>>>> origin/main
 }
 
 function formatDate(value: string) {
@@ -46,11 +42,8 @@ export function PropertyDetailScreen({
   customerProperties = [],
   jobs = [],
   installedSystems = [],
-<<<<<<< HEAD
-=======
   timelineItems,
   timelineError,
->>>>>>> origin/main
 }: PropertyDetailScreenProps) {
   const statusVariant =
     property.status === "Active"
@@ -222,11 +215,8 @@ export function PropertyDetailScreen({
         customerProperties={customerProperties}
         jobs={jobs}
         installedSystems={installedSystems}
-<<<<<<< HEAD
-=======
         timelineItems={timelineItems}
         timelineError={timelineError}
->>>>>>> origin/main
       />
     </div>
   );

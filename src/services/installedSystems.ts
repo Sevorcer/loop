@@ -17,18 +17,12 @@ export async function getInstalledSystemsSnapshot(): Promise<InstalledSystemsRep
   return loadInstalledSystemsSnapshot();
 }
 
-<<<<<<< HEAD
 export async function getInstalledSystemsForProperty(
   propertyId: string,
 ): Promise<InstalledSystem[]> {
   const result = await listInstalledSystemsByProperty(propertyId);
   if (!result.ok) throw new Error(result.error.message);
   return result.data;
-=======
-export async function listInstalledSystemsForProperty(propertyId: string): Promise<InstalledSystem[]> {
-  const snapshot = await loadInstalledSystemsSnapshot();
-  return snapshot.installedSystems.filter((system) => system.propertyId === propertyId);
->>>>>>> origin/main
 }
 
 export async function createInstalledSystem(
