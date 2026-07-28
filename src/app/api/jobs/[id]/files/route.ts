@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { createApiErrorResponse, mapRouteError } from "@/lib/api/routeErrors";
+import { validateJobFile } from "@/lib/fileValidation";
 import { logWriteFailure } from "@/lib/observability/writes";
 import { listJobFiles, recordJobFileUpload } from "@/services/jobs";
 import { uploadStorageFile } from "@/services/storage";
@@ -54,6 +55,12 @@ export async function POST(
       return createApiErrorResponse("VALIDATION_ERROR", "A file is required.", 400);
     }
 
+    const mimeType = file.type || "application/octet-stream";
+    const validationError = validateJobFile({ mimeType, sizeBytes: file.size });
+    if (validationError) {
+      return createApiErrorResponse("VALIDATION_ERROR", validationError, 400);
+    }
+
     const fileName = normalizeFileName(file.name);
     const storagePath = `jobs/${id}/${randomUUID()}-${fileName}`;
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -62,11 +69,12 @@ export async function POST(
       bucket: JOB_FILES_BUCKET,
       storagePath,
       fileName,
-      mimeType: file.type || "application/octet-stream",
+      mimeType,
       sizeBytes: file.size,
       file: bytes,
       jobId: id,
       visibility: "internal",
+      uploadedBy: guard.ctx.userId || null,
     });
 
     await recordJobFileUpload(id, uploaded.fileName, uploaded.mimeType, {
@@ -80,3 +88,4 @@ export async function POST(
     return mapRouteError(error);
   }
 }
+

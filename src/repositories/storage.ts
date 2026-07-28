@@ -75,6 +75,8 @@ export interface UploadInput {
   jobId?: string;
   propertyId?: string;
   visibility?: "internal" | "customer";
+  /** UUID of the authenticated user performing the upload */
+  uploadedBy?: string | null;
 }
 
 // ─── Upload ───────────────────────────────────────────────────────────────────
@@ -124,6 +126,7 @@ export async function uploadFile(
       file_name: input.fileName,
       mime_type: input.mimeType,
       size_bytes: input.sizeBytes,
+      uploaded_by: input.uploadedBy ?? null,
       job_id: input.jobId ?? null,
       property_id: input.propertyId ?? null,
       visibility: input.visibility ?? "internal",
