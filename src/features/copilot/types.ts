@@ -52,7 +52,7 @@ export interface CopilotSearchItem {
   domain: CopilotDomain;
   sourceLabel: string;
   href: string;
-  metadata: CopilotSearchMetadata;
+  metadata?: CopilotSearchMetadata;
 }
 
 export interface CopilotSearchGroup {

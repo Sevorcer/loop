@@ -191,13 +191,6 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
     return () => window.clearTimeout(timer);
   }, [open, pathname, query]);
 
-  useEffect(() => {
-    if (!query.trim()) {
-      setActiveFilter("all");
-    }
-    setActiveResultIndex(0);
-  }, [groups, query]);
-
   const hasQuery = query.trim().length > 0;
   const filteredGroups = groups
     .map((group) => {
@@ -278,8 +271,20 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
               <input
                 ref={inputRef}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  const nextQuery = event.target.value;
+                  setQuery(nextQuery);
+                  setActiveResultIndex(0);
+                  if (!nextQuery.trim()) {
+                    setActiveFilter("all");
+                  }
+                }}
                 onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    onOpenChange(false);
+                    return;
+                  }
+
                   if (!filteredItems.length) {
                     return;
                   }
@@ -352,7 +357,10 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
                               ? "border-white/20 bg-white/15 text-white"
                               : "border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.08]",
                           ].join(" ")}
-                          onClick={() => setActiveFilter(filter.id)}
+                          onClick={() => {
+                            setActiveFilter(filter.id);
+                            setActiveResultIndex(0);
+                          }}
                         >
                           {filter.label} ({count})
                         </button>
@@ -384,24 +392,23 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
                                   ? "border-white/25 bg-white/[0.1]"
                                   : "border-white/10 bg-white/[0.02] hover:bg-white/[0.06]",
                               ].join(" ")}
-                              onMouseEnter={() => setActiveResultIndex(itemIndex)}
                               onClick={() => onSelect(item)}
                             >
                               <span className="space-y-1">
                                 <span className="block text-sm font-medium text-white">{item.title}</span>
                                 <span className="block text-xs text-slate-400">{item.subtitle ?? item.sourceLabel}</span>
                                 <span className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
-                                  {item.metadata.status ? (
+                                  {item.metadata?.status ? (
                                     <span className="rounded-full border border-white/10 px-2 py-0.5">
-                                      {item.metadata.status}
+                                      {item.metadata?.status}
                                     </span>
                                   ) : null}
-                                  {item.metadata.timestamp ? (
+                                  {item.metadata?.timestamp ? (
                                     <span className="rounded-full border border-white/10 px-2 py-0.5">
-                                      {item.metadata.timestamp}
+                                      {item.metadata?.timestamp}
                                     </span>
                                   ) : null}
-                                  {item.metadata.badges.slice(0, 2).map((badge) => (
+                                  {(item.metadata?.badges ?? []).slice(0, 2).map((badge) => (
                                     <span key={`${item.id}-${badge}`} className="rounded-full border border-white/10 px-2 py-0.5">
                                       {badge}
                                     </span>
