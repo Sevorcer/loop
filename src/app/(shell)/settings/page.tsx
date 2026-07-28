@@ -1,5 +1,6 @@
-import { SettingsScreen } from '@/features/settings'
+import { redirect } from "next/navigation";
+import { ROUTES } from "@/lib/routes";
 
 export default function SettingsPage() {
-  return <SettingsScreen />
+  redirect(ROUTES.SETTINGS_USERS);
 }

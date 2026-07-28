@@ -17,6 +17,9 @@ export const ROUTES = {
   COMPANY_BRAIN: "/company-brain",
   REPORTING: "/reporting",
   SETTINGS: "/settings",
+  SETTINGS_USERS: "/settings/users",
+  SETTINGS_APPEARANCE: "/settings/appearance",
+  SETTINGS_ROLES: "/settings/roles",
   OPS_FEEDBACK: "/ops/feedback",
 } as const;
 

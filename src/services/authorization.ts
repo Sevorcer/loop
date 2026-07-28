@@ -64,7 +64,10 @@ export type CoreTable =
   // Read-only in the app layer; CI writes via service_role (bypasses RLS).
   | "db_health_check_runs"
   // Sprint 7 Mini-Epic — In-app feedback capture
-  | "feedback_reports";
+  | "feedback_reports"
+  // Sprint 7 Settings Enhancements — user management
+  // owner/manager may manage org users; owner alone may delete.
+  | "user_profiles";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -226,6 +229,15 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
   feedback_reports: {
     select: new Set<AppRole>(["owner", "manager"]),
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // ── Sprint 7 Settings Enhancements — user management ─────────────────────
+  // owner/manager may view and manage org users.
+  // Only `owner` may remove a user profile from the org.
+  user_profiles: {
+    select: new Set<AppRole>(["owner", "manager"]),
+    insert: new Set<AppRole>(["owner", "manager"]),
     update: new Set<AppRole>(["owner", "manager"]),
     delete: new Set<AppRole>(["owner"]),
   },
