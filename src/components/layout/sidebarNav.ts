@@ -17,6 +17,7 @@ import {
   Globe,
   MonitorCog,
   MonitorDot,
+  Inbox,
 } from "lucide-react";
 
 import type { NavGroup } from "@/features/auth";
@@ -36,6 +37,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
       { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
       { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
       { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
+      { name: "Feedback Inbox", href: ROUTES.OPS_FEEDBACK, icon: Inbox },
     ],
   },
   {
