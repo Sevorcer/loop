@@ -167,6 +167,10 @@ export async function updateOrgUser(
  * Activate or deactivate a user account.
  * Uses Supabase's ban_duration field — deactivated users are banned until 2099.
  */
+
+/** Duration string used to effectively permanently ban a user. ~100 years. */
+const PERMANENT_BAN_DURATION = "876000h" as const;
+
 export async function setOrgUserStatus(
   userId: string,
   status: "active" | "inactive"
@@ -175,7 +179,7 @@ export async function setOrgUserStatus(
 
   if (status === "inactive") {
     await admin.auth.admin.updateUserById(userId, {
-      ban_duration: "876000h", // ~100 years
+      ban_duration: PERMANENT_BAN_DURATION,
     });
   } else {
     await admin.auth.admin.updateUserById(userId, {

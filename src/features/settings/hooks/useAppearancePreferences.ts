@@ -28,6 +28,8 @@ const ACCENT_HEX: Record<AccentColor, string> = {
   cyan: "#06b6d4",
 };
 
+const CSS_VAR_PRIMARY = "--primary" as const;
+
 function loadPreferences(): AppearancePreferences {
   if (typeof window === "undefined") return DEFAULT_APPEARANCE;
 
@@ -47,7 +49,7 @@ function applyPreferences(prefs: AppearancePreferences) {
   const root = document.documentElement;
 
   // Accent color
-  root.style.setProperty("--primary", ACCENT_HEX[prefs.accentColor]);
+  root.style.setProperty(CSS_VAR_PRIMARY, ACCENT_HEX[prefs.accentColor]);
 
   // Color mode
   root.setAttribute("data-color-mode", prefs.colorMode);

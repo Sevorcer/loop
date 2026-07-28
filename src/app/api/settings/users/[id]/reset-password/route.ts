@@ -33,18 +33,15 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     // Verify the target user belongs to the same org as the caller
+    // using a single query that fetches both profiles at once.
     const supabase = await createSupabaseServerClient();
-    const { data: callerProfile } = await supabase
+    const { data: profiles } = await supabase
       .from("user_profiles")
-      .select("org_id")
-      .eq("id", guard.ctx.userId)
-      .single();
+      .select("id, org_id")
+      .in("id", [guard.ctx.userId, id]);
 
-    const { data: targetProfile } = await supabase
-      .from("user_profiles")
-      .select("org_id")
-      .eq("id", id)
-      .single();
+    const callerProfile = profiles?.find((p) => p.id === guard.ctx.userId);
+    const targetProfile = profiles?.find((p) => p.id === id);
 
     if (!callerProfile || !targetProfile) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 403 });

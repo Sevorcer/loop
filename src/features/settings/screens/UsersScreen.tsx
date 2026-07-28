@@ -126,6 +126,8 @@ function getUserInitials(user: OrgUser): string {
     .toUpperCase() || "?";
 }
 
+const FEEDBACK_DISPLAY_DURATION_MS = 4000;
+
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export function UsersScreen() {
@@ -168,7 +170,7 @@ export function UsersScreen() {
           `${user.fullName ?? user.email} has been ${next === "active" ? "activated" : "deactivated"}.`
         );
         await fetchUsers();
-        setTimeout(() => setActionFeedback(null), 4000);
+        setTimeout(() => setActionFeedback(null), FEEDBACK_DISPLAY_DURATION_MS);
       }
     } catch {
       // Silently ignore — user stays unchanged
@@ -182,7 +184,7 @@ export function UsersScreen() {
       });
       if (res.ok) {
         setActionFeedback(`Password reset email sent to ${user.email}.`);
-        setTimeout(() => setActionFeedback(null), 4000);
+        setTimeout(() => setActionFeedback(null), FEEDBACK_DISPLAY_DURATION_MS);
       }
     } catch {
       // Silently ignore

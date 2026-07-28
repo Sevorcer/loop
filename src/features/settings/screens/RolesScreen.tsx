@@ -161,7 +161,7 @@ export function RolesScreen() {
               {rows.map(({ table, tableLabel, permissions }) => (
                 <tr key={table} className="border-b border-slate-800/50 last:border-0">
                   <td className="py-2.5 text-[13px] font-medium text-slate-300">
-                    {TABLE_LABELS[table] ?? tableLabel}
+                    {tableLabel}
                   </td>
                   {ALL_ACTIONS.map((action) => (
                     <td key={action} className="py-2.5 text-center">
