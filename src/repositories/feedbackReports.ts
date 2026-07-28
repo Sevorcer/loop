@@ -23,7 +23,8 @@ interface FeedbackReportRow {
   id: string;
   org_id: string;
   created_at: string;
-  created_by_user_id: string | null;
+  updated_at: string;
+  created_by_user_id: string;
   created_by_role: string;
   severity: FeedbackSeverity;
   intended_action: string;
@@ -42,6 +43,7 @@ function mapRow(row: FeedbackReportRow): FeedbackReport {
     id: row.id,
     orgId: row.org_id,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
     createdByUserId: row.created_by_user_id,
     createdByRole: row.created_by_role,
     severity: row.severity,
