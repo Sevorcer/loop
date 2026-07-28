@@ -143,7 +143,7 @@ export async function createFeedbackReport(
     .from("feedback_reports")
     .insert({
       org_id: orgId,
-      created_by_user_id: ctx.userId || null,
+      created_by_user_id: ctx.userId ?? null,
       created_by_role: ctx.role,
       severity: input.severity,
       intended_action: input.intendedAction.trim(),

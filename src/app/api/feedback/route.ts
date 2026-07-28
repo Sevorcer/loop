@@ -26,7 +26,6 @@ const FEEDBACK_SCREENSHOTS_BUCKET = "feedback-screenshots";
 const MAX_SCREENSHOT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_SCREENSHOT_TYPES = new Set([
   "image/jpeg",
-  "image/jpg",
   "image/png",
   "image/webp",
 ]);
@@ -92,7 +91,7 @@ export async function POST(request: Request) {
         const mimeType = screenshot.type.toLowerCase() || "image/jpeg";
         const normalizedType = mimeType === "image/jpg" ? "image/jpeg" : mimeType;
 
-        if (!ALLOWED_SCREENSHOT_TYPES.has(normalizedType) && !ALLOWED_SCREENSHOT_TYPES.has(mimeType)) {
+        if (!ALLOWED_SCREENSHOT_TYPES.has(normalizedType)) {
           return createApiErrorResponse(
             "VALIDATION_ERROR",
             "Screenshot must be a JPEG, PNG, or WebP image.",
