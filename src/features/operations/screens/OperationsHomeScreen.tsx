@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Radio, Send, LayoutDashboard } from "lucide-react";
+import { CalendarDays, Radio, Send, LayoutDashboard, MonitorDot } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas";
 import { ROUTES } from "@/lib/routes";
@@ -11,6 +11,7 @@ import { OperationsNavBar } from "../components/OperationsNavBar";
  * Keyed by href to avoid coupling to display names.
  */
 const PHASE_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  [ROUTES.COMMAND_CENTER]: MonitorDot,
   [ROUTES.DAILY_PLANS]: CalendarDays,
   [ROUTES.LIVE_OPERATIONS]: Radio,
   [ROUTES.DISPATCH]: Send,
@@ -55,6 +56,12 @@ function OperationalPhaseCard({
 const OPERATIONAL_PHASES: Array<
   Omit<OperationalPhaseCardProps, "accentClass"> & { accentClass: string }
 > = [
+  {
+    name: "Command Center",
+    description: "Always-on manager view for risk, crew load, and operational priorities.",
+    href: ROUTES.COMMAND_CENTER,
+    accentClass: "bg-red-500/10 text-red-300 ring-red-500/20",
+  },
   {
     name: "Morning Operations",
     description: "Assign crews, confirm readiness, and prepare the field before the day begins.",
