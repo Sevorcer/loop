@@ -163,14 +163,17 @@ DO $$ BEGIN
   ), 'feedback_reports.context_property_id must exist and be nullable';
 END; $$;
 
--- updated_at trigger
+-- updated_at trigger exists and is correctly configured
 DO $$ BEGIN
   ASSERT EXISTS (
     SELECT 1 FROM information_schema.triggers
     WHERE event_object_schema = 'public'
       AND event_object_table  = 'feedback_reports'
       AND trigger_name        = 'trg_feedback_reports_updated_at'
-  ), 'updated_at trigger must exist on feedback_reports';
+      AND action_timing       = 'BEFORE'
+      AND event_manipulation  = 'UPDATE'
+      AND action_orientation  = 'ROW'
+  ), 'updated_at trigger must exist on feedback_reports as BEFORE UPDATE FOR EACH ROW';
 END; $$;
 
 -- RLS enabled
