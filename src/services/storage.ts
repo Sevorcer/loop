@@ -51,6 +51,8 @@ export interface StorageUploadInput {
   propertyId?: string;
   /** Defaults to 'internal'; set to 'customer' for portal-visible files */
   visibility?: "internal" | "customer";
+  /** UUID of the authenticated user performing the upload */
+  uploadedBy?: string | null;
 }
 
 /**
@@ -82,6 +84,7 @@ export async function uploadStorageFile(
     jobId: input.jobId,
     propertyId: input.propertyId,
     visibility: input.visibility ?? "internal",
+    uploadedBy: input.uploadedBy ?? null,
   };
 
   return uploadFileRecord(uploadInput, 3);
