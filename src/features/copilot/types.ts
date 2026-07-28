@@ -19,6 +19,12 @@ export type CopilotDomain =
   | "customers"
   | "navigation";
 
+export interface CopilotSearchMetadata {
+  badges: string[];
+  status?: string;
+  timestamp?: string;
+}
+
 export interface CopilotSearchContextInput {
   pathname?: string;
   projectId?: string;
@@ -46,6 +52,7 @@ export interface CopilotSearchItem {
   domain: CopilotDomain;
   sourceLabel: string;
   href: string;
+  metadata?: CopilotSearchMetadata;
 }
 
 export interface CopilotSearchGroup {
@@ -75,6 +82,7 @@ export interface SearchRecord {
   domain: CopilotDomain;
   sourceLabel: string;
   href: string;
+  metadata?: CopilotSearchMetadata;
   tokens: string[];
   recordType:
     | "entity"

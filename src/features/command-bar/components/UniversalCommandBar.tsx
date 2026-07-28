@@ -16,6 +16,17 @@ const SEARCH_DEBOUNCE_MS = 180;
 
 type RecentEntry = Pick<CopilotSearchItem, "id" | "title" | "subtitle" | "domain" | "sourceLabel" | "href">;
 
+type SearchFilterId = "all" | "customers" | "properties" | "jobs" | "installed_systems" | "company_brain";
+
+const SEARCH_FILTERS: Array<{ id: SearchFilterId; label: string; domain?: CopilotSearchItem["domain"] }> = [
+  { id: "all", label: "All" },
+  { id: "customers", label: "Customers", domain: "customers" },
+  { id: "properties", label: "Properties", domain: "properties" },
+  { id: "jobs", label: "Jobs", domain: "jobs" },
+  { id: "installed_systems", label: "Installed Systems", domain: "installed_systems" },
+  { id: "company_brain", label: "Knowledge", domain: "company_brain" },
+];
+
 const SUGGESTED: RecentEntry[] = [
   {
     id: "suggested-dispatch",
@@ -86,6 +97,8 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
   const [groups, setGroups] = useState<CopilotSearchResponse["groups"]>([]);
   const [mode, setMode] = useState<CopilotSearchResponse["mode"]>("structured");
   const [expandedResponse, setExpandedResponse] = useState<string | undefined>();
+  const [activeFilter, setActiveFilter] = useState<SearchFilterId>("all");
+  const [activeResultIndex, setActiveResultIndex] = useState(0);
   const [recent, setRecent] = useState<RecentEntry[]>(() => {
     if (typeof window === "undefined") {
       return [];
@@ -179,7 +192,22 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
   }, [open, pathname, query]);
 
   const hasQuery = query.trim().length > 0;
-  const firstItem = groups[0]?.items[0];
+  const filteredGroups = groups
+    .map((group) => {
+      if (activeFilter === "all") {
+        return group;
+      }
+
+      const selected = SEARCH_FILTERS.find((filter) => filter.id === activeFilter);
+      if (!selected?.domain || selected.domain !== group.domain) {
+        return { ...group, items: [] };
+      }
+
+      return group;
+    })
+    .filter((group) => group.items.length > 0);
+  const filteredItems = filteredGroups.flatMap((group) => group.items);
+  const firstItem = filteredItems[0];
 
   const onSelect = (item: RecentEntry | CopilotSearchItem) => {
     const normalized = item;
@@ -243,11 +271,42 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
               <input
                 ref={inputRef}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  const nextQuery = event.target.value;
+                  setQuery(nextQuery);
+                  setActiveResultIndex(0);
+                  if (!nextQuery.trim()) {
+                    setActiveFilter("all");
+                  }
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && firstItem) {
+                  if (event.key === "Escape") {
+                    onOpenChange(false);
+                    return;
+                  }
+
+                  if (!filteredItems.length) {
+                    return;
+                  }
+
+                  if (event.key === "ArrowDown") {
                     event.preventDefault();
-                    onSelect(firstItem);
+                    setActiveResultIndex((prev) => Math.min(prev + 1, filteredItems.length - 1));
+                    return;
+                  }
+
+                  if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setActiveResultIndex((prev) => Math.max(prev - 1, 0));
+                    return;
+                  }
+
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    const selectedItem = filteredItems[activeResultIndex] ?? firstItem;
+                    if (selectedItem) {
+                      onSelect(selectedItem);
+                    }
                   }
                 }}
                 placeholder="Ask Copilot… What are you looking for today?"
@@ -282,32 +341,86 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
                 </div>
               ) : (
                 <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {SEARCH_FILTERS.map((filter) => {
+                      const count = filter.domain
+                        ? groups.find((group) => group.domain === filter.domain)?.items.length ?? 0
+                        : groups.reduce((total, group) => total + group.items.length, 0);
+                      const selected = activeFilter === filter.id;
+                      return (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          className={[
+                            "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+                            selected
+                              ? "border-white/20 bg-white/15 text-white"
+                              : "border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.08]",
+                          ].join(" ")}
+                          onClick={() => {
+                            setActiveFilter(filter.id);
+                            setActiveResultIndex(0);
+                          }}
+                        >
+                          {filter.label} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   {loading ? <p className="text-sm text-slate-500">Searching…</p> : null}
 
-                  {!loading && groups.length === 0 ? (
+                  {!loading && filteredGroups.length === 0 ? (
                     <p className="text-sm text-slate-500">No results found.</p>
                   ) : null}
 
-                  {groups.map((group) => (
+                  {filteredGroups.map((group) => (
                     <section key={group.domain} className="space-y-2">
                       <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{group.label}</h2>
                       <div className="space-y-2">
-                        {group.items.map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="flex w-full items-start justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-left transition-colors hover:bg-white/[0.06]"
-                            onClick={() => onSelect(item)}
-                          >
-                            <span className="space-y-1">
-                              <span className="block text-sm font-medium text-white">{item.title}</span>
-                              <span className="block text-xs text-slate-400">{item.subtitle ?? item.sourceLabel}</span>
-                            </span>
-                            <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-400">
-                              {item.sourceLabel}
-                            </span>
-                          </button>
-                        ))}
+                        {group.items.map((item) => {
+                          const itemIndex = filteredItems.findIndex((entry) => entry.id === item.id);
+                          const isActive = itemIndex === activeResultIndex;
+
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              className={[
+                                "flex w-full items-start justify-between gap-4 rounded-xl border px-3 py-2 text-left transition-colors",
+                                isActive
+                                  ? "border-white/25 bg-white/[0.1]"
+                                  : "border-white/10 bg-white/[0.02] hover:bg-white/[0.06]",
+                              ].join(" ")}
+                              onClick={() => onSelect(item)}
+                            >
+                              <span className="space-y-1">
+                                <span className="block text-sm font-medium text-white">{item.title}</span>
+                                <span className="block text-xs text-slate-400">{item.subtitle ?? item.sourceLabel}</span>
+                                <span className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
+                                  {item.metadata?.status ? (
+                                    <span className="rounded-full border border-white/10 px-2 py-0.5">
+                                      {item.metadata?.status}
+                                    </span>
+                                  ) : null}
+                                  {item.metadata?.timestamp ? (
+                                    <span className="rounded-full border border-white/10 px-2 py-0.5">
+                                      {item.metadata?.timestamp}
+                                    </span>
+                                  ) : null}
+                                  {(item.metadata?.badges ?? []).slice(0, 2).map((badge) => (
+                                    <span key={`${item.id}-${badge}`} className="rounded-full border border-white/10 px-2 py-0.5">
+                                      {badge}
+                                    </span>
+                                  ))}
+                                </span>
+                              </span>
+                              <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                                {item.sourceLabel}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </section>
                   ))}
