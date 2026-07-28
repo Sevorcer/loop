@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 
 import { UniversalCommandBar } from "@/features/command-bar";
+import { FeedbackButton } from "@/features/feedback";
 
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -78,6 +79,8 @@ export default function AppShell({ children }: AppShellProps) {
         open={isCommandBarOpen}
         onOpenChange={setIsCommandBarOpen}
       />
+
+      <FeedbackButton />
     </div>
   );
 }
