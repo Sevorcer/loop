@@ -10,6 +10,7 @@ import {
 } from "@/features/command-center/utils/commandCenterUtils";
 
 import { getRepositoryContext } from "./supabaseContext";
+import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -137,8 +138,6 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
   const { supabase, orgId } = await getRepositoryContext();
   const today = todayISO();
 
-  const OPEN_STATUSES = "(Completed,Cancelled)";
-
   const [
     scheduledTodayRes,
     inProgressRes,
@@ -181,7 +180,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
       .eq("type", "Inspection")
-      .not("status", "in", `(${OPEN_STATUSES})`)
+      .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
       .order("scheduled_for", { ascending: true }),
 
     // 5. Callbacks — ILIKE pattern match on title or notes
@@ -190,7 +189,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .from("jobs")
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
-      .not("status", "in", `(${OPEN_STATUSES})`)
+      .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
       .or("title.ilike.%callback%,notes.ilike.%callback%")
       .order("scheduled_for", { ascending: true }),
 
@@ -199,7 +198,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .from("jobs")
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
-      .not("status", "in", `(${OPEN_STATUSES})`)
+      .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
       .or("assigned_to.is.null,assigned_to.eq.")
       .order("scheduled_for", { ascending: true }),
 
@@ -209,7 +208,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
       .lt("scheduled_for", today)
-      .not("status", "in", `(${OPEN_STATUSES})`)
+      .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
       .order("scheduled_for", { ascending: true }),
 
     // 8. Completed today

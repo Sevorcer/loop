@@ -8,7 +8,7 @@
 //  2. CommandCenterScreen remains a thin composition layer.
 // ============================================================
 
-import type { Job, JobStatus } from "@/features/jobs/types/job";
+import type { Job } from "@/features/jobs/types/job";
 import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
 import type {
   CommandCenterKPIs,
