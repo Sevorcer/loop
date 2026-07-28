@@ -60,6 +60,8 @@ function statusBadgeVariant(status: FeedbackStatus) {
   }
 }
 
+const SUCCESS_MESSAGE_DURATION_MS = 3000;
+
 function formatDate(iso: string) {
   try {
     return new Intl.DateTimeFormat("en-US", {
@@ -247,7 +249,7 @@ export function FeedbackTriageScreen() {
     if (successTimerRef.current !== null) {
       clearTimeout(successTimerRef.current);
     }
-    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+    successTimerRef.current = setTimeout(() => setSuccessMessage(null), SUCCESS_MESSAGE_DURATION_MS);
   }
 
   return (
