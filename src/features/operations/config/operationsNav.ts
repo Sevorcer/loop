@@ -23,6 +23,12 @@ export const OPERATIONS_NAV_ITEMS: readonly OperationsNavItem[] = [
     description: "Operational overview — what kind of day is this?",
   },
   {
+    name: "Command Center",
+    shortName: "Command",
+    href: ROUTES.COMMAND_CENTER,
+    description: "Always-on install manager view — risk, crew load, and priorities.",
+  },
+  {
     name: "Morning Operations",
     shortName: "Morning",
     href: ROUTES.DAILY_PLANS,
