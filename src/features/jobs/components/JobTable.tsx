@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Funnel } from "lucide-react";
 
 import { DataTable, ErrorState } from "@/components/atlas";
@@ -38,60 +38,61 @@ const priorityOptions: Array<JobPriority | "All"> = [
   "High",
 ];
 
-export function JobTable() {
+type SearchParamValue = string | string[] | undefined;
+
+interface JobTableProps {
+  initialSearchParams?: Record<string, SearchParamValue>;
+}
+
+function readSearchParam(
+  params: Record<string, SearchParamValue>,
+  key: string,
+): string | null {
+  const value = params[key];
+  if (Array.isArray(value)) return value[0] ?? null;
+  return typeof value === "string" ? value : null;
+}
+
+export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { role } = useCurrentRole();
   const { user } = useAuth();
   const { jobs, loading, hydrated, error, refreshJobs } = useJobs();
 
-  const [searchValue, setSearchValue] = useState(() => searchParams.get("q") ?? "");
+  const [searchValue, setSearchValue] = useState(
+    () => readSearchParam(initialSearchParams, "q") ?? "",
+  );
   const [statusFilter, setStatusFilter] = useState<JobStatus | "All">(() => {
-    const normalized = normalizeJobStatus(searchParams.get("status"));
+    const normalized = normalizeJobStatus(
+      readSearchParam(initialSearchParams, "status"),
+    );
     return normalized ?? "All";
   });
   const [typeFilter, setTypeFilter] = useState<JobType | "All">(() => {
-    const value = searchParams.get("type");
+    const value = readSearchParam(initialSearchParams, "type");
     return value && typeOptions.includes(value as JobType) ? (value as JobType) : "All";
   });
   const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">(() => {
-    const value = searchParams.get("priority");
+    const value = readSearchParam(initialSearchParams, "priority");
     return value && priorityOptions.includes(value as JobPriority)
       ? (value as JobPriority)
       : "All";
   });
-  const [openOnly, setOpenOnly] = useState(() => searchParams.get("open") === "true");
-  const [unassignedOnly, setUnassignedOnly] = useState(
-    () => searchParams.get("unassigned") === "true",
+  const [openOnly, setOpenOnly] = useState(
+    () => readSearchParam(initialSearchParams, "open") === "true",
   );
-  const [lateOnly, setLateOnly] = useState(() => searchParams.get("late") === "true");
-  const [problemOnly, setProblemOnly] = useState(() => searchParams.get("problem") === "true");
-  const [todayOnly, setTodayOnly] = useState(() => searchParams.get("when") === "today");
-
-  useEffect(() => {
-    setSearchValue(searchParams.get("q") ?? "");
-    setStatusFilter(normalizeJobStatus(searchParams.get("status")) ?? "All");
-
-    const typeValue = searchParams.get("type");
-    setTypeFilter(
-      typeValue && typeOptions.includes(typeValue as JobType)
-        ? (typeValue as JobType)
-        : "All",
-    );
-
-    const priorityValue = searchParams.get("priority");
-    setPriorityFilter(
-      priorityValue && priorityOptions.includes(priorityValue as JobPriority)
-        ? (priorityValue as JobPriority)
-        : "All",
-    );
-
-    setOpenOnly(searchParams.get("open") === "true");
-    setUnassignedOnly(searchParams.get("unassigned") === "true");
-    setLateOnly(searchParams.get("late") === "true");
-    setProblemOnly(searchParams.get("problem") === "true");
-    setTodayOnly(searchParams.get("when") === "today");
-  }, [searchParams]);
+  const [unassignedOnly, setUnassignedOnly] = useState(
+    () => readSearchParam(initialSearchParams, "unassigned") === "true",
+  );
+  const [lateOnly, setLateOnly] = useState(
+    () => readSearchParam(initialSearchParams, "late") === "true",
+  );
+  const [problemOnly, setProblemOnly] = useState(
+    () => readSearchParam(initialSearchParams, "problem") === "true",
+  );
+  const [todayOnly, setTodayOnly] = useState(
+    () => readSearchParam(initialSearchParams, "when") === "today",
+  );
 
   const filteredJobs = useMemo(() => {
     const query = searchValue.trim().toLowerCase();

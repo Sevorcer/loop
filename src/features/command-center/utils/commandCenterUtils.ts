@@ -248,7 +248,7 @@ export function aggregateCrewWorkload(
     (a, b) =>
       b.atRiskCount - a.atRiskCount ||
       b.assignedCount - a.assignedCount ||
-      a.technicianName.localeCompare(b.technicianName),
+      a.technicianName.localeCompare(b.technicianName, "en"),
   );
 }
 
@@ -298,7 +298,7 @@ export function buildProblemJobs(
       const scheduledCmp = a.job.scheduledFor.localeCompare(b.job.scheduledFor);
       if (scheduledCmp !== 0) return scheduledCmp;
 
-      const numberCmp = a.job.jobNumber.localeCompare(b.job.jobNumber);
+      const numberCmp = a.job.jobNumber.localeCompare(b.job.jobNumber, "en");
       if (numberCmp !== 0) return numberCmp;
 
       return a.job.id.localeCompare(b.job.id);
