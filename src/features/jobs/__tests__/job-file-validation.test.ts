@@ -61,6 +61,10 @@ describe("validateJobFile", () => {
   it("is case-insensitive for MIME type", () => {
     expect(validateJobFile({ mimeType: "IMAGE/JPEG", sizeBytes: 1024 })).toBeNull();
   });
+
+  it("accepts image/jpg by normalizing to image/jpeg", () => {
+    expect(validateJobFile({ mimeType: "image/jpg", sizeBytes: 1024 })).toBeNull();
+  });
 });
 
 // ─── formatFileSize ───────────────────────────────────────────────────────────
@@ -87,9 +91,13 @@ describe("formatFileSize", () => {
 
 describe("ALLOWED_JOB_FILE_MIME_TYPES", () => {
   it("contains all expected image types", () => {
-    for (const type of ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"]) {
+    for (const type of ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]) {
       expect(ALLOWED_JOB_FILE_MIME_TYPES.has(type)).toBe(true);
     }
+  });
+
+  it("does not contain the non-standard image/jpg alias (normalized at validate time)", () => {
+    expect(ALLOWED_JOB_FILE_MIME_TYPES.has("image/jpg")).toBe(false);
   });
 
   it("contains PDF", () => {

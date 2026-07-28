@@ -10,7 +10,6 @@
 export const ALLOWED_JOB_FILE_MIME_TYPES = new Set([
   // Images (field photos, equipment shots)
   "image/jpeg",
-  "image/jpg",
   "image/png",
   "image/webp",
   "image/heic",
@@ -21,7 +20,7 @@ export const ALLOWED_JOB_FILE_MIME_TYPES = new Set([
 
 /** Accept string suitable for an HTML <input type="file"> */
 export const ALLOWED_FILE_ACCEPT =
-  "image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,application/pdf";
+  "image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf";
 
 // ─── Size limits ──────────────────────────────────────────────────────────────
 
@@ -38,12 +37,20 @@ export interface FileValidationInput {
 /**
  * Validates a file against the job attachment policy.
  * Returns a human-readable error string, or `null` when the file is valid.
+ *
+ * `image/jpg` is normalized to `image/jpeg` before the allowlist check; some
+ * browsers report the non-standard alias but both represent the same format.
  */
 export function validateJobFile(input: FileValidationInput): string | null {
-  const normalizedType = input.mimeType.toLowerCase().trim();
+  let normalizedType = input.mimeType.toLowerCase().trim();
+
+  // Normalize non-standard alias used by some browsers
+  if (normalizedType === "image/jpg") {
+    normalizedType = "image/jpeg";
+  }
 
   if (!ALLOWED_JOB_FILE_MIME_TYPES.has(normalizedType)) {
-    return `File type "${normalizedType}" is not allowed. Accepted types: JPEG, PNG, WebP, HEIC, PDF.`;
+    return `File type "${input.mimeType.toLowerCase().trim()}" is not allowed. Accepted types: JPEG, PNG, WebP, HEIC, PDF.`;
   }
 
   if (input.sizeBytes > MAX_JOB_FILE_SIZE_BYTES) {

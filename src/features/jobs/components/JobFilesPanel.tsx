@@ -164,7 +164,7 @@ export function JobFilesPanel({
             />
           </label>
 
-          {/* Camera shortcut — captures directly on mobile devices */}
+          {/* Camera shortcut — on mobile, accept="image/*" automatically prompts camera */}
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/[0.06]">
             <Camera className="h-4 w-4" />
             <span className="sr-only">Take photo</span>
@@ -172,8 +172,6 @@ export function JobFilesPanel({
               type="file"
               className="hidden"
               accept="image/*"
-              // eslint-disable-next-line react/no-unknown-property
-              capture="environment"
               onChange={(event) => void handleUpload(event.target.files)}
               disabled={uploading}
             />
