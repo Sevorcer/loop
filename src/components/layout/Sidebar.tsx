@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Pin, PinOff } from "lucide-react";
 
 import { useSession, getNavItemsForRole } from "@/features/auth";
 import { ROUTES } from "@/lib/routes";
@@ -17,9 +18,13 @@ interface SidebarProps {
   id?: string;
   className?: string;
   onNavigate?: () => void;
+  /** Whether the sidebar is currently pinned (desktop only). */
+  isPinned?: boolean;
+  /** Called when the user toggles the pin. Omit to hide the pin button (e.g. mobile). */
+  onPinToggle?: () => void;
 }
 
-export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
+export default function Sidebar({ id, className, onNavigate, isPinned = false, onPinToggle }: SidebarProps) {
   const pathname = usePathname();
   const { role, loading } = useSession();
 
@@ -36,21 +41,35 @@ export default function Sidebar({ id, className, onNavigate }: SidebarProps) {
       )}
     >
       <div className="border-b border-slate-800 px-4 py-4 sm:px-5 sm:py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white shadow-[0_0_30px_rgba(239,68,68,0.12)] ring-1 ring-white/10">
-            <Image
-              src="/logo.png"
-              alt="Loop logo"
-              width={40}
-              height={40}
-              className="h-10 w-10 object-contain"
-              priority
-            />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white shadow-[0_0_30px_rgba(239,68,68,0.12)] ring-1 ring-white/10">
+              <Image
+                src="/logo.png"
+                alt="Loop logo"
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain"
+                priority
+              />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight text-white">LOOP</h1>
+              <p className="text-xs text-slate-400">Field Operations</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-white">LOOP</h1>
-            <p className="text-xs text-slate-400">Field Operations</p>
-          </div>
+
+          {onPinToggle && (
+            <button
+              type="button"
+              onClick={onPinToggle}
+              aria-label={isPinned ? "Unpin sidebar" : "Pin sidebar"}
+              aria-pressed={isPinned}
+              className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+            >
+              {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+            </button>
+          )}
         </div>
       </div>
 

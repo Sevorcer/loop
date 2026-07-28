@@ -1,76 +1,53 @@
 import {
   LayoutDashboard,
   Building2,
-  Building,
   Users,
   Briefcase,
-  HardHat,
   Cpu,
-  CalendarDays,
-  Radio,
   Package,
   Brain,
   BarChart3,
   Settings,
-  BellRing,
   Send,
-  Globe,
-  MonitorCog,
   MonitorDot,
-  Inbox,
 } from "lucide-react";
 
 import type { NavGroup } from "@/features/auth";
-import { ADMIN_ROUTES, PORTAL_ROUTES, ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/lib/routes";
 
+// Navigation groups per Sprint 7 navigation-ux-goals spec.
+// Group labels use uppercase to match the spec exactly.
 export const SHELL_NAV_GROUPS: NavGroup[] = [
   {
-    label: "Overview",
-    items: [{ name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard }],
-  },
-  {
-    label: "Operations",
+    label: "TODAY",
     items: [
-      { name: "Operations", href: ROUTES.OPERATIONS, icon: MonitorCog },
+      { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
       { name: "Command Center", href: ROUTES.COMMAND_CENTER, icon: MonitorDot },
-      { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
-      { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
-      { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
       { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
-      { name: "Feedback Inbox", href: ROUTES.OPS_FEEDBACK, icon: Inbox },
     ],
   },
   {
-    label: "Field",
+    label: "OPERATIONS",
     items: [
-      { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
-      { name: "Contractors", href: ROUTES.CONTRACTORS, icon: HardHat },
+      { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
       { name: "Customers", href: ROUTES.CUSTOMERS, icon: Users },
+      { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
       { name: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS, icon: Cpu },
-      { name: "Vehicle Alerts", href: ROUTES.VEHICLE_ALERTS, icon: BellRing },
     ],
   },
   {
-    label: "Resources",
+    label: "KNOWLEDGE",
     items: [
-      { name: "Inventory", href: ROUTES.INVENTORY, icon: Package },
       { name: "Company Brain", href: ROUTES.COMPANY_BRAIN, icon: Brain },
+      { name: "Inventory", href: ROUTES.INVENTORY, icon: Package },
     ],
   },
   {
-    label: "Insights",
+    label: "INSIGHTS",
     items: [{ name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 }],
   },
   {
-    label: "Administration",
-    items: [{ name: "Organizations", href: ADMIN_ROUTES.ORGANIZATIONS, icon: Building }],
-  },
-  {
-    label: "External",
-    items: [{ name: "Project Portal", href: PORTAL_ROUTES.ROOT, icon: Globe }],
-  },
-  {
-    label: "Workspace",
+    label: "SETTINGS",
     items: [{ name: "Settings", href: ROUTES.SETTINGS, icon: Settings }],
   },
 ];

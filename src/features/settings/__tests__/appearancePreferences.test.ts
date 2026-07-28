@@ -34,7 +34,7 @@ describe("AppearancePreferences defaults", () => {
     expect(DEFAULT_APPEARANCE.defaultLandingPage).toBe("/dashboard");
   });
 
-  it("defaults sidebar pinned to true", () => {
-    expect(DEFAULT_APPEARANCE.sidebarPinnedDefault).toBe(true);
+  it("defaults sidebar pinned to false", () => {
+    expect(DEFAULT_APPEARANCE.sidebarPinnedDefault).toBe(false);
   });
 });
