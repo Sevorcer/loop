@@ -1,6 +1,6 @@
 "use client";
 
-import { Command, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -227,35 +227,6 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-40 hidden sm:block">
-        <div className="group relative">
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            onClick={() => onOpenChange(true)}
-            aria-label="Open command bar"
-            className="h-10 w-10 rounded-full border border-white/15 bg-slate-900/90 text-slate-200 shadow-xl hover:bg-slate-800"
-          >
-            <Command className="h-4 w-4" />
-          </Button>
-          <span className="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-slate-900 px-2 py-1 text-xs text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-            Ask Copilot
-          </span>
-        </div>
-      </div>
-
-      <Button
-        type="button"
-        variant="secondary"
-        size="icon"
-        onClick={() => onOpenChange(true)}
-        aria-label="Open command bar"
-        className="fixed bottom-5 right-5 z-40 h-12 w-12 rounded-full border border-white/15 bg-slate-900/95 text-slate-100 shadow-xl sm:hidden"
-      >
-        <Search className="h-5 w-5" />
-      </Button>
-
       {open ? (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 p-4 pt-[12vh] backdrop-blur-sm">
           <button

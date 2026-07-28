@@ -175,6 +175,7 @@ export function FeedbackTriageScreen() {
   const [reports, setReports] = useState<FeedbackReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Filters
   const [filterSeverity, setFilterSeverity] = useState<FeedbackSeverity | "">("");
@@ -224,9 +225,17 @@ export function FeedbackTriageScreen() {
     };
   }, [fetchReports]);
 
+  function handleRetry() {
+    setLoadError(null);
+    setIsLoading(true);
+    fetchReports();
+  }
+
   function handleUpdated(updated: FeedbackReport) {
     setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     setExpandedId(null);
+    setSuccessMessage("Status updated successfully.");
+    setTimeout(() => setSuccessMessage(null), 3000);
   }
 
   return (
@@ -236,6 +245,17 @@ export function FeedbackTriageScreen() {
       deniedDescription="Only managers and owners can view feedback reports."
     >
       <div className="space-y-6">
+        {/* Success flash */}
+        {successMessage ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-400"
+          >
+            {successMessage}
+          </div>
+        ) : null}
+
         {/* Filters */}
         <div className="flex flex-wrap items-end gap-3 rounded-xl border border-default bg-surface p-4">
           <div className="space-y-1">
@@ -323,7 +343,16 @@ export function FeedbackTriageScreen() {
           <LoadingState />
         ) : loadError ? (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
-            {loadError}
+            <p>{loadError}</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleRetry}
+              className="mt-3 text-red-300 hover:text-red-200"
+            >
+              Retry
+            </Button>
           </div>
         ) : reports.length === 0 ? (
           <EmptyState
