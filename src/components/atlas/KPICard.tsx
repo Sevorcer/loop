@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import Link from "next/link";
 
 import {
   Card,
@@ -12,6 +13,8 @@ interface KPICardProps {
   icon?: ReactNode;
 
   description?: string;
+  helpText?: string;
+  href?: string;
 
   trend?: {
     value: string;
@@ -24,15 +27,25 @@ export function KPICard({
   value,
   icon,
   description,
+  helpText,
+  href,
   trend,
 }: KPICardProps) {
-  return (
+  const card = (
     <Card className="hover-lift">
-      <CardContent className="space-y-5 pt-6">
+      <CardContent className="space-y-5 pt-6" title={helpText}>
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <p className="text-muted text-xs font-semibold uppercase tracking-[0.18em]">
               {title}
+              {helpText ? (
+                <span
+                  className="ml-1 align-middle text-muted/80"
+                  aria-label={helpText}
+                >
+                  ⓘ
+                </span>
+              ) : null}
             </p>
 
             <h3 className="text-primary text-3xl font-bold tracking-tight sm:text-4xl">
@@ -69,4 +82,7 @@ export function KPICard({
       </CardContent>
     </Card>
   );
+
+  if (!href) return card;
+  return <Link href={href}>{card}</Link>;
 }

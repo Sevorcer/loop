@@ -9,6 +9,7 @@
 
 import type { Job } from "@/features/jobs/types/job";
 import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
+import type { CanonicalJobStatus } from "@/lib/jobs/status";
 
 // ------------------------------------------------------------------
 // Normalized status values
@@ -17,12 +18,7 @@ import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
 // from any incoming variant to these strings.
 // ------------------------------------------------------------------
 
-export type NormalizedJobStatus =
-  | "Scheduled"
-  | "In Progress"
-  | "On Hold"
-  | "Completed"
-  | "Cancelled";
+export type NormalizedJobStatus = CanonicalJobStatus;
 
 // ------------------------------------------------------------------
 // Crew Workload
@@ -65,9 +61,8 @@ export interface CommandCenterKPIs {
   /** Open jobs matching "callback" pattern in title or notes. */
   callbacks: number;
   /**
-   * Jobs completed today (status='Completed' AND updated_at >= today).
-   * NOTE: approximate — editing a completed job today will re-count it.
-   * Prefer job activity log as a future data source (Sprint 8).
+   * Jobs completed today using best available completion signal.
+   * Prefers `job_activity` completion events with status/updated_at fallback.
    */
   completedToday: number;
   /** Jobs past scheduled_for that are not yet Completed or Cancelled. */

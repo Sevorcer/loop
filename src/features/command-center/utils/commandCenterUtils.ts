@@ -10,6 +10,8 @@
 
 import type { Job } from "@/features/jobs/types/job";
 import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
+import { normalizeJobStatus as normalizeSharedJobStatus, isOpenStatus } from "@/lib/jobs/status";
+import { COMMAND_CENTER_KPI_DEFINITIONS } from "@/lib/operationsMetricDefinitions";
 import type {
   CommandCenterKPIs,
   CommandCenterSnapshot,
@@ -27,32 +29,13 @@ import type {
 // filters MUST use this normalizer instead of raw string comparisons.
 // ------------------------------------------------------------------
 
-const STATUS_MAP: Record<string, NormalizedJobStatus> = {
-  // Title-case (current DB convention)
-  Scheduled: "Scheduled",
-  "In Progress": "In Progress",
-  "On Hold": "On Hold",
-  Completed: "Completed",
-  Cancelled: "Cancelled",
-  // snake_case aliases (legacy/event-sourced variants)
-  scheduled: "Scheduled",
-  in_progress: "In Progress",
-  on_hold: "On Hold",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  // space-lowercased variants
-  "in progress": "In Progress",
-  "on hold": "On Hold",
-};
-
 export function normalizeJobStatus(raw: string): NormalizedJobStatus | null {
-  return STATUS_MAP[raw] ?? null;
+  return normalizeSharedJobStatus(raw);
 }
 
 /** Returns true when the job is still operationally open. */
 export function isOpenJob(job: Job): boolean {
-  const s = normalizeJobStatus(job.status as string);
-  return s !== "Completed" && s !== "Cancelled";
+  return isOpenStatus(job.status as string);
 }
 
 /** Returns true when the job is In Progress. */
@@ -83,6 +66,8 @@ export interface KPIDefinition {
   label: string;
   /** Short description shown below the metric value. */
   description: string;
+  /** Optional explainability hint for non-obvious calculations. */
+  helpText?: string;
   /**
    * The route or query-string to navigate to when the KPI is clicked.
    * Used by KPIStrip to make every metric actionable.
@@ -95,16 +80,18 @@ export interface KPIDefinition {
 export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
   {
     key: "jobsToday",
-    label: "Jobs Today",
-    description: "Scheduled for today",
-    href: "/jobs",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.jobsToday.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.jobsToday.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.jobsToday.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.jobsToday.href,
     compute: ({ scheduledToday }) => scheduledToday.length,
   },
   {
     key: "crewsDispatched",
-    label: "Crews Dispatched",
-    description: "Technicians with active jobs",
-    href: "/dispatch",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.href,
     compute: ({ inProgress }) => {
       const names = new Set<string>();
       for (const job of inProgress) {
@@ -117,44 +104,50 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
   },
   {
     key: "waitingOnInspection",
-    label: "Waiting on Inspection",
-    description: "Open inspection jobs",
-    href: "/jobs",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnInspection.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnInspection.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnInspection.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnInspection.href,
     compute: ({ inspections }) => inspections.length,
   },
   {
     key: "waitingOnPermit",
-    label: "Waiting on Permit",
-    description: "Dispatch plans with blocking permits",
-    href: "/dispatch",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnPermit.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnPermit.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnPermit.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnPermit.href,
     compute: ({ dispatchPlans }) => countWaitingOnPermit(dispatchPlans),
   },
   {
     key: "callbacks",
-    label: "Callbacks",
-    description: "Open callback jobs",
-    href: "/jobs",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.callbacks.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.callbacks.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.callbacks.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.callbacks.href,
     compute: ({ callbacks }) => callbacks.length,
   },
   {
     key: "completedToday",
-    label: "Jobs Completed",
-    description: "Completed today (approx.)",
-    href: "/jobs",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.completedToday.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.completedToday.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.completedToday.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.completedToday.href,
     compute: ({ completedToday }) => completedToday.length,
   },
   {
     key: "jobsRunningLate",
-    label: "Jobs Running Late",
-    description: "Past scheduled date",
-    href: "/jobs",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.jobsRunningLate.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.jobsRunningLate.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.jobsRunningLate.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.jobsRunningLate.href,
     compute: ({ late }) => late.length,
   },
   {
     key: "avgCompletionHours",
-    label: "Avg Completion",
-    description: "Estimated hours (completed today)",
-    href: "/dispatch",
+    label: COMMAND_CENTER_KPI_DEFINITIONS.avgCompletionHours.label,
+    description: COMMAND_CENTER_KPI_DEFINITIONS.avgCompletionHours.description,
+    helpText: COMMAND_CENTER_KPI_DEFINITIONS.avgCompletionHours.helpText,
+    href: COMMAND_CENTER_KPI_DEFINITIONS.avgCompletionHours.href,
     compute: ({ dispatchPlans, today }) => computeAvgCompletionHours(dispatchPlans, today),
   },
 ] as const;
@@ -252,7 +245,10 @@ export function aggregateCrewWorkload(
   }
 
   return Array.from(map.values()).sort(
-    (a, b) => b.atRiskCount - a.atRiskCount || b.assignedCount - a.assignedCount,
+    (a, b) =>
+      b.atRiskCount - a.atRiskCount ||
+      b.assignedCount - a.assignedCount ||
+      a.technicianName.localeCompare(b.technicianName, "en"),
   );
 }
 
@@ -297,7 +293,15 @@ export function buildProblemJobs(
       // Secondary: late jobs first
       const aLate = a.reasons.includes("late") ? 0 : 1;
       const bLate = b.reasons.includes("late") ? 0 : 1;
-      return aLate - bLate;
+      if (aLate !== bLate) return aLate - bLate;
+
+      const scheduledCmp = a.job.scheduledFor.localeCompare(b.job.scheduledFor);
+      if (scheduledCmp !== 0) return scheduledCmp;
+
+      const numberCmp = a.job.jobNumber.localeCompare(b.job.jobNumber, "en");
+      if (numberCmp !== 0) return numberCmp;
+
+      return a.job.id.localeCompare(b.job.id);
     });
 }
 

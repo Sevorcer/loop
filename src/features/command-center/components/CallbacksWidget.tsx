@@ -1,5 +1,5 @@
 import type { Job } from "@/features/jobs/types/job";
-import { ROUTES } from "@/lib/routes";
+import { ACTIONABLE_VIEWS } from "@/lib/operationsMetricDefinitions";
 import { JobListWidget } from "./JobListWidget";
 
 /**
@@ -14,7 +14,7 @@ export function CallbacksWidget({ jobs }: { jobs: Job[] }) {
     <JobListWidget
       title="Callbacks"
       jobs={jobs}
-      viewAllHref={ROUTES.JOBS}
+      viewAllHref={ACTIONABLE_VIEWS.callbacks}
       emptyTitle="No open callbacks"
       emptyDescription="No callback jobs are currently open."
       emptyIsGood

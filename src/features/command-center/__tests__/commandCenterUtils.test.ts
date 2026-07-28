@@ -85,6 +85,11 @@ describe("normalizeJobStatus", () => {
     expect(normalizeJobStatus("on hold")).toBe("On Hold");
   });
 
+  it("normalizes waiting-on-parts variants to On Hold", () => {
+    expect(normalizeJobStatus("Waiting on Parts")).toBe("On Hold");
+    expect(normalizeJobStatus("waiting_on_parts")).toBe("On Hold");
+  });
+
   it("returns null for unknown values", () => {
     expect(normalizeJobStatus("unknown")).toBeNull();
     expect(normalizeJobStatus("")).toBeNull();
@@ -174,6 +179,24 @@ describe("buildProblemJobs", () => {
     expect(result[1].job.id).toBe("nonlate-high");
   });
 
+  it("is deterministic for same-priority non-late jobs", () => {
+    const b = makeJob({
+      id: "b",
+      jobNumber: "JOB-1002",
+      priority: "Medium",
+      scheduledFor: "2026-07-30",
+    });
+    const a = makeJob({
+      id: "a",
+      jobNumber: "JOB-1001",
+      priority: "Medium",
+      scheduledFor: "2026-07-29",
+    });
+
+    const result = buildProblemJobs([], [b, a], []);
+    expect(result.map((entry) => entry.job.id)).toEqual(["a", "b"]);
+  });
+
   it("a job appearing in late + unassigned gets both reasons and is not duplicated", () => {
     const job = makeJob({ id: "j1" });
     const result = buildProblemJobs([job], [job], []);
@@ -235,6 +258,15 @@ describe("aggregateCrewWorkload", () => {
     ];
     const result = aggregateCrewWorkload(jobs, today);
     expect(result[0].technicianName).toBe("Risky");
+  });
+
+  it("sort is deterministic when risk and load are tied", () => {
+    const jobs = [
+      makeJob({ id: "j1", assignedTo: "Zed", status: "Scheduled" }),
+      makeJob({ id: "j2", assignedTo: "Amy", status: "Scheduled" }),
+    ];
+    const result = aggregateCrewWorkload(jobs, today);
+    expect(result.map((entry) => entry.technicianName)).toEqual(["Amy", "Zed"]);
   });
 });
 

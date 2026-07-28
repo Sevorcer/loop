@@ -67,6 +67,15 @@ export function KPIStrip({ kpis }: KPIStripProps) {
           >
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
               {def.label}
+              {def.helpText ? (
+                <span
+                  className="ml-1 align-middle text-muted/80"
+                  title={def.helpText}
+                  aria-label={def.helpText}
+                >
+                  ⓘ
+                </span>
+              ) : null}
             </p>
             <p
               className={[

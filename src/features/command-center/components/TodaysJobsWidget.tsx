@@ -1,5 +1,5 @@
 import type { Job } from "@/features/jobs/types/job";
-import { ROUTES } from "@/lib/routes";
+import { ACTIONABLE_VIEWS } from "@/lib/operationsMetricDefinitions";
 import { JobListWidget } from "./JobListWidget";
 
 export function TodaysJobsWidget({ jobs }: { jobs: Job[] }) {
@@ -7,7 +7,7 @@ export function TodaysJobsWidget({ jobs }: { jobs: Job[] }) {
     <JobListWidget
       title="Today's Jobs"
       jobs={jobs}
-      viewAllHref={ROUTES.JOBS}
+      viewAllHref={ACTIONABLE_VIEWS.scheduledToday}
       emptyTitle="No jobs scheduled today"
       emptyDescription="There are no jobs on the schedule for today."
     />

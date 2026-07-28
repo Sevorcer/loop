@@ -3,6 +3,7 @@ import "server-only";
 import type { Job } from "@/features/jobs/types/job";
 import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
 import type { CommandCenterSnapshot } from "@/features/command-center/types/commandCenter";
+import { getStatusVariants } from "@/lib/jobs/status";
 import {
   computeKPIs,
   aggregateCrewWorkload,
@@ -43,10 +44,11 @@ interface JobRow {
   location: string;
   notes: string;
   created_at: string;
+  updated_at: string;
 }
 
 const JOB_COLUMNS =
-  "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at";
+  "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at,updated_at";
 
 function mapJobRow(row: JobRow): Job {
   return {
@@ -90,6 +92,10 @@ interface DispatchPlanRow {
   constraints: unknown;
   created_at: string;
   updated_at: string;
+}
+
+interface CompletionActivityRow {
+  job_id: string;
 }
 
 const DISPATCH_PLAN_COLUMNS =
@@ -137,6 +143,9 @@ function mapDispatchPlanRow(row: DispatchPlanRow): DispatchPlan {
 export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot> {
   const { supabase, orgId } = await getRepositoryContext();
   const today = todayISO();
+  const inProgressStatuses = getStatusVariants(["In Progress"]);
+  const onHoldStatuses = getStatusVariants(["On Hold"]);
+  const completedStatuses = getStatusVariants(["Completed"]);
 
   const [
     scheduledTodayRes,
@@ -146,7 +155,8 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     callbacksRes,
     unassignedRes,
     lateRes,
-    completedTodayRes,
+    completedTodayFallbackRes,
+    completionActivityRes,
     dispatchPlansRes,
   ] = await Promise.all([
     // 1. Scheduled today (status ≠ Cancelled)
@@ -163,7 +173,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .from("jobs")
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
-      .eq("status", "In Progress")
+      .in("status", inProgressStatuses)
       .order("scheduled_for", { ascending: true }),
 
     // 3. On Hold — label honestly kept as "On Hold" (not "Waiting on Parts")
@@ -171,7 +181,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .from("jobs")
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
-      .eq("status", "On Hold")
+      .in("status", onHoldStatuses)
       .order("scheduled_for", { ascending: true }),
 
     // 4. Inspections (type=Inspection, open)
@@ -212,15 +222,23 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .order("scheduled_for", { ascending: true }),
 
     // 8. Completed today
-    //    NOTE: updated_at >= today is approximate — editing a completed job
-    //    today will re-count it. Prefer job activity log as source (Sprint 8).
+    //    Fallback source for legacy rows without explicit completion activity.
     supabase
       .from("jobs")
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
-      .eq("status", "Completed")
+      .in("status", completedStatuses)
       .gte("updated_at", today)
       .order("updated_at", { ascending: false }),
+
+    // 8b. Preferred completion signal for completed-today KPI/list.
+    supabase
+      .from("job_activity")
+      .select("job_id")
+      .eq("org_id", orgId)
+      .eq("type", "status")
+      .ilike("title", "Job completed%")
+      .gte("created_at", today),
 
     // 9. Dispatch plans (all, for permit KPI + avg completion time)
     supabase
@@ -239,7 +257,8 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     callbacksRes.error ??
     unassignedRes.error ??
     lateRes.error ??
-    completedTodayRes.error ??
+    completedTodayFallbackRes.error ??
+    completionActivityRes.error ??
     dispatchPlansRes.error;
 
   if (firstError) {
@@ -253,9 +272,44 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
   const callbacks = ((callbacksRes.data ?? []) as JobRow[]).map(mapJobRow);
   const unassigned = ((unassignedRes.data ?? []) as JobRow[]).map(mapJobRow);
   const late = ((lateRes.data ?? []) as JobRow[]).map(mapJobRow);
-  const completedToday = ((completedTodayRes.data ?? []) as JobRow[]).map(mapJobRow);
+  const completedTodayFromFallback = ((completedTodayFallbackRes.data ?? []) as JobRow[]).map(
+    mapJobRow,
+  );
   const dispatchPlans = ((dispatchPlansRes.data ?? []) as DispatchPlanRow[]).map(
     mapDispatchPlanRow,
+  );
+
+  const completionJobIds = Array.from(
+    new Set(
+      ((completionActivityRes.data ?? []) as CompletionActivityRow[])
+        .map((row) => row.job_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  );
+
+  let completedTodayFromActivity: Job[] = [];
+  if (completionJobIds.length > 0) {
+    const completedActivityJobsRes = await supabase
+      .from("jobs")
+      .select(JOB_COLUMNS)
+      .eq("org_id", orgId)
+      .in("id", completionJobIds)
+      .in("status", completedStatuses)
+      .order("updated_at", { ascending: false });
+
+    if (completedActivityJobsRes.error) {
+      throw new Error(completedActivityJobsRes.error.message);
+    }
+
+    completedTodayFromActivity = ((completedActivityJobsRes.data ?? []) as JobRow[]).map(
+      mapJobRow,
+    );
+  }
+
+  const completedToday = Array.from(
+    new Map(
+      [...completedTodayFromActivity, ...completedTodayFromFallback].map((job) => [job.id, job]),
+    ).values(),
   );
 
   const rawSnapshot = {

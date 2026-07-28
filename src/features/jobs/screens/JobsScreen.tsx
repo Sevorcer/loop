@@ -11,7 +11,13 @@ import { Button } from "@/components/ui/button";
 import { JobTable } from "../components/JobTable";
 import { JobsMetrics } from "../components/JobsMetrics";
 
-export function JobsScreen() {
+type SearchParamValue = string | string[] | undefined;
+
+interface JobsScreenProps {
+  initialSearchParams?: Record<string, SearchParamValue>;
+}
+
+export function JobsScreen({ initialSearchParams }: JobsScreenProps) {
   const { role } = useCurrentRole();
   const isTech = role === "tech";
 
@@ -68,7 +74,7 @@ export function JobsScreen() {
         </div>
 
         <div className="p-4 sm:p-6">
-          <JobTable />
+          <JobTable initialSearchParams={initialSearchParams} />
         </div>
       </SurfaceCard>
     </div>

@@ -1,5 +1,5 @@
 import type { Job } from "@/features/jobs/types/job";
-import { ROUTES } from "@/lib/routes";
+import { ACTIONABLE_VIEWS } from "@/lib/operationsMetricDefinitions";
 import { JobListWidget } from "./JobListWidget";
 
 export function WaitingOnInspectionWidget({ jobs }: { jobs: Job[] }) {
@@ -7,7 +7,7 @@ export function WaitingOnInspectionWidget({ jobs }: { jobs: Job[] }) {
     <JobListWidget
       title="Waiting on Inspection"
       jobs={jobs}
-      viewAllHref={ROUTES.JOBS}
+      viewAllHref={ACTIONABLE_VIEWS.waitingOnInspection}
       emptyTitle="No open inspections"
       emptyDescription="All inspection jobs are complete or cancelled."
       emptyIsGood

@@ -1,6 +1,9 @@
 import "server-only";
 
+import { getStatusVariants } from "@/lib/jobs/status";
+
 import { getRepositoryContext } from "./supabaseContext";
+import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -9,7 +12,7 @@ import { getRepositoryContext } from "./supabaseContext";
 export interface DashboardSummary {
   /** Jobs with status 'In Progress' or 'Scheduled' (dispatched/active). */
   activeJobs: number;
-  /** Jobs completed today (updated_at date matches today). */
+  /** Jobs completed today (completion activity preferred, updated_at fallback). */
   completedToday: number;
   /** Jobs scheduled for today (scheduled_for date matches today). */
   scheduledToday: number;
@@ -56,7 +59,8 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   // Run all counts in parallel for a single-roundtrip feel.
   const [
     activeJobsRes,
-    completedTodayRes,
+    completedTodayByActivityRes,
+    completedTodayFallbackRes,
     scheduledTodayRes,
     blockedJobsRes,
     unassignedJobsRes,
@@ -68,14 +72,23 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("org_id", orgId)
-      .in("status", ["In Progress", "Scheduled"]),
+      .in("status", getStatusVariants(["In Progress", "Scheduled"])),
 
-    // Completed today
+    // Completed today (best signal: explicit completion activity)
+    supabase
+      .from("job_activity")
+      .select("job_id")
+      .eq("org_id", orgId)
+      .eq("type", "status")
+      .ilike("title", "Job completed%")
+      .gte("created_at", today),
+
+    // Fallback for legacy completion rows without activity event
     supabase
       .from("jobs")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("org_id", orgId)
-      .eq("status", "Completed")
+      .in("status", getStatusVariants(["Completed"]))
       .gte("updated_at", today),
 
     // Scheduled for today
@@ -90,14 +103,14 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("org_id", orgId)
-      .eq("status", "On Hold"),
+      .in("status", getStatusVariants(["On Hold"])),
 
     // Unassigned (assigned_to is blank)
     supabase
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("org_id", orgId)
-      .not("status", "in", '("Completed","Cancelled")')
+      .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
       .or("assigned_to.is.null,assigned_to.eq."),
 
     // New customers this month
@@ -116,7 +129,20 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
   return {
     activeJobs: activeJobsRes.count ?? 0,
-    completedToday: completedTodayRes.count ?? 0,
+    completedToday: (() => {
+      const completedIds = new Set<string>();
+      for (const row of completedTodayByActivityRes.data ?? []) {
+        if (typeof row.job_id === "string" && row.job_id.length > 0) {
+          completedIds.add(row.job_id);
+        }
+      }
+      for (const row of completedTodayFallbackRes.data ?? []) {
+        if (typeof row.id === "string" && row.id.length > 0) {
+          completedIds.add(row.id);
+        }
+      }
+      return completedIds.size;
+    })(),
     scheduledToday: scheduledTodayRes.count ?? 0,
     blockedJobs: blockedJobsRes.count ?? 0,
     unassignedJobs: unassignedJobsRes.count ?? 0,
