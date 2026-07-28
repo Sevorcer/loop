@@ -4,6 +4,37 @@ function normalize(text: string) {
   return text.toLowerCase();
 }
 
+function parseDateValue(value: string | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function scoreByExactAndPrefix(query: string, record: SearchRecord): number {
+  const trimmedQuery = query.trim().toLowerCase();
+  if (!trimmedQuery) {
+    return 0;
+  }
+
+  let score = 0;
+  const normalizedTitle = normalize(record.title);
+
+  if (normalizedTitle === trimmedQuery) {
+    score += 24;
+  } else if (normalizedTitle.startsWith(trimmedQuery)) {
+    score += 16;
+  } else if (normalizedTitle.includes(trimmedQuery)) {
+    score += 10;
+  }
+
+  const normalizedTokens = record.tokens.map((token) => normalize(token));
+  if (normalizedTokens.includes(trimmedQuery)) {
+    score += 16;
+  }
+
+  return score;
+}
+
 function scoreByTokens(query: string, record: SearchRecord): number {
   const trimmedQuery = query.trim().toLowerCase();
   if (!trimmedQuery) {
@@ -26,7 +57,11 @@ function scoreByTokens(query: string, record: SearchRecord): number {
     }
   }
 
-  return score;
+  const coverage = queryTokens.filter((token) =>
+    record.tokens.some((field) => normalize(field).includes(token)),
+  ).length;
+
+  return score + coverage * 2;
 }
 
 function scoreByIntent(intent: CopilotIntent, record: SearchRecord): number {
@@ -78,15 +113,46 @@ function scoreByContext(context: CopilotResolvedContext, record: SearchRecord): 
   return score;
 }
 
+function scoreByOperationalSignals(record: SearchRecord): number {
+  let score = 0;
+  const status = record.metadata?.status?.toLowerCase();
+
+  if (record.domain === "jobs") {
+    if (status === "in progress") score += 12;
+    else if (status === "scheduled") score += 10;
+    else if (status === "on hold") score += 4;
+  }
+
+  if (record.domain === "installed_systems" && status === "active") {
+    score += 8;
+  }
+
+  if ((record.domain === "customers" || record.domain === "properties") && status === "active") {
+    score += 5;
+  }
+
+  const timestamp = parseDateValue(record.metadata?.timestamp);
+  if (timestamp) {
+    const ageInDays = Math.floor((Date.now() - timestamp.getTime()) / (1000 * 60 * 60 * 24));
+    if (ageInDays <= 7) score += 8;
+    else if (ageInDays <= 30) score += 5;
+    else if (ageInDays <= 90) score += 3;
+  }
+
+  return score;
+}
+
 export function scoreRecord(
   query: string,
   intent: CopilotIntent,
   context: CopilotResolvedContext,
   record: SearchRecord
 ): number {
+  const exactPrefixScore = scoreByExactAndPrefix(query, record);
   const tokenScore = scoreByTokens(query, record);
   const intentScore = scoreByIntent(intent, record);
   const contextScore = scoreByContext(context, record);
+  const operationalScore = scoreByOperationalSignals(record);
 
-  return tokenScore + intentScore + contextScore;
+  return exactPrefixScore + tokenScore + intentScore + contextScore + operationalScore;
 }

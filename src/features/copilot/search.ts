@@ -72,6 +72,7 @@ export async function searchCopilot(
       domain: entry.record.domain,
       sourceLabel: entry.record.sourceLabel,
       href: entry.record.href,
+      metadata: entry.record.metadata ?? { badges: [] },
     }));
 
   const mode = intent === "conversation" ? "expanded" : "structured";
