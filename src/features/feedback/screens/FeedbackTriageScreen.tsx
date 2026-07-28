@@ -8,7 +8,7 @@
  * Allows inline status + triage notes update.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, ChevronDown, ChevronRight } from "lucide-react";
 
@@ -176,6 +176,7 @@ export function FeedbackTriageScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Filters
   const [filterSeverity, setFilterSeverity] = useState<FeedbackSeverity | "">("");
@@ -185,6 +186,14 @@ export function FeedbackTriageScreen() {
 
   // Expanded row for inline triage
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current !== null) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   const fetchReports = useCallback(async () => {
     try {
@@ -235,7 +244,10 @@ export function FeedbackTriageScreen() {
     setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     setExpandedId(null);
     setSuccessMessage("Status updated successfully.");
-    setTimeout(() => setSuccessMessage(null), 3000);
+    if (successTimerRef.current !== null) {
+      clearTimeout(successTimerRef.current);
+    }
+    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000);
   }
 
   return (
