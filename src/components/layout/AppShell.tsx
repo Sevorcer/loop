@@ -12,6 +12,11 @@ import { computeSidebarLayout, readSidebarPinned, writeSidebarPinned } from "./s
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
+// Width of the left-edge hot zone strip that triggers the sidebar hover.
+// 1rem (w-4) is wide enough to be easily hovered but narrow enough not to
+// interfere with main content which has lg:px-8 padding.
+const HOT_ZONE_CLASS = "w-4" as const;
+
 type AppShellProps = {
   children: ReactNode;
 };
@@ -91,7 +96,7 @@ export default function AppShell({ children }: AppShellProps) {
           "group/sidebar",
           "fixed inset-y-0 left-0 z-50",
           "hidden lg:block",
-          "w-4" // hot-zone width; sidebar extends beyond via absolute positioning
+          HOT_ZONE_CLASS // hot-zone width; sidebar extends beyond via absolute positioning
         )}
       >
         {/* Sidebar panel */}
