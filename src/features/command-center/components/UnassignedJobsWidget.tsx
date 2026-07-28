@@ -1,5 +1,5 @@
 import type { Job } from "@/features/jobs/types/job";
-import { ROUTES } from "@/lib/routes";
+import { ACTIONABLE_VIEWS } from "@/lib/operationsMetricDefinitions";
 import { JobListWidget } from "./JobListWidget";
 
 export function UnassignedJobsWidget({ jobs }: { jobs: Job[] }) {
@@ -7,7 +7,7 @@ export function UnassignedJobsWidget({ jobs }: { jobs: Job[] }) {
     <JobListWidget
       title="Unassigned Jobs"
       jobs={jobs}
-      viewAllHref={ROUTES.JOBS}
+      viewAllHref={ACTIONABLE_VIEWS.unassigned}
       emptyTitle="No unassigned jobs"
       emptyDescription="All open jobs have a technician assigned."
       emptyIsGood

@@ -5,9 +5,10 @@ import { ArrowRight, Briefcase } from "lucide-react";
 
 import { ROUTES } from "@/lib/routes";
 import { useJobs } from "@/features/jobs/state/JobsProvider";
+import { normalizeJobStatus } from "@/lib/jobs/status";
 
 function getStatusColor(status: string) {
-  switch (status) {
+  switch (normalizeJobStatus(status) ?? status) {
     case "In Progress":
       return "bg-amber-500/15 text-amber-300";
     case "Scheduled":
@@ -70,7 +71,7 @@ export function RecentJobsList() {
             <span
               className={`hidden rounded-full px-2 py-0.5 text-xs font-semibold sm:inline-flex ${getStatusColor(job.status)}`}
             >
-              {job.status}
+              {normalizeJobStatus(job.status) ?? job.status}
             </span>
             <ArrowRight className="h-4 w-4 text-slate-600 transition-colors group-hover:text-slate-400" />
           </div>

@@ -1,5 +1,5 @@
 import type { Job } from "@/features/jobs/types/job";
-import { ROUTES } from "@/lib/routes";
+import { ACTIONABLE_VIEWS } from "@/lib/operationsMetricDefinitions";
 import { JobListWidget } from "./JobListWidget";
 
 /**
@@ -14,7 +14,7 @@ export function OnHoldJobsWidget({ jobs }: { jobs: Job[] }) {
     <JobListWidget
       title="On Hold"
       jobs={jobs}
-      viewAllHref={ROUTES.JOBS}
+      viewAllHref={ACTIONABLE_VIEWS.onHold}
       emptyTitle="No jobs on hold"
       emptyDescription="No jobs are currently blocked or waiting."
       emptyIsGood

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Funnel } from "lucide-react";
 
 import { DataTable, ErrorState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
 import { useAuth, useCurrentRole } from "@/features/auth";
+import { isOpenStatus, normalizeJobStatus } from "@/lib/jobs/status";
 import { Button } from "@/components/ui/button";
 
 import { useJobs } from "../state/JobsProvider";
@@ -39,14 +40,58 @@ const priorityOptions: Array<JobPriority | "All"> = [
 
 export function JobTable() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { role } = useCurrentRole();
   const { user } = useAuth();
   const { jobs, loading, hydrated, error, refreshJobs } = useJobs();
 
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState<JobStatus | "All">("All");
-  const [typeFilter, setTypeFilter] = useState<JobType | "All">("All");
-  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">("All");
+  const [searchValue, setSearchValue] = useState(() => searchParams.get("q") ?? "");
+  const [statusFilter, setStatusFilter] = useState<JobStatus | "All">(() => {
+    const normalized = normalizeJobStatus(searchParams.get("status"));
+    return normalized ?? "All";
+  });
+  const [typeFilter, setTypeFilter] = useState<JobType | "All">(() => {
+    const value = searchParams.get("type");
+    return value && typeOptions.includes(value as JobType) ? (value as JobType) : "All";
+  });
+  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">(() => {
+    const value = searchParams.get("priority");
+    return value && priorityOptions.includes(value as JobPriority)
+      ? (value as JobPriority)
+      : "All";
+  });
+  const [openOnly, setOpenOnly] = useState(() => searchParams.get("open") === "true");
+  const [unassignedOnly, setUnassignedOnly] = useState(
+    () => searchParams.get("unassigned") === "true",
+  );
+  const [lateOnly, setLateOnly] = useState(() => searchParams.get("late") === "true");
+  const [problemOnly, setProblemOnly] = useState(() => searchParams.get("problem") === "true");
+  const [todayOnly, setTodayOnly] = useState(() => searchParams.get("when") === "today");
+
+  useEffect(() => {
+    setSearchValue(searchParams.get("q") ?? "");
+    setStatusFilter(normalizeJobStatus(searchParams.get("status")) ?? "All");
+
+    const typeValue = searchParams.get("type");
+    setTypeFilter(
+      typeValue && typeOptions.includes(typeValue as JobType)
+        ? (typeValue as JobType)
+        : "All",
+    );
+
+    const priorityValue = searchParams.get("priority");
+    setPriorityFilter(
+      priorityValue && priorityOptions.includes(priorityValue as JobPriority)
+        ? (priorityValue as JobPriority)
+        : "All",
+    );
+
+    setOpenOnly(searchParams.get("open") === "true");
+    setUnassignedOnly(searchParams.get("unassigned") === "true");
+    setLateOnly(searchParams.get("late") === "true");
+    setProblemOnly(searchParams.get("problem") === "true");
+    setTodayOnly(searchParams.get("when") === "today");
+  }, [searchParams]);
 
   const filteredJobs = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
@@ -85,20 +130,59 @@ export function JobTable() {
         job.propertyName.toLowerCase().includes(query) ||
         job.assignedTo.toLowerCase().includes(query);
 
-      const matchesStatus = statusFilter === "All" || job.status === statusFilter;
+      const normalizedStatus = normalizeJobStatus(job.status);
+      const matchesStatus = statusFilter === "All" || normalizedStatus === statusFilter;
       const matchesType = typeFilter === "All" || job.type === typeFilter;
       const matchesPriority =
         priorityFilter === "All" || job.priority === priorityFilter;
+      const openStatus = isOpenStatus(job.status);
+      const isUnassigned = job.assignedTo.trim().length === 0;
+      const isLate = openStatus && job.scheduledFor.slice(0, 10) < todayIso;
+      const isProblem = isLate || isUnassigned || normalizedStatus === "On Hold";
 
-      return matchesSearch && matchesStatus && matchesType && matchesPriority;
+      const matchesOpenOnly = !openOnly || openStatus;
+      const matchesUnassignedOnly = !unassignedOnly || isUnassigned;
+      const matchesLateOnly = !lateOnly || isLate;
+      const matchesProblemOnly = !problemOnly || isProblem;
+      const matchesTodayOnly = !todayOnly || job.scheduledFor.slice(0, 10) === todayIso;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesType &&
+        matchesPriority &&
+        matchesOpenOnly &&
+        matchesUnassignedOnly &&
+        matchesLateOnly &&
+        matchesProblemOnly &&
+        matchesTodayOnly
+      );
     });
-  }, [jobs, priorityFilter, role, searchValue, statusFilter, typeFilter, user]);
+  }, [
+    jobs,
+    lateOnly,
+    openOnly,
+    priorityFilter,
+    problemOnly,
+    role,
+    searchValue,
+    statusFilter,
+    todayOnly,
+    typeFilter,
+    unassignedOnly,
+    user,
+  ]);
 
   const hasActiveFilters =
     searchValue.length > 0 ||
     statusFilter !== "All" ||
     typeFilter !== "All" ||
-    priorityFilter !== "All";
+    priorityFilter !== "All" ||
+    openOnly ||
+    unassignedOnly ||
+    lateOnly ||
+    problemOnly ||
+    todayOnly;
 
   if (loading || !hydrated) {
     return (
@@ -191,6 +275,11 @@ export function JobTable() {
                   setStatusFilter("All");
                   setTypeFilter("All");
                   setPriorityFilter("All");
+                  setOpenOnly(false);
+                  setUnassignedOnly(false);
+                  setLateOnly(false);
+                  setProblemOnly(false);
+                  setTodayOnly(false);
                 }}
                 className="w-full text-slate-300 hover:bg-white/5 hover:text-white sm:w-auto"
               >

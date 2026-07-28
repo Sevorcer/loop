@@ -1,5 +1,5 @@
 import type { Job } from "@/features/jobs/types/job";
-import { ROUTES } from "@/lib/routes";
+import { ACTIONABLE_VIEWS } from "@/lib/operationsMetricDefinitions";
 import { JobListWidget } from "./JobListWidget";
 
 export function InProgressJobsWidget({ jobs }: { jobs: Job[] }) {
@@ -7,7 +7,7 @@ export function InProgressJobsWidget({ jobs }: { jobs: Job[] }) {
     <JobListWidget
       title="In Progress"
       jobs={jobs}
-      viewAllHref={ROUTES.JOBS}
+      viewAllHref={ACTIONABLE_VIEWS.inProgress}
       emptyTitle="No jobs in progress"
       emptyDescription="No crews are currently working in the field."
     />

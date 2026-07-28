@@ -1,4 +1,5 @@
 import { KPICard } from '@/components/atlas/KPICard'
+import { DASHBOARD_METRIC_DEFINITIONS } from "@/lib/operationsMetricDefinitions";
 import type { DashboardSummary } from '@/repositories/dashboard'
 
 interface MetricsGridProps {
@@ -8,27 +9,35 @@ interface MetricsGridProps {
 export function MetricsGrid({ summary }: MetricsGridProps) {
   const metrics = [
     {
-      title: "Scheduled Today",
+      title: DASHBOARD_METRIC_DEFINITIONS.scheduledToday.label,
       value: summary.scheduledToday,
-      description: "Jobs scheduled for today",
+      description: DASHBOARD_METRIC_DEFINITIONS.scheduledToday.description,
+      href: DASHBOARD_METRIC_DEFINITIONS.scheduledToday.href,
+      helpText: DASHBOARD_METRIC_DEFINITIONS.scheduledToday.helpText,
     },
     {
-      title: "Completed Today",
+      title: DASHBOARD_METRIC_DEFINITIONS.completedToday.label,
       value: summary.completedToday,
-      description: "Jobs finished today",
+      description: DASHBOARD_METRIC_DEFINITIONS.completedToday.description,
+      href: DASHBOARD_METRIC_DEFINITIONS.completedToday.href,
+      helpText: DASHBOARD_METRIC_DEFINITIONS.completedToday.helpText,
     },
     {
-      title: "Blocked / On Hold",
+      title: DASHBOARD_METRIC_DEFINITIONS.onHold.label,
       value: summary.blockedJobs,
-      description: "Jobs awaiting action",
+      description: DASHBOARD_METRIC_DEFINITIONS.onHold.description,
+      href: DASHBOARD_METRIC_DEFINITIONS.onHold.href,
+      helpText: DASHBOARD_METRIC_DEFINITIONS.onHold.helpText,
       ...(summary.blockedJobs > 0
         ? { trend: { value: "Needs attention", positive: false } }
         : {}),
     },
     {
-      title: "Unassigned Jobs",
+      title: DASHBOARD_METRIC_DEFINITIONS.unassignedJobs.label,
       value: summary.unassignedJobs,
-      description: "Open jobs without a technician",
+      description: DASHBOARD_METRIC_DEFINITIONS.unassignedJobs.description,
+      href: DASHBOARD_METRIC_DEFINITIONS.unassignedJobs.href,
+      helpText: DASHBOARD_METRIC_DEFINITIONS.unassignedJobs.helpText,
       ...(summary.unassignedJobs > 0
         ? { trend: { value: "Needs assignment", positive: false } }
         : {}),

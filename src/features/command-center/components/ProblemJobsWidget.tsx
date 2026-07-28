@@ -2,7 +2,8 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
 import { SectionCard, EmptyState } from "@/components/atlas";
-import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
+import { ACTIONABLE_VIEWS } from "@/lib/operationsMetricDefinitions";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { ProblemJob, ProblemReason } from "../types/commandCenter";
 import { formatScheduledDate } from "../utils/commandCenterUtils";
 
@@ -67,7 +68,7 @@ export function ProblemJobsWidget({ problemJobs }: ProblemJobsWidgetProps) {
               {problemJobs.length}
             </span>
             <Link
-              href={ROUTES.JOBS}
+              href={ACTIONABLE_VIEWS.problemJobs}
               className="text-xs font-medium text-primary transition-colors hover:text-white"
             >
               View all →
@@ -128,7 +129,7 @@ export function ProblemJobsWidget({ problemJobs }: ProblemJobsWidgetProps) {
 
           {overflowCount > 0 && (
             <Link
-              href={ROUTES.JOBS}
+              href={ACTIONABLE_VIEWS.problemJobs}
               className="block pt-1 text-xs text-muted transition-colors hover:text-primary"
             >
               + {overflowCount} more — View all →

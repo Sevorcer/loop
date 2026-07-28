@@ -2,7 +2,9 @@
 // Domain constants shared across Supabase repositories
 // ---------------------------------------------------------------------------
 
-export const OPEN_JOB_STATUS_EXCLUSION_FILTER = "(Completed,Cancelled)";
+import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "@/lib/jobs/status";
+
+export { OPEN_JOB_STATUS_EXCLUSION_FILTER };
 export const UNLINKED_CUSTOMER_LABEL = "Unlinked Customer";
 
 // ---------------------------------------------------------------------------
