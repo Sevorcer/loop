@@ -73,6 +73,10 @@ const pageContent: Record<string, { title: string; description: string }> = {
     title: "Settings",
     description: "Configure system preferences, users, and workspace behavior.",
   },
+  [ROUTES.OPS_FEEDBACK]: {
+    title: "Feedback Reports",
+    description: "Triage in-app feedback from the pilot team — review, prioritize, and resolve.",
+  },
 };
 
 function getPageMeta(pathname: string) {

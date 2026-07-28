@@ -17,6 +17,7 @@ export const ROUTES = {
   COMPANY_BRAIN: "/company-brain",
   REPORTING: "/reporting",
   SETTINGS: "/settings",
+  OPS_FEEDBACK: "/ops/feedback",
 } as const;
 
 export const ROUTE_BUILDERS = {

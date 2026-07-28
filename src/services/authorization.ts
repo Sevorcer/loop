@@ -21,6 +21,9 @@
  *
  * Sprint 28: Added db_health_check_runs for the DB health dashboard.
  *   Read-only for owner/manager roles; CI writes via service_role (bypasses RLS).
+ *
+ * Sprint 7 Mini-Epic: Added feedback_reports for in-app feedback capture.
+ *   Insert: all operational staff. Select/update: owner/manager. Delete: owner.
  */
 
 // ---------------------------------------------------------------------------
@@ -59,7 +62,9 @@ export type CoreTable =
   | "organizations"
   // Sprint 28 — DB health check tables
   // Read-only in the app layer; CI writes via service_role (bypasses RLS).
-  | "db_health_check_runs";
+  | "db_health_check_runs"
+  // Sprint 7 Mini-Epic — In-app feedback capture
+  | "feedback_reports";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -214,6 +219,15 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>([]),
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
+  },
+
+  // ── Sprint 7 Mini-Epic — In-app feedback capture ──────────────────────────
+  // All operational staff may submit feedback. Only manager/owner may triage.
+  feedback_reports: {
+    select: new Set<AppRole>(["owner", "manager"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner"]),
   },
 };
 
