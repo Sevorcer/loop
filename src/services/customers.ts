@@ -118,6 +118,8 @@ export async function getCustomerProperties(customerId: string): Promise<Custome
     city: p.city,
     status: p.status,
     primarySystem: p.primarySystem,
+    createdAt: p.createdAt,
+    lastVisit: p.lastVisit,
   }));
 }
 
@@ -125,6 +127,7 @@ export async function getCustomerJobs(customerId: string): Promise<CustomerJobIt
   const jobs = await listJobsByCustomerId(customerId);
   return jobs.map((j) => ({
     id: j.id,
+    jobNumber: j.jobNumber,
     title: j.title,
     status: j.status,
     scheduledFor: j.scheduledFor,
