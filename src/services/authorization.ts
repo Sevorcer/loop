@@ -168,8 +168,8 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
 
   installed_systems: {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
-    insert: new Set<AppRole>(["owner", "manager"]),
-    update: new Set<AppRole>(["owner", "manager"]),
+    insert: new Set<AppRole>(["owner", "manager", "tech", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "tech", "office"]),
     delete: new Set<AppRole>(["owner", "manager"]),
   },
 

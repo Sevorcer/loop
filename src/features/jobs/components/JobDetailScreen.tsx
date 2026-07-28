@@ -293,7 +293,13 @@ export function JobDetailScreen({
 
           <AssignContractorPanel jobId={job.id} />
 
-          <JobInstalledSystemsPanel jobId={job.id} />
+          <JobInstalledSystemsPanel
+              jobId={job.id}
+              jobNumber={job.jobNumber}
+              propertyId={job.propertyId ?? undefined}
+              customerName={job.customerName}
+              propertyName={job.propertyName}
+            />
 
           <JobNoteComposer notes={job.notes} onSaveNotes={onSaveNotes} />
 

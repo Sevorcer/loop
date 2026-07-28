@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { PropertyDetailScreen } from "@/features/properties";
+import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import { getCustomer, getCustomerProperties } from "@/services/customers";
-import { listInstalledSystemsForProperty } from "@/services/installedSystems";
+import { getInstalledSystemsForProperty } from "@/services/installedSystems";
 import { listJobsForProperty } from "@/services/jobs";
 import { getProperty } from "@/services/properties";
 import { buildPropertyTimelineEvents } from "@/services/timeline";
@@ -20,17 +21,18 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     notFound();
   }
 
-  const [jobs, installedSystems] = await Promise.all([
+  const [jobs, installedSystems, customerAndProperties] = await Promise.all([
     listJobsForProperty(id),
-    listInstalledSystemsForProperty(id),
+    getInstalledSystemsForProperty(id).catch(() => []),
+    property.customerId
+      ? Promise.all([
+          getCustomer(property.customerId),
+          getCustomerProperties(property.customerId),
+        ])
+      : Promise.resolve([null, [] as CustomerPropertyItem[]] as const),
   ]);
 
-  const [customer, customerProperties] = property.customerId
-    ? await Promise.all([
-        getCustomer(property.customerId),
-        getCustomerProperties(property.customerId),
-      ])
-    : [null, []];
+  const [customer, customerProperties] = customerAndProperties;
 
   const timelineState = await buildPropertyTimelineEvents({
     property,
@@ -61,3 +63,4 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     />
   );
 }
+

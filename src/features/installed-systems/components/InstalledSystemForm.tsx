@@ -18,6 +18,10 @@ const LIFECYCLE_OPTIONS: InstalledSystemLifecycle[] = ["Planned", "Active", "Nee
 
 interface FormValues {
   systemName: string;
+  manufacturer: string;
+  modelNumber: string;
+  serialNumber: string;
+  warrantyExpiry: string;
   customerName: string;
   propertyName: string;
   location: string;
@@ -28,6 +32,10 @@ interface FormValues {
 function toFormValues(system?: InstalledSystem): FormValues {
   return {
     systemName: system?.systemName ?? "",
+    manufacturer: system?.manufacturer ?? "",
+    modelNumber: system?.modelNumber ?? "",
+    serialNumber: system?.serialNumbers?.[0] ?? "",
+    warrantyExpiry: system?.warrantyExpiry ?? "",
     customerName: system?.customerName ?? "",
     propertyName: system?.propertyName ?? "",
     location: system?.location ?? "",
@@ -36,16 +44,36 @@ function toFormValues(system?: InstalledSystem): FormValues {
   };
 }
 
-interface InstalledSystemFormProps {
-  system?: InstalledSystem;
+export interface InstalledSystemFormContext {
+  jobId?: string;
+  jobNumber?: string;
+  propertyId?: string;
+  customerName?: string;
+  propertyName?: string;
 }
 
-export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
+interface InstalledSystemFormProps {
+  system?: InstalledSystem;
+  context?: InstalledSystemFormContext;
+}
+
+export function InstalledSystemForm({ system, context }: InstalledSystemFormProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const { refreshSystems } = useInstalledSystems();
-  const [form, setForm] = useState<FormValues>(toFormValues(system));
+  const [form, setForm] = useState<FormValues>(() => {
+    const base = toFormValues(system);
+    if (!system && context) {
+      return {
+        ...base,
+        customerName: context.customerName ?? base.customerName,
+        propertyName: context.propertyName ?? base.propertyName,
+      };
+    }
+    return base;
+  });
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const isEdit = Boolean(system);
@@ -53,20 +81,43 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
     ? ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system!.id)
     : ROUTES.INSTALLED_SYSTEMS;
 
-  const canSubmit =
-    form.systemName.trim().length > 0 &&
-    form.customerName.trim().length > 0 &&
-    form.propertyName.trim().length > 0;
+  function isFormValid(f: FormValues): boolean {
+    return (
+      f.systemName.trim().length > 0 &&
+      f.manufacturer.trim().length > 0 &&
+      f.modelNumber.trim().length > 0 &&
+      f.serialNumber.trim().length > 0 &&
+      f.installDate.trim().length > 0 &&
+      f.customerName.trim().length > 0 &&
+      f.propertyName.trim().length > 0
+    );
+  }
+
+  const canSubmit = isFormValid(form);
 
   function updateField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setForm((current) => ({ ...current, [key]: value }));
     setError(null);
+    setFieldErrors((current) => ({ ...current, [key]: undefined }));
+  }
+
+  function validate(): boolean {
+    const errors: Partial<Record<keyof FormValues, string>> = {};
+    if (!form.systemName.trim()) errors.systemName = "System name is required.";
+    if (!form.manufacturer.trim()) errors.manufacturer = "Manufacturer is required.";
+    if (!form.modelNumber.trim()) errors.modelNumber = "Model number is required.";
+    if (!form.serialNumber.trim()) errors.serialNumber = "Serial number is required.";
+    if (!form.installDate.trim()) errors.installDate = "Install date is required.";
+    if (!form.customerName.trim()) errors.customerName = "Customer name is required.";
+    if (!form.propertyName.trim()) errors.propertyName = "Property name is required.";
+    setFieldErrors(errors);
+    return isFormValid(form);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!canSubmit) {
+    if (!validate()) {
       setError("Complete all required fields before saving.");
       return;
     }
@@ -75,12 +126,18 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
       setIsSaving(true);
       setError(null);
 
+      const serialNumbers = [form.serialNumber.trim()].filter(Boolean);
+
       if (isEdit && system) {
         await requestJson(`/api/installed-systems/${system.id}`, {
           method: "PATCH",
           role,
           body: {
             systemName: form.systemName.trim(),
+            manufacturer: form.manufacturer.trim(),
+            modelNumber: form.modelNumber.trim(),
+            serialNumbers,
+            warrantyExpiry: form.warrantyExpiry.trim(),
             customerName: form.customerName.trim(),
             propertyName: form.propertyName.trim(),
             location: form.location.trim(),
@@ -98,11 +155,18 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
             role,
             body: {
               systemName: form.systemName.trim(),
+              manufacturer: form.manufacturer.trim(),
+              modelNumber: form.modelNumber.trim(),
+              serialNumbers,
+              warrantyExpiry: form.warrantyExpiry.trim(),
               customerName: form.customerName.trim(),
+              propertyId: context?.propertyId,
               propertyName: form.propertyName.trim(),
               location: form.location.trim(),
               installDate: form.installDate,
               lifecycleStatus: form.lifecycleStatus,
+              jobId: context?.jobId,
+              jobNumber: context?.jobNumber,
             },
           },
         );
@@ -138,6 +202,13 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
                   : "Register a new installed system. Technical profile and catalog matching will be configured after creation."}
               </p>
             </div>
+
+            {context?.jobNumber ? (
+              <p className="text-sm text-slate-400">
+                Linked to job{" "}
+                <span className="font-medium text-slate-200">{context.jobNumber}</span>
+              </p>
+            ) : null}
           </div>
 
           <Link href={cancelHref}>
@@ -151,6 +222,7 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
       <form onSubmit={handleSubmit}>
         <SurfaceCard>
           <div className="grid gap-6 p-6 lg:grid-cols-2">
+            {/* System Name */}
             <div className="space-y-2 lg:col-span-2">
               <label className="text-sm font-medium text-slate-200">
                 System Name <span className="text-red-400">*</span>
@@ -162,8 +234,91 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
                 required
               />
+              {fieldErrors.systemName ? (
+                <p className="text-xs text-red-400">{fieldErrors.systemName}</p>
+              ) : null}
             </div>
 
+            {/* Manufacturer */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Manufacturer <span className="text-red-400">*</span>
+              </label>
+              <input
+                value={form.manufacturer}
+                onChange={(e) => updateField("manufacturer", e.target.value)}
+                placeholder="Mitsubishi, Daikin, Carrier…"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+                required
+              />
+              {fieldErrors.manufacturer ? (
+                <p className="text-xs text-red-400">{fieldErrors.manufacturer}</p>
+              ) : null}
+            </div>
+
+            {/* Model Number */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Model Number <span className="text-red-400">*</span>
+              </label>
+              <input
+                value={form.modelNumber}
+                onChange={(e) => updateField("modelNumber", e.target.value)}
+                placeholder="MXZ-3C24NAHZ2"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+                required
+              />
+              {fieldErrors.modelNumber ? (
+                <p className="text-xs text-red-400">{fieldErrors.modelNumber}</p>
+              ) : null}
+            </div>
+
+            {/* Serial Number */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Serial Number <span className="text-red-400">*</span>
+              </label>
+              <input
+                value={form.serialNumber}
+                onChange={(e) => updateField("serialNumber", e.target.value)}
+                placeholder="SN-2024-001234"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+                required
+              />
+              {fieldErrors.serialNumber ? (
+                <p className="text-xs text-red-400">{fieldErrors.serialNumber}</p>
+              ) : null}
+            </div>
+
+            {/* Install Date */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Install Date <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="date"
+                value={form.installDate}
+                onChange={(e) => updateField("installDate", e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+                required
+              />
+              {fieldErrors.installDate ? (
+                <p className="text-xs text-red-400">{fieldErrors.installDate}</p>
+              ) : null}
+            </div>
+
+            {/* Warranty Expiry */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">Warranty Expiry</label>
+              <input
+                type="date"
+                value={form.warrantyExpiry}
+                onChange={(e) => updateField("warrantyExpiry", e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+              />
+            </div>
+
+            {/* Customer Name */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
                 Customer Name <span className="text-red-400">*</span>
@@ -175,8 +330,12 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
                 required
               />
+              {fieldErrors.customerName ? (
+                <p className="text-xs text-red-400">{fieldErrors.customerName}</p>
+              ) : null}
             </div>
 
+            {/* Property Name */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
                 Property Name <span className="text-red-400">*</span>
@@ -188,8 +347,12 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
                 required
               />
+              {fieldErrors.propertyName ? (
+                <p className="text-xs text-red-400">{fieldErrors.propertyName}</p>
+              ) : null}
             </div>
 
+            {/* Location */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Location</label>
               <input
@@ -200,16 +363,7 @@ export function InstalledSystemForm({ system }: InstalledSystemFormProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Install Date</label>
-              <input
-                type="date"
-                value={form.installDate}
-                onChange={(e) => updateField("installDate", e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
-              />
-            </div>
-
+            {/* Lifecycle Status */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Lifecycle Status</label>
               <select

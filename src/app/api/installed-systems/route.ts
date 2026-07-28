@@ -48,6 +48,43 @@ export async function POST(request: Request) {
       );
     }
 
+    const manufacturer = typeof body.manufacturer === "string" ? body.manufacturer.trim() : "";
+    if (!manufacturer) {
+      return NextResponse.json(
+        { error: "VALIDATION", message: "manufacturer is required.", code: 400 },
+        { status: 400 },
+      );
+    }
+
+    const modelNumber = typeof body.modelNumber === "string" ? body.modelNumber.trim() : "";
+    if (!modelNumber) {
+      return NextResponse.json(
+        { error: "VALIDATION", message: "modelNumber is required.", code: 400 },
+        { status: 400 },
+      );
+    }
+
+    const serialNumbers = Array.isArray(body.serialNumbers)
+      ? (body.serialNumbers as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+      : [];
+    if (serialNumbers.length === 0) {
+      return NextResponse.json(
+        { error: "VALIDATION", message: "At least one serial number is required.", code: 400 },
+        { status: 400 },
+      );
+    }
+
+    const installDate =
+      typeof body.installDate === "string" && body.installDate.trim()
+        ? body.installDate.trim()
+        : "";
+    if (!installDate) {
+      return NextResponse.json(
+        { error: "VALIDATION", message: "installDate is required.", code: 400 },
+        { status: 400 },
+      );
+    }
+
     const installedSystem = await createInstalledSystem({
       technicalIdentityId:
         typeof body.technicalIdentityId === "string"
@@ -85,13 +122,12 @@ export async function POST(request: Request) {
           : undefined,
       matchState: "unmatched",
       matchConfidence: 0,
-      installDate:
-        typeof body.installDate === "string" && body.installDate.trim()
-          ? body.installDate.trim()
-          : new Date().toISOString().split("T")[0],
-      serialNumbers: Array.isArray(body.serialNumbers)
-        ? (body.serialNumbers as unknown[]).filter((s): s is string => typeof s === "string")
-        : [],
+      installDate,
+      manufacturer,
+      modelNumber,
+      serialNumbers,
+      warrantyExpiry:
+        typeof body.warrantyExpiry === "string" ? body.warrantyExpiry.trim() : "",
       accessories: Array.isArray(body.accessories)
         ? (body.accessories as unknown[]).filter((a): a is string => typeof a === "string")
         : [],

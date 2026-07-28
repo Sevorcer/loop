@@ -144,7 +144,13 @@ export interface InstalledSystem {
   matchState: CatalogMatchState;
   matchConfidence: number;
   installDate: string;
+  /** Primary manufacturer name (e.g. "Mitsubishi", "Daikin"). Required. */
+  manufacturer: string;
+  /** Manufacturer model number (e.g. "MXZ-3C24NAHZ2"). Required. */
+  modelNumber: string;
   serialNumbers: string[];
+  /** ISO date string (YYYY-MM-DD) for warranty expiry, or empty string. */
+  warrantyExpiry: string;
   accessories: string[];
   linkedWorkflowIds: string[];
   permitReady: boolean;
