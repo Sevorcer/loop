@@ -18,6 +18,22 @@ interface InviteUserDialogProps {
   onInvited: () => void;
 }
 
+function formatErrorDetails(details: unknown): string | null {
+  if (typeof details === "string" && details.trim().length > 0) {
+    return details;
+  }
+
+  if (details == null) {
+    return null;
+  }
+
+  try {
+    return JSON.stringify(details);
+  } catch {
+    return null;
+  }
+}
+
 export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -65,9 +81,7 @@ export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) 
       setEmailErrors(body.fieldErrors?.email ?? []);
       setRoleErrors(body.fieldErrors?.appRole ?? []);
 
-      const details = typeof body.details === "string" && body.details.trim().length > 0
-        ? body.details
-        : null;
+      const details = formatErrorDetails(body.details);
       const code = typeof body.code === "string" && body.code !== body.message ? body.code : null;
 
       setFormError(
