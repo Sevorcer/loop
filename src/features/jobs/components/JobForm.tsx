@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClipboardPlus, FilePenLine } from "lucide-react";
 import Link from "next/link";
 
@@ -10,8 +10,21 @@ import {
   estimateEquipmentBundles,
   getEstimateEquipmentBundle,
 } from "@/features/installed-systems/utils/installedSystemsUtils";
+import {
+  DEFAULT_JOB_APPOINTMENT_WINDOW,
+  JOB_APPOINTMENT_WINDOWS,
+} from "@/features/jobs/utils/appointmentWindow";
+import {
+  applyCustomerAutocomplete,
+  applyPropertyAutocomplete,
+  getScopedProperties,
+  resolveInitialSmartSelection,
+  type JobCustomerOption,
+  type JobPropertyOption,
+  type SmartSelectionState,
+} from "@/features/jobs/utils/smartJobCreation";
 
-import type { JobPriority, JobType } from "../types/job";
+import type { JobAppointmentWindow, JobPriority, JobType } from "../types/job";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
@@ -24,6 +37,7 @@ export interface JobFormValues {
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;
+  appointmentWindow: JobAppointmentWindow;
   type: JobType;
   priority: JobPriority;
   location: string;
@@ -39,6 +53,7 @@ export const defaultJobFormValues: JobFormValues = {
   propertyName: "",
   assignedTo: "",
   scheduledFor: "",
+  appointmentWindow: DEFAULT_JOB_APPOINTMENT_WINDOW,
   type: "Service",
   priority: "Medium",
   location: "",
@@ -74,6 +89,10 @@ interface JobFormProps {
   mode: "create" | "edit";
   cancelHref: string;
   initialValues?: Partial<JobFormValues>;
+  customerOptions?: JobCustomerOption[];
+  propertyOptions?: JobPropertyOption[];
+  technicianOptions?: string[];
+  initialContext?: SmartSelectionState;
   onSubmit: (values: JobFormValues) => Promise<void> | void;
 }
 
@@ -81,6 +100,10 @@ export function JobForm({
   mode,
   cancelHref,
   initialValues,
+  customerOptions = [],
+  propertyOptions = [],
+  technicianOptions = [],
+  initialContext,
   onSubmit,
 }: JobFormProps) {
   const [form, setForm] = useState<JobFormValues>({
@@ -89,6 +112,35 @@ export function JobForm({
   });
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [selection, setSelection] = useState<SmartSelectionState>({});
+
+  const scopedPropertyOptions = useMemo(
+    () => getScopedProperties(propertyOptions, selection.customerId),
+    [propertyOptions, selection.customerId],
+  );
+
+  useEffect(() => {
+    if (mode !== "create") {
+      return;
+    }
+    if (!initialContext) {
+      return;
+    }
+    const initialized = resolveInitialSmartSelection(
+      customerOptions,
+      propertyOptions,
+      initialContext,
+    );
+    if (!initialized.state.customerId && !initialized.state.propertyId) {
+      return;
+    }
+    setSelection(initialized.state);
+    setForm((current) => ({
+      ...current,
+      ...initialized.formPatch,
+      location: current.location || initialized.formPatch.location || "",
+    }));
+  }, [customerOptions, initialContext, mode, propertyOptions]);
 
   function updateField<K extends keyof JobFormValues>(
     key: K,
@@ -98,6 +150,46 @@ export function JobForm({
       ...current,
       ...(key === "type" ? clearEstimateFieldsIfNeeded(value as JobType) : {}),
       [key]: value,
+    }));
+    setError(null);
+  }
+
+  function handleCustomerInput(value: string) {
+    const selected = applyCustomerAutocomplete(customerOptions, value);
+    const nextCustomerId = selected.state.customerId;
+    const keepProperty = nextCustomerId
+      ? propertyOptions.some(
+          (property) =>
+            property.id === selection.propertyId && property.customerId === nextCustomerId,
+        )
+      : false;
+
+    setSelection((current) => {
+      return {
+        customerId: nextCustomerId,
+        propertyId: keepProperty ? current.propertyId : undefined,
+      };
+    });
+
+    setForm((current) => ({
+      ...current,
+      customerName: selected.formPatch.customerName ?? value,
+      propertyName: keepProperty ? current.propertyName : "",
+    }));
+    setError(null);
+  }
+
+  function handlePropertyInput(value: string) {
+    const selected = applyPropertyAutocomplete(scopedPropertyOptions, value);
+    setSelection({
+      customerId: selected.state.customerId ?? selection.customerId,
+      propertyId: selected.state.propertyId,
+    });
+    setForm((current) => ({
+      ...current,
+      propertyName: selected.formPatch.propertyName ?? value,
+      customerName: selected.formPatch.customerName ?? current.customerName,
+      location: current.location || selected.formPatch.location || current.location,
     }));
     setError(null);
   }
@@ -228,34 +320,52 @@ export function JobForm({
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Customer Name</label>
               <input
+                list="job-customer-options"
                 value={form.customerName}
-                onChange={(e) => updateField("customerName", e.target.value)}
+                onChange={(e) => handleCustomerInput(e.target.value)}
                 placeholder="Northside Retail Group"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
                 required
               />
+              <datalist id="job-customer-options">
+                {customerOptions.map((customer) => (
+                  <option key={customer.id} value={customer.name} />
+                ))}
+              </datalist>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Property Name</label>
               <input
+                list="job-property-options"
                 value={form.propertyName}
-                onChange={(e) => updateField("propertyName", e.target.value)}
+                onChange={(e) => handlePropertyInput(e.target.value)}
                 placeholder="Northside Plaza"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
                 required
               />
+              <datalist id="job-property-options">
+                {scopedPropertyOptions.map((property) => (
+                  <option key={property.id} value={property.name} />
+                ))}
+              </datalist>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Assigned Technician</label>
               <input
+                list="job-technician-options"
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
                 placeholder="Marcus Rivera"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
                 required
               />
+              <datalist id="job-technician-options">
+                {technicianOptions.map((technician) => (
+                  <option key={technician} value={technician} />
+                ))}
+              </datalist>
             </div>
 
             <div className="space-y-2">
@@ -267,6 +377,23 @@ export function JobForm({
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">Appointment Window</label>
+              <select
+                value={form.appointmentWindow}
+                onChange={(e) =>
+                  updateField("appointmentWindow", e.target.value as JobAppointmentWindow)
+                }
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+              >
+                {JOB_APPOINTMENT_WINDOWS.map((window) => (
+                  <option key={window} value={window}>
+                    {window}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">

@@ -1,4 +1,4 @@
-import { Heart, Mail, Pencil, Phone, Users } from "lucide-react";
+import { CalendarClock, Heart, Mail, Pencil, Phone, Users } from "lucide-react";
 import Link from "next/link";
 
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
@@ -132,6 +132,15 @@ export function CustomerDetailScreen({
                   <Button variant="outline" size="sm" className="gap-2">
                     <Pencil className="h-4 w-4" />
                     Edit
+                  </Button>
+                </Link>
+              </PermissionGuard>
+
+              <PermissionGuard table="jobs" action="insert">
+                <Link href={ROUTE_BUILDERS.JOB_NEW({ customerId: customer.id })}>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarClock className="h-4 w-4" />
+                    Schedule Appointment
                   </Button>
                 </Link>
               </PermissionGuard>

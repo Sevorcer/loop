@@ -1,6 +1,13 @@
 import "server-only";
 
-import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
+import type {
+  Job,
+  JobAppointmentWindow,
+  JobPriority,
+  JobStatus,
+  JobType,
+} from "@/features/jobs/types/job";
+import { DEFAULT_JOB_APPOINTMENT_WINDOW } from "@/features/jobs/utils/appointmentWindow";
 import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActivity";
 
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
@@ -20,6 +27,7 @@ interface JobRow {
   property_name: string;
   assigned_to: string;
   scheduled_for: string | null;
+  appointment_window: JobAppointmentWindow | null;
   summary: string;
   location: string;
   notes: string;
@@ -49,6 +57,7 @@ export interface JobWriteInput {
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;
+  appointmentWindow?: JobAppointmentWindow;
   summary: string;
   location: string;
   notes: string;
@@ -78,11 +87,15 @@ function mapJob(row: JobRow): Job {
     propertyName: row.property_name,
     assignedTo: row.assigned_to,
     scheduledFor: row.scheduled_for ?? row.created_at.slice(0, 10),
+    appointmentWindow: row.appointment_window ?? DEFAULT_JOB_APPOINTMENT_WINDOW,
     summary: row.summary,
     location: row.location,
     notes: row.notes,
   };
 }
+
+const JOB_SELECT =
+  "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,appointment_window,summary,location,notes,created_at";
 
 function mapActivity(row: JobActivityRow): JobActivity {
   return {
@@ -100,9 +113,7 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("jobs")
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
-    )
+    .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
@@ -118,9 +129,7 @@ export async function listJobs(): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("jobs")
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
-    )
+    .select(JOB_SELECT)
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
@@ -150,9 +159,7 @@ export async function getJobById(id: string): Promise<Job | null> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("jobs")
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
-    )
+    .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("id", id)
     .maybeSingle();
@@ -168,9 +175,7 @@ export async function getJobRowById(id: string): Promise<JobRow | null> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("jobs")
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
-    )
+    .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("id", id)
     .maybeSingle();
@@ -206,13 +211,12 @@ export async function createJob(
       property_name: input.propertyName,
       assigned_to: input.assignedTo,
       scheduled_for: input.scheduledFor,
+      appointment_window: input.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW,
       summary: input.summary,
       location: input.location,
       notes: input.notes,
     })
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
-    )
+    .select(JOB_SELECT)
     .single();
 
   if (error) {
@@ -243,6 +247,9 @@ export async function updateJob(
   if (input.propertyName !== undefined) updatePayload.property_name = input.propertyName;
   if (input.assignedTo !== undefined) updatePayload.assigned_to = input.assignedTo;
   if (input.scheduledFor !== undefined) updatePayload.scheduled_for = input.scheduledFor;
+  if (input.appointmentWindow !== undefined) {
+    updatePayload.appointment_window = input.appointmentWindow;
+  }
   if (input.summary !== undefined) updatePayload.summary = input.summary;
   if (input.location !== undefined) updatePayload.location = input.location;
   if (input.notes !== undefined) updatePayload.notes = input.notes;
@@ -252,9 +259,7 @@ export async function updateJob(
     .update(updatePayload)
     .eq("org_id", orgId)
     .eq("id", id)
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
-    )
+    .select(JOB_SELECT)
     .maybeSingle();
 
   if (error) {
@@ -365,9 +370,7 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("jobs")
-    .select(
-      "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at",
-    )
+    .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("property_id", propertyId)
     .order("created_at", { ascending: false });

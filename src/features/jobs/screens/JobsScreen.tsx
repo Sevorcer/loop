@@ -7,6 +7,7 @@ import { PermissionGuard } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import { JobTable } from "../components/JobTable";
 import { JobsMetrics } from "../components/JobsMetrics";
@@ -44,7 +45,7 @@ export function JobsScreen({ initialSearchParams }: JobsScreenProps) {
           </div>
 
           <PermissionGuard table="jobs" action="insert">
-            <Link href="/jobs/new" className="w-full sm:w-auto">
+            <Link href={ROUTE_BUILDERS.JOB_NEW()} className="w-full sm:w-auto">
               <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700">
                 <Briefcase className="h-4 w-4" />
                 New Job

@@ -29,6 +29,7 @@ import { JobFilesPanel } from "./JobFilesPanel";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTimeline } from "./JobTimeline";
+import { readJobAppointmentWindow } from "../utils/appointmentWindow";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
@@ -67,6 +68,7 @@ export function JobDetailScreen({
   const [fileCount, setFileCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
   const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
+  const appointmentWindow = readJobAppointmentWindow(job);
   const statusVariant = getStatusVariant(job.status);
   const priorityVariant = getPriorityVariant(job.priority);
   const statusIntent = getJobStatusIntent(job.status);
@@ -182,6 +184,16 @@ export function JobDetailScreen({
                     <p className="mt-1 text-sm text-slate-200">
                       {job.scheduledFor ? formatDate(job.scheduledFor) : "No schedule set"}
                     </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <CalendarClock className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Appointment Window
+                    </p>
+                    <p className="mt-1 text-sm text-slate-200">{appointmentWindow}</p>
                   </div>
                 </div>
 

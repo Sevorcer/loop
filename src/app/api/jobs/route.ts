@@ -12,6 +12,7 @@ import { createJob, listJobsWithActivity } from "@/services/jobs";
 
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
+const JOB_APPOINTMENT_WINDOWS = new Set(["Morning", "Afternoon"]);
 
 function readJobType(value: unknown) {
   const normalized = String(value ?? "Service");
@@ -25,6 +26,17 @@ function readJobPriority(value: unknown) {
   const normalized = String(value ?? "Medium");
   if (!JOB_PRIORITIES.has(normalized)) {
     throw new Error("Invalid job priority.");
+  }
+
+  function readJobAppointmentWindow(value: unknown) {
+    if (value == null || value === "") {
+      return undefined;
+    }
+    const normalized = String(value);
+    if (!JOB_APPOINTMENT_WINDOWS.has(normalized)) {
+      throw new Error("Invalid appointment window.");
+    }
+    return normalized as "Morning" | "Afternoon";
   }
   return normalized as "Low" | "Medium" | "High";
 }
@@ -67,6 +79,7 @@ export async function POST(request: Request) {
       propertyName: String(body.propertyName ?? "").trim(),
       assignedTo: String(body.assignedTo ?? "").trim(),
       scheduledFor: String(body.scheduledFor ?? "").trim(),
+      appointmentWindow: readJobAppointmentWindow(body.appointmentWindow),
       type: readJobType(body.type),
       priority: readJobPriority(body.priority),
       location: String(body.location ?? "").trim(),

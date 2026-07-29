@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Building2,
+  CalendarClock,
   Heart,
   MapPin,
   Pencil,
@@ -184,6 +185,20 @@ export function PropertyDetailScreen({
                   <Button variant="outline" size="sm" className="gap-2">
                     <Pencil className="h-4 w-4" />
                     Edit
+                  </Button>
+                </Link>
+              </PermissionGuard>
+
+              <PermissionGuard table="jobs" action="insert">
+                <Link
+                  href={ROUTE_BUILDERS.JOB_NEW({
+                    customerId: property.customerId ?? undefined,
+                    propertyId: property.id,
+                  })}
+                >
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarClock className="h-4 w-4" />
+                    Schedule Appointment
                   </Button>
                 </Link>
               </PermissionGuard>
