@@ -163,7 +163,7 @@ export function JobForm({
       ...current,
       propertyName: selected.formPatch.propertyName ?? value,
       customerName: selected.formPatch.customerName ?? current.customerName,
-      location: current.location || selected.formPatch.location || current.location,
+      location: selected.formPatch.location || current.location,
     }));
     setError(null);
   }
