@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   Filter,
+  X,
   XCircle,
 } from "lucide-react";
 
@@ -300,7 +301,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
               className="text-xs text-slate-500 hover:text-slate-300"
               aria-label="Clear date filter"
             >
-              ✕
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
