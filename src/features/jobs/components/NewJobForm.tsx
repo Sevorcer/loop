@@ -37,7 +37,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
-  const [optionsLoaded, setOptionsLoaded] = useState(false);
+  const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
 
   const technicianOptions = useMemo(
     () =>
@@ -59,12 +59,12 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
       .then(([customerResponse, propertyResponse]) => {
         setCustomerOptions(customerResponse.customers);
         setPropertyOptions(propertyResponse.properties);
-        setOptionsLoaded(true);
+        setHasLoadedOptions(true);
       })
       .catch(() => {
         setCustomerOptions([]);
         setPropertyOptions([]);
-        setOptionsLoaded(true);
+        setHasLoadedOptions(true);
       });
   }, [role]);
 
@@ -126,7 +126,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
     );
   }
 
-  if (!optionsLoaded && (initialContext?.customerId || initialContext?.propertyId)) {
+  if (role && !hasLoadedOptions) {
     return (
       <SurfaceCard className="mx-auto max-w-3xl p-8 text-center text-sm text-slate-400">
         Loading scheduling context...

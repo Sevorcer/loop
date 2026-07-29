@@ -131,7 +131,7 @@ export function JobForm({
   function handleCustomerInput(value: string) {
     const selected = applyCustomerAutocomplete(customerOptions, value);
     const nextCustomerId = selected.state.customerId;
-    const keepProperty = nextCustomerId
+    const shouldRetainProperty = nextCustomerId
       ? propertyOptions.some(
           (property) =>
             property.id === selection.propertyId && property.customerId === nextCustomerId,
@@ -141,14 +141,14 @@ export function JobForm({
     setSelection((current) => {
       return {
         customerId: nextCustomerId,
-        propertyId: keepProperty ? current.propertyId : undefined,
+        propertyId: shouldRetainProperty ? current.propertyId : undefined,
       };
     });
 
     setForm((current) => ({
       ...current,
       customerName: selected.formPatch.customerName ?? value,
-      propertyName: keepProperty ? current.propertyName : "",
+      propertyName: shouldRetainProperty ? current.propertyName : "",
     }));
     setError(null);
   }
