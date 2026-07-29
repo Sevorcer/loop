@@ -38,6 +38,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
   const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
+  const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
 
   const technicianOptions = useMemo(
     () =>
@@ -59,11 +60,14 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
       .then(([customerResponse, propertyResponse]) => {
         setCustomerOptions(customerResponse.customers);
         setPropertyOptions(propertyResponse.properties);
+        setSmartLoadError(null);
         setHasLoadedOptions(true);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("[jobs] failed to load smart creation options", error);
         setCustomerOptions([]);
         setPropertyOptions([]);
+        setSmartLoadError("Autocomplete is temporarily unavailable. Manual entry still works.");
         setHasLoadedOptions(true);
       });
   }, [role]);
@@ -135,15 +139,20 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   }
 
   return (
-    <JobForm
-      mode="create"
-      cancelHref={ROUTES.JOBS}
-      initialValues={prefilledValues}
-      customerOptions={customerOptions}
-      propertyOptions={propertyOptions}
-      technicianOptions={technicianOptions}
-      onSubmit={handleSubmit}
-    />
+    <div className="space-y-4">
+      {smartLoadError ? (
+        <SurfaceCard className="p-4 text-sm text-amber-200">{smartLoadError}</SurfaceCard>
+      ) : null}
+      <JobForm
+        mode="create"
+        cancelHref={ROUTES.JOBS}
+        initialValues={prefilledValues}
+        customerOptions={customerOptions}
+        propertyOptions={propertyOptions}
+        technicianOptions={technicianOptions}
+        onSubmit={handleSubmit}
+      />
+    </div>
   );
 }
 

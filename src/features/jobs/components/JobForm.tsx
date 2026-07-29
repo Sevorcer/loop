@@ -131,12 +131,14 @@ export function JobForm({
   function handleCustomerInput(value: string) {
     const selected = applyCustomerAutocomplete(customerOptions, value);
     const nextCustomerId = selected.state.customerId;
-    const shouldRetainProperty = nextCustomerId && selection.propertyId
-      ? propertyOptions.some(
+    const shouldRetainProperty = Boolean(
+      nextCustomerId &&
+        selection.propertyId &&
+        propertyOptions.some(
           (property) =>
             property.id === selection.propertyId && property.customerId === nextCustomerId,
-        )
-      : false;
+        ),
+    );
 
     setSelection((current) => {
       return {
