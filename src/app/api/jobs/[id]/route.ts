@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { parseOptionalTimestamp } from "@/lib/api/parseRequestFields";
 import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
 import {
@@ -159,8 +160,13 @@ export async function PATCH(
               customerName: String(body.customerName ?? "").trim(),
               propertyName: String(body.propertyName ?? "").trim(),
               assignedTo: String(body.assignedTo ?? "").trim(),
-              scheduledFor: String(body.scheduledFor ?? "").trim(),
+              scheduledFor: body.scheduledFor !== undefined ? String(body.scheduledFor).trim() : undefined,
               appointmentHour: readJobAppointmentHour(body.appointmentHour),
+              // PR3C clock-time fields
+              scheduledStartAt: parseOptionalTimestamp(body.scheduledStartAt),
+              scheduledEndAt: parseOptionalTimestamp(body.scheduledEndAt),
+              arrivalWindowStartAt: parseOptionalTimestamp(body.arrivalWindowStartAt),
+              arrivalWindowEndAt: parseOptionalTimestamp(body.arrivalWindowEndAt),
               type: readJobType(body.type),
               priority: readJobPriority(body.priority),
               location: String(body.location ?? "").trim(),

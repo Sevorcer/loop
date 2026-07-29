@@ -8,7 +8,15 @@ export interface CreateJobInput {
   customerName: string;
   propertyName: string;
   assignedTo: string;
-  scheduledFor: string;
+  // Real clock-time scheduling (PR3C)
+  scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
+  arrivalWindowStartAt?: string | null;
+  arrivalWindowEndAt?: string | null;
+  // Legacy fields — kept for backwards compat; prefer scheduledStartAt
+  /** @deprecated Use scheduledStartAt */
+  scheduledFor?: string;
+  /** @deprecated Use scheduledStartAt */
   appointmentHour?: Job["appointmentHour"];
   type: Job["type"];
   priority: Job["priority"];
@@ -24,7 +32,15 @@ export interface UpdateJobInput {
   customerName: string;
   propertyName: string;
   assignedTo: string;
-  scheduledFor: string;
+  // Real clock-time scheduling (PR3C)
+  scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
+  arrivalWindowStartAt?: string | null;
+  arrivalWindowEndAt?: string | null;
+  // Legacy fields — kept for backwards compat; prefer scheduledStartAt
+  /** @deprecated Use scheduledStartAt */
+  scheduledFor?: string;
+  /** @deprecated Use scheduledStartAt */
   appointmentHour?: Job["appointmentHour"];
   type: Job["type"];
   priority: Job["priority"];

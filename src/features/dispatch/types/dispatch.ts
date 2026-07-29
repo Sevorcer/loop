@@ -123,7 +123,17 @@ export interface DispatchPlan {
   /** Target execution date (ISO date string) */
   targetDate: string;
 
-  /** Appointment window from the associated job (Morning or Afternoon) */
+  /**
+   * PR3C: Real clock-time committed start from the associated job.
+   * ISO 8601 timestamptz. Replaces the old appointmentWindow Morning/Afternoon labels.
+   */
+  scheduledStartAt?: string | null;
+
+  /**
+   * @deprecated Use scheduledStartAt. Kept for one release window.
+   * Appointment window from the associated job (Morning or Afternoon).
+   * TODO(cleanup): Remove after migration 20260729000003 is stable everywhere.
+   */
   appointmentWindow?: "Morning" | "Afternoon";
 
   /** Estimated hours on site */
@@ -233,7 +243,15 @@ export interface ScheduleBlock {
   customerName: string;
   propertyName: string;
   dispatchStatus: DispatchStatus;
-  /** Appointment window from the associated job */
+  /**
+   * PR3C: Real clock-time committed start from the associated job.
+   * ISO 8601 timestamptz.
+   */
+  scheduledStartAt?: string | null;
+  /**
+   * @deprecated Use scheduledStartAt.
+   * TODO(cleanup): Remove after migration 20260729000003 is stable everywhere.
+   */
   appointmentWindow?: "Morning" | "Afternoon";
 }
 

@@ -13,9 +13,13 @@ interface EditJobPageClientProps {
   job: Job;
 }
 
+import { jobToFormScheduling } from "./JobForm";
+
 function EditJobFormContent({ job }: EditJobPageClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
+
+  const schedulingValues = jobToFormScheduling(job);
 
   return (
     <JobForm
@@ -28,8 +32,7 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
         customerName: job.customerName,
         propertyName: job.propertyName,
         assignedTo: job.assignedTo,
-        scheduledFor: job.scheduledFor,
-        appointmentHour: job.appointmentHour,
+        ...schedulingValues,
         type: job.type,
         priority: job.priority,
         location: job.location,

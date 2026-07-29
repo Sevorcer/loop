@@ -142,7 +142,7 @@ describe("listJobs — appointment_window column fallback", () => {
     expect(jobs[0].id).toBe("job-1");
     expect(jobs[0].appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining("appointment_window column missing"),
+      expect.stringContaining("scheduling column missing"),
     );
   });
 
@@ -190,7 +190,7 @@ describe("listJobsByCustomerId — appointment_window column fallback", () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0].appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining("appointment_window column missing"),
+      expect.stringContaining("scheduling column missing"),
     );
   });
 
@@ -223,7 +223,7 @@ describe("listJobsByPropertyId — appointment_window column fallback", () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0].appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining("appointment_window column missing"),
+      expect.stringContaining("scheduling column missing"),
     );
   });
 });
@@ -248,7 +248,7 @@ describe("getJobById — appointment_window column fallback", () => {
     expect(job).not.toBeNull();
     expect(job?.appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining("appointment_window column missing"),
+      expect.stringContaining("scheduling column missing"),
     );
   });
 
@@ -281,7 +281,7 @@ describe("getJobRowById — appointment_window column fallback", () => {
     expect(row).not.toBeNull();
     expect(row?.id).toBe("job-1");
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining("appointment_window column missing"),
+      expect.stringContaining("scheduling column missing"),
     );
   });
 });
