@@ -8,6 +8,7 @@ export type JobStatus =
   | "Cancelled";
 
 export type JobPriority = "Low" | "Medium" | "High";
+export type JobAppointmentWindow = "Morning" | "Afternoon";
 
 export interface Job {
   id: string;
@@ -24,6 +25,7 @@ export interface Job {
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;
+  appointmentWindow?: JobAppointmentWindow;
   summary: string;
   location: string;
   notes: string;

@@ -13,6 +13,10 @@ import {
   type RequiredQaChecklist,
 } from "@/features/jobs/utils/jobCompletionChecklist";
 import { resolveCustomerIdByName } from "@/repositories/properties";
+import {
+  DEFAULT_JOB_APPOINTMENT_WINDOW,
+  isValidJobAppointmentWindow,
+} from "@/features/jobs/utils/appointmentWindow";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import {
   countJobs,
@@ -60,6 +64,7 @@ function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInp
     propertyName: input.propertyName.trim(),
     assignedTo: input.assignedTo.trim(),
     scheduledFor: input.scheduledFor,
+    appointmentWindow: input.appointmentWindow,
     location: input.location.trim(),
     summary: input.summary.trim(),
     notes: input.notes.trim(),
@@ -77,6 +82,9 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   if (!JOB_PRIORITIES.has(input.priority)) throw new Error("Invalid job priority.");
   if (Number.isNaN(new Date(input.scheduledFor).getTime())) {
     throw new Error("Scheduled date is invalid.");
+  }
+  if (input.appointmentWindow && !isValidJobAppointmentWindow(input.appointmentWindow)) {
+    throw new Error("Invalid appointment window.");
   }
 }
 
@@ -139,6 +147,8 @@ export async function createJob(
   contextInput?: SessionRepositoryContextInput,
 ) {
   const normalized = normalizeJobInput(input) as CreateJobInput;
+  const appointmentWindow = normalized.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW;
+  normalized.appointmentWindow = appointmentWindow;
   validateJobInput(normalized);
 
   const nextIndex = (await countJobs(contextInput)) + 1;
@@ -151,6 +161,7 @@ export async function createJob(
     createJobNumber(nextIndex),
     {
       ...normalized,
+      appointmentWindow,
       customerId,
       propertyId,
       status: "Scheduled",
@@ -191,9 +202,13 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   }
 
   const normalized = normalizeJobInput(input) as UpdateJobInput;
-  validateJobInput(normalized);
-
+  // Keep the previous persisted values available so missing update fields
+  // (including appointmentWindow for legacy callers) can be validated safely.
   const previousJob = toJob(existing);
+  const appointmentWindow =
+    normalized.appointmentWindow ?? previousJob.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW;
+  normalized.appointmentWindow = appointmentWindow;
+  validateJobInput(normalized);
   const [customerId, propertyId] = await Promise.all([
     resolveCustomerIdByName(normalized.customerName),
     resolvePropertyIdByName(normalized.propertyName),
@@ -201,6 +216,7 @@ export async function updateJob(id: string, input: UpdateJobInput) {
 
   const updatedJob = await updateJobRecord(id, {
     ...normalized,
+    appointmentWindow,
     customerId,
     propertyId,
     status: existing.status,
@@ -220,6 +236,9 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   if (existing.property_name !== updatedJob.propertyName) changedFields.push("property");
   if (existing.assigned_to !== updatedJob.assignedTo) changedFields.push("assignee");
   if ((existing.scheduled_for ?? "") !== updatedJob.scheduledFor) changedFields.push("schedule");
+  if ((existing.appointment_window ?? DEFAULT_JOB_APPOINTMENT_WINDOW) !== appointmentWindow) {
+    changedFields.push("appointment window");
+  }
   if (existing.type !== updatedJob.type) changedFields.push("type");
   if (existing.priority !== updatedJob.priority) changedFields.push("priority");
   if (existing.location !== updatedJob.location) changedFields.push("location");

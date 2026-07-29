@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,16 +8,84 @@ import { useRouter } from "next/navigation";
 import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { useCurrentRole } from "@/features/auth";
+import type { Customer } from "@/features/customers/types/customer";
+import type { Property } from "@/features/properties/types/property";
+import { requestJson } from "@/lib/api/client";
+import { ROUTES } from "@/lib/routes";
+import { useContractors } from "@/features/contractors/state/ContractorsProvider";
+import {
+  buildTechnicianSuggestions,
+  resolveInitialSmartSelection,
+} from "@/features/jobs/utils/smartJobCreation";
 
 import { JobForm, type JobFormValues } from "./JobForm";
 import { useJobs } from "../state/JobsProvider";
+import type { SmartSelectionState } from "../utils/smartJobCreation";
 
-function NewJobFormContent() {
+interface NewJobFormProps {
+  initialContext?: SmartSelectionState;
+}
+
+function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const router = useRouter();
-  const { createJob } = useJobs();
+  const { role } = useCurrentRole();
+  const { jobs, createJob } = useJobs();
+  const { contractors } = useContractors();
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
+  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
+  const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
+  const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
+
+  const technicianOptions = useMemo(
+    () =>
+      buildTechnicianSuggestions([
+        ...jobs.map((job) => job.assignedTo),
+        ...contractors.map((contractor) => contractor.contactName),
+      ]),
+    [contractors, jobs],
+  );
+
+  useEffect(() => {
+    if (!role) {
+      return;
+    }
+    void Promise.all([
+      requestJson<{ customers: Customer[] }>("/api/customers", { role }),
+      requestJson<{ properties: Property[] }>("/api/properties", { role }),
+    ])
+      .then(([customerResponse, propertyResponse]) => {
+        setCustomerOptions(customerResponse.customers);
+        setPropertyOptions(propertyResponse.properties);
+        setSmartLoadError(null);
+        setHasLoadedOptions(true);
+      })
+      .catch((error) => {
+        console.error("[jobs] failed to load smart creation options", error);
+        setCustomerOptions([]);
+        setPropertyOptions([]);
+        setSmartLoadError("Autocomplete is temporarily unavailable. Manual entry still works.");
+        setHasLoadedOptions(true);
+      });
+  }, [role]);
+
+  const prefilledValues = useMemo(() => {
+    if (!initialContext) {
+      return undefined;
+    }
+    const initialized = resolveInitialSmartSelection(
+      customerOptions,
+      propertyOptions,
+      initialContext,
+    );
+    if (Object.keys(initialized.formPatch).length === 0) {
+      return undefined;
+    }
+    return initialized.formPatch;
+  }, [customerOptions, initialContext, propertyOptions]);
 
   async function handleSubmit(values: JobFormValues) {
     const job = await createJob(values);
@@ -49,7 +117,7 @@ function NewJobFormContent() {
           </div>
 
           <div className="flex justify-center gap-3">
-            <Link href="/jobs">
+          <Link href={ROUTES.JOBS}>
               <Button variant="secondary">Back to Jobs</Button>
             </Link>
 
@@ -62,17 +130,40 @@ function NewJobFormContent() {
     );
   }
 
-  return <JobForm mode="create" cancelHref="/jobs" onSubmit={handleSubmit} />;
+  if (role && !hasLoadedOptions) {
+    return (
+      <SurfaceCard className="mx-auto max-w-3xl p-8 text-center text-sm text-slate-400">
+        Loading scheduling context...
+      </SurfaceCard>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {smartLoadError ? (
+        <SurfaceCard className="p-4 text-sm text-amber-200">{smartLoadError}</SurfaceCard>
+      ) : null}
+      <JobForm
+        mode="create"
+        cancelHref={ROUTES.JOBS}
+        initialValues={prefilledValues}
+        customerOptions={customerOptions}
+        propertyOptions={propertyOptions}
+        technicianOptions={technicianOptions}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
 }
 
-export function NewJobForm() {
+export function NewJobForm({ initialContext }: NewJobFormProps) {
   return (
     <RoutePermissionGuard
       table="jobs"
       action="insert"
       deniedDescription="You don't have permission to create jobs."
     >
-      <NewJobFormContent />
+      <NewJobFormContent initialContext={initialContext} />
     </RoutePermissionGuard>
   );
 }
