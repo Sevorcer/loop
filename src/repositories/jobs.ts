@@ -345,6 +345,7 @@ export async function getJobById(id: string): Promise<Job | null> {
     error = fallback.error;
 
     if (error && isSchedulingColumnMissingError(error)) {
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
       const base = await supabase
         .from("jobs")
         .select(JOB_SELECT_BASE)
@@ -388,6 +389,7 @@ export async function getJobRowById(id: string): Promise<JobRow | null> {
     error = fallback.error;
 
     if (error && isSchedulingColumnMissingError(error)) {
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
       const base = await supabase
         .from("jobs")
         .select(JOB_SELECT_BASE)
@@ -696,6 +698,7 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
     error = fallback.error;
 
     if (error && isSchedulingColumnMissingError(error)) {
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
       const base = await supabase
         .from("jobs")
         .select(JOB_SELECT_BASE)
