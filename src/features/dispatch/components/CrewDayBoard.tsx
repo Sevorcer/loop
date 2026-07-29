@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, ExternalLink, MapPin, Users } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, ExternalLink, MapPin, Moon, Sun, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -245,6 +245,16 @@ function ScheduleBlockRow({ block, isConflicting }: ScheduleBlockRowProps) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-mono text-slate-500">{block.jobType}</span>
+          {block.appointmentWindow && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs text-slate-400">
+              {block.appointmentWindow === "Morning" ? (
+                <Sun className="h-2.5 w-2.5 text-amber-400" />
+              ) : (
+                <Moon className="h-2.5 w-2.5 text-blue-400" />
+              )}
+              {block.appointmentWindow}
+            </span>
+          )}
           {isConflicting && (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-400">
               <AlertTriangle className="h-2.5 w-2.5" />

@@ -611,11 +611,56 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
   if (blocksRes.error) throw new Error(blocksRes.error.message);
   if (eventsRes.error) throw new Error(eventsRes.error.message);
 
+  const rawPlans = (plansRes.data ?? []) as DispatchPlanRow[];
+  const rawBlocks = (blocksRes.data ?? []) as ScheduleBlockRow[];
+
+  // Enrich plans and blocks with appointment_window from the jobs table.
+  // This surfaces PR3A scheduling data (appointment_window) into the dispatch view.
+  const jobIds = [
+    ...new Set([
+      ...rawPlans.map((p) => p.job_id).filter((id): id is string => !!id),
+      ...rawBlocks.map((b) => b.job_id).filter((id): id is string => !!id),
+    ]),
+  ];
+
+  const appointmentWindowByJobId = new Map<string, "Morning" | "Afternoon">();
+  if (jobIds.length > 0) {
+    const { data: jobRows } = await supabase
+      .from("jobs")
+      .select("id,appointment_window")
+      .in("id", jobIds);
+
+    for (const row of jobRows ?? []) {
+      const jRow = row as { id: string; appointment_window: string | null };
+      if (jRow.appointment_window === "Morning" || jRow.appointment_window === "Afternoon") {
+        appointmentWindowByJobId.set(jRow.id, jRow.appointment_window);
+      }
+    }
+  }
+
+  const plans = rawPlans.map((row) => {
+    const plan = mapDispatchPlan(row);
+    if (row.job_id) {
+      const window = appointmentWindowByJobId.get(row.job_id);
+      if (window) plan.appointmentWindow = window;
+    }
+    return plan;
+  });
+
+  const scheduleBlocks = rawBlocks.map((row) => {
+    const block = mapScheduleBlock(row);
+    if (row.job_id) {
+      const window = appointmentWindowByJobId.get(row.job_id);
+      if (window) block.appointmentWindow = window;
+    }
+    return block;
+  });
+
   return {
-    plans: ((plansRes.data ?? []) as DispatchPlanRow[]).map(mapDispatchPlan),
+    plans,
     crews: ((crewsRes.data ?? []) as CrewRow[]).map(mapCrew),
     assignments: ((assignmentsRes.data ?? []) as CrewAssignmentRow[]).map(mapCrewAssignment),
-    scheduleBlocks: ((blocksRes.data ?? []) as ScheduleBlockRow[]).map(mapScheduleBlock),
+    scheduleBlocks,
     events: ((eventsRes.data ?? []) as DispatchEventRow[]).map(mapDispatchEvent),
   };
 }

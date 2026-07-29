@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Moon,
+  Sun,
   UserPlus,
   Users,
   XCircle,
@@ -134,6 +136,16 @@ export function DispatchBoardCard({
               <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-500">
                 {plan.jobType}
               </span>
+              {plan.appointmentWindow && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-400">
+                  {plan.appointmentWindow === "Morning" ? (
+                    <Sun className="h-3 w-3 text-amber-400" />
+                  ) : (
+                    <Moon className="h-3 w-3 text-blue-400" />
+                  )}
+                  {plan.appointmentWindow}
+                </span>
+              )}
             </div>
 
             <div className="mt-2">
