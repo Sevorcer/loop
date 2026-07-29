@@ -6,13 +6,13 @@ import { getNavItemsForRole } from "@/features/auth";
 
 import { composeSidebarNav, SHELL_NAV_GROUPS } from "../sidebarNav";
 
-function getBaselineHrefs(role: AppRole | null) {
+function getVisibleHrefsForRole(role: AppRole | null) {
   return getNavItemsForRole(role, SHELL_NAV_GROUPS)
     .flatMap((group) => group.items)
     .map((item) => item.href);
 }
 
-function flattenHrefs(role: AppRole | null, navOverride?: readonly string[]) {
+function getComposedHrefsForRole(role: AppRole | null, navOverride?: readonly string[]) {
   return composeSidebarNav({
     role,
     navOverride,
@@ -23,24 +23,24 @@ function flattenHrefs(role: AppRole | null, navOverride?: readonly string[]) {
 
 describe("composeSidebarNav", () => {
   it("keeps the visible href set unchanged for owner", () => {
-    const baseline = getBaselineHrefs("owner");
+    const baseline = getVisibleHrefsForRole("owner");
 
-    expect(flattenHrefs("owner")).toEqual(expect.arrayContaining(baseline));
-    expect(flattenHrefs("owner")).toHaveLength(baseline.length);
+    expect(getComposedHrefsForRole("owner")).toEqual(expect.arrayContaining(baseline));
+    expect(getComposedHrefsForRole("owner")).toHaveLength(baseline.length);
   });
 
   it("keeps the visible href set unchanged for dispatch", () => {
-    const baseline = getBaselineHrefs("dispatch");
+    const baseline = getVisibleHrefsForRole("dispatch");
 
-    expect(flattenHrefs("dispatch")).toEqual(expect.arrayContaining(baseline));
-    expect(flattenHrefs("dispatch")).toHaveLength(baseline.length);
+    expect(getComposedHrefsForRole("dispatch")).toEqual(expect.arrayContaining(baseline));
+    expect(getComposedHrefsForRole("dispatch")).toHaveLength(baseline.length);
   });
 
   it("keeps the visible href set unchanged for tech", () => {
-    const baseline = getBaselineHrefs("tech");
+    const baseline = getVisibleHrefsForRole("tech");
 
-    expect(flattenHrefs("tech")).toEqual(expect.arrayContaining(baseline));
-    expect(flattenHrefs("tech")).toHaveLength(baseline.length);
+    expect(getComposedHrefsForRole("tech")).toEqual(expect.arrayContaining(baseline));
+    expect(getComposedHrefsForRole("tech")).toHaveLength(baseline.length);
   });
 
   it("prioritizes owner links toward dashboard, command center, reporting, and settings", () => {
@@ -100,6 +100,6 @@ describe("composeSidebarNav", () => {
   });
 
   it("falls back to baseline ordering when the role has no preset", () => {
-    expect(flattenHrefs("office")).toEqual(getBaselineHrefs("office"));
+    expect(getComposedHrefsForRole("office")).toEqual(getVisibleHrefsForRole("office"));
   });
 });
