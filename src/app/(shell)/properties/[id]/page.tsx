@@ -22,7 +22,13 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
   }
 
   const [jobs, installedSystems, customerAndProperties] = await Promise.all([
-    listJobsForProperty(id),
+    listJobsForProperty(id).catch((err: unknown) => {
+      console.error("[properties/detail] job fetch failed – displaying page without job history", {
+        propertyId: id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return [] as Awaited<ReturnType<typeof listJobsForProperty>>;
+    }),
     getInstalledSystemsForProperty(id).catch(() => []),
     property.customerId
       ? Promise.all([
