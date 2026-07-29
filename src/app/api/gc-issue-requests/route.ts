@@ -1,7 +1,7 @@
 /**
  * GC Issue Requests API — Sprint 27 #57
  *
- * GET  /api/gc-issue-requests         — list issue requests (dispatcher/admin queue)
+ * GET  /api/gc-issue-requests         — list issue requests (dispatch/admin queue)
  * POST /api/gc-issue-requests         — submit a new issue request
  *
  * Access:

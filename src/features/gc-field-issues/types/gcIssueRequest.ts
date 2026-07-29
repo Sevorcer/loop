@@ -3,7 +3,7 @@
 // Sprint 27 — #57
 //
 // Field-initiated issue reports submitted by technicians and GC staff.
-// Routed to a dispatcher/admin queue for triage and resolution.
+// Routed to a dispatch/admin queue for triage and resolution.
 // =============================================================================
 
 // ─── Priority ─────────────────────────────────────────────────────────────────
