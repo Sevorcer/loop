@@ -2,9 +2,15 @@ import { formatPropertyAddress } from "@/features/properties/utils/formatPropert
 import type { Customer } from "@/features/customers/types/customer";
 import type { Property } from "@/features/properties/types/property";
 
-export interface JobCustomerOption extends Pick<Customer, "id" | "name" | "primaryContact" | "phone" | "email"> {}
+export type JobCustomerOption = Pick<
+  Customer,
+  "id" | "name" | "primaryContact" | "phone" | "email"
+>;
 
-export interface JobPropertyOption extends Pick<Property, "id" | "name" | "customerId" | "customer" | "address" | "city"> {}
+export type JobPropertyOption = Pick<
+  Property,
+  "id" | "name" | "customerId" | "customer" | "address" | "city"
+>;
 
 export interface SmartSelectionState {
   customerId?: string;

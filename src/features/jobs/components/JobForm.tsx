@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ClipboardPlus, FilePenLine } from "lucide-react";
 import Link from "next/link";
 
@@ -18,7 +18,6 @@ import {
   applyCustomerAutocomplete,
   applyPropertyAutocomplete,
   getScopedProperties,
-  resolveInitialSmartSelection,
   type JobCustomerOption,
   type JobPropertyOption,
   type SmartSelectionState,
@@ -92,7 +91,6 @@ interface JobFormProps {
   customerOptions?: JobCustomerOption[];
   propertyOptions?: JobPropertyOption[];
   technicianOptions?: string[];
-  initialContext?: SmartSelectionState;
   onSubmit: (values: JobFormValues) => Promise<void> | void;
 }
 
@@ -103,7 +101,6 @@ export function JobForm({
   customerOptions = [],
   propertyOptions = [],
   technicianOptions = [],
-  initialContext,
   onSubmit,
 }: JobFormProps) {
   const [form, setForm] = useState<JobFormValues>({
@@ -118,29 +115,6 @@ export function JobForm({
     () => getScopedProperties(propertyOptions, selection.customerId),
     [propertyOptions, selection.customerId],
   );
-
-  useEffect(() => {
-    if (mode !== "create") {
-      return;
-    }
-    if (!initialContext) {
-      return;
-    }
-    const initialized = resolveInitialSmartSelection(
-      customerOptions,
-      propertyOptions,
-      initialContext,
-    );
-    if (!initialized.state.customerId && !initialized.state.propertyId) {
-      return;
-    }
-    setSelection(initialized.state);
-    setForm((current) => ({
-      ...current,
-      ...initialized.formPatch,
-      location: current.location || initialized.formPatch.location || "",
-    }));
-  }, [customerOptions, initialContext, mode, propertyOptions]);
 
   function updateField<K extends keyof JobFormValues>(
     key: K,

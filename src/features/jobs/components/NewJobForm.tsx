@@ -14,7 +14,10 @@ import type { Property } from "@/features/properties/types/property";
 import { requestJson } from "@/lib/api/client";
 import { ROUTES } from "@/lib/routes";
 import { useContractors } from "@/features/contractors/state/ContractorsProvider";
-import { buildTechnicianSuggestions } from "@/features/jobs/utils/smartJobCreation";
+import {
+  buildTechnicianSuggestions,
+  resolveInitialSmartSelection,
+} from "@/features/jobs/utils/smartJobCreation";
 
 import { JobForm, type JobFormValues } from "./JobForm";
 import { useJobs } from "../state/JobsProvider";
@@ -34,6 +37,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
 
   const technicianOptions = useMemo(
     () =>
@@ -55,12 +59,29 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
       .then(([customerResponse, propertyResponse]) => {
         setCustomerOptions(customerResponse.customers);
         setPropertyOptions(propertyResponse.properties);
+        setOptionsLoaded(true);
       })
       .catch(() => {
         setCustomerOptions([]);
         setPropertyOptions([]);
+        setOptionsLoaded(true);
       });
   }, [role]);
+
+  const prefilledValues = useMemo(() => {
+    if (!initialContext) {
+      return undefined;
+    }
+    const initialized = resolveInitialSmartSelection(
+      customerOptions,
+      propertyOptions,
+      initialContext,
+    );
+    if (Object.keys(initialized.formPatch).length === 0) {
+      return undefined;
+    }
+    return initialized.formPatch;
+  }, [customerOptions, initialContext, propertyOptions]);
 
   async function handleSubmit(values: JobFormValues) {
     const job = await createJob(values);
@@ -105,14 +126,22 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
     );
   }
 
+  if (!optionsLoaded && (initialContext?.customerId || initialContext?.propertyId)) {
+    return (
+      <SurfaceCard className="mx-auto max-w-3xl p-8 text-center text-sm text-slate-400">
+        Loading scheduling context...
+      </SurfaceCard>
+    );
+  }
+
   return (
     <JobForm
       mode="create"
       cancelHref={ROUTES.JOBS}
+      initialValues={prefilledValues}
       customerOptions={customerOptions}
       propertyOptions={propertyOptions}
       technicianOptions={technicianOptions}
-      initialContext={initialContext}
       onSubmit={handleSubmit}
     />
   );

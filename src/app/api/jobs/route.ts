@@ -27,18 +27,18 @@ function readJobPriority(value: unknown) {
   if (!JOB_PRIORITIES.has(normalized)) {
     throw new Error("Invalid job priority.");
   }
-
-  function readJobAppointmentWindow(value: unknown) {
-    if (value == null || value === "") {
-      return undefined;
-    }
-    const normalized = String(value);
-    if (!JOB_APPOINTMENT_WINDOWS.has(normalized)) {
-      throw new Error("Invalid appointment window.");
-    }
-    return normalized as "Morning" | "Afternoon";
-  }
   return normalized as "Low" | "Medium" | "High";
+}
+
+function readJobAppointmentWindow(value: unknown) {
+  if (value == null || value === "") {
+    return undefined;
+  }
+  const normalized = String(value);
+  if (!JOB_APPOINTMENT_WINDOWS.has(normalized)) {
+    throw new Error("Invalid appointment window.");
+  }
+  return normalized as "Morning" | "Afternoon";
 }
 
 export async function GET(request: Request) {
