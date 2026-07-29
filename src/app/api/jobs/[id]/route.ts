@@ -56,6 +56,18 @@ function readJobAppointmentHour(value: unknown): JobAppointmentHour | undefined 
   return num as JobAppointmentHour;
 }
 
+/**
+ * Parses an optional timestamp field from a request body.
+ * - If the field is absent (undefined / null), returns undefined (omit from payload).
+ * - If the field is an empty string, returns null (clear the value).
+ * - Otherwise returns the trimmed string value.
+ */
+function parseOptionalTimestamp(value: unknown): string | null | undefined {
+  if (value == null) return undefined;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
 function readJobStatus(value: unknown) {
   const normalized = String(value ?? "Scheduled");
   if (!JOB_STATUSES.has(normalized)) {
@@ -162,10 +174,10 @@ export async function PATCH(
               scheduledFor: body.scheduledFor !== undefined ? String(body.scheduledFor).trim() : undefined,
               appointmentHour: readJobAppointmentHour(body.appointmentHour),
               // PR3C clock-time fields
-              scheduledStartAt: body.scheduledStartAt != null ? String(body.scheduledStartAt).trim() || null : undefined,
-              scheduledEndAt: body.scheduledEndAt != null ? String(body.scheduledEndAt).trim() || null : undefined,
-              arrivalWindowStartAt: body.arrivalWindowStartAt != null ? String(body.arrivalWindowStartAt).trim() || null : undefined,
-              arrivalWindowEndAt: body.arrivalWindowEndAt != null ? String(body.arrivalWindowEndAt).trim() || null : undefined,
+              scheduledStartAt: parseOptionalTimestamp(body.scheduledStartAt),
+              scheduledEndAt: parseOptionalTimestamp(body.scheduledEndAt),
+              arrivalWindowStartAt: parseOptionalTimestamp(body.arrivalWindowStartAt),
+              arrivalWindowEndAt: parseOptionalTimestamp(body.arrivalWindowEndAt),
               type: readJobType(body.type),
               priority: readJobPriority(body.priority),
               location: String(body.location ?? "").trim(),

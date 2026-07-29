@@ -13,6 +13,26 @@ import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActi
 
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
+// ─── Scheduling column names ──────────────────────────────────────────────────
+// Kept as constants to avoid typos in error-detection logic and select strings.
+const COL_APPOINTMENT_WINDOW = "appointment_window";
+const COL_SCHEDULED_START_AT = "scheduled_start_at";
+const COL_SCHEDULED_END_AT = "scheduled_end_at";
+const COL_ARRIVAL_WINDOW_START_AT = "arrival_window_start_at";
+const COL_ARRIVAL_WINDOW_END_AT = "arrival_window_end_at";
+
+// Warning messages — defined once to keep all fallback log lines consistent.
+const WARN_PR3C_FALLBACK_LEGACY =
+  "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy select.";
+const WARN_LEGACY_FALLBACK_BASE =
+  "[jobs] Legacy appointment_window also missing. Falling back to base select.";
+const WARN_PR3C_INSERT_FALLBACK =
+  "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy insert.";
+const WARN_LEGACY_INSERT_FALLBACK =
+  "[jobs] Legacy appointment_window also missing. Falling back to base insert.";
+const WARN_PR3C_UPDATE_FALLBACK =
+  "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy update.";
+
 interface JobRow {
   id: string;
   job_number: string;
@@ -156,11 +176,11 @@ function isSchedulingColumnMissingError(error: {
   const raw = error.message ?? "";
   // Only inspect the message when it actually mentions one of our columns
   const schedulingColumns = [
-    "appointment_window",
-    "scheduled_start_at",
-    "scheduled_end_at",
-    "arrival_window_start_at",
-    "arrival_window_end_at",
+    COL_APPOINTMENT_WINDOW,
+    COL_SCHEDULED_START_AT,
+    COL_SCHEDULED_END_AT,
+    COL_ARRIVAL_WINDOW_START_AT,
+    COL_ARRIVAL_WINDOW_END_AT,
   ];
   const mentionsColumn = schedulingColumns.some((col) => raw.includes(col));
   if (!mentionsColumn) return false;
@@ -214,9 +234,7 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
-    console.warn(
-      "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy select.",
-    );
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
     const fallback = await supabase
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
@@ -227,7 +245,7 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
     error = fallback.error;
 
     if (error && isSchedulingColumnMissingError(error)) {
-      console.warn("[jobs] Legacy appointment_window also missing. Falling back to base select.");
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
       const base = await supabase
         .from("jobs")
         .select(JOB_SELECT_BASE)
@@ -259,9 +277,7 @@ export async function listJobs(): Promise<Job[]> {
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
-    console.warn(
-      "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy select.",
-    );
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
     const fallback = await supabase
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
@@ -271,7 +287,7 @@ export async function listJobs(): Promise<Job[]> {
     error = fallback.error;
 
     if (error && isSchedulingColumnMissingError(error)) {
-      console.warn("[jobs] Legacy appointment_window also missing. Falling back to base select.");
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
       const base = await supabase
         .from("jobs")
         .select(JOB_SELECT_BASE)
@@ -318,9 +334,7 @@ export async function getJobById(id: string): Promise<Job | null> {
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
-    console.warn(
-      "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy select.",
-    );
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
     const fallback = await supabase
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
@@ -363,9 +377,7 @@ export async function getJobRowById(id: string): Promise<JobRow | null> {
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
-    console.warn(
-      "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy select.",
-    );
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
     const fallback = await supabase
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
@@ -438,9 +450,7 @@ export async function createJob(
   let error = writeResult.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
-    console.warn(
-      "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy insert.",
-    );
+    console.warn(WARN_PR3C_INSERT_FALLBACK);
     const legacyPayload = { ...insertPayload };
     delete legacyPayload.scheduled_start_at;
     delete legacyPayload.scheduled_end_at;
@@ -455,7 +465,7 @@ export async function createJob(
     error = fallback.error;
 
     if (error && isSchedulingColumnMissingError(error)) {
-      console.warn("[jobs] Legacy appointment_window also missing. Falling back to base insert.");
+      console.warn(WARN_LEGACY_INSERT_FALLBACK);
       const basePayload = { ...legacyPayload };
       delete basePayload.appointment_window;
       const base = await supabase
@@ -524,9 +534,7 @@ export async function updateJob(
   let error = updateResult.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
-    console.warn(
-      "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy update.",
-    );
+    console.warn(WARN_PR3C_UPDATE_FALLBACK);
     // Remove PR3C columns and retry with legacy select
     const legacyPayload = { ...updatePayload };
     delete legacyPayload.scheduled_start_at;
@@ -544,7 +552,7 @@ export async function updateJob(
     error = fallback.error;
 
     if (error && isSchedulingColumnMissingError(error)) {
-      console.warn("[jobs] Legacy appointment_window also missing. Falling back to base update.");
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
       const basePayload = { ...legacyPayload };
       delete basePayload.appointment_window;
       const base = await supabase
@@ -677,9 +685,7 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
-    console.warn(
-      "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy select.",
-    );
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
     const fallback = await supabase
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)

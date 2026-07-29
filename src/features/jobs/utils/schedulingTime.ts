@@ -51,8 +51,14 @@ export function formatScheduledTime(
 }
 
 /**
- * Formats an ISO timestamp as a short "date + time" label for table cells.
+ * Formats an ISO timestamp as a short "date + time" label for table cells and
+ * dispatch badges.
  * Falls back to a plain date string when there is no time component.
+ *
+ * Note: returns "—" (em dash) rather than an empty string because this function
+ * is designed for inline display labels where an em dash signals "not set" more
+ * clearly than a blank cell. `formatScheduledTime` returns "" because it is used
+ * in longer-form contexts where the caller controls empty-state rendering.
  */
 export function formatScheduledShort(
   isoValue: string | null | undefined,

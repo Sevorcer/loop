@@ -71,12 +71,18 @@ export const defaultJobFormValues: JobFormValues = {
   notes: "",
 };
 
+/** Subset of JobFormValues that represents the four scheduling datetime-local fields. */
+export type SchedulingFormFields = Pick<
+  JobFormValues,
+  "scheduledStartAt" | "scheduledEndAt" | "arrivalWindowStartAt" | "arrivalWindowEndAt"
+>;
+
 /** Convert a stored Job's scheduling fields into JobFormValues scheduling fields. */
 export function jobToFormScheduling(job: {
   scheduledStartAt?: string | null;
   scheduledFor?: string;
   appointmentHour?: number | null;
-}): Pick<JobFormValues, "scheduledStartAt" | "scheduledEndAt" | "arrivalWindowStartAt" | "arrivalWindowEndAt"> {
+}): SchedulingFormFields {
   const primary =
     job.scheduledStartAt ??
     deriveScheduledStartAt(job.scheduledFor ?? null, (job.appointmentHour ?? 9) as JobAppointmentHour);
@@ -234,22 +240,31 @@ export function JobForm({
     setError(null);
   }
 
+  const parsedScheduledStart = useMemo(
+    () => parseDatetimeLocalInput(form.scheduledStartAt),
+    [form.scheduledStartAt],
+  );
+  const parsedScheduledEnd = useMemo(
+    () => parseDatetimeLocalInput(form.scheduledEndAt),
+    [form.scheduledEndAt],
+  );
+  const parsedArrivalStart = useMemo(
+    () => parseDatetimeLocalInput(form.arrivalWindowStartAt),
+    [form.arrivalWindowStartAt],
+  );
+  const parsedArrivalEnd = useMemo(
+    () => parseDatetimeLocalInput(form.arrivalWindowEndAt),
+    [form.arrivalWindowEndAt],
+  );
+
   const scheduledWindowError = useMemo(
-    () => getTimeWindowError(
-      parseDatetimeLocalInput(form.scheduledStartAt),
-      parseDatetimeLocalInput(form.scheduledEndAt),
-      "scheduled end time",
-    ),
-    [form.scheduledStartAt, form.scheduledEndAt],
+    () => getTimeWindowError(parsedScheduledStart, parsedScheduledEnd, "scheduled end time"),
+    [parsedScheduledStart, parsedScheduledEnd],
   );
 
   const arrivalWindowError = useMemo(
-    () => getTimeWindowError(
-      parseDatetimeLocalInput(form.arrivalWindowStartAt),
-      parseDatetimeLocalInput(form.arrivalWindowEndAt),
-      "arrival window end time",
-    ),
-    [form.arrivalWindowStartAt, form.arrivalWindowEndAt],
+    () => getTimeWindowError(parsedArrivalStart, parsedArrivalEnd, "arrival window end time"),
+    [parsedArrivalStart, parsedArrivalEnd],
   );
 
   const canSubmit = useMemo(() => {

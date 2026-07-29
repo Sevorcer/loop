@@ -75,6 +75,11 @@ function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInp
   };
 }
 
+/** Returns true when value is a non-empty string that parses to a valid Date. */
+function isValidDateString(value: string | null | undefined): boolean {
+  return !!value && !Number.isNaN(new Date(value).getTime());
+}
+
 function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   if (!input.title) throw new Error("Job title is required.");
   if (!input.customerName) throw new Error("Customer name is required.");
@@ -86,10 +91,8 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   if (!JOB_PRIORITIES.has(input.priority)) throw new Error("Invalid job priority.");
 
   // Validate the primary scheduling field (PR3C) or fall back to legacy
-  const hasNewScheduling =
-    !!input.scheduledStartAt && !Number.isNaN(new Date(input.scheduledStartAt).getTime());
-  const hasLegacyScheduling =
-    !!input.scheduledFor && !Number.isNaN(new Date(input.scheduledFor).getTime());
+  const hasNewScheduling = isValidDateString(input.scheduledStartAt);
+  const hasLegacyScheduling = isValidDateString(input.scheduledFor);
   if (!hasNewScheduling && !hasLegacyScheduling) {
     throw new Error("Scheduled start time is invalid.");
   }
