@@ -35,6 +35,16 @@ function isStringOption<T extends string>(value: unknown, options: readonly T[])
   return typeof value === "string" && options.includes(value as T);
 }
 
+function sanitizeHrefList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_APPEARANCE.sidebarNavOverride];
+  }
+
+  return Array.from(
+    new Set(value.filter((item): item is string => typeof item === "string" && item.length > 0))
+  );
+}
+
 function sanitizeAppearancePreferences(
   parsed: Partial<AppearancePreferences>
 ): AppearancePreferences {
@@ -56,6 +66,7 @@ function sanitizeAppearancePreferences(
       typeof parsed.sidebarPinnedDefault === "boolean"
         ? parsed.sidebarPinnedDefault
         : DEFAULT_APPEARANCE.sidebarPinnedDefault,
+    sidebarNavOverride: sanitizeHrefList(parsed.sidebarNavOverride),
     dashboardLayout: isStringOption(parsed.dashboardLayout, DASHBOARD_LAYOUTS)
       ? parsed.dashboardLayout
       : DEFAULT_APPEARANCE.dashboardLayout,
@@ -103,6 +114,21 @@ export function clearAppearancePreferences(storage: StorageWriter): void {
   } catch {
     // Ignore storage errors (e.g. private browsing)
   }
+}
+
+export function hasSidebarNavOverride(
+  preferences: Pick<AppearancePreferences, "sidebarNavOverride">
+): boolean {
+  return preferences.sidebarNavOverride.length > 0;
+}
+
+export function resetSidebarNavOverride(
+  preferences: AppearancePreferences
+): AppearancePreferences {
+  return {
+    ...preferences,
+    sidebarNavOverride: [...DEFAULT_APPEARANCE.sidebarNavOverride],
+  };
 }
 
 export function applyAppearancePreferences(

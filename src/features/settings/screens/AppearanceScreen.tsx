@@ -15,6 +15,10 @@ import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
 import { useAppearancePreferences } from "../hooks/useAppearancePreferences";
+import {
+  hasSidebarNavOverride,
+  resetSidebarNavOverride,
+} from "../lib/appearancePreferences";
 import type {
   AccentColor,
   ColorMode,
@@ -102,6 +106,7 @@ function ToggleGroup<T extends string>({
 export function AppearanceScreen() {
   const { preferences, updatePreferences, resetPreferences } =
     useAppearancePreferences();
+  const hasNavOverride = hasSidebarNavOverride(preferences);
 
   return (
     <div className="space-y-6">
@@ -236,6 +241,21 @@ export function AppearanceScreen() {
               </option>
             ))}
           </select>
+        </PreferenceRow>
+
+        <PreferenceRow
+          label="Role-Aware Sidebar Preset"
+          description="Clear any custom sidebar ordering and restore the default emphasis for your role."
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => updatePreferences(resetSidebarNavOverride(preferences))}
+            disabled={!hasNavOverride}
+            className="text-slate-400 hover:text-slate-200 disabled:text-slate-600 disabled:hover:text-slate-600"
+          >
+            Reset to role default
+          </Button>
         </PreferenceRow>
       </SectionCard>
 
