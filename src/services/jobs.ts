@@ -202,6 +202,8 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   }
 
   const normalized = normalizeJobInput(input) as UpdateJobInput;
+  // Keep the previous persisted values available so missing update fields
+  // (including appointmentWindow for legacy callers) can be validated safely.
   const previousJob = toJob(existing);
   const appointmentWindow =
     normalized.appointmentWindow ?? previousJob.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW;
