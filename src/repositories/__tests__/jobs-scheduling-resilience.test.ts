@@ -85,7 +85,7 @@ import {
   getJobById,
   getJobRowById,
 } from "@/repositories/jobs";
-import { DEFAULT_JOB_APPOINTMENT_WINDOW } from "@/features/jobs/utils/appointmentWindow";
+import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -129,7 +129,7 @@ describe("listJobs — appointment_window column fallback", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("falls back to JOB_SELECT_BASE and returns jobs with default appointmentWindow when column is missing", async () => {
+  it("falls back to JOB_SELECT_BASE and returns jobs with default appointmentHour when column is missing", async () => {
     // First call (JOB_SELECT with appointment_window) → column missing error
     orderMock
       .mockResolvedValueOnce({ data: null, error: COLUMN_MISSING_ERROR })
@@ -140,22 +140,22 @@ describe("listJobs — appointment_window column fallback", () => {
 
     expect(jobs).toHaveLength(1);
     expect(jobs[0].id).toBe("job-1");
-    expect(jobs[0].appointmentWindow).toBe(DEFAULT_JOB_APPOINTMENT_WINDOW);
+    expect(jobs[0].appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("appointment_window column missing"),
     );
   });
 
-  it("returns jobs with appointmentWindow from DB when column exists", async () => {
+  it("returns jobs with appointmentHour from DB when column exists", async () => {
     orderMock.mockResolvedValueOnce({
-      data: [makeJobRow({ appointment_window: "Afternoon" })],
+      data: [makeJobRow({ appointment_window: 1 })],
       error: null,
     });
 
     const jobs = await listJobs();
 
     expect(jobs).toHaveLength(1);
-    expect(jobs[0].appointmentWindow).toBe("Afternoon");
+    expect(jobs[0].appointmentHour).toBe(1);
     expect(console.warn).not.toHaveBeenCalled();
   });
 
@@ -180,7 +180,7 @@ describe("listJobsByCustomerId — appointment_window column fallback", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("falls back and returns jobs with default appointmentWindow when column is missing", async () => {
+  it("falls back and returns jobs with default appointmentHour when column is missing", async () => {
     orderMock
       .mockResolvedValueOnce({ data: null, error: COLUMN_MISSING_ERROR })
       .mockResolvedValueOnce({ data: [makeJobRow()], error: null });
@@ -188,7 +188,7 @@ describe("listJobsByCustomerId — appointment_window column fallback", () => {
     const jobs = await listJobsByCustomerId("cust-1");
 
     expect(jobs).toHaveLength(1);
-    expect(jobs[0].appointmentWindow).toBe(DEFAULT_JOB_APPOINTMENT_WINDOW);
+    expect(jobs[0].appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("appointment_window column missing"),
     );
@@ -213,7 +213,7 @@ describe("listJobsByPropertyId — appointment_window column fallback", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("falls back and returns jobs with default appointmentWindow when column is missing", async () => {
+  it("falls back and returns jobs with default appointmentHour when column is missing", async () => {
     orderMock
       .mockResolvedValueOnce({ data: null, error: COLUMN_MISSING_ERROR })
       .mockResolvedValueOnce({ data: [makeJobRow()], error: null });
@@ -221,7 +221,7 @@ describe("listJobsByPropertyId — appointment_window column fallback", () => {
     const jobs = await listJobsByPropertyId("prop-1");
 
     expect(jobs).toHaveLength(1);
-    expect(jobs[0].appointmentWindow).toBe(DEFAULT_JOB_APPOINTMENT_WINDOW);
+    expect(jobs[0].appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("appointment_window column missing"),
     );
@@ -238,7 +238,7 @@ describe("getJobById — appointment_window column fallback", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("falls back and returns job with default appointmentWindow when column is missing", async () => {
+  it("falls back and returns job with default appointmentHour when column is missing", async () => {
     maybeSingleMock
       .mockResolvedValueOnce({ data: null, error: COLUMN_MISSING_ERROR })
       .mockResolvedValueOnce({ data: makeJobRow(), error: null });
@@ -246,7 +246,7 @@ describe("getJobById — appointment_window column fallback", () => {
     const job = await getJobById("job-1");
 
     expect(job).not.toBeNull();
-    expect(job?.appointmentWindow).toBe(DEFAULT_JOB_APPOINTMENT_WINDOW);
+    expect(job?.appointmentHour).toBe(DEFAULT_JOB_APPOINTMENT_HOUR);
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("appointment_window column missing"),
     );
@@ -311,6 +311,34 @@ describe("scheduling column missing detection", () => {
       .mockResolvedValueOnce({
         data: null,
         error: { message: "Could not find the referenced: appointment_window is an undefined column" },
+      })
+      .mockResolvedValueOnce({ data: [makeJobRow()], error: null });
+
+    const jobs = await listJobs();
+
+    expect(jobs).toHaveLength(1);
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it("triggers fallback for PostgREST schema cache error variant", async () => {
+    orderMock
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Could not find the 'appointment_window' column of 'jobs' in the schema cache" },
+      })
+      .mockResolvedValueOnce({ data: [makeJobRow()], error: null });
+
+    const jobs = await listJobs();
+
+    expect(jobs).toHaveLength(1);
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it("triggers fallback via PostgreSQL error code 42703", async () => {
+    orderMock
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "42703", message: "column does not exist" },
       })
       .mockResolvedValueOnce({ data: [makeJobRow()], error: null });
 

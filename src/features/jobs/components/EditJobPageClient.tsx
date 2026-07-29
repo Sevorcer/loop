@@ -29,7 +29,7 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
         propertyName: job.propertyName,
         assignedTo: job.assignedTo,
         scheduledFor: job.scheduledFor,
-        appointmentWindow: job.appointmentWindow,
+        appointmentHour: job.appointmentHour,
         type: job.type,
         priority: job.priority,
         location: job.location,

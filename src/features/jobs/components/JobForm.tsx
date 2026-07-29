@@ -11,8 +11,9 @@ import {
   getEstimateEquipmentBundle,
 } from "@/features/installed-systems/utils/installedSystemsUtils";
 import {
-  DEFAULT_JOB_APPOINTMENT_WINDOW,
-  JOB_APPOINTMENT_WINDOWS,
+  DEFAULT_JOB_APPOINTMENT_HOUR,
+  JOB_APPOINTMENT_HOURS,
+  formatJobAppointmentHour,
 } from "@/features/jobs/utils/appointmentWindow";
 import {
   applyCustomerAutocomplete,
@@ -23,7 +24,7 @@ import {
   type SmartSelectionState,
 } from "@/features/jobs/utils/smartJobCreation";
 
-import type { JobAppointmentWindow, JobPriority, JobType } from "../types/job";
+import type { JobAppointmentHour, JobPriority, JobType } from "../types/job";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
@@ -36,7 +37,7 @@ export interface JobFormValues {
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;
-  appointmentWindow: JobAppointmentWindow;
+  appointmentHour: JobAppointmentHour;
   type: JobType;
   priority: JobPriority;
   location: string;
@@ -52,7 +53,7 @@ export const defaultJobFormValues: JobFormValues = {
   propertyName: "",
   assignedTo: "",
   scheduledFor: "",
-  appointmentWindow: DEFAULT_JOB_APPOINTMENT_WINDOW,
+  appointmentHour: DEFAULT_JOB_APPOINTMENT_HOUR,
   type: "Service",
   priority: "Medium",
   location: "",
@@ -356,17 +357,17 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Appointment Window</label>
+              <label className="text-sm font-medium text-slate-200">Appointment Hour</label>
               <select
-                value={form.appointmentWindow}
+                value={form.appointmentHour}
                 onChange={(e) =>
-                  updateField("appointmentWindow", e.target.value as JobAppointmentWindow)
+                  updateField("appointmentHour", Number(e.target.value) as JobAppointmentHour)
                 }
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
               >
-                {JOB_APPOINTMENT_WINDOWS.map((window) => (
-                  <option key={window} value={window}>
-                    {window}
+                {JOB_APPOINTMENT_HOURS.map((hour) => (
+                  <option key={hour} value={hour}>
+                    {formatJobAppointmentHour(hour)}
                   </option>
                 ))}
               </select>

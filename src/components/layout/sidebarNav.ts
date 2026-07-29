@@ -7,6 +7,7 @@ import {
   Package,
   Brain,
   BarChart3,
+  MessageSquare,
   Settings,
   Send,
   MonitorDot,
@@ -45,7 +46,10 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "INSIGHTS",
-    items: [{ name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 }],
+    items: [
+      { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
+      { name: "Feedback", href: ROUTES.OPS_FEEDBACK, icon: MessageSquare },
+    ],
   },
   {
     label: "SETTINGS",

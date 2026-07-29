@@ -109,8 +109,11 @@ describe("INSIGHTS group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Reporting", () => {
-    expect(group.items.map((i) => i.href)).toEqual([ROUTES.REPORTING]);
+  it("contains Reporting and Feedback in that order", () => {
+    expect(group.items.map((i) => i.href)).toEqual([
+      ROUTES.REPORTING,
+      ROUTES.OPS_FEEDBACK,
+    ]);
   });
 });
 

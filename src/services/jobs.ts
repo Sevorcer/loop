@@ -14,8 +14,8 @@ import {
 } from "@/features/jobs/utils/jobCompletionChecklist";
 import { resolveCustomerIdByName } from "@/repositories/properties";
 import {
-  DEFAULT_JOB_APPOINTMENT_WINDOW,
-  isValidJobAppointmentWindow,
+  DEFAULT_JOB_APPOINTMENT_HOUR,
+  isValidJobAppointmentHour,
 } from "@/features/jobs/utils/appointmentWindow";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import {
@@ -64,7 +64,7 @@ function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInp
     propertyName: input.propertyName.trim(),
     assignedTo: input.assignedTo.trim(),
     scheduledFor: input.scheduledFor,
-    appointmentWindow: input.appointmentWindow,
+    appointmentHour: input.appointmentHour,
     location: input.location.trim(),
     summary: input.summary.trim(),
     notes: input.notes.trim(),
@@ -83,8 +83,8 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   if (Number.isNaN(new Date(input.scheduledFor).getTime())) {
     throw new Error("Scheduled date is invalid.");
   }
-  if (input.appointmentWindow && !isValidJobAppointmentWindow(input.appointmentWindow)) {
-    throw new Error("Invalid appointment window.");
+  if (input.appointmentHour !== undefined && !isValidJobAppointmentHour(input.appointmentHour)) {
+    throw new Error("Invalid appointment hour.");
   }
 }
 
@@ -147,8 +147,8 @@ export async function createJob(
   contextInput?: SessionRepositoryContextInput,
 ) {
   const normalized = normalizeJobInput(input) as CreateJobInput;
-  const appointmentWindow = normalized.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW;
-  normalized.appointmentWindow = appointmentWindow;
+  const appointmentHour = normalized.appointmentHour ?? DEFAULT_JOB_APPOINTMENT_HOUR;
+  normalized.appointmentHour = appointmentHour;
   validateJobInput(normalized);
 
   const nextIndex = (await countJobs(contextInput)) + 1;
@@ -161,7 +161,7 @@ export async function createJob(
     createJobNumber(nextIndex),
     {
       ...normalized,
-      appointmentWindow,
+      appointmentHour,
       customerId,
       propertyId,
       status: "Scheduled",
@@ -203,11 +203,11 @@ export async function updateJob(id: string, input: UpdateJobInput) {
 
   const normalized = normalizeJobInput(input) as UpdateJobInput;
   // Keep the previous persisted values available so missing update fields
-  // (including appointmentWindow for legacy callers) can be validated safely.
+  // (including appointmentHour for legacy callers) can be validated safely.
   const previousJob = toJob(existing);
-  const appointmentWindow =
-    normalized.appointmentWindow ?? previousJob.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW;
-  normalized.appointmentWindow = appointmentWindow;
+  const appointmentHour =
+    normalized.appointmentHour ?? previousJob.appointmentHour ?? DEFAULT_JOB_APPOINTMENT_HOUR;
+  normalized.appointmentHour = appointmentHour;
   validateJobInput(normalized);
   const [customerId, propertyId] = await Promise.all([
     resolveCustomerIdByName(normalized.customerName),
@@ -216,7 +216,7 @@ export async function updateJob(id: string, input: UpdateJobInput) {
 
   const updatedJob = await updateJobRecord(id, {
     ...normalized,
-    appointmentWindow,
+    appointmentHour,
     customerId,
     propertyId,
     status: existing.status,
@@ -236,8 +236,8 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   if (existing.property_name !== updatedJob.propertyName) changedFields.push("property");
   if (existing.assigned_to !== updatedJob.assignedTo) changedFields.push("assignee");
   if ((existing.scheduled_for ?? "") !== updatedJob.scheduledFor) changedFields.push("schedule");
-  if ((existing.appointment_window ?? DEFAULT_JOB_APPOINTMENT_WINDOW) !== appointmentWindow) {
-    changedFields.push("appointment window");
+  if ((existing.appointment_window ?? DEFAULT_JOB_APPOINTMENT_HOUR) !== appointmentHour) {
+    changedFields.push("appointment hour");
   }
   if (existing.type !== updatedJob.type) changedFields.push("type");
   if (existing.priority !== updatedJob.priority) changedFields.push("priority");

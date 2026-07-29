@@ -2,12 +2,12 @@ import "server-only";
 
 import type {
   Job,
-  JobAppointmentWindow,
+  JobAppointmentHour,
   JobPriority,
   JobStatus,
   JobType,
 } from "@/features/jobs/types/job";
-import { DEFAULT_JOB_APPOINTMENT_WINDOW } from "@/features/jobs/utils/appointmentWindow";
+import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
 import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActivity";
 
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
@@ -27,8 +27,8 @@ interface JobRow {
   property_name: string;
   assigned_to: string;
   scheduled_for: string | null;
-  // Optional: absent when the PR3A scheduling migration has not yet been applied.
-  appointment_window?: JobAppointmentWindow | null;
+  // Optional: absent when the PR3A/PR3B scheduling migration has not yet been applied.
+  appointment_window?: number | null;
   summary: string;
   location: string;
   notes: string;
@@ -58,7 +58,7 @@ export interface JobWriteInput {
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;
-  appointmentWindow?: JobAppointmentWindow;
+  appointmentHour?: JobAppointmentHour;
   summary: string;
   location: string;
   notes: string;
@@ -73,6 +73,12 @@ export interface JobActivityWriteInput {
 }
 
 function mapJob(row: JobRow): Job {
+  const rawHour = row.appointment_window;
+  const appointmentHour: JobAppointmentHour =
+    typeof rawHour === "number" && rawHour >= 1 && rawHour <= 12
+      ? (rawHour as JobAppointmentHour)
+      : DEFAULT_JOB_APPOINTMENT_HOUR;
+
   return {
     id: row.id,
     jobNumber: row.job_number,
@@ -88,7 +94,7 @@ function mapJob(row: JobRow): Job {
     propertyName: row.property_name,
     assignedTo: row.assigned_to,
     scheduledFor: row.scheduled_for ?? row.created_at.slice(0, 10),
-    appointmentWindow: row.appointment_window ?? DEFAULT_JOB_APPOINTMENT_WINDOW,
+    appointmentHour,
     summary: row.summary,
     location: row.location,
     notes: row.notes,
@@ -103,9 +109,10 @@ const JOB_SELECT = JOB_SELECT_BASE + ",appointment_window";
 /**
  * Returns true when the Supabase/PostgREST error indicates that the
  * `appointment_window` column does not exist yet — i.e. migration
- * 20260729000001_pr3a_job_appointment_window.sql has not been applied.
+ * 20260729000001_pr3a_job_appointment_window.sql has not been applied —
+ * or when PostgREST's schema cache has not yet been refreshed to reflect it.
  * Used to trigger a safe read/write fallback so the app remains usable
- * in environments that are behind on migrations.
+ * in environments that are behind on migrations or pending a schema cache reload.
  *
  * Detects the error via both the PostgreSQL error code (42703 = undefined_column)
  * and the human-readable message as a belt-and-suspenders check.
@@ -116,10 +123,15 @@ function isSchedulingColumnMissingError(error: {
 }): boolean {
   // PostgreSQL error code 42703 = undefined_column (most reliable signal)
   if (error.code === "42703") return true;
-  const msg = (error.message ?? "").toLowerCase();
+  // Only lowercase and inspect the message when it actually mentions the column
+  const raw = error.message ?? "";
+  if (!raw.includes("appointment_window")) return false;
+  const msg = raw.toLowerCase();
   return (
-    msg.includes("appointment_window") &&
-    (msg.includes("does not exist") || msg.includes("undefined column"))
+    msg.includes("does not exist") ||
+    msg.includes("undefined column") ||
+    msg.includes("schema cache") ||
+    msg.includes("could not find")
   );
 }
 
@@ -321,7 +333,7 @@ export async function createJob(
     property_name: input.propertyName,
     assigned_to: input.assignedTo,
     scheduled_for: input.scheduledFor,
-    appointment_window: input.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW,
+    appointment_window: input.appointmentHour ?? DEFAULT_JOB_APPOINTMENT_HOUR,
     summary: input.summary,
     location: input.location,
     notes: input.notes,
@@ -379,8 +391,8 @@ export async function updateJob(
   if (input.propertyName !== undefined) updatePayload.property_name = input.propertyName;
   if (input.assignedTo !== undefined) updatePayload.assigned_to = input.assignedTo;
   if (input.scheduledFor !== undefined) updatePayload.scheduled_for = input.scheduledFor;
-  if (input.appointmentWindow !== undefined) {
-    updatePayload.appointment_window = input.appointmentWindow;
+  if (input.appointmentHour !== undefined) {
+    updatePayload.appointment_window = input.appointmentHour;
   }
   if (input.summary !== undefined) updatePayload.summary = input.summary;
   if (input.location !== undefined) updatePayload.location = input.location;

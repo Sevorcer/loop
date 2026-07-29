@@ -16,10 +16,11 @@ import {
 } from "@/services/jobs";
 import { normalizeQaChecklist } from "@/features/jobs/utils/jobCompletionChecklist";
 
+import type { JobAppointmentHour } from "@/features/jobs/types/job";
+
 const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa"]);
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
-const JOB_APPOINTMENT_WINDOWS = new Set(["Morning", "Afternoon"]);
 const JOB_STATUSES = new Set([
   "Scheduled",
   "In Progress",
@@ -44,15 +45,15 @@ function readJobPriority(value: unknown) {
   return normalized as "Low" | "Medium" | "High";
 }
 
-function readJobAppointmentWindow(value: unknown) {
+function readJobAppointmentHour(value: unknown): JobAppointmentHour | undefined {
   if (value == null || value === "") {
     return undefined;
   }
-  const normalized = String(value);
-  if (!JOB_APPOINTMENT_WINDOWS.has(normalized)) {
-    throw new Error("Invalid appointment window.");
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(num) || num < 1 || num > 12) {
+    throw new Error("Invalid appointment hour. Must be an integer between 1 and 12.");
   }
-  return normalized as "Morning" | "Afternoon";
+  return num as JobAppointmentHour;
 }
 
 function readJobStatus(value: unknown) {
@@ -159,7 +160,7 @@ export async function PATCH(
               propertyName: String(body.propertyName ?? "").trim(),
               assignedTo: String(body.assignedTo ?? "").trim(),
               scheduledFor: String(body.scheduledFor ?? "").trim(),
-              appointmentWindow: readJobAppointmentWindow(body.appointmentWindow),
+              appointmentHour: readJobAppointmentHour(body.appointmentHour),
               type: readJobType(body.type),
               priority: readJobPriority(body.priority),
               location: String(body.location ?? "").trim(),
