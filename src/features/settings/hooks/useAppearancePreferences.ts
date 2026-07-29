@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { DEFAULT_APPEARANCE, type AppearancePreferences } from "../types";
 import {
+  APPEARANCE_PREFERENCES_CHANGE_EVENT,
   applyAppearancePreferences,
   clearAppearancePreferences,
   dispatchAppearancePreferencesChanged,
@@ -33,11 +34,14 @@ export function useAppearancePreferences() {
     };
 
     window.addEventListener("storage", syncPreferences);
-    window.addEventListener("loop:appearance-preferences-change", syncPreferences);
+    window.addEventListener(APPEARANCE_PREFERENCES_CHANGE_EVENT, syncPreferences);
 
     return () => {
       window.removeEventListener("storage", syncPreferences);
-      window.removeEventListener("loop:appearance-preferences-change", syncPreferences);
+      window.removeEventListener(
+        APPEARANCE_PREFERENCES_CHANGE_EVENT,
+        syncPreferences
+      );
     };
   }, []);
 

@@ -61,6 +61,20 @@ describe("appearance preference application", () => {
     });
   });
 
+  it("falls back to defaults for invalid stored values", () => {
+    const storage = {
+      getItem: () =>
+        JSON.stringify({
+          accentColor: "pink",
+          colorMode: "sepia",
+          spacing: 123,
+          sidebarPinnedDefault: "yes",
+        }),
+    };
+
+    expect(loadAppearancePreferences(storage)).toEqual(DEFAULT_APPEARANCE);
+  });
+
   it("applies accent and appearance attributes to the html root", () => {
     const appliedStyles = new Map<string, string>();
     const appliedAttributes = new Map<string, string>();

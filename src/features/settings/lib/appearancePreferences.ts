@@ -15,6 +15,11 @@ export const ACCENT_HEX: Record<AccentColor, string> = {
 const CSS_VAR_PRIMARY = "--primary" as const;
 const COLOR_MODE_ATTRIBUTE = "data-color-mode" as const;
 const SPACING_ATTRIBUTE = "data-spacing" as const;
+const ACCENT_COLORS = Object.keys(ACCENT_HEX) as AccentColor[];
+const COLOR_MODES = ["dark", "light"] as const;
+const SPACING_MODES = ["comfortable", "compact"] as const;
+const DASHBOARD_LAYOUTS = ["default", "condensed", "wide"] as const;
+const COMMAND_CENTER_LAYOUTS = ["default", "focused"] as const;
 
 type StorageReader = Pick<Storage, "getItem"> | null | undefined;
 type StorageWriter = Pick<Storage, "setItem" | "removeItem"> | null | undefined;
@@ -26,6 +31,43 @@ export interface AppearanceRoot {
   setAttribute(name: string, value: string): void;
 }
 
+function isStringOption<T extends string>(value: unknown, options: readonly T[]): value is T {
+  return typeof value === "string" && options.includes(value as T);
+}
+
+function sanitizeAppearancePreferences(
+  parsed: Partial<AppearancePreferences>
+): AppearancePreferences {
+  return {
+    accentColor: isStringOption(parsed.accentColor, ACCENT_COLORS)
+      ? parsed.accentColor
+      : DEFAULT_APPEARANCE.accentColor,
+    colorMode: isStringOption(parsed.colorMode, COLOR_MODES)
+      ? parsed.colorMode
+      : DEFAULT_APPEARANCE.colorMode,
+    spacing: isStringOption(parsed.spacing, SPACING_MODES)
+      ? parsed.spacing
+      : DEFAULT_APPEARANCE.spacing,
+    defaultLandingPage:
+      typeof parsed.defaultLandingPage === "string" && parsed.defaultLandingPage.length > 0
+        ? parsed.defaultLandingPage
+        : DEFAULT_APPEARANCE.defaultLandingPage,
+    sidebarPinnedDefault:
+      typeof parsed.sidebarPinnedDefault === "boolean"
+        ? parsed.sidebarPinnedDefault
+        : DEFAULT_APPEARANCE.sidebarPinnedDefault,
+    dashboardLayout: isStringOption(parsed.dashboardLayout, DASHBOARD_LAYOUTS)
+      ? parsed.dashboardLayout
+      : DEFAULT_APPEARANCE.dashboardLayout,
+    commandCenterLayout: isStringOption(
+      parsed.commandCenterLayout,
+      COMMAND_CENTER_LAYOUTS
+    )
+      ? parsed.commandCenterLayout
+      : DEFAULT_APPEARANCE.commandCenterLayout,
+  };
+}
+
 export function loadAppearancePreferences(storage: StorageReader): AppearancePreferences {
   if (!storage) return DEFAULT_APPEARANCE;
 
@@ -34,7 +76,7 @@ export function loadAppearancePreferences(storage: StorageReader): AppearancePre
     if (!raw) return DEFAULT_APPEARANCE;
 
     const parsed = JSON.parse(raw) as Partial<AppearancePreferences>;
-    return { ...DEFAULT_APPEARANCE, ...parsed };
+    return sanitizeAppearancePreferences(parsed);
   } catch {
     return DEFAULT_APPEARANCE;
   }
