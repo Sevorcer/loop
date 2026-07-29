@@ -6,6 +6,12 @@ import { getNavItemsForRole } from "@/features/auth";
 
 import { composeSidebarNav, SHELL_NAV_GROUPS } from "../sidebarNav";
 
+function getBaselineHrefs(role: AppRole | null) {
+  return getNavItemsForRole(role, SHELL_NAV_GROUPS)
+    .flatMap((group) => group.items)
+    .map((item) => item.href);
+}
+
 function flattenHrefs(role: AppRole | null, navOverride?: readonly string[]) {
   return composeSidebarNav({
     role,
@@ -17,31 +23,21 @@ function flattenHrefs(role: AppRole | null, navOverride?: readonly string[]) {
 
 describe("composeSidebarNav", () => {
   it("keeps the visible href set unchanged for owner", () => {
-    expect(flattenHrefs("owner")).toEqual(
-      expect.arrayContaining(
-        getNavItemsForRole("owner", SHELL_NAV_GROUPS)
-          .flatMap((group) => group.items)
-          .map((item) => item.href)
-      )
-    );
-    expect(flattenHrefs("owner")).toHaveLength(
-      getNavItemsForRole("owner", SHELL_NAV_GROUPS).flatMap((group) => group.items).length
-    );
+    const baseline = getBaselineHrefs("owner");
+
+    expect(flattenHrefs("owner")).toEqual(expect.arrayContaining(baseline));
+    expect(flattenHrefs("owner")).toHaveLength(baseline.length);
   });
 
   it("keeps the visible href set unchanged for dispatch", () => {
-    const baseline = getNavItemsForRole("dispatch", SHELL_NAV_GROUPS)
-      .flatMap((group) => group.items)
-      .map((item) => item.href);
+    const baseline = getBaselineHrefs("dispatch");
 
     expect(flattenHrefs("dispatch")).toEqual(expect.arrayContaining(baseline));
     expect(flattenHrefs("dispatch")).toHaveLength(baseline.length);
   });
 
   it("keeps the visible href set unchanged for tech", () => {
-    const baseline = getNavItemsForRole("tech", SHELL_NAV_GROUPS)
-      .flatMap((group) => group.items)
-      .map((item) => item.href);
+    const baseline = getBaselineHrefs("tech");
 
     expect(flattenHrefs("tech")).toEqual(expect.arrayContaining(baseline));
     expect(flattenHrefs("tech")).toHaveLength(baseline.length);
@@ -104,10 +100,6 @@ describe("composeSidebarNav", () => {
   });
 
   it("falls back to baseline ordering when the role has no preset", () => {
-    expect(flattenHrefs("office")).toEqual(
-      getNavItemsForRole("office", SHELL_NAV_GROUPS)
-        .flatMap((group) => group.items)
-        .map((item) => item.href)
-    );
+    expect(flattenHrefs("office")).toEqual(getBaselineHrefs("office"));
   });
 });

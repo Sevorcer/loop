@@ -53,6 +53,10 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// Role presets are a prioritization layer on top of the baseline sidebar.
+// Only roles called out in the post-pilot requirements receive custom ordering;
+// every other role keeps the baseline group/item order unless a user override
+// exists in local preferences.
 const ROLE_NAV_PRESET_ORDER: Partial<Record<AppRole, readonly string[]>> = {
   owner: [ROUTES.DASHBOARD, ROUTES.COMMAND_CENTER, ROUTES.REPORTING, ROUTES.SETTINGS],
   dispatch: [ROUTES.DISPATCH, ROUTES.COMMAND_CENTER, ROUTES.JOBS],
@@ -110,15 +114,17 @@ export function composeSidebarNav({
   navOverride,
 }: ComposeSidebarNavOptions): NavGroup[] {
   const visibleGroups = getNavItemsForRole(role, groups);
+  const shouldBypassRoleFilter = role !== "portal" && visibleGroups.length === 0;
+  const resolvedGroups = shouldBypassRoleFilter ? groups : visibleGroups;
   const preferredOrder = getPreferredHrefOrder(role, navOverride);
 
   if (preferredOrder.length === 0) {
-    return visibleGroups;
+    return resolvedGroups;
   }
 
   const rank = buildOrderRank(preferredOrder);
 
-  return visibleGroups
+  return resolvedGroups
     .map((group, index) => {
       const items = sortItems(group.items, rank);
       const groupRank = items.reduce(
