@@ -21,14 +21,24 @@ import {
 
 export function useAppearancePreferences() {
   const [preferences, setPreferencesState] = useState<AppearancePreferences>(
-    DEFAULT_APPEARANCE
+    () =>
+      typeof window === "undefined"
+        ? DEFAULT_APPEARANCE
+        : loadAppearancePreferences(window.localStorage)
   );
 
-  // Hydrate from localStorage on mount
   useEffect(() => {
-    const loaded = loadAppearancePreferences(window.localStorage);
-    setPreferencesState(loaded);
-    applyAppearancePreferences(document.documentElement, loaded);
+    const syncPreferences = () => {
+      setPreferencesState(loadAppearancePreferences(window.localStorage));
+    };
+
+    window.addEventListener("storage", syncPreferences);
+    window.addEventListener("loop:appearance-preferences-change", syncPreferences);
+
+    return () => {
+      window.removeEventListener("storage", syncPreferences);
+      window.removeEventListener("loop:appearance-preferences-change", syncPreferences);
+    };
   }, []);
 
   const updatePreferences = useCallback(
