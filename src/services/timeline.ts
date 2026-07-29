@@ -55,7 +55,9 @@ async function buildJobEventFeed(jobIds: string[]) {
   return { activity, dispatchEvents };
 }
 
-function buildJobScheduledEvents(jobs: Array<Pick<Job, "id" | "jobNumber" | "title" | "scheduledFor">>): TimelineEventItem[] {
+function buildJobScheduledEvents(
+  jobs: Array<Pick<Job, "id" | "jobNumber" | "title" | "scheduledFor" | "propertyId">>,
+): TimelineEventItem[] {
   return jobs
     .filter((job) => Boolean(job.scheduledFor))
     .map((job) => ({
@@ -66,6 +68,7 @@ function buildJobScheduledEvents(jobs: Array<Pick<Job, "id" | "jobNumber" | "tit
       source: "job",
       href: ROUTE_BUILDERS.JOB_DETAIL(job.id),
       hrefLabel: "Open job detail",
+      relatedPropertyId: job.propertyId ?? undefined,
     }));
 }
 
@@ -103,6 +106,7 @@ export async function buildCustomerTimelineEvents({
       source: "property",
       href: ROUTE_BUILDERS.PROPERTY_DETAIL(property.id),
       hrefLabel: "Open property",
+      relatedPropertyId: property.id,
     }));
 
   const jobEvents = buildJobScheduledEvents(
@@ -111,6 +115,7 @@ export async function buildCustomerTimelineEvents({
       jobNumber: job.jobNumber ?? "Draft job",
       title: job.title,
       scheduledFor: job.scheduledFor,
+      propertyId: job.propertyId,
     })),
   );
 
@@ -125,6 +130,7 @@ export async function buildCustomerTimelineEvents({
       actor: entry.actorId,
       href: ROUTE_BUILDERS.JOB_DETAIL(entry.jobId),
       hrefLabel: job ? `Open ${job.title}` : "Open job detail",
+      relatedPropertyId: job?.propertyId,
     };
   });
 
@@ -136,6 +142,7 @@ export async function buildCustomerTimelineEvents({
     source: "dispatch_event",
     href: ROUTE_BUILDERS.JOB_DETAIL(plan.jobId),
     hrefLabel: `Open ${plan.jobNumber}`,
+    relatedPropertyId: jobMap.get(plan.jobId)?.propertyId,
   }));
 
   return [
