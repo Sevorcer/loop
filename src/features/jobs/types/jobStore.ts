@@ -9,7 +9,7 @@ export interface CreateJobInput {
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;
-  appointmentWindow?: Job["appointmentWindow"];
+  appointmentHour?: Job["appointmentHour"];
   type: Job["type"];
   priority: Job["priority"];
   location: string;
@@ -25,7 +25,7 @@ export interface UpdateJobInput {
   propertyName: string;
   assignedTo: string;
   scheduledFor: string;
-  appointmentWindow?: Job["appointmentWindow"];
+  appointmentHour?: Job["appointmentHour"];
   type: Job["type"];
   priority: Job["priority"];
   location: string;
