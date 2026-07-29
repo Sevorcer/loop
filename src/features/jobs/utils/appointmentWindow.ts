@@ -37,10 +37,15 @@ export function readJobAppointmentHour(job: Pick<Job, "appointmentHour">): JobAp
   return parseJobAppointmentHour(job.appointmentHour, DEFAULT_JOB_APPOINTMENT_HOUR);
 }
 
+/**
+ * Formats a 1–12 appointment hour as a human-readable time string.
+ * Hours 1–11 map to AM; hour 12 maps to 12 PM (noon).
+ * The valid range is 1–12 with no AM/PM midnight representation (no 12 AM),
+ * reflecting HVAC service scheduling windows that span standard business hours.
+ */
 export function formatJobAppointmentHour(hour: JobAppointmentHour): string {
   const suffix = hour < 12 ? "AM" : "PM";
-  const display = hour === 12 ? 12 : hour;
-  return `${display}:00 ${suffix}`;
+  return `${hour}:00 ${suffix}`;
 }
 
 // ---------------------------------------------------------------------------

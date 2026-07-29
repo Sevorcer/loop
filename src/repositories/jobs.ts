@@ -123,8 +123,10 @@ function isSchedulingColumnMissingError(error: {
 }): boolean {
   // PostgreSQL error code 42703 = undefined_column (most reliable signal)
   if (error.code === "42703") return true;
-  const msg = (error.message ?? "").toLowerCase();
-  if (!msg.includes("appointment_window")) return false;
+  // Only lowercase and inspect the message when it actually mentions the column
+  const raw = error.message ?? "";
+  if (!raw.includes("appointment_window")) return false;
+  const msg = raw.toLowerCase();
   return (
     msg.includes("does not exist") ||
     msg.includes("undefined column") ||
