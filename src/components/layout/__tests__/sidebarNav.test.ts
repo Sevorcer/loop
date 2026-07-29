@@ -4,8 +4,8 @@ import { ROUTES } from "@/lib/routes";
 import { SHELL_NAV_GROUPS } from "../sidebarNav";
 
 // ─── Navigation group structure ───────────────────────────────────────────────
-// Validates that SHELL_NAV_GROUPS matches the Sprint 7 navigation-ux-goals spec
-// exactly: 5 groups with the correct labels, items, and ordering.
+// Validates that SHELL_NAV_GROUPS reflects the PR1 workflow-based grouping:
+// 5 groups with the correct labels, items, and ordering.
 
 describe("SHELL_NAV_GROUPS structure", () => {
   it("has exactly 5 groups", () => {
@@ -15,7 +15,7 @@ describe("SHELL_NAV_GROUPS structure", () => {
   it("group labels match spec in order", () => {
     expect(SHELL_NAV_GROUPS.map((g) => g.label)).toEqual([
       "TODAY",
-      "OPERATIONS",
+      "FIELD",
       "KNOWLEDGE",
       "INSIGHTS",
       "SETTINGS",
@@ -38,11 +38,13 @@ describe("TODAY group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Dashboard, Command Center, Dispatch in that order", () => {
+  it("contains Dashboard, Command Center, Dispatch, Daily Plans, Live Operations in that order", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.DASHBOARD,
       ROUTES.COMMAND_CENTER,
       ROUTES.DISPATCH,
+      ROUTES.DAILY_PLANS,
+      ROUTES.LIVE_OPERATIONS,
     ]);
   });
 
@@ -51,25 +53,25 @@ describe("TODAY group", () => {
       "Dashboard",
       "Command Center",
       "Dispatch",
+      "Daily Plans",
+      "Live Operations",
     ]);
   });
 });
 
-// ─── OPERATIONS group ─────────────────────────────────────────────────────────
+// ─── FIELD group ──────────────────────────────────────────────────────────────
 
-describe("OPERATIONS group", () => {
-  const group = SHELL_NAV_GROUPS.find((g) => g.label === "OPERATIONS")!;
+describe("FIELD group", () => {
+  const group = SHELL_NAV_GROUPS.find((g) => g.label === "FIELD")!;
 
   it("exists", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Jobs, Customers, Properties, Installed Systems in that order", () => {
+  it("contains Jobs, Customers in that order", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.JOBS,
       ROUTES.CUSTOMERS,
-      ROUTES.PROPERTIES,
-      ROUTES.INSTALLED_SYSTEMS,
     ]);
   });
 
@@ -77,8 +79,6 @@ describe("OPERATIONS group", () => {
     expect(group.items.map((i) => i.name)).toEqual([
       "Jobs",
       "Customers",
-      "Properties",
-      "Installed Systems",
     ]);
   });
 });
@@ -109,10 +109,9 @@ describe("INSIGHTS group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Reporting and Feedback in that order", () => {
+  it("contains only Reporting (Feedback removed from primary nav, PR1)", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.REPORTING,
-      ROUTES.OPS_FEEDBACK,
     ]);
   });
 });

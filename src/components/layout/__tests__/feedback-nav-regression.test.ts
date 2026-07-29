@@ -1,63 +1,32 @@
 /**
- * Regression tests: Feedback nav item visibility.
+ * Regression tests: Feedback nav item removal from primary sidebar (PR1).
  *
- * Guards against accidental removal of the Feedback nav item from the sidebar
- * and ensures it appears for the correct roles (owner, manager) and is hidden
- * for roles that should not see the ops triage screen.
+ * Guards that Feedback does NOT appear as a primary nav item (moved to Settings/
+ * admin area and accessible via the floating FAB). The /ops/feedback route and
+ * page remain intact for direct access.
  */
 import { describe, it, expect } from "vitest";
 
 import { ROUTES } from "@/lib/routes";
-import { getNavItemsForRole } from "@/features/auth";
 import { SHELL_NAV_GROUPS } from "../sidebarNav";
 
-function getFeedbackHrefsForRole(role: string) {
-  return getNavItemsForRole(role, SHELL_NAV_GROUPS)
+function getFeedbackHrefsInNav() {
+  return SHELL_NAV_GROUPS
     .flatMap((g) => g.items)
     .filter((item) => item.href === ROUTES.OPS_FEEDBACK)
     .map((item) => item.href);
 }
 
-// ─── Feedback is present in the INSIGHTS group ───────────────────────────────
+// ─── Feedback is NOT present in the primary sidebar (PR1 IA hardening) ────────
 
-describe("Feedback nav item — INSIGHTS group structure", () => {
-  const insightsGroup = SHELL_NAV_GROUPS.find((g) => g.label === "INSIGHTS");
-
-  it("INSIGHTS group exists", () => {
-    expect(insightsGroup).toBeDefined();
+describe("Feedback nav item — PR1 removal from primary nav", () => {
+  it("Feedback is not present in any SHELL_NAV_GROUPS item (floating FAB is the entry point)", () => {
+    expect(getFeedbackHrefsInNav()).toHaveLength(0);
   });
 
-  it("Feedback item is in the INSIGHTS group", () => {
-    const hrefs = insightsGroup!.items.map((i) => i.href);
-    expect(hrefs).toContain(ROUTES.OPS_FEEDBACK);
-  });
-
-  it("Feedback is named 'Feedback'", () => {
-    const item = insightsGroup!.items.find((i) => i.href === ROUTES.OPS_FEEDBACK);
-    expect(item?.name).toBe("Feedback");
-  });
-});
-
-// ─── Feedback is visible for roles with triage access ────────────────────────
-
-describe("Feedback nav item — role visibility (regression)", () => {
-  it("is visible to owner", () => {
-    expect(getFeedbackHrefsForRole("owner")).toContain(ROUTES.OPS_FEEDBACK);
-  });
-
-  it("is visible to manager", () => {
-    expect(getFeedbackHrefsForRole("manager")).toContain(ROUTES.OPS_FEEDBACK);
-  });
-
-  it("is NOT visible to tech (field-only access)", () => {
-    expect(getFeedbackHrefsForRole("tech")).not.toContain(ROUTES.OPS_FEEDBACK);
-  });
-
-  it("is NOT visible to dispatch", () => {
-    expect(getFeedbackHrefsForRole("dispatch")).not.toContain(ROUTES.OPS_FEEDBACK);
-  });
-
-  it("is NOT visible to portal users", () => {
-    expect(getFeedbackHrefsForRole("portal")).not.toContain(ROUTES.OPS_FEEDBACK);
+  it("no group is labelled INSIGHTS with a Feedback item", () => {
+    const insightsGroup = SHELL_NAV_GROUPS.find((g) => g.label === "INSIGHTS");
+    const feedbackItem = insightsGroup?.items.find((i) => i.href === ROUTES.OPS_FEEDBACK);
+    expect(feedbackItem).toBeUndefined();
   });
 });

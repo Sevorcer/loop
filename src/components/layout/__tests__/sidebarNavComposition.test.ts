@@ -62,7 +62,7 @@ describe("composeSidebarNav", () => {
 
     expect(groups.map((group) => group.label).slice(0, 2)).toEqual([
       "TODAY",
-      "OPERATIONS",
+      "FIELD",
     ]);
     expect(groups[0]?.items.map((item) => item.href).slice(0, 2)).toEqual([
       ROUTES.DISPATCH,
@@ -71,18 +71,17 @@ describe("composeSidebarNav", () => {
     expect(groups[1]?.items[0]?.href).toBe(ROUTES.JOBS);
   });
 
-  it("prioritizes tech links toward dashboard, jobs, properties, and installed systems", () => {
+  it("prioritizes tech links toward dashboard and jobs", () => {
     const groups = composeSidebarNav({ role: "tech" });
 
     expect(groups.map((group) => group.label).slice(0, 2)).toEqual([
       "TODAY",
-      "OPERATIONS",
+      "FIELD",
     ]);
     expect(groups[0]?.items[0]?.href).toBe(ROUTES.DASHBOARD);
+    // Customers is not in the tech role permission list, so FIELD shows only Jobs.
     expect(groups[1]?.items.map((item) => item.href)).toEqual([
       ROUTES.JOBS,
-      ROUTES.PROPERTIES,
-      ROUTES.INSTALLED_SYSTEMS,
     ]);
   });
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
+import { PageHeader } from "@/components/atlas";
 import { useJobs } from "@/features/jobs/state/JobsProvider";
 
 import { ActiveOperationsBanner } from "../components/ActiveOperationsBanner";
@@ -204,6 +205,11 @@ export function DailyPlansScreen() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Page header */}
+      <PageHeader
+        title="Daily Plans"
+        description="Review, assign, and activate today's field operations before crews head out."
+      />
       <MorningOperationsHero
         date={selectedDate}
         status={hydratedPlanStatus}

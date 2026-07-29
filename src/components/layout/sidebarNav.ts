@@ -1,24 +1,23 @@
 import {
   LayoutDashboard,
-  Building2,
   Users,
   Briefcase,
-  Cpu,
   Package,
   Brain,
   BarChart3,
-  MessageSquare,
   Settings,
   Send,
   MonitorDot,
+  CalendarDays,
+  Radio,
 } from "lucide-react";
 
 import { getNavItemsForRole, type NavGroup } from "@/features/auth";
 import { ROUTES } from "@/lib/routes";
 import type { AppRole } from "@/services/authorization";
 
-// Navigation groups per Sprint 7 navigation-ux-goals spec.
-// Group labels use uppercase to match the spec exactly.
+// Navigation groups — workflow-based grouping (PR1 UI/IA hardening).
+// Group labels use uppercase to match the established convention.
 export const SHELL_NAV_GROUPS: NavGroup[] = [
   {
     label: "TODAY",
@@ -26,15 +25,15 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
       { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
       { name: "Command Center", href: ROUTES.COMMAND_CENTER, icon: MonitorDot },
       { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
+      { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
+      { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
     ],
   },
   {
-    label: "OPERATIONS",
+    label: "FIELD",
     items: [
       { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
       { name: "Customers", href: ROUTES.CUSTOMERS, icon: Users },
-      { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
-      { name: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS, icon: Cpu },
     ],
   },
   {
@@ -48,7 +47,6 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
     label: "INSIGHTS",
     items: [
       { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
-      { name: "Feedback", href: ROUTES.OPS_FEEDBACK, icon: MessageSquare },
     ],
   },
   {
@@ -64,7 +62,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
 const ROLE_NAV_PRESET_ORDER: Partial<Record<AppRole, readonly string[]>> = {
   owner: [ROUTES.DASHBOARD, ROUTES.COMMAND_CENTER, ROUTES.REPORTING, ROUTES.SETTINGS],
   dispatch: [ROUTES.DISPATCH, ROUTES.COMMAND_CENTER, ROUTES.JOBS],
-  tech: [ROUTES.DASHBOARD, ROUTES.JOBS, ROUTES.PROPERTIES, ROUTES.INSTALLED_SYSTEMS],
+  tech: [ROUTES.DASHBOARD, ROUTES.JOBS],
 };
 
 export interface ComposeSidebarNavOptions {

@@ -7,7 +7,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { EmptyState } from "@/components/atlas";
+import { EmptyState, PageHeader } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
 import { CrewDayBoard } from "../components/CrewDayBoard";
@@ -30,6 +30,12 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Page header */}
+      <PageHeader
+        title="Dispatch"
+        description="Coordinate plan readiness, crew assignment, and schedule placement across all active work."
+      />
+
       {/* ── Hero ── */}
       <SurfaceCard className="overflow-hidden">
         <div className="flex flex-col gap-3 p-4 sm:gap-6 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
