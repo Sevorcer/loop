@@ -5,12 +5,9 @@ import { ArrowUpDown, Briefcase, Wrench } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
+import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
 
 import type { Job } from "../types/job";
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString();
-}
 
 function SortableHeader({
   label,
@@ -149,7 +146,9 @@ export const jobColumns: ColumnDef<Job>[] = [
     ),
   },
   {
-    accessorKey: "scheduledFor",
+    // Sort by scheduledStartAt when available, fall back to scheduledFor
+    id: "scheduledStart",
+    accessorFn: (row) => row.scheduledStartAt ?? row.scheduledFor,
     meta: {
       mobileLabel: "Scheduled",
     },
@@ -158,7 +157,7 @@ export const jobColumns: ColumnDef<Job>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm text-slate-400">
-        {formatDate(row.original.scheduledFor)}
+        {formatScheduledShort(row.original.scheduledStartAt ?? row.original.scheduledFor)}
       </span>
     ),
   },

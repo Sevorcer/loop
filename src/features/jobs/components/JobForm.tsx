@@ -11,11 +11,6 @@ import {
   getEstimateEquipmentBundle,
 } from "@/features/installed-systems/utils/installedSystemsUtils";
 import {
-  DEFAULT_JOB_APPOINTMENT_HOUR,
-  JOB_APPOINTMENT_HOURS,
-  formatJobAppointmentHour,
-} from "@/features/jobs/utils/appointmentWindow";
-import {
   applyCustomerAutocomplete,
   applyPropertyAutocomplete,
   getScopedProperties,
@@ -23,8 +18,15 @@ import {
   type JobPropertyOption,
   type SmartSelectionState,
 } from "@/features/jobs/utils/smartJobCreation";
+import {
+  parseDatetimeLocalInput,
+  toDatetimeLocalValue,
+  isValidTimeWindow,
+  getTimeWindowError,
+  deriveScheduledStartAt,
+} from "@/features/jobs/utils/schedulingTime";
 
-import type { JobAppointmentHour, JobPriority, JobType } from "../types/job";
+import type { JobPriority, JobType } from "../types/job";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
@@ -36,8 +38,14 @@ export interface JobFormValues {
   customerName: string;
   propertyName: string;
   assignedTo: string;
-  scheduledFor: string;
-  appointmentHour: JobAppointmentHour;
+  /** datetime-local value "YYYY-MM-DDTHH:mm" — the primary scheduling field. */
+  scheduledStartAt: string;
+  /** datetime-local value — optional committed end time. */
+  scheduledEndAt: string;
+  /** datetime-local value — optional arrival window start. */
+  arrivalWindowStartAt: string;
+  /** datetime-local value — optional arrival window end. */
+  arrivalWindowEndAt: string;
   type: JobType;
   priority: JobPriority;
   location: string;
@@ -52,14 +60,33 @@ export const defaultJobFormValues: JobFormValues = {
   customerName: "",
   propertyName: "",
   assignedTo: "",
-  scheduledFor: "",
-  appointmentHour: DEFAULT_JOB_APPOINTMENT_HOUR,
+  scheduledStartAt: "",
+  scheduledEndAt: "",
+  arrivalWindowStartAt: "",
+  arrivalWindowEndAt: "",
   type: "Service",
   priority: "Medium",
   location: "",
   summary: "",
   notes: "",
 };
+
+/** Convert a stored Job's scheduling fields into JobFormValues scheduling fields. */
+export function jobToFormScheduling(job: {
+  scheduledStartAt?: string | null;
+  scheduledFor?: string;
+  appointmentHour?: number | null;
+}): Pick<JobFormValues, "scheduledStartAt" | "scheduledEndAt" | "arrivalWindowStartAt" | "arrivalWindowEndAt"> {
+  const primary =
+    job.scheduledStartAt ??
+    deriveScheduledStartAt(job.scheduledFor ?? null, (job.appointmentHour ?? 9) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12);
+  return {
+    scheduledStartAt: toDatetimeLocalValue(primary),
+    scheduledEndAt: "",
+    arrivalWindowStartAt: "",
+    arrivalWindowEndAt: "",
+  };
+}
 
 function clearEstimateFieldsIfNeeded(type: JobType) {
   if (type === "Install") {
@@ -207,6 +234,24 @@ export function JobForm({
     setError(null);
   }
 
+  const scheduledWindowError = useMemo(
+    () => getTimeWindowError(
+      parseDatetimeLocalInput(form.scheduledStartAt),
+      parseDatetimeLocalInput(form.scheduledEndAt),
+      "scheduled end time",
+    ),
+    [form.scheduledStartAt, form.scheduledEndAt],
+  );
+
+  const arrivalWindowError = useMemo(
+    () => getTimeWindowError(
+      parseDatetimeLocalInput(form.arrivalWindowStartAt),
+      parseDatetimeLocalInput(form.arrivalWindowEndAt),
+      "arrival window end time",
+    ),
+    [form.arrivalWindowStartAt, form.arrivalWindowEndAt],
+  );
+
   const canSubmit = useMemo(() => {
     const hasRequiredText =
       form.title.trim().length > 0 &&
@@ -216,11 +261,12 @@ export function JobForm({
       form.location.trim().length > 0 &&
       form.summary.trim().length > 0;
 
-    const hasValidDate =
-      form.scheduledFor.length > 0 && !Number.isNaN(new Date(form.scheduledFor).getTime());
+    const hasValidStart =
+      form.scheduledStartAt.length > 0 &&
+      !Number.isNaN(new Date(form.scheduledStartAt).getTime());
 
-    return hasRequiredText && hasValidDate;
-  }, [form]);
+    return hasRequiredText && hasValidStart && !scheduledWindowError && !arrivalWindowError;
+  }, [form, scheduledWindowError, arrivalWindowError]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -345,32 +391,68 @@ export function JobForm({
               </datalist>
             </div>
 
+            {/* Scheduling — PR3C clock-time fields */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Scheduled Date</label>
+              <label className="text-sm font-medium text-slate-200">
+                Scheduled Start <span className="text-red-400">*</span>
+              </label>
               <input
-                type="date"
-                value={form.scheduledFor}
-                onChange={(e) => updateField("scheduledFor", e.target.value)}
+                type="datetime-local"
+                value={form.scheduledStartAt}
+                onChange={(e) => updateField("scheduledStartAt", e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Appointment Hour</label>
-              <select
-                value={form.appointmentHour}
-                onChange={(e) =>
-                  updateField("appointmentHour", Number(e.target.value) as JobAppointmentHour)
-                }
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
-              >
-                {JOB_APPOINTMENT_HOURS.map((hour) => (
-                  <option key={hour} value={hour}>
-                    {formatJobAppointmentHour(hour)}
-                  </option>
-                ))}
-              </select>
+              <label className="text-sm font-medium text-slate-200">
+                Scheduled End <span className="text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={form.scheduledEndAt}
+                onChange={(e) => updateField("scheduledEndAt", e.target.value)}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40 ${
+                  scheduledWindowError
+                    ? "border-red-500/50 bg-red-500/5"
+                    : "border-white/10 bg-white/[0.03]"
+                }`}
+              />
+              {scheduledWindowError && (
+                <p className="text-xs text-red-400">{scheduledWindowError}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Arrival Window Start <span className="text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={form.arrivalWindowStartAt}
+                onChange={(e) => updateField("arrivalWindowStartAt", e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Arrival Window End <span className="text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={form.arrivalWindowEndAt}
+                onChange={(e) => updateField("arrivalWindowEndAt", e.target.value)}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40 ${
+                  arrivalWindowError
+                    ? "border-red-500/50 bg-red-500/5"
+                    : "border-white/10 bg-white/[0.03]"
+                }`}
+              />
+              {arrivalWindowError && (
+                <p className="text-xs text-red-400">{arrivalWindowError}</p>
+              )}
             </div>
 
             <div className="space-y-2">

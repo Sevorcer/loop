@@ -65,6 +65,10 @@ function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInp
     assignedTo: input.assignedTo.trim(),
     scheduledFor: input.scheduledFor,
     appointmentHour: input.appointmentHour,
+    scheduledStartAt: input.scheduledStartAt,
+    scheduledEndAt: input.scheduledEndAt,
+    arrivalWindowStartAt: input.arrivalWindowStartAt,
+    arrivalWindowEndAt: input.arrivalWindowEndAt,
     location: input.location.trim(),
     summary: input.summary.trim(),
     notes: input.notes.trim(),
@@ -80,11 +84,35 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   if (!input.summary) throw new Error("Work summary is required.");
   if (!JOB_TYPES.has(input.type)) throw new Error("Invalid job type.");
   if (!JOB_PRIORITIES.has(input.priority)) throw new Error("Invalid job priority.");
-  if (Number.isNaN(new Date(input.scheduledFor).getTime())) {
-    throw new Error("Scheduled date is invalid.");
+
+  // Validate the primary scheduling field (PR3C) or fall back to legacy
+  const hasNewScheduling =
+    !!input.scheduledStartAt && !Number.isNaN(new Date(input.scheduledStartAt).getTime());
+  const hasLegacyScheduling =
+    !!input.scheduledFor && !Number.isNaN(new Date(input.scheduledFor).getTime());
+  if (!hasNewScheduling && !hasLegacyScheduling) {
+    throw new Error("Scheduled start time is invalid.");
   }
+
   if (input.appointmentHour !== undefined && !isValidJobAppointmentHour(input.appointmentHour)) {
     throw new Error("Invalid appointment hour.");
+  }
+
+  // Validate time window ordering
+  if (
+    input.scheduledStartAt &&
+    input.scheduledEndAt &&
+    new Date(input.scheduledStartAt) > new Date(input.scheduledEndAt)
+  ) {
+    throw new Error("Scheduled end time must be at or after the start time.");
+  }
+
+  if (
+    input.arrivalWindowStartAt &&
+    input.arrivalWindowEndAt &&
+    new Date(input.arrivalWindowStartAt) > new Date(input.arrivalWindowEndAt)
+  ) {
+    throw new Error("Arrival window end time must be at or after the start time.");
   }
 }
 
@@ -186,7 +214,7 @@ export async function createJob(
       jobId: createdJob.id,
       type: "scheduled",
       title: "Schedule confirmed",
-      description: `Job scheduled for ${new Date(createdJob.scheduledFor).toLocaleDateString()}.`,
+      description: `Job scheduled for ${new Date(createdJob.scheduledStartAt ?? createdJob.scheduledFor).toLocaleDateString()}.`,
     }, contextInput),
   ]);
 

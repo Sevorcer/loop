@@ -614,8 +614,8 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
   const rawPlans = (plansRes.data ?? []) as DispatchPlanRow[];
   const rawBlocks = (blocksRes.data ?? []) as ScheduleBlockRow[];
 
-  // Enrich plans and blocks with appointment_window from the jobs table.
-  // This surfaces PR3A scheduling data (appointment_window) into the dispatch view.
+  // Enrich plans and blocks with PR3C scheduling data (scheduled_start_at) from jobs.
+  // Falls back gracefully if the column is not yet present (migration pending).
   const jobIds = [
     ...new Set([
       ...rawPlans.map((p) => p.job_id).filter((id): id is string => !!id),
@@ -623,26 +623,31 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
     ]),
   ];
 
-  const appointmentWindowByJobId = new Map<string, "Morning" | "Afternoon">();
+  const scheduledStartAtByJobId = new Map<string, string>();
   if (jobIds.length > 0) {
-    const { data: jobRows } = await supabase
+    // Try PR3C column first; silently skip on column-missing errors.
+    const { data: jobRows, error: jobsError } = await supabase
       .from("jobs")
-      .select("id,appointment_window")
+      .select("id,scheduled_start_at")
       .in("id", jobIds);
 
-    for (const row of jobRows ?? []) {
-      const jRow = row as { id: string; appointment_window: string | null };
-      if (jRow.appointment_window === "Morning" || jRow.appointment_window === "Afternoon") {
-        appointmentWindowByJobId.set(jRow.id, jRow.appointment_window);
+    if (!jobsError) {
+      for (const row of jobRows ?? []) {
+        const jRow = row as { id: string; scheduled_start_at: string | null };
+        if (jRow.scheduled_start_at) {
+          scheduledStartAtByJobId.set(jRow.id, jRow.scheduled_start_at);
+        }
       }
     }
+    // If the column is missing (pre-migration), we simply leave the map empty —
+    // dispatch cards will render without a scheduled time badge rather than crash.
   }
 
   const plans = rawPlans.map((row) => {
     const plan = mapDispatchPlan(row);
     if (row.job_id) {
-      const window = appointmentWindowByJobId.get(row.job_id);
-      if (window) plan.appointmentWindow = window;
+      const startAt = scheduledStartAtByJobId.get(row.job_id);
+      if (startAt) plan.scheduledStartAt = startAt;
     }
     return plan;
   });
@@ -650,8 +655,8 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
   const scheduleBlocks = rawBlocks.map((row) => {
     const block = mapScheduleBlock(row);
     if (row.job_id) {
-      const window = appointmentWindowByJobId.get(row.job_id);
-      if (window) block.appointmentWindow = window;
+      const startAt = scheduledStartAtByJobId.get(row.job_id);
+      if (startAt) block.scheduledStartAt = startAt;
     }
     return block;
   });
