@@ -53,7 +53,7 @@ export const DEFAULT_APPEARANCE: AppearancePreferences = {
   colorMode: "dark",
   spacing: "comfortable",
   defaultLandingPage: "/dashboard",
-  sidebarPinnedDefault: true,
+  sidebarPinnedDefault: false,
   dashboardLayout: "default",
   commandCenterLayout: "default",
 };
