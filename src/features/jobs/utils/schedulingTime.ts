@@ -94,15 +94,15 @@ export function parseDatetimeLocalInput(
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  // Normalise "YYYY-MM-DDTHH:mm" → "YYYY-MM-DDTHH:mm:00"
-  const normalised = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)
+  // Normalize "YYYY-MM-DDTHH:mm" → "YYYY-MM-DDTHH:mm:00"
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)
     ? `${trimmed}:00`
     : trimmed;
 
-  const date = new Date(normalised);
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return null;
 
-  return normalised;
+  return normalized;
 }
 
 /**

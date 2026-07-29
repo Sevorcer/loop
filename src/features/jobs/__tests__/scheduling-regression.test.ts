@@ -119,8 +119,32 @@ describe("parseDatetimeLocalInput edge cases", () => {
   });
 
   it("handles ISO timestamp with timezone suffix", () => {
-    // Full ISO strings should parse (they're already normalised)
+    // Full ISO strings should parse (they're already normalized)
     const result = parseDatetimeLocalInput("2026-07-29T09:00:00Z");
     expect(result).not.toBeNull();
+  });
+});
+
+// ─── mapJob fallback: scheduled_start_at null + legacy fields present ─────────
+//
+// The repository's mapJob function falls back to deriveScheduledStartAt() when
+// scheduled_start_at is null. We test the derivation logic directly since
+// mapJob is unexported.
+
+describe("mapJob fallback — scheduled_start_at null, legacy fields present", () => {
+  it("derives a UTC ISO string from a legacy date + hour 9", () => {
+    const derived = deriveScheduledStartAt("2026-07-29", 9);
+    expect(derived).toBe("2026-07-29T09:00:00Z");
+  });
+
+  it("derives a UTC ISO string from a legacy date + hour 14", () => {
+    const derived = deriveScheduledStartAt("2026-07-29", 14 as never);
+    // hour 14 is out of the 1-12 union but the function handles it correctly
+    expect(derived).toBe("2026-07-29T14:00:00Z");
+  });
+
+  it("returns null when scheduled_for is absent (no legacy data)", () => {
+    expect(deriveScheduledStartAt(null, 9)).toBeNull();
+    expect(deriveScheduledStartAt(undefined, 9)).toBeNull();
   });
 });

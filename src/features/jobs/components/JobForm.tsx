@@ -26,7 +26,7 @@ import {
   deriveScheduledStartAt,
 } from "@/features/jobs/utils/schedulingTime";
 
-import type { JobPriority, JobType } from "../types/job";
+import type { JobAppointmentHour, JobPriority, JobType } from "../types/job";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
@@ -79,7 +79,7 @@ export function jobToFormScheduling(job: {
 }): Pick<JobFormValues, "scheduledStartAt" | "scheduledEndAt" | "arrivalWindowStartAt" | "arrivalWindowEndAt"> {
   const primary =
     job.scheduledStartAt ??
-    deriveScheduledStartAt(job.scheduledFor ?? null, (job.appointmentHour ?? 9) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12);
+    deriveScheduledStartAt(job.scheduledFor ?? null, (job.appointmentHour ?? 9) as JobAppointmentHour);
   return {
     scheduledStartAt: toDatetimeLocalValue(primary),
     scheduledEndAt: "",
