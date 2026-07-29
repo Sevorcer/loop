@@ -106,13 +106,36 @@ const JOB_SELECT = JOB_SELECT_BASE + ",appointment_window";
  * 20260729000001_pr3a_job_appointment_window.sql has not been applied.
  * Used to trigger a safe read/write fallback so the app remains usable
  * in environments that are behind on migrations.
+ *
+ * Detects the error via both the PostgreSQL error code (42703 = undefined_column)
+ * and the human-readable message as a belt-and-suspenders check.
  */
-function isSchedulingColumnMissingError(error: { message?: string }): boolean {
+function isSchedulingColumnMissingError(error: {
+  message?: string;
+  code?: string;
+}): boolean {
+  // PostgreSQL error code 42703 = undefined_column (most reliable signal)
+  if (error.code === "42703") return true;
   const msg = (error.message ?? "").toLowerCase();
   return (
     msg.includes("appointment_window") &&
     (msg.includes("does not exist") || msg.includes("undefined column"))
   );
+}
+
+/**
+ * Type helper: cast Supabase response data to JobRow[].
+ * Supabase infers a generic string error type when the select literal
+ * contains columns not present in generated types; this helper centralises
+ * the necessary cast rather than repeating `as unknown as` at every call site.
+ */
+function toJobRows(data: unknown): JobRow[] | null {
+  return data as JobRow[] | null;
+}
+
+/** Single-row variant of {@link toJobRows}. */
+function toJobRow(data: unknown): JobRow | null {
+  return data as JobRow | null;
 }
 
 function mapActivity(row: JobActivityRow): JobActivity {
@@ -137,7 +160,7 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
 
-  let data = result.data as unknown as JobRow[] | null;
+  let data = toJobRows(result.data);
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
@@ -150,7 +173,7 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
       .eq("org_id", orgId)
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false });
-    data = fallback.data as unknown as JobRow[] | null;
+    data = toJobRows(fallback.data);
     error = fallback.error;
   }
 
@@ -170,7 +193,7 @@ export async function listJobs(): Promise<Job[]> {
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
-  let data = result.data as unknown as JobRow[] | null;
+  let data = toJobRows(result.data);
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
@@ -182,7 +205,7 @@ export async function listJobs(): Promise<Job[]> {
       .select(JOB_SELECT_BASE)
       .eq("org_id", orgId)
       .order("created_at", { ascending: false });
-    data = fallback.data as unknown as JobRow[] | null;
+    data = toJobRows(fallback.data);
     error = fallback.error;
   }
 
@@ -218,7 +241,7 @@ export async function getJobById(id: string): Promise<Job | null> {
     .eq("id", id)
     .maybeSingle();
 
-  let data = result.data as unknown as JobRow | null;
+  let data = toJobRow(result.data);
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
@@ -231,7 +254,7 @@ export async function getJobById(id: string): Promise<Job | null> {
       .eq("org_id", orgId)
       .eq("id", id)
       .maybeSingle();
-    data = fallback.data as unknown as JobRow | null;
+    data = toJobRow(fallback.data);
     error = fallback.error;
   }
 
@@ -252,7 +275,7 @@ export async function getJobRowById(id: string): Promise<JobRow | null> {
     .eq("id", id)
     .maybeSingle();
 
-  let data = result.data as unknown as JobRow | null;
+  let data = toJobRow(result.data);
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
@@ -265,7 +288,7 @@ export async function getJobRowById(id: string): Promise<JobRow | null> {
       .eq("org_id", orgId)
       .eq("id", id)
       .maybeSingle();
-    data = fallback.data as unknown as JobRow | null;
+    data = toJobRow(fallback.data);
     error = fallback.error;
   }
 
@@ -310,7 +333,7 @@ export async function createJob(
     .select(JOB_SELECT)
     .single();
 
-  let data = writeResult.data as unknown as JobRow | null;
+  let data = toJobRow(writeResult.data);
   let error = writeResult.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
@@ -324,7 +347,7 @@ export async function createJob(
       .insert(fallbackPayload)
       .select(JOB_SELECT_BASE)
       .single();
-    data = fallback.data as unknown as JobRow | null;
+    data = toJobRow(fallback.data);
     error = fallback.error;
   }
 
@@ -371,7 +394,7 @@ export async function updateJob(
     .select(JOB_SELECT)
     .maybeSingle();
 
-  let data = updateResult.data as unknown as JobRow | null;
+  let data = toJobRow(updateResult.data);
   let error = updateResult.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
@@ -386,7 +409,7 @@ export async function updateJob(
       .eq("id", id)
       .select(JOB_SELECT_BASE)
       .maybeSingle();
-    data = fallback.data as unknown as JobRow | null;
+    data = toJobRow(fallback.data);
     error = fallback.error;
   }
 
@@ -504,7 +527,7 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
     .eq("property_id", propertyId)
     .order("created_at", { ascending: false });
 
-  let data = result.data as unknown as JobRow[] | null;
+  let data = toJobRows(result.data);
   let error = result.error;
 
   if (error && isSchedulingColumnMissingError(error)) {
@@ -517,7 +540,7 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
       .eq("org_id", orgId)
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false });
-    data = fallback.data as unknown as JobRow[] | null;
+    data = toJobRows(fallback.data);
     error = fallback.error;
   }
 

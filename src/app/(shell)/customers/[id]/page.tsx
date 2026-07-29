@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { CustomerDetailScreen } from "@/features/customers";
-import type { CustomerJobItem } from "@/features/customers/types/customerDetails";
 import { getCustomer, getCustomerJobs, getCustomerProperties } from "@/services/customers";
 import { buildCustomerTimelineEvents } from "@/services/timeline";
 
@@ -20,7 +19,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
         customerId: id,
         error: err instanceof Error ? err.message : String(err),
       });
-      return [] as CustomerJobItem[];
+      return [] as Awaited<ReturnType<typeof getCustomerJobs>>;
     }),
   ]);
 
