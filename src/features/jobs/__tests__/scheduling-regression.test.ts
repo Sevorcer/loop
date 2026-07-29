@@ -10,6 +10,7 @@
  */
 import { describe, it, expect } from "vitest";
 
+import type { JobAppointmentHour } from "../types/job";
 import {
   deriveScheduledStartAt,
   isValidTimeWindow,
@@ -138,7 +139,9 @@ describe("mapJob fallback — scheduled_start_at null, legacy fields present", (
   });
 
   it("derives a UTC ISO string from a legacy date + hour 14", () => {
-    const derived = deriveScheduledStartAt("2026-07-29", 14 as never);
+    // hour 14 is outside the JobAppointmentHour union (1-12) but the function
+    // handles any numeric value safely; cast via unknown to test boundary.
+    const derived = deriveScheduledStartAt("2026-07-29", 14 as unknown as JobAppointmentHour);
     // hour 14 is out of the 1-12 union but the function handles it correctly
     expect(derived).toBe("2026-07-29T14:00:00Z");
   });

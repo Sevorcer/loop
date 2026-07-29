@@ -25,6 +25,7 @@ import {
   getTimeWindowError,
   deriveScheduledStartAt,
 } from "@/features/jobs/utils/schedulingTime";
+import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
 
 import type { JobAppointmentHour, JobPriority, JobType } from "../types/job";
 
@@ -85,7 +86,7 @@ export function jobToFormScheduling(job: {
 }): SchedulingFormFields {
   const primary =
     job.scheduledStartAt ??
-    deriveScheduledStartAt(job.scheduledFor ?? null, (job.appointmentHour ?? 9) as JobAppointmentHour);
+    deriveScheduledStartAt(job.scheduledFor ?? null, (job.appointmentHour ?? DEFAULT_JOB_APPOINTMENT_HOUR) as JobAppointmentHour);
   return {
     scheduledStartAt: toDatetimeLocalValue(primary),
     scheduledEndAt: "",

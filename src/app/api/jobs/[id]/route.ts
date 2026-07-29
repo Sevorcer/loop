@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { parseOptionalTimestamp } from "@/lib/api/parseRequestFields";
 import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
 import {
@@ -54,18 +55,6 @@ function readJobAppointmentHour(value: unknown): JobAppointmentHour | undefined 
     throw new Error("Invalid appointment hour. Must be an integer between 1 and 12.");
   }
   return num as JobAppointmentHour;
-}
-
-/**
- * Parses an optional timestamp field from a request body.
- * - If the field is absent (undefined / null), returns undefined (omit from payload).
- * - If the field is an empty string, returns null (clear the value).
- * - Otherwise returns the trimmed string value.
- */
-function parseOptionalTimestamp(value: unknown): string | null | undefined {
-  if (value == null) return undefined;
-  const trimmed = String(value).trim();
-  return trimmed || null;
 }
 
 function readJobStatus(value: unknown) {

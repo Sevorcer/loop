@@ -114,6 +114,8 @@ function mapJob(row: JobRow): Job {
       ? (rawHour as JobAppointmentHour)
       : DEFAULT_JOB_APPOINTMENT_HOUR;
 
+  // Fallback: created_at is always stored as ISO 8601 by Supabase ("YYYY-MM-DDTHH:mm:ss…"),
+  // so slicing the first 10 characters reliably yields "YYYY-MM-DD".
   const scheduledFor = row.scheduled_for ?? row.created_at.slice(0, 10);
 
   // Use PR3C columns as primary truth; fall back to derived value from legacy fields.
