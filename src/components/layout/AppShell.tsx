@@ -5,6 +5,7 @@ import { Command, Menu, Search } from "lucide-react";
 
 import { UniversalCommandBar } from "@/features/command-bar";
 import { FeedbackButton } from "@/features/feedback";
+import { useAppearancePreferences } from "@/features/settings/hooks/useAppearancePreferences";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { computeSidebarLayout, readSidebarPinned, writeSidebarPinned } from "./sidebarState";
@@ -29,6 +30,7 @@ export default function AppShell({ children }: AppShellProps) {
   // avoid a visible layout shift on first paint.
   const [isPinned, setIsPinned] = useState<boolean>(() => readSidebarPinned());
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const { preferences } = useAppearancePreferences();
 
   const desktopSidebarRef = useRef<HTMLDivElement>(null);
   const desktopTriggerRef = useRef<HTMLButtonElement>(null);
@@ -119,6 +121,7 @@ export default function AppShell({ children }: AppShellProps) {
             isPinned={isPinned}
             onPinToggle={handlePinToggle}
             onNavigate={() => setIsKeyboardOpen(false)}
+            navOverride={preferences.sidebarNavOverride}
           />
         </div>
 
@@ -170,6 +173,7 @@ export default function AppShell({ children }: AppShellProps) {
         <Sidebar
           id="mobile-navigation"
           onNavigate={() => setIsMobileNavOpen(false)}
+          navOverride={preferences.sidebarNavOverride}
           // Pin control is desktop-only; omit onPinToggle to hide the button.
         />
       </div>

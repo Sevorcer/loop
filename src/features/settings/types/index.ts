@@ -44,6 +44,7 @@ export interface AppearancePreferences {
   spacing: SpacingMode;
   defaultLandingPage: string;
   sidebarPinnedDefault: boolean;
+  sidebarNavOverride: string[];
   dashboardLayout: DashboardLayout;
   commandCenterLayout: CommandCenterLayout;
 }
@@ -54,6 +55,7 @@ export const DEFAULT_APPEARANCE: AppearancePreferences = {
   spacing: "comfortable",
   defaultLandingPage: "/dashboard",
   sidebarPinnedDefault: false,
+  sidebarNavOverride: [],
   dashboardLayout: "default",
   commandCenterLayout: "default",
 };

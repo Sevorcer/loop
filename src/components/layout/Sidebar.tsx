@@ -5,12 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Pin, PinOff } from "lucide-react";
 
-import { useSession, getNavItemsForRole } from "@/features/auth";
+import { useSession } from "@/features/auth";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 import { UserDisplay } from "@/features/auth/components/UserDisplay";
-import { SHELL_NAV_GROUPS } from "./sidebarNav";
+import { composeSidebarNav, SHELL_NAV_GROUPS } from "./sidebarNav";
 
 const NAV_SKELETON_ROWS = SHELL_NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
 
@@ -22,15 +22,24 @@ interface SidebarProps {
   isPinned?: boolean;
   /** Called when the user toggles the pin. Omit to hide the pin button (e.g. mobile). */
   onPinToggle?: () => void;
+  navOverride?: readonly string[];
 }
 
-export default function Sidebar({ id, className, onNavigate, isPinned = false, onPinToggle }: SidebarProps) {
+export default function Sidebar({
+  id,
+  className,
+  onNavigate,
+  isPinned = false,
+  onPinToggle,
+  navOverride,
+}: SidebarProps) {
   const pathname = usePathname();
   const { role, loading } = useSession();
 
-  const filteredGroups = getNavItemsForRole(role, SHELL_NAV_GROUPS);
-  const shouldBypassRoleFilter = !loading && role !== "portal" && filteredGroups.length === 0;
-  const visibleGroups = shouldBypassRoleFilter ? SHELL_NAV_GROUPS : filteredGroups;
+  const visibleGroups = composeSidebarNav({
+    role,
+    navOverride,
+  });
 
   return (
     <aside

@@ -4,7 +4,9 @@ import type { AppearancePreferences } from "../types";
 import {
   ACCENT_HEX,
   applyAppearancePreferences,
+  hasSidebarNavOverride,
   loadAppearancePreferences,
+  resetSidebarNavOverride,
 } from "../lib/appearancePreferences";
 
 describe("AppearancePreferences defaults", () => {
@@ -15,6 +17,7 @@ describe("AppearancePreferences defaults", () => {
       "spacing",
       "defaultLandingPage",
       "sidebarPinnedDefault",
+      "sidebarNavOverride",
       "dashboardLayout",
       "commandCenterLayout",
     ];
@@ -41,6 +44,10 @@ describe("AppearancePreferences defaults", () => {
 
   it("defaults sidebar pinned to false", () => {
     expect(DEFAULT_APPEARANCE.sidebarPinnedDefault).toBe(false);
+  });
+
+  it("defaults sidebar nav overrides to empty", () => {
+    expect(DEFAULT_APPEARANCE.sidebarNavOverride).toEqual([]);
   });
 });
 
@@ -69,10 +76,28 @@ describe("appearance preference application", () => {
           colorMode: "sepia",
           spacing: 123,
           sidebarPinnedDefault: "yes",
+          sidebarNavOverride: ["/jobs", 123, "", "/jobs"],
         }),
     };
 
-    expect(loadAppearancePreferences(storage)).toEqual(DEFAULT_APPEARANCE);
+    expect(loadAppearancePreferences(storage)).toEqual({
+      ...DEFAULT_APPEARANCE,
+      sidebarNavOverride: ["/jobs"],
+    });
+  });
+
+  it("keeps valid sidebar nav overrides and removes duplicates", () => {
+    const storage = {
+      getItem: () =>
+        JSON.stringify({
+          sidebarNavOverride: ["/jobs", "/reporting", "/jobs"],
+        }),
+    };
+
+    expect(loadAppearancePreferences(storage)).toEqual({
+      ...DEFAULT_APPEARANCE,
+      sidebarNavOverride: ["/jobs", "/reporting"],
+    });
   });
 
   it("applies accent and appearance attributes to the html root", () => {
@@ -128,5 +153,31 @@ describe("appearance preference application", () => {
     expect(appliedStyles.get("--primary")).toBe(ACCENT_HEX.orange);
     expect(appliedAttributes.get("data-color-mode")).toBe("light");
     expect(appliedAttributes.get("data-spacing")).toBe("compact");
+  });
+});
+
+describe("sidebar nav reset helpers", () => {
+  it("detects when a custom sidebar nav override exists", () => {
+    expect(hasSidebarNavOverride(DEFAULT_APPEARANCE)).toBe(false);
+    expect(
+      hasSidebarNavOverride({
+        ...DEFAULT_APPEARANCE,
+        sidebarNavOverride: ["/reporting"],
+      })
+    ).toBe(true);
+  });
+
+  it("clears only sidebar nav overrides when resetting to role default", () => {
+    const customized = {
+      ...DEFAULT_APPEARANCE,
+      accentColor: "green" as const,
+      sidebarPinnedDefault: true,
+      sidebarNavOverride: ["/reporting", "/settings"],
+    };
+
+    expect(resetSidebarNavOverride(customized)).toEqual({
+      ...customized,
+      sidebarNavOverride: [],
+    });
   });
 });
