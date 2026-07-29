@@ -9,15 +9,23 @@ import { ROUTE_BUILDERS } from "@/lib/routes";
 import { CustomerDeleteButton } from "../components/CustomerDeleteButton";
 import { CustomerDetailTabs } from "../components/CustomerDetailTabs";
 import type { Customer } from "../types/customer";
-import type { CustomerJobItem, CustomerPropertyItem } from "../types/customerDetails";
+import type {
+  CustomerInstalledSystemItem,
+  CustomerJobItem,
+  CustomerPropertyItem,
+} from "../types/customerDetails";
 import type { TimelineEventItem } from "@/lib/timeline";
 
 interface CustomerDetailScreenProps {
   customer: Customer;
   properties: CustomerPropertyItem[];
   jobs: CustomerJobItem[];
+  installedSystems: CustomerInstalledSystemItem[];
   timelineItems: TimelineEventItem[];
   timelineError?: string;
+  systemsError?: string;
+  initialTab?: string;
+  initialPropertyId?: string;
 }
 
 function formatDate(value: string) {
@@ -28,8 +36,12 @@ export function CustomerDetailScreen({
   customer,
   properties,
   jobs,
+  installedSystems,
   timelineItems,
   timelineError,
+  systemsError,
+  initialTab,
+  initialPropertyId,
 }: CustomerDetailScreenProps) {
   const statusVariant =
     customer.status === "Active"
@@ -119,9 +131,18 @@ export function CustomerDetailScreen({
               <Card>
                 <CardContent className="p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Open Jobs
+                    Installed Systems
                   </p>
-                  <p className="mt-2 text-lg font-semibold">{customer.openJobs}</p>
+                  <p className="mt-2 text-lg font-semibold">{installedSystems.length}</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Jobs
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">{jobs.length}</p>
                 </CardContent>
               </Card>
             </div>
@@ -140,7 +161,7 @@ export function CustomerDetailScreen({
                 <Link href={ROUTE_BUILDERS.JOB_NEW({ customerId: customer.id })}>
                   <Button variant="outline" size="sm" className="gap-2">
                     <CalendarClock className="h-4 w-4" />
-                    Schedule Appointment
+                    Create Job
                   </Button>
                 </Link>
               </PermissionGuard>
@@ -160,8 +181,12 @@ export function CustomerDetailScreen({
         customer={customer}
         properties={properties}
         jobs={jobs}
+        installedSystems={installedSystems}
         timelineItems={timelineItems}
         timelineError={timelineError}
+        systemsError={systemsError}
+        initialTab={initialTab}
+        initialPropertyId={initialPropertyId}
       />
     </div>
   );

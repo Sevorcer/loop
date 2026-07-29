@@ -15,7 +15,19 @@ export interface CustomerJobItem {
   title: string;
   status: string;
   scheduledFor: string;
+  propertyId?: string;
   propertyName: string;
+}
+
+export interface CustomerInstalledSystemItem {
+  id: string;
+  systemName: string;
+  lifecycleStatus: string;
+  propertyId?: string;
+  propertyName: string;
+  installDate: string;
+  manufacturer: string;
+  modelNumber: string;
 }
 
 export interface CustomerContactItem {
