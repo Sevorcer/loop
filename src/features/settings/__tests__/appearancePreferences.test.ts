@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_APPEARANCE } from "../types";
 import type { AppearancePreferences } from "../types";
+import {
+  ACCENT_HEX,
+  applyAppearancePreferences,
+  loadAppearancePreferences,
+} from "../lib/appearancePreferences";
 
 describe("AppearancePreferences defaults", () => {
   it("has all required keys", () => {
@@ -36,5 +41,92 @@ describe("AppearancePreferences defaults", () => {
 
   it("defaults sidebar pinned to false", () => {
     expect(DEFAULT_APPEARANCE.sidebarPinnedDefault).toBe(false);
+  });
+});
+
+describe("appearance preference application", () => {
+  it("merges stored preferences with defaults", () => {
+    const storage = {
+      getItem: () =>
+        JSON.stringify({
+          accentColor: "purple",
+          spacing: "compact",
+        }),
+    };
+
+    expect(loadAppearancePreferences(storage)).toEqual({
+      ...DEFAULT_APPEARANCE,
+      accentColor: "purple",
+      spacing: "compact",
+    });
+  });
+
+  it("falls back to defaults for invalid stored values", () => {
+    const storage = {
+      getItem: () =>
+        JSON.stringify({
+          accentColor: "pink",
+          colorMode: "sepia",
+          spacing: 123,
+          sidebarPinnedDefault: "yes",
+        }),
+    };
+
+    expect(loadAppearancePreferences(storage)).toEqual(DEFAULT_APPEARANCE);
+  });
+
+  it("applies accent and appearance attributes to the html root", () => {
+    const appliedStyles = new Map<string, string>();
+    const appliedAttributes = new Map<string, string>();
+
+    applyAppearancePreferences(
+      {
+        style: {
+          setProperty: (name, value) => {
+            appliedStyles.set(name, value);
+          },
+        },
+        setAttribute: (name, value) => {
+          appliedAttributes.set(name, value);
+        },
+      },
+      {
+        ...DEFAULT_APPEARANCE,
+        accentColor: "green",
+        colorMode: "light",
+        spacing: "compact",
+      }
+    );
+
+    expect(appliedStyles.get("--primary")).toBe(ACCENT_HEX.green);
+    expect(appliedAttributes.get("data-color-mode")).toBe("light");
+    expect(appliedAttributes.get("data-spacing")).toBe("compact");
+  });
+
+  it("reapplies updated accent values immediately without a reload", () => {
+    const appliedStyles = new Map<string, string>();
+    const appliedAttributes = new Map<string, string>();
+    const root = {
+      style: {
+        setProperty: (name: string, value: string) => {
+          appliedStyles.set(name, value);
+        },
+      },
+      setAttribute: (name: string, value: string) => {
+        appliedAttributes.set(name, value);
+      },
+    };
+
+    applyAppearancePreferences(root, DEFAULT_APPEARANCE);
+    applyAppearancePreferences(root, {
+      ...DEFAULT_APPEARANCE,
+      accentColor: "orange",
+      colorMode: "light",
+      spacing: "compact",
+    });
+
+    expect(appliedStyles.get("--primary")).toBe(ACCENT_HEX.orange);
+    expect(appliedAttributes.get("data-color-mode")).toBe("light");
+    expect(appliedAttributes.get("data-spacing")).toBe("compact");
   });
 });

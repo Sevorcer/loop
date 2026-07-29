@@ -10,76 +10,48 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { DEFAULT_APPEARANCE, type AppearancePreferences } from "../types";
 import {
-  DEFAULT_APPEARANCE,
-  type AppearancePreferences,
-  type AccentColor,
-} from "../types";
-
-const STORAGE_KEY = "loop_appearance_prefs";
-
-// Accent color hex values for CSS variable injection
-const ACCENT_HEX: Record<AccentColor, string> = {
-  blue: "#3b82f6",
-  purple: "#a855f7",
-  green: "#22c55e",
-  orange: "#f97316",
-  red: "#ef4444",
-  cyan: "#06b6d4",
-};
-
-const CSS_VAR_PRIMARY = "--primary" as const;
-
-function loadPreferences(): AppearancePreferences {
-  if (typeof window === "undefined") return DEFAULT_APPEARANCE;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_APPEARANCE;
-    const parsed = JSON.parse(raw) as Partial<AppearancePreferences>;
-    return { ...DEFAULT_APPEARANCE, ...parsed };
-  } catch {
-    return DEFAULT_APPEARANCE;
-  }
-}
-
-function applyPreferences(prefs: AppearancePreferences) {
-  if (typeof document === "undefined") return;
-
-  const root = document.documentElement;
-
-  // Accent color
-  root.style.setProperty(CSS_VAR_PRIMARY, ACCENT_HEX[prefs.accentColor]);
-
-  // Color mode
-  root.setAttribute("data-color-mode", prefs.colorMode);
-
-  // Spacing density
-  root.setAttribute("data-spacing", prefs.spacing);
-}
+  APPEARANCE_PREFERENCES_CHANGE_EVENT,
+  applyAppearancePreferences,
+  clearAppearancePreferences,
+  dispatchAppearancePreferencesChanged,
+  loadAppearancePreferences,
+  persistAppearancePreferences,
+} from "../lib/appearancePreferences";
 
 export function useAppearancePreferences() {
   const [preferences, setPreferencesState] = useState<AppearancePreferences>(
-    DEFAULT_APPEARANCE
+    () =>
+      typeof window === "undefined"
+        ? DEFAULT_APPEARANCE
+        : loadAppearancePreferences(window.localStorage)
   );
 
-  // Hydrate from localStorage on mount
   useEffect(() => {
-    const loaded = loadPreferences();
-    setPreferencesState(loaded);
-    applyPreferences(loaded);
+    const syncPreferences = () => {
+      setPreferencesState(loadAppearancePreferences(window.localStorage));
+    };
+
+    window.addEventListener("storage", syncPreferences);
+    window.addEventListener(APPEARANCE_PREFERENCES_CHANGE_EVENT, syncPreferences);
+
+    return () => {
+      window.removeEventListener("storage", syncPreferences);
+      window.removeEventListener(
+        APPEARANCE_PREFERENCES_CHANGE_EVENT,
+        syncPreferences
+      );
+    };
   }, []);
 
   const updatePreferences = useCallback(
     (partial: Partial<AppearancePreferences>) => {
       setPreferencesState((current) => {
         const next = { ...current, ...partial };
-        try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        } catch {
-          // Ignore storage errors (e.g. private browsing)
-        }
-        applyPreferences(next);
+        persistAppearancePreferences(window.localStorage, next);
+        applyAppearancePreferences(document.documentElement, next);
+        dispatchAppearancePreferencesChanged(window);
         return next;
       });
     },
@@ -87,13 +59,10 @@ export function useAppearancePreferences() {
   );
 
   const resetPreferences = useCallback(() => {
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Ignore
-    }
+    clearAppearancePreferences(window.localStorage);
     setPreferencesState(DEFAULT_APPEARANCE);
-    applyPreferences(DEFAULT_APPEARANCE);
+    applyAppearancePreferences(document.documentElement, DEFAULT_APPEARANCE);
+    dispatchAppearancePreferencesChanged(window);
   }, []);
 
   return { preferences, updatePreferences, resetPreferences };
