@@ -18,17 +18,35 @@ interface InviteUserDialogProps {
   onInvited: () => void;
 }
 
+function formatErrorDetails(details: unknown): string | null {
+  if (typeof details === "string" && details.trim().length > 0) {
+    return details;
+  }
+
+  if (details == null) {
+    return null;
+  }
+
+  try {
+    return JSON.stringify(details);
+  } catch {
+    return null;
+  }
+}
+
 export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<AppRole>("office");
+  const [appRole, setAppRole] = useState<AppRole>("office");
   const [emailErrors, setEmailErrors] = useState<string[]>([]);
+  const [roleErrors, setRoleErrors] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setEmailErrors([]);
+    setRoleErrors([]);
     setFormError(null);
 
     if (!email.trim() || !email.includes("@")) {
@@ -41,7 +59,7 @@ export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) 
       const res = await fetch("/api/settings/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), fullName: fullName.trim(), role }),
+        body: JSON.stringify({ email: email.trim(), fullName: fullName.trim(), appRole }),
       });
 
       if (res.ok) {
@@ -49,9 +67,27 @@ export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) 
         return;
       }
 
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        code?: string;
+        details?: unknown;
+        fieldErrors?: {
+          email?: string[];
+          appRole?: string[];
+        };
+      };
+
+      setEmailErrors(body.fieldErrors?.email ?? []);
+      setRoleErrors(body.fieldErrors?.appRole ?? []);
+
+      const details = formatErrorDetails(body.details);
+      const code = typeof body.code === "string" && body.code !== body.message ? body.code : null;
+
       setFormError(
-        (body as { error?: string }).error ?? "Failed to send invite. Please try again."
+        [body.message, code ? `Code: ${code}` : null, details].filter(Boolean).join(" ") ||
+          body.error ||
+          "Failed to send invite. Please try again.",
       );
     } catch {
       setFormError("Network error. Please check your connection and try again.");
@@ -124,8 +160,10 @@ export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) 
           <AdminFieldWrapper label="Role" htmlFor="invite-role" required>
             <select
               id="invite-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as AppRole)}
+              value={appRole}
+              onChange={(e) => setAppRole(e.target.value as AppRole)}
+              aria-describedby={roleErrors.length ? "invite-role-error" : undefined}
+              aria-invalid={roleErrors.length > 0}
               className="w-full rounded-atlas-md border border-default bg-surface-elevated px-3 py-2 text-sm text-primary focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
             >
               {OPERATIONAL_ROLES.map((r) => (
@@ -134,6 +172,7 @@ export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) 
                 </option>
               ))}
             </select>
+            <AdminFieldError fieldId="invite-role" errors={roleErrors} />
           </AdminFieldWrapper>
 
           <AdminFormActions

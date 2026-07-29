@@ -154,7 +154,11 @@ export function UsersScreen() {
   }, []);
 
   useEffect(() => {
-    void fetchUsers();
+    const loadUsers = async () => {
+      await fetchUsers();
+    };
+
+    void loadUsers();
   }, [fetchUsers]);
 
   async function handleToggleStatus(user: OrgUser) {

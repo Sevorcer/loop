@@ -77,7 +77,7 @@ function extractErrorInfo(error: unknown): {
 }
 
 export function mapRouteError(error: unknown) {
-  const { message, code, status } = extractErrorInfo(error);
+  const { message, code, status, details } = extractErrorInfo(error);
   const lowerMessage = message.toLowerCase();
 
   if (message === "SUPABASE_NOT_CONFIGURED") {
@@ -91,10 +91,22 @@ export function mapRouteError(error: unknown) {
   // Only explicit auth/session sentinel failures should become 401.
   if (
     message === "SUPABASE_SESSION_REQUIRED" ||
-    message === "USER_PROFILE_NOT_FOUND" ||
-    code === "USER_PROFILE_NOT_FOUND"
+    lowerMessage.includes("authentication required")
   ) {
     return unauthorizedResponse();
+  }
+
+  if (message === "USER_PROFILE_NOT_FOUND" || code === "USER_PROFILE_NOT_FOUND") {
+    return NextResponse.json(
+      {
+        error: "PROFILE_UNAVAILABLE",
+        message:
+          "Your account profile is still being provisioned. Refresh in a moment or contact support if the problem persists.",
+        code: 409,
+        details,
+      },
+      { status: 409 },
+    );
   }
 
   // Honor explicit upstream status/code when present.

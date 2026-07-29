@@ -19,6 +19,31 @@ import type {
   UpdateUserPayload,
 } from "@/features/settings/types";
 
+interface SupabaseErrorLike {
+  code?: string;
+  message?: string;
+  details?: unknown;
+  hint?: unknown;
+  status?: number;
+}
+
+function toSupabaseServiceError(
+  error: SupabaseErrorLike | null | undefined,
+  fallbackMessage: string,
+): Error & {
+  code: string | null;
+  details: unknown;
+  hint: unknown;
+  status: number;
+} {
+  return Object.assign(new Error(error?.message ?? fallbackMessage), {
+    code: error?.code ?? null,
+    details: error?.details ?? null,
+    hint: error?.hint ?? null,
+    status: error?.status ?? 500,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -99,12 +124,12 @@ export async function inviteOrgUser(
   const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
     payload.email,
     {
-      data: { app_role: payload.role, full_name: payload.fullName },
+      data: { app_role: payload.appRole, full_name: payload.fullName },
     }
   );
 
   if (inviteError || !inviteData?.user) {
-    throw new Error(inviteError?.message ?? "Failed to send invite.");
+    throw toSupabaseServiceError(inviteError, "Failed to send invite.");
   }
 
   const userId = inviteData.user.id;
@@ -112,20 +137,24 @@ export async function inviteOrgUser(
   // Pre-create user_profiles row scoped to the org
   const supabase = await createSupabaseServerClient();
   const now = new Date().toISOString();
-  await supabase.from("user_profiles").upsert({
+  const { error: profileError } = await supabase.from("user_profiles").upsert({
     id: userId,
     org_id: orgId,
     full_name: payload.fullName,
-    app_role: payload.role,
+    app_role: payload.appRole,
     created_at: now,
     updated_at: now,
   });
+
+  if (profileError) {
+    throw toSupabaseServiceError(profileError, "Failed to create the user profile.");
+  }
 
   return {
     id: userId,
     email: payload.email,
     fullName: payload.fullName,
-    role: payload.role,
+    role: payload.appRole,
     status: "active",
     lastSignInAt: null,
     createdAt: now,
