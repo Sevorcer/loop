@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { CustomerDetailScreen } from "@/features/customers";
+import type { CustomerJobItem } from "@/features/customers/types/customerDetails";
 import { getCustomer, getCustomerJobs, getCustomerProperties } from "@/services/customers";
 import { buildCustomerTimelineEvents } from "@/services/timeline";
 
@@ -14,7 +15,13 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
   const [customer, properties, jobs] = await Promise.all([
     getCustomer(id),
     getCustomerProperties(id),
-    getCustomerJobs(id),
+    getCustomerJobs(id).catch((err: unknown) => {
+      console.error("[customers/detail] job fetch failed – displaying page without job history", {
+        customerId: id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return [] as CustomerJobItem[];
+    }),
   ]);
 
   if (!customer) {

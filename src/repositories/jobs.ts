@@ -27,7 +27,8 @@ interface JobRow {
   property_name: string;
   assigned_to: string;
   scheduled_for: string | null;
-  appointment_window: JobAppointmentWindow | null;
+  // Optional: absent when the PR3A scheduling migration has not yet been applied.
+  appointment_window?: JobAppointmentWindow | null;
   summary: string;
   location: string;
   notes: string;
@@ -94,8 +95,25 @@ function mapJob(row: JobRow): Job {
   };
 }
 
-const JOB_SELECT =
-  "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,appointment_window,summary,location,notes,created_at";
+const JOB_SELECT_BASE =
+  "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at";
+
+const JOB_SELECT = JOB_SELECT_BASE + ",appointment_window";
+
+/**
+ * Returns true when the Supabase/PostgREST error indicates that the
+ * `appointment_window` column does not exist yet — i.e. migration
+ * 20260729000001_pr3a_job_appointment_window.sql has not been applied.
+ * Used to trigger a safe read/write fallback so the app remains usable
+ * in environments that are behind on migrations.
+ */
+function isSchedulingColumnMissingError(error: { message?: string }): boolean {
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    msg.includes("appointment_window") &&
+    (msg.includes("does not exist") || msg.includes("undefined column"))
+  );
+}
 
 function mapActivity(row: JobActivityRow): JobActivity {
   return {
@@ -111,12 +129,30 @@ function mapActivity(row: JobActivityRow): JobActivity {
 
 export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
+
+  const result = await supabase
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
+
+  let data = result.data as unknown as JobRow[] | null;
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(
+      "[jobs] appointment_window column missing – migration 20260729000001_pr3a_job_appointment_window.sql not yet applied. Falling back to base select.",
+    );
+    const fallback = await supabase
+      .from("jobs")
+      .select(JOB_SELECT_BASE)
+      .eq("org_id", orgId)
+      .eq("customer_id", customerId)
+      .order("created_at", { ascending: false });
+    data = fallback.data as unknown as JobRow[] | null;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -127,11 +163,28 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
 
 export async function listJobs(): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
+
+  const result = await supabase
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
+
+  let data = result.data as unknown as JobRow[] | null;
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(
+      "[jobs] appointment_window column missing – migration 20260729000001_pr3a_job_appointment_window.sql not yet applied. Falling back to base select.",
+    );
+    const fallback = await supabase
+      .from("jobs")
+      .select(JOB_SELECT_BASE)
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false });
+    data = fallback.data as unknown as JobRow[] | null;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -157,34 +210,70 @@ export async function listJobActivity(): Promise<JobActivity[]> {
 
 export async function getJobById(id: string): Promise<Job | null> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
+
+  const result = await supabase
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("id", id)
     .maybeSingle();
 
+  let data = result.data as unknown as JobRow | null;
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(
+      "[jobs] appointment_window column missing – migration 20260729000001_pr3a_job_appointment_window.sql not yet applied. Falling back to base select.",
+    );
+    const fallback = await supabase
+      .from("jobs")
+      .select(JOB_SELECT_BASE)
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .maybeSingle();
+    data = fallback.data as unknown as JobRow | null;
+    error = fallback.error;
+  }
+
   if (error) {
     throw new Error(error.message);
   }
 
-  return data ? mapJob(data as JobRow) : null;
+  return data ? mapJob(data) : null;
 }
 
 export async function getJobRowById(id: string): Promise<JobRow | null> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
+
+  const result = await supabase
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("id", id)
     .maybeSingle();
 
+  let data = result.data as unknown as JobRow | null;
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(
+      "[jobs] appointment_window column missing – migration 20260729000001_pr3a_job_appointment_window.sql not yet applied. Falling back to base select.",
+    );
+    const fallback = await supabase
+      .from("jobs")
+      .select(JOB_SELECT_BASE)
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .maybeSingle();
+    data = fallback.data as unknown as JobRow | null;
+    error = fallback.error;
+  }
+
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data as JobRow | null) ?? null;
+  return data ?? null;
 }
 
 export async function createJob(
@@ -194,30 +283,50 @@ export async function createJob(
 ): Promise<Job> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
 
-  const { data, error } = await supabase
+  const insertPayload: Record<string, unknown> = {
+    org_id: orgId,
+    job_number: jobNumber,
+    estimate_id: input.estimateId ?? null,
+    equipment_bundle_id: input.equipmentBundleId ?? null,
+    title: input.title,
+    type: input.type,
+    status: input.status ?? "Scheduled",
+    priority: input.priority,
+    customer_id: input.customerId ?? null,
+    customer_name: input.customerName,
+    property_id: input.propertyId ?? null,
+    property_name: input.propertyName,
+    assigned_to: input.assignedTo,
+    scheduled_for: input.scheduledFor,
+    appointment_window: input.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW,
+    summary: input.summary,
+    location: input.location,
+    notes: input.notes,
+  };
+
+  const writeResult = await supabase
     .from("jobs")
-    .insert({
-      org_id: orgId,
-      job_number: jobNumber,
-      estimate_id: input.estimateId ?? null,
-      equipment_bundle_id: input.equipmentBundleId ?? null,
-      title: input.title,
-      type: input.type,
-      status: input.status ?? "Scheduled",
-      priority: input.priority,
-      customer_id: input.customerId ?? null,
-      customer_name: input.customerName,
-      property_id: input.propertyId ?? null,
-      property_name: input.propertyName,
-      assigned_to: input.assignedTo,
-      scheduled_for: input.scheduledFor,
-      appointment_window: input.appointmentWindow ?? DEFAULT_JOB_APPOINTMENT_WINDOW,
-      summary: input.summary,
-      location: input.location,
-      notes: input.notes,
-    })
+    .insert(insertPayload)
     .select(JOB_SELECT)
     .single();
+
+  let data = writeResult.data as unknown as JobRow | null;
+  let error = writeResult.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(
+      "[jobs] appointment_window column missing – migration 20260729000001_pr3a_job_appointment_window.sql not yet applied. Falling back to base insert.",
+    );
+    const fallbackPayload = { ...insertPayload };
+    delete fallbackPayload.appointment_window;
+    const fallback = await supabase
+      .from("jobs")
+      .insert(fallbackPayload)
+      .select(JOB_SELECT_BASE)
+      .single();
+    data = fallback.data as unknown as JobRow | null;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -254,7 +363,7 @@ export async function updateJob(
   if (input.location !== undefined) updatePayload.location = input.location;
   if (input.notes !== undefined) updatePayload.notes = input.notes;
 
-  const { data, error } = await supabase
+  const updateResult = await supabase
     .from("jobs")
     .update(updatePayload)
     .eq("org_id", orgId)
@@ -262,11 +371,30 @@ export async function updateJob(
     .select(JOB_SELECT)
     .maybeSingle();
 
+  let data = updateResult.data as unknown as JobRow | null;
+  let error = updateResult.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(
+      "[jobs] appointment_window column missing – migration 20260729000001_pr3a_job_appointment_window.sql not yet applied. Falling back to base update.",
+    );
+    delete updatePayload.appointment_window;
+    const fallback = await supabase
+      .from("jobs")
+      .update(updatePayload)
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .select(JOB_SELECT_BASE)
+      .maybeSingle();
+    data = fallback.data as unknown as JobRow | null;
+    error = fallback.error;
+  }
+
   if (error) {
     throw new Error(error.message);
   }
 
-  return data ? mapJob(data as JobRow) : null;
+  return data ? mapJob(data) : null;
 }
 
 export async function deleteJob(id: string): Promise<boolean> {
@@ -368,12 +496,30 @@ export function toJob(row: JobRow): Job {
 
 export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
+
+  const result = await supabase
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("property_id", propertyId)
     .order("created_at", { ascending: false });
+
+  let data = result.data as unknown as JobRow[] | null;
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(
+      "[jobs] appointment_window column missing – migration 20260729000001_pr3a_job_appointment_window.sql not yet applied. Falling back to base select.",
+    );
+    const fallback = await supabase
+      .from("jobs")
+      .select(JOB_SELECT_BASE)
+      .eq("org_id", orgId)
+      .eq("property_id", propertyId)
+      .order("created_at", { ascending: false });
+    data = fallback.data as unknown as JobRow[] | null;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(error.message);
