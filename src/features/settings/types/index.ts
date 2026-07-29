@@ -20,7 +20,7 @@ export interface OrgUser {
 export interface InviteUserPayload {
   email: string;
   fullName: string;
-  role: AppRole;
+  appRole: AppRole;
 }
 
 export interface UpdateUserPayload {
