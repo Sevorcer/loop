@@ -210,3 +210,26 @@ export function getLocalTodayISO(): string {
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Filters dispatch plans by their targetDate.
+ * Returns all plans when date is empty string or undefined.
+ */
+export function filterPlansByDate(
+  plans: DispatchPlan[],
+  date: string,
+): DispatchPlan[] {
+  if (!date) return plans;
+  return plans.filter((plan) => plan.targetDate === date);
+}
+
+/**
+ * Returns a human-readable label for a job appointment window.
+ * Safe to call with undefined (returns empty string).
+ */
+export function getAppointmentWindowLabel(
+  window: "Morning" | "Afternoon" | undefined,
+): string {
+  if (!window) return "";
+  return window === "Morning" ? "Morning" : "Afternoon";
+}

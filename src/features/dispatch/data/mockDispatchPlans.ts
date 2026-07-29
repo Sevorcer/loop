@@ -48,6 +48,7 @@ export const mockDispatchPlans: DispatchPlan[] = [
     targetDate: "2026-07-21",
     estimatedDurationHours: 8,
     priority: "high",
+    appointmentWindow: "Morning",
     sequencingNotes: "Full system replacement. Outdoor unit first, then air handler. Startup after both units confirmed.",
     constraints: [
       { label: "Crane permit required on-site", severity: "warning" },
@@ -90,6 +91,7 @@ export const mockDispatchPlans: DispatchPlan[] = [
     targetDate: "2026-07-19",
     estimatedDurationHours: 6.5,
     priority: "normal",
+    appointmentWindow: "Afternoon",
     constraints: [
       { label: "Mechanical room key with gym manager", severity: "note" },
     ],
@@ -215,6 +217,7 @@ export const mockDispatchPlans: DispatchPlan[] = [
     targetDate: "2026-07-24",
     estimatedDurationHours: 7,
     priority: "normal",
+    appointmentWindow: "Morning",
     constraints: [],
     createdAt: "2026-07-19T08:00:00Z",
     updatedAt: "2026-07-19T08:00:00Z",

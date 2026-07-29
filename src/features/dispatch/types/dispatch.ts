@@ -123,6 +123,9 @@ export interface DispatchPlan {
   /** Target execution date (ISO date string) */
   targetDate: string;
 
+  /** Appointment window from the associated job (Morning or Afternoon) */
+  appointmentWindow?: "Morning" | "Afternoon";
+
   /** Estimated hours on site */
   estimatedDurationHours: number;
 
@@ -230,6 +233,8 @@ export interface ScheduleBlock {
   customerName: string;
   propertyName: string;
   dispatchStatus: DispatchStatus;
+  /** Appointment window from the associated job */
+  appointmentWindow?: "Morning" | "Afternoon";
 }
 
 // ------------------------------------------------------------------

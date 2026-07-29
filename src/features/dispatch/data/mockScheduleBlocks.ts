@@ -22,6 +22,7 @@ export const mockScheduleBlocks: ScheduleBlock[] = [
     customerName: "John Smith",
     propertyName: "Smith Residence",
     dispatchStatus: "scheduled",
+    appointmentWindow: "Morning",
   },
 
   // JOB-1007 — Metro Station B — Today July 19, Jordan Lee (in progress)

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   Filter,
+  X,
   XCircle,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ import { requestJson } from "@/lib/api/client";
 
 import type { CrewAssignment, DispatchPlan, DispatchSnapshot } from "../types/dispatch";
 import { buildDispatchQueueSections, getCrewNameForPlan } from "../utils/dispatchWorkspace";
+import { filterPlansByDate } from "../utils/dispatchUtils";
 import { DispatchBoardCard } from "./DispatchBoardCard";
 
 const BOARD_GROUPS = {
@@ -86,6 +88,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   // ── Filters ──────────────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "ready" | "scheduled" | "blocked">("all");
   const [crewFilter, setCrewFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("");
 
   const crewNames = useMemo(() => {
     const names = new Set(crews.map((c) => c.name));
@@ -93,7 +96,13 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   }, [crews]);
 
   const filteredPlans = useMemo(() => {
-    return plans.filter((plan) => {
+    let result = plans;
+
+    if (dateFilter) {
+      result = filterPlansByDate(result, dateFilter);
+    }
+
+    return result.filter((plan) => {
       if (statusFilter !== "all") {
         const groupMap: Record<string, string[]> = {
           active: ["in_progress"],
@@ -116,7 +125,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
 
       return true;
     });
-  }, [plans, assignments, statusFilter, crewFilter]);
+  }, [plans, assignments, statusFilter, crewFilter, dateFilter]);
 
   const handleAssignCrew = useCallback(
     async (planId: string, crewId: string) => {
@@ -236,7 +245,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   );
 
   const sections = buildDispatchQueueSections(filteredPlans);
-  const hasActiveFilters = statusFilter !== "all" || crewFilter !== "all";
+  const hasActiveFilters = statusFilter !== "all" || crewFilter !== "all" || !!dateFilter;
 
   return (
     <div className="space-y-6">
@@ -276,12 +285,34 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           </select>
         )}
 
+        <div className="flex items-center gap-1.5">
+          <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+            aria-label="Filter by target date"
+          />
+          {dateFilter && (
+            <button
+              type="button"
+              onClick={() => setDateFilter("")}
+              className="text-xs text-slate-500 hover:text-slate-300"
+              aria-label="Clear date filter"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
         {hasActiveFilters && (
           <button
             type="button"
             onClick={() => {
               setStatusFilter("all");
               setCrewFilter("all");
+              setDateFilter("");
             }}
             className="text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
           >
