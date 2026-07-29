@@ -15,7 +15,7 @@ import { listOrgUsers, inviteOrgUser } from "@/services/settingsUsers";
 import type { InviteUserPayload } from "@/features/settings/types";
 
 const InviteUserRequestSchema = z.object({
-  email: z.email("A valid email address is required.").trim(),
+  email: z.string().trim().email("A valid email address is required."),
   fullName: z.string().trim().max(255, "Full name must be 255 characters or fewer.").optional().default(""),
   appRole: z.enum(["owner", "manager", "dispatch", "tech", "office", "sales", "portal"], {
     message: "A valid appRole is required.",

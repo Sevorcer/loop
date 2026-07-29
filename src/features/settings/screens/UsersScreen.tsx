@@ -154,7 +154,9 @@ export function UsersScreen() {
   }, []);
 
   useEffect(() => {
-    void fetchUsers();
+    queueMicrotask(() => {
+      void fetchUsers();
+    });
   }, [fetchUsers]);
 
   async function handleToggleStatus(user: OrgUser) {
