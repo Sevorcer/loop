@@ -37,6 +37,8 @@ describe("isAppRole — rejects null and invalid values", () => {
     expect(isAppRole("viewer")).toBe(false);
     expect(isAppRole("superadmin")).toBe(false);
     expect(isAppRole("OWNER")).toBe(false);
+    // "dispatcher" is a common misuse — the valid role value is "dispatch"
+    expect(isAppRole("dispatcher")).toBe(false);
   });
 
   it("accepts every valid AppRole", () => {

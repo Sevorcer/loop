@@ -169,7 +169,7 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
   gc_issue_requests: {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
-    // only dispatchers and above may triage/update
+    // only dispatch role and above may triage/update
     update: new Set<AppRole>(["owner", "manager", "dispatch"]),
     delete: new Set<AppRole>(["owner", "manager"]),
   },
