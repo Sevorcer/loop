@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { CalendarDays, Zap } from "lucide-react";
 import Link from "next/link";
 
+import { PageHeader } from "@/components/atlas";
 import { useDailyPlans } from "@/features/daily-plans/state/DailyPlansProvider";
 import { getTodayDate } from "@/features/daily-plans/utils/planUtils";
 import { ROUTES } from "@/lib/routes";
@@ -76,6 +77,12 @@ export function LiveOperationsScreen() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Page header */}
+      <PageHeader
+        title="Live Operations"
+        description="Real-time visibility into active crews, job progress, and field decisions as the day unfolds."
+      />
+
       {/* 1 — Operations Overview Hero */}
       <LiveOpsHero
         date={today}
