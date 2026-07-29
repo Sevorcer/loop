@@ -37,14 +37,14 @@ export function OperationsNavBar() {
             className={cn(
               "relative shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 whitespace-nowrap",
               isActive
-                ? "bg-surface-elevated text-primary ring-1 ring-default"
-                : "text-muted hover:bg-surface-elevated hover:text-primary"
+                ? "bg-accent-soft text-white border border-accent-soft"
+                : "text-muted hover:bg-surface-elevated hover:text-accent"
             )}
           >
             {isActive && (
               <span
                 aria-hidden="true"
-                className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-red-500 to-blue-500"
+                className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent"
               />
             )}
             <span className="hidden sm:inline">{item.name}</span>

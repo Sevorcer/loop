@@ -56,7 +56,7 @@ export function SettingsSidebar({ onNavigate }: SettingsSidebarProps) {
                 className={cn(
                   "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                   isActive
-                    ? "bg-blue-500/10 text-white ring-1 ring-blue-500/20"
+                    ? "bg-accent-soft border border-accent-soft text-white"
                     : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
                 )}
               >
@@ -64,7 +64,7 @@ export function SettingsSidebar({ onNavigate }: SettingsSidebarProps) {
                   className={cn(
                     "absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-r-full transition-all",
                     isActive
-                      ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                      ? "bg-accent shadow-accent-glow"
                       : "bg-transparent"
                   )}
                 />
@@ -72,7 +72,7 @@ export function SettingsSidebar({ onNavigate }: SettingsSidebarProps) {
                   className={cn(
                     "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all",
                     isActive
-                      ? "bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20"
+                      ? "bg-accent-strong text-accent border border-accent-soft"
                       : "text-slate-400 group-hover:text-slate-200"
                   )}
                 >

@@ -112,6 +112,10 @@
     color: var(--foreground-muted);
   }
 
+  .text-accent {
+    color: var(--primary);
+  }
+
   /* Borders */
 
   .border-default {
@@ -120,6 +124,23 @@
 
   .border-primary {
     border-color: var(--primary);
+  }
+
+  .border-accent-soft {
+    border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+
+  .bg-accent {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .bg-accent-soft {
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+  }
+
+  .bg-accent-strong {
+    background: color-mix(in srgb, var(--primary) 24%, transparent);
   }
 
   /* Radius */
@@ -185,6 +206,10 @@
 
   .hover-border-primary:hover {
     border-color: var(--primary);
+  }
+
+  .shadow-accent-glow {
+    box-shadow: 0 0 16px color-mix(in srgb, var(--primary) 45%, transparent);
   }
 
   .hover-lift:hover {
@@ -305,9 +330,9 @@
   }
 
   .status-info {
-    background: var(--surface-elevated);
-    color: var(--foreground);
-    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   }
 
   .status-neutral {

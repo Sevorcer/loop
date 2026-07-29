@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import { AppearancePreferencesEffect } from "@/features/settings/components/AppearancePreferencesEffect";
+
 const APP_ICON = "/logo.png";
 
 export const metadata: Metadata = {
@@ -24,7 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AppearancePreferencesEffect />
+        {children}
+      </body>
     </html>
   );
 }

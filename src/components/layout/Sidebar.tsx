@@ -108,7 +108,7 @@ export default function Sidebar({ id, className, onNavigate, isPinned = false, o
                         className={cn(
                           "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                           isActive
-                            ? "bg-gradient-to-r from-red-600/20 via-blue-500/10 to-transparent text-white ring-1 ring-red-500/30"
+                            ? "bg-accent-soft border border-accent-soft text-white"
                             : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
                         )}
                       >
@@ -116,7 +116,7 @@ export default function Sidebar({ id, className, onNavigate, isPinned = false, o
                           className={cn(
                             "absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-r-full transition-all",
                             isActive
-                              ? "bg-gradient-to-b from-red-500 to-blue-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]"
+                              ? "bg-accent shadow-accent-glow"
                               : "bg-transparent"
                           )}
                         />
@@ -125,7 +125,7 @@ export default function Sidebar({ id, className, onNavigate, isPinned = false, o
                           className={cn(
                             "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all",
                             isActive
-                              ? "bg-white/10 text-white ring-1 ring-white/10"
+                              ? "bg-accent-strong text-accent border border-accent-soft"
                               : "text-slate-400 group-hover:text-slate-200"
                           )}
                         >
