@@ -24,6 +24,7 @@ import {
   buildMorningDashboardMetrics,
   buildPlannedJob,
   getJobsForDate,
+  getTodayDate,
   getUnassignedJobs,
 } from "../utils/planUtils";
 
@@ -152,7 +153,8 @@ export function DailyPlansScreen() {
         return;
       }
 
-      const nextDate = addDays(job.scheduledFor, 1);
+      const baseDate = job.scheduledFor ?? getTodayDate();
+      const nextDate = addDays(baseDate, 1);
       updateJob(jobId, { ...job, scheduledFor: nextDate });
 
       const notice = isActive

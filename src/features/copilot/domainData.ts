@@ -91,7 +91,7 @@ export function getFallbackSearchRecords(): SearchRecord[] {
     metadata: {
       badges: [job.type, job.priority],
       status: job.status,
-      timestamp: job.scheduledFor,
+      timestamp: job.scheduledFor ?? undefined,
     },
     recordType: "entity",
     tokens: sanitizeTokenStrings([
@@ -425,7 +425,7 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
       metadata: {
         badges: [job.type, job.priority],
         status: job.status,
-        timestamp: job.scheduledFor,
+        timestamp: job.scheduledFor ?? undefined,
       },
       recordType: "entity" as const,
       tokens: sanitizeTokenStrings([job.jobNumber, job.title, job.customerName, job.propertyName, job.location, job.type, job.status]),

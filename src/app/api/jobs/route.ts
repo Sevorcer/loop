@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       customerName: String(body.customerName ?? "").trim(),
       propertyName: String(body.propertyName ?? "").trim(),
       assignedTo: String(body.assignedTo ?? "").trim(),
-      scheduledFor: body.scheduledFor !== undefined ? String(body.scheduledFor).trim() : undefined,
+      scheduledFor: body.scheduledFor === null ? null : body.scheduledFor !== undefined ? String(body.scheduledFor).trim() || null : undefined,
       appointmentHour: readJobAppointmentHour(body.appointmentHour),
       // PR3C clock-time fields
       scheduledStartAt: parseOptionalTimestamp(body.scheduledStartAt),

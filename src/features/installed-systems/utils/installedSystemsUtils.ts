@@ -317,7 +317,7 @@ function buildInstalledSystemFromJob(job: Job) {
     jobNumber: job.jobNumber,
     matchState: profile.matchState,
     matchConfidence: profile.matchConfidence,
-    installDate: job.scheduledFor,
+    installDate: job.scheduledFor ?? "",
     manufacturer: profile.manufacturer !== "Pending" ? profile.manufacturer : "",
     modelNumber: bundle.equipment[0]?.modelNumber ?? "",
     serialNumbers: bundle.equipment

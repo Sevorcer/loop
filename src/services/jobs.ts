@@ -90,11 +90,16 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   if (!JOB_TYPES.has(input.type)) throw new Error("Invalid job type.");
   if (!JOB_PRIORITIES.has(input.priority)) throw new Error("Invalid job priority.");
 
-  // Validate the primary scheduling field (PR3C) or fall back to legacy
+  // Validate the primary scheduling field (PR3C) when provided
   const hasNewScheduling = isValidDateString(input.scheduledStartAt);
   const hasLegacyScheduling = isValidDateString(input.scheduledFor);
-  if (!hasNewScheduling && !hasLegacyScheduling) {
+  // A scheduled start time must be valid when explicitly provided (non-null).
+  // Null/undefined means the job is intentionally unscheduled — that is valid.
+  if (input.scheduledStartAt != null && !hasNewScheduling) {
     throw new Error("Scheduled start time is invalid.");
+  }
+  if (input.scheduledFor != null && !hasLegacyScheduling) {
+    throw new Error("Scheduled date is invalid.");
   }
 
   if (input.appointmentHour !== undefined && !isValidJobAppointmentHour(input.appointmentHour)) {
@@ -217,7 +222,11 @@ export async function createJob(
       jobId: createdJob.id,
       type: "scheduled",
       title: "Schedule confirmed",
-      description: `Job scheduled for ${new Date(createdJob.scheduledStartAt ?? createdJob.scheduledFor).toLocaleDateString()}.`,
+      description: createdJob.scheduledStartAt
+        ? `Job scheduled for ${new Date(createdJob.scheduledStartAt).toLocaleDateString()}.`
+        : createdJob.scheduledFor
+          ? `Job scheduled for ${new Date(createdJob.scheduledFor).toLocaleDateString()}.`
+          : "Job created without a scheduled date.",
     }, contextInput),
   ]);
 
@@ -266,7 +275,7 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   if (existing.customer_name !== updatedJob.customerName) changedFields.push("customer");
   if (existing.property_name !== updatedJob.propertyName) changedFields.push("property");
   if (existing.assigned_to !== updatedJob.assignedTo) changedFields.push("assignee");
-  if ((existing.scheduled_for ?? "") !== updatedJob.scheduledFor) changedFields.push("schedule");
+  if ((existing.scheduled_for ?? null) !== (updatedJob.scheduledFor ?? null)) changedFields.push("schedule");
   if ((existing.appointment_window ?? DEFAULT_JOB_APPOINTMENT_HOUR) !== appointmentHour) {
     changedFields.push("appointment hour");
   }

@@ -68,7 +68,8 @@ const tabs: PropertyDetailTab[] = [
   { key: "notes", label: "Notes" },
 ];
 
-function formatDate(value: string) {
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Unscheduled";
   return new Date(value).toLocaleDateString();
 }
 

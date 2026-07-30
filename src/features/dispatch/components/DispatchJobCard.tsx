@@ -74,8 +74,8 @@ function StatusIcon({ status }: { status: JobStatus }) {
   }
 }
 
-function formatScheduledDate(iso: string): string {
-  if (!iso) return "—";
+function formatScheduledDate(iso: string | null | undefined): string {
+  if (!iso) return "Unscheduled";
   const date = new Date(iso);
   if (isNaN(date.getTime())) return iso;
   return date.toLocaleDateString("en-US", {

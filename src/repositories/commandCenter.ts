@@ -65,7 +65,7 @@ function mapJobRow(row: JobRow): Job {
     propertyId: row.property_id,
     propertyName: row.property_name,
     assignedTo: row.assigned_to,
-    scheduledFor: row.scheduled_for ?? row.created_at.slice(0, 10),
+    scheduledFor: row.scheduled_for ?? null,
     summary: row.summary,
     location: row.location,
     notes: row.notes,

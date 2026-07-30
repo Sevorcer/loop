@@ -81,7 +81,7 @@ export type SchedulingFormFields = Pick<
 /** Convert a stored Job's scheduling fields into JobFormValues scheduling fields. */
 export function jobToFormScheduling(job: {
   scheduledStartAt?: string | null;
-  scheduledFor?: string;
+  scheduledFor?: string | null;
   appointmentHour?: number | null;
 }): SchedulingFormFields {
   const primary =

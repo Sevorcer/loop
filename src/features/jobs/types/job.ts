@@ -40,8 +40,8 @@ export interface Job {
   // TODO(cleanup): Remove scheduledFor and appointmentHour once all callers
   // have migrated to scheduledStartAt. Migration 20260729000003_pr3c_scheduled_timestamps.sql
   // backfills scheduledStartAt from these values.
-  /** @deprecated Use scheduledStartAt. Date-only ISO string "YYYY-MM-DD". */
-  scheduledFor: string;
+  /** @deprecated Use scheduledStartAt. Date-only ISO string "YYYY-MM-DD", or null when unscheduled. */
+  scheduledFor: string | null;
   /** @deprecated Use scheduledStartAt. Hour-of-day 1–12. */
   appointmentHour?: JobAppointmentHour;
 

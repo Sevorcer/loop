@@ -59,7 +59,7 @@ function buildJobScheduledEvents(
   jobs: Array<Pick<Job, "id" | "jobNumber" | "title" | "scheduledFor" | "propertyId">>,
 ): TimelineEventItem[] {
   return jobs
-    .filter((job) => Boolean(job.scheduledFor))
+    .filter((job): job is typeof job & { scheduledFor: string } => Boolean(job.scheduledFor))
     .map((job) => ({
       id: `job-${job.id}-scheduled`,
       title: "Job scheduled",

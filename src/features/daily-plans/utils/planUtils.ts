@@ -66,7 +66,7 @@ export function getDayLabel(date: string): string {
 }
 
 export function getJobsForDate(jobs: Job[], date: string): Job[] {
-  return jobs.filter((job) => job.scheduledFor === date);
+  return jobs.filter((job) => job.scheduledFor != null && job.scheduledFor === date);
 }
 
 export function getUnassignedJobs(jobs: PlannedJob[]): PlannedJob[] {
