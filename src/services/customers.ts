@@ -130,7 +130,7 @@ export async function getCustomerJobs(customerId: string): Promise<CustomerJobIt
     jobNumber: j.jobNumber,
     title: j.title,
     status: j.status,
-    scheduledFor: j.scheduledFor,
+    scheduledFor: j.scheduledFor ?? "",
     propertyId: j.propertyId ?? undefined,
     propertyName: j.propertyName,
   }));

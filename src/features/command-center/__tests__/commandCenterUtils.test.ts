@@ -440,8 +440,16 @@ describe("formatAvgHours", () => {
 });
 
 describe("formatScheduledDate", () => {
-  it("returns — for empty string", () => {
-    expect(formatScheduledDate("")).toBe("—");
+  it("returns 'Unscheduled' for null", () => {
+    expect(formatScheduledDate(null)).toBe("Unscheduled");
+  });
+
+  it("returns 'Unscheduled' for undefined", () => {
+    expect(formatScheduledDate(undefined)).toBe("Unscheduled");
+  });
+
+  it("returns 'Unscheduled' for empty string", () => {
+    expect(formatScheduledDate("")).toBe("Unscheduled");
   });
 
   it("formats a valid ISO date to short month-day", () => {

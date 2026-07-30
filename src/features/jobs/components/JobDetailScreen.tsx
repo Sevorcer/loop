@@ -31,7 +31,8 @@ import { JobStatusActions } from "./JobStatusActions";
 import { JobTimeline } from "./JobTimeline";
 import { readJobAppointmentHour, formatJobAppointmentHour } from "../utils/appointmentWindow";
 
-function formatDate(value: string) {
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Unscheduled";
   return new Date(value).toLocaleDateString();
 }
 
@@ -182,7 +183,7 @@ export function JobDetailScreen({
                       Scheduled For
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {job.scheduledFor ? formatDate(job.scheduledFor) : "No schedule set"}
+                      {job.scheduledFor ? formatDate(job.scheduledFor) : "Unscheduled"}
                     </p>
                   </div>
                 </div>

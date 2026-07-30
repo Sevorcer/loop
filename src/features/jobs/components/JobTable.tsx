@@ -109,7 +109,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
 
     return jobs.filter((job) => {
       if (isTechView) {
-        const scheduledDate = job.scheduledFor.slice(0, 10);
+        const scheduledDate = job.scheduledFor?.slice(0, 10) ?? null;
         const isTodaysJob = scheduledDate === todayIso || job.status === "In Progress";
         if (!isTodaysJob) {
           return false;
@@ -138,14 +138,14 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
         priorityFilter === "All" || job.priority === priorityFilter;
       const openStatus = isOpenStatus(job.status);
       const isUnassigned = job.assignedTo.trim().length === 0;
-      const isLate = openStatus && job.scheduledFor.slice(0, 10) < todayIso;
+      const isLate = openStatus && !!job.scheduledFor && job.scheduledFor.slice(0, 10) < todayIso;
       const isProblem = isLate || isUnassigned || normalizedStatus === "On Hold";
 
       const matchesOpenOnly = !openOnly || openStatus;
       const matchesUnassignedOnly = !unassignedOnly || isUnassigned;
       const matchesLateOnly = !lateOnly || isLate;
       const matchesProblemOnly = !problemOnly || isProblem;
-      const matchesTodayOnly = !todayOnly || job.scheduledFor.slice(0, 10) === todayIso;
+      const matchesTodayOnly = !todayOnly || (job.scheduledFor?.slice(0, 10) ?? null) === todayIso;
 
       return (
         matchesSearch &&

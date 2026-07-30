@@ -1,4 +1,5 @@
 import { getDayOverview, getJobPlanDetail } from "@/features/daily-plans/data/morningOperations";
+import { getTodayDate } from "@/features/daily-plans/utils/planUtils";
 import { mockDispatchEvents } from "@/features/dispatch/data/mockDispatchEvents";
 import { mockDispatchPlans } from "@/features/dispatch/data/mockDispatchPlans";
 import { estimateEquipmentBundles } from "@/features/installed-systems/data/estimateEquipmentBundles";
@@ -79,7 +80,7 @@ const jobsAdapter: JobsAdapter = {
         priority: job.priority,
         customerName: job.customerName,
         propertyName: job.propertyName,
-        scheduledFor: job.scheduledFor,
+        scheduledFor: job.scheduledFor ?? "",
         assignedProjectManager: job.assignedTo || undefined,
         summary: job.summary,
       }));
@@ -99,7 +100,7 @@ const jobsAdapter: JobsAdapter = {
                 job.status === "Completed"
                   ? "inspection.completed"
                   : "inspection.scheduled",
-              occurred_at: `${job.scheduledFor}T09:00:00.000Z`,
+              occurred_at: `${job.scheduledFor ?? ""}T09:00:00.000Z`,
               source_domain: "jobs",
               aggregate_id: job.id,
               payload: {
@@ -118,7 +119,7 @@ const jobsAdapter: JobsAdapter = {
               event_id: numericUuid(index + 1, 222),
               event_version: "1.0",
               event_type: "installation.completed",
-              occurred_at: `${job.scheduledFor}T16:00:00.000Z`,
+              occurred_at: `${job.scheduledFor ?? ""}T16:00:00.000Z`,
               source_domain: "jobs",
               aggregate_id: job.id,
               payload: {
@@ -136,7 +137,7 @@ const jobsAdapter: JobsAdapter = {
               event_id: numericUuid(index + 1, 333),
               event_version: "1.0",
               event_type: "milestone.completed",
-              occurred_at: `${job.scheduledFor}T15:00:00.000Z`,
+              occurred_at: `${job.scheduledFor ?? ""}T15:00:00.000Z`,
               source_domain: "jobs",
               aggregate_id: job.id,
               payload: {
@@ -167,7 +168,7 @@ const dailyPlansAdapter: DailyPlansAdapter = {
     }
 
     const plan = getJobPlanDetail(projectId);
-    const day = getDayOverview(matchingJob.scheduledFor);
+    const day = getDayOverview(matchingJob.scheduledFor ?? getTodayDate());
     const readinessState = !plan.materialsReady
       ? "blocked"
       : plan.constraints.length > 0
@@ -177,7 +178,7 @@ const dailyPlansAdapter: DailyPlansAdapter = {
     return [
       {
         projectId,
-        serviceDate: matchingJob.scheduledFor,
+        serviceDate: matchingJob.scheduledFor ?? "",
         arrivalWindow: plan.arrivalWindow,
         readinessState,
         crewLead: matchingJob.assignedTo || undefined,

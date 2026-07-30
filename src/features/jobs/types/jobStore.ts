@@ -15,7 +15,7 @@ export interface CreateJobInput {
   arrivalWindowEndAt?: string | null;
   // Legacy fields — kept for backwards compat; prefer scheduledStartAt
   /** @deprecated Use scheduledStartAt */
-  scheduledFor?: string;
+  scheduledFor?: string | null;
   /** @deprecated Use scheduledStartAt */
   appointmentHour?: Job["appointmentHour"];
   type: Job["type"];
@@ -39,7 +39,7 @@ export interface UpdateJobInput {
   arrivalWindowEndAt?: string | null;
   // Legacy fields — kept for backwards compat; prefer scheduledStartAt
   /** @deprecated Use scheduledStartAt */
-  scheduledFor?: string;
+  scheduledFor?: string | null;
   /** @deprecated Use scheduledStartAt */
   appointmentHour?: Job["appointmentHour"];
   type: Job["type"];

@@ -236,7 +236,7 @@ export function aggregateCrewWorkload(
       entry.inProgressCount += 1;
     }
 
-    const isLate = isOpenJob(job) && job.scheduledFor < today;
+    const isLate = isOpenJob(job) && !!job.scheduledFor && job.scheduledFor < today;
     const isHeld = isOnHold(job);
 
     if (isLate || isHeld) {
@@ -295,7 +295,7 @@ export function buildProblemJobs(
       const bLate = b.reasons.includes("late") ? 0 : 1;
       if (aLate !== bLate) return aLate - bLate;
 
-      const scheduledCmp = a.job.scheduledFor.localeCompare(b.job.scheduledFor);
+      const scheduledCmp = (a.job.scheduledFor ?? "").localeCompare(b.job.scheduledFor ?? "");
       if (scheduledCmp !== 0) return scheduledCmp;
 
       const numberCmp = a.job.jobNumber.localeCompare(b.job.jobNumber, "en");
@@ -316,8 +316,8 @@ export function formatAvgHours(value: number | null): string {
 }
 
 /** Format a scheduled date to a short display string, e.g. "Jul 28". */
-export function formatScheduledDate(isoDate: string): string {
-  if (!isoDate) return "—";
+export function formatScheduledDate(isoDate: string | null | undefined): string {
+  if (!isoDate) return "Unscheduled";
   const d = new Date(`${isoDate}T00:00:00`);
   if (isNaN(d.getTime())) return isoDate;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
