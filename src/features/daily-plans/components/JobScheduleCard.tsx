@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, CalendarCheck, UserCircle2, Wrench, ShieldCheck } from "lucide-react";
+import { ArrowRight, CalendarCheck, MapPin, UserCircle2, Wrench, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { StatusBadge } from "@/components/atlas";
@@ -133,24 +133,33 @@ export function JobScheduleCard({
         </Link>
       </div>
 
-      {/* Chips */}
+      {/* Location + crew — shown first for fast scanning */}
+      <div className="mt-3 space-y-1.5">
+        {job.location ? (
+          <p className="flex items-center gap-1.5 text-xs text-slate-400">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            <span className="truncate">{job.location}</span>
+          </p>
+        ) : null}
+        {job.assignedTo.trim() ? (
+          <p className="flex items-center gap-1.5 text-xs text-slate-300">
+            <UserCircle2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span className="truncate">{job.assignedTo}</span>
+          </p>
+        ) : (
+          <p className="flex items-center gap-1.5 text-xs text-yellow-300">
+            <UserCircle2 className="h-3.5 w-3.5 shrink-0" />
+            Unassigned
+          </p>
+        )}
+      </div>
+
+      {/* Status chips */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <DateChip scheduledFor={job.scheduledFor} />
         <StatusBadge variant={getStatusVariant(job.status)}>{job.status}</StatusBadge>
         <StatusBadge variant={getPriorityVariant(job.priority)}>{job.priority}</StatusBadge>
         <StatusBadge variant="neutral">{job.type}</StatusBadge>
-
-        {job.assignedTo.trim() ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-300">
-            <UserCircle2 className="h-3 w-3 text-slate-400" />
-            {job.assignedTo}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-300">
-            <UserCircle2 className="h-3 w-3" />
-            Unassigned
-          </span>
-        )}
       </div>
 
       {/* Quick actions */}
