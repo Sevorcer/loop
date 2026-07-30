@@ -403,3 +403,74 @@ export function getReadinessStatus(score: number): {
 export function getDayOverviewSummary(date: string): string {
   return getDayOverview(date).summary;
 }
+
+// ─── Schedule-state helpers ──────────────────────────────────────────────────
+
+/** Jobs scheduled for today (scheduledFor === today, never null). */
+export function getScheduledTodayJobs(jobs: Job[]): Job[] {
+  return jobs.filter((job) => job.scheduledFor === getTodayDate());
+}
+
+/** Jobs scheduled for a future date, sorted ascending by date. */
+export function getUpcomingJobs(jobs: Job[]): Job[] {
+  const today = getTodayDate();
+  return jobs
+    .filter((job) => job.scheduledFor != null && job.scheduledFor > today)
+    .sort((a, b) => (a.scheduledFor! < b.scheduledFor! ? -1 : 1));
+}
+
+/**
+ * Jobs with no scheduled date (scheduledFor is null/undefined).
+ * These are NOT plotted on the calendar.
+ */
+export function getAllUnscheduledJobs(jobs: Job[]): Job[] {
+  return jobs.filter((job) => job.scheduledFor == null);
+}
+
+/** Returns job counts keyed by date string (YYYY-MM-DD). Null dates excluded. */
+export function getJobCountsByDate(jobs: Job[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const job of jobs) {
+    if (job.scheduledFor != null) {
+      counts[job.scheduledFor] = (counts[job.scheduledFor] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/**
+ * Returns unassigned job counts keyed by date string.
+ * A job is "unassigned" when assignedTo is blank and it has a scheduled date.
+ */
+export function getUnassignedCountsByDate(jobs: Job[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const job of jobs) {
+    if (job.scheduledFor != null && !job.assignedTo.trim()) {
+      counts[job.scheduledFor] = (counts[job.scheduledFor] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/**
+ * Returns a 6-row × 7-column calendar grid for the given month.
+ * Cells outside the month boundary are null. All cells are YYYY-MM-DD strings.
+ */
+export function getCalendarMonthGrid(
+  year: number,
+  month: number
+): Array<Array<string | null>> {
+  // month is 0-indexed (January = 0) to match JS Date conventions.
+  const firstWeekday = new Date(year, month, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const mm = String(month + 1).padStart(2, "0");
+
+  const cells: Array<string | null> = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(`${year}-${mm}-${String(d).padStart(2, "0")}`);
+  }
+  while (cells.length < 42) cells.push(null);
+
+  return Array.from({ length: 6 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+}

@@ -9,6 +9,7 @@ import {
   Send,
   MonitorDot,
   CalendarDays,
+  CalendarRange,
   Radio,
 } from "lucide-react";
 
@@ -26,6 +27,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
       { name: "Command Center", href: ROUTES.COMMAND_CENTER, icon: MonitorDot },
       { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
       { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
+      { name: "Calendar", href: ROUTES.CALENDAR, icon: CalendarRange },
       { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
     ],
   },

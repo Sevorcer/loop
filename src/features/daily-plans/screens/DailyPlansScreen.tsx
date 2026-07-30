@@ -1,65 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardList } from "lucide-react";
-import Link from "next/link";
+import { CalendarDays, CircleAlert, Sun } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas";
 import { useJobs } from "@/features/jobs/state/JobsProvider";
 
-import { ActiveOperationsBanner } from "../components/ActiveOperationsBanner";
-import { AlertsBanner } from "../components/AlertsBanner";
-import { CrewSection, UnassignedCrewSection } from "../components/CrewSection";
-import { DayTimeline } from "../components/DayTimeline";
-import { MorningOperationsHero } from "../components/MorningOperationsHero";
-import { OperationalReadiness } from "../components/OperationalReadiness";
-import { PlanningNotes } from "../components/PlanningNotes";
-import { ReadinessSummary } from "../components/ReadinessSummary";
-import type { PlanReadinessState } from "../types/dailyPlan";
-import { useDailyPlans } from "../state/DailyPlansProvider";
+import { ScheduleSection } from "../components/ScheduleSection";
+import { getCrewProfilesForDate } from "../data/morningOperations";
 import {
-  addDays,
-  buildCrewWorkloads,
-  buildMorningAlerts,
-  buildMorningDashboardMetrics,
-  buildPlannedJob,
-  getJobsForDate,
+  getAllUnscheduledJobs,
+  getScheduledTodayJobs,
   getTodayDate,
-  getUnassignedJobs,
+  getUpcomingJobs,
+  formatDateShort,
 } from "../utils/planUtils";
-
-function EmptyDay() {
-  return (
-    <div className="flex min-h-[240px] flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-12 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.05]">
-        <CalendarDays className="h-6 w-6 text-slate-500" />
-      </div>
-
-      <h3 className="text-base font-semibold text-slate-300">No jobs scheduled</h3>
-
-      <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
-        There are no jobs planned for this day. Navigate to a different day or create a new job from the{" "}
-        <Link href="/jobs" className="text-blue-400 hover:underline">
-          Jobs workspace
-        </Link>
-        .
-      </p>
-    </div>
-  );
-}
 
 export function DailyPlansScreen() {
   const { hydrated, jobs, updateJob } = useJobs();
-  const {
-    selectedDate,
-    getJobOverride,
-    setJobOverride,
-    getPlanStatus,
-    getPlanActivation,
-    activatePlan,
-    getPacketsSent,
-    markPacketsSent,
-  } = useDailyPlans();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,253 +26,90 @@ export function DailyPlansScreen() {
     return () => window.clearTimeout(timeout);
   }, [actionNotice]);
 
-  const planStatus = getPlanStatus(selectedDate);
-  const planActivation = getPlanActivation(selectedDate);
-  const hydratedPlanStatus = hydrated ? planStatus : "planning";
-  const hydratedPlanActivation = hydrated ? planActivation : undefined;
-  const isActive = hydratedPlanStatus === "active";
-  const packetsAlreadySent = hydrated ? getPacketsSent(selectedDate) : false;
+  const todayJobs = useMemo(() => getScheduledTodayJobs(jobs), [jobs]);
+  const upcomingJobs = useMemo(() => getUpcomingJobs(jobs), [jobs]);
+  const unscheduledJobs = useMemo(() => getAllUnscheduledJobs(jobs), [jobs]);
 
-  const dayJobs = useMemo(
-    () => getJobsForDate(jobs, selectedDate),
-    [jobs, selectedDate]
+  // Use today's crew roster for all sections — the roster is relatively stable.
+  const crewOptions = useMemo(() => getCrewProfilesForDate(getTodayDate()), []);
+
+  const handleReschedule = useCallback(
+    (jobId: string, date: string) => {
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job) return;
+      updateJob(jobId, { ...job, scheduledFor: date });
+      setActionNotice(`${job.jobNumber} rescheduled to ${formatDateShort(date)}.`);
+    },
+    [jobs, updateJob]
   );
-
-  const plannedJobs = useMemo(
-    () => dayJobs.map((job) => buildPlannedJob(job, getJobOverride(job.id))),
-    [dayJobs, getJobOverride]
-  );
-
-  const crewWorkloads = useMemo(
-    () => buildCrewWorkloads(plannedJobs, selectedDate),
-    [plannedJobs, selectedDate]
-  );
-
-  const metrics = useMemo(
-    () => buildMorningDashboardMetrics(plannedJobs, crewWorkloads, selectedDate),
-    [plannedJobs, crewWorkloads, selectedDate]
-  );
-
-  const alerts = useMemo(
-    () => buildMorningAlerts(plannedJobs, crewWorkloads, selectedDate),
-    [plannedJobs, crewWorkloads, selectedDate]
-  );
-
-  const blockerCount = useMemo(
-    () => plannedJobs.filter((job) => job.readiness.state === "blocked").length,
-    [plannedJobs]
-  );
-
-  const unassignedJobs = useMemo(
-    () => getUnassignedJobs(plannedJobs),
-    [plannedJobs]
-  );
-
-  const crewOptions = useMemo(
-    () => crewWorkloads
-      .map((workload) => workload.crew)
-      .filter((crew) => crew.availability !== "vacation" && crew.availability !== "sick"),
-    [crewWorkloads]
-  );
-
-  const handleActivate = useCallback(() => {
-    activatePlan(selectedDate);
-    setActionNotice("Operations started — crews are cleared to roll.");
-  }, [activatePlan, selectedDate]);
 
   const handleAssign = useCallback(
     (jobId: string, technician: string) => {
-      const job = jobs.find((item) => item.id === jobId);
-
-      if (!job || job.assignedTo === technician) {
-        return;
-      }
-
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job || job.assignedTo === technician) return;
       updateJob(jobId, { ...job, assignedTo: technician });
-
-      let notice: string;
-      if (isActive) {
-        notice = `Override: ${job.jobNumber} reassigned to ${technician || "unassigned queue"}.`;
-      } else if (technician) {
-        notice = `${job.jobNumber} assigned to ${technician}.`;
-      } else {
-        notice = `${job.jobNumber} moved back to the unassigned queue.`;
-      }
-      setActionNotice(notice);
+      setActionNotice(
+        technician
+          ? `${job.jobNumber} assigned to ${technician}.`
+          : `${job.jobNumber} moved to unassigned.`
+      );
     },
-    [jobs, updateJob, isActive]
-  );
-
-  const handleDelay = useCallback(
-    (jobId: string) => {
-      const job = jobs.find((item) => item.id === jobId);
-
-      if (!job) {
-        return;
-      }
-
-      const baseDate = job.scheduledFor ?? getTodayDate();
-      const nextDate = addDays(baseDate, 1);
-      updateJob(jobId, { ...job, scheduledFor: nextDate });
-
-      const notice = isActive
-        ? `Override: ${job.jobNumber} moved to ${nextDate}. Notify the customer.`
-        : `${job.jobNumber} moved to ${nextDate}.`;
-      setActionNotice(notice);
-    },
-    [jobs, updateJob, isActive]
-  );
-
-  const handleSetReadiness = useCallback(
-    (jobId: string, state: PlanReadinessState) => {
-      setJobOverride(jobId, { readinessState: state });
-
-      let notice: string;
-      if (isActive) {
-        notice = state === "ready"
-          ? "Override: job readiness confirmed during active operations."
-          : "Override: job flagged for active-day attention.";
-      } else {
-        notice = state === "ready"
-          ? "Job marked ready for the morning launch."
-          : "Job flagged for morning attention.";
-      }
-      setActionNotice(notice);
-    },
-    [setJobOverride, isActive]
-  );
-
-  const handlePlaceholderAction = useCallback((message: string) => {
-    setActionNotice(message);
-  }, []);
-
-  const handlePrintPackets = useCallback(() => {
-    markPacketsSent(selectedDate);
-    setActionNotice("Morning packets sent — all active crews have received their job packets.");
-  }, [markPacketsSent, selectedDate]);
-
-  const activeCrewCards = useMemo(
-    () =>
-      crewWorkloads.filter(
-        (workload) =>
-          workload.jobs.length > 0 ||
-          workload.crew.availability === "available" ||
-          workload.crew.availability === "late arrival" ||
-          workload.crew.availability === "half day"
-      ),
-    [crewWorkloads]
+    [jobs, updateJob]
   );
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Page header */}
+    <div className="space-y-6">
       <PageHeader
         title="Daily Plans"
-        description="Review, assign, and activate today's field operations before crews head out."
-      />
-      <MorningOperationsHero
-        date={selectedDate}
-        status={hydratedPlanStatus}
-        startedAt={hydratedPlanActivation?.startedAt ?? null}
-        metrics={metrics}
-        alerts={alerts}
-        blockerCount={blockerCount}
-        packetsAlreadySent={packetsAlreadySent}
-        onActivate={handleActivate}
-        onPrintPackets={handlePrintPackets}
+        description="Review and act on jobs by schedule state — Today, Upcoming, and Unscheduled."
       />
 
       {actionNotice ? (
-        <div
-          className={[
-            "rounded-2xl border px-4 py-3 text-sm",
-            isActive
-              ? "border-yellow-500/20 bg-yellow-500/[0.08] text-yellow-100"
-              : "border-blue-500/20 bg-blue-500/[0.08] text-blue-100",
-          ].join(" ")}
-        >
+        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.08] px-4 py-3 text-sm text-blue-100">
           {actionNotice}
         </div>
       ) : null}
 
       {!hydrated ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
-          Loading plan...
+          Loading plan…
         </div>
       ) : (
-        <>
-          {isActive && hydratedPlanActivation ? (
-            <ActiveOperationsBanner startedAt={hydratedPlanActivation.startedAt} />
-          ) : (
-            <AlertsBanner alerts={alerts} />
-          )}
+        <div className="space-y-8">
+          <ScheduleSection
+            title="Today"
+            icon={Sun}
+            jobs={todayJobs}
+            emptyMessage="No jobs scheduled for today."
+            crewOptions={crewOptions}
+            onReschedule={handleReschedule}
+            onAssign={handleAssign}
+          />
 
-          <ReadinessSummary metrics={metrics} />
+          <ScheduleSection
+            title="Upcoming"
+            icon={CalendarDays}
+            jobs={upcomingJobs}
+            emptyMessage="No upcoming jobs scheduled."
+            crewOptions={crewOptions}
+            onReschedule={handleReschedule}
+            onAssign={handleAssign}
+            groupByDate
+          />
 
-          {dayJobs.length === 0 ? (
-            <div className="grid gap-6 xl:grid-cols-3">
-              <div className="space-y-6 xl:col-span-2">
-                <EmptyDay />
-              </div>
-              <div className="space-y-6">
-                <PlanningNotes key={selectedDate} date={selectedDate} isActive={isActive} />
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-6 xl:grid-cols-3">
-              <div className="space-y-4 xl:col-span-2">
-                <div className="flex items-center gap-2 px-1">
-                  <ClipboardList className="h-4 w-4 text-slate-400" />
-                  <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-400">
-                    {isActive ? "Active Crews" : "Crew Assignments"}
-                  </h2>
-                  <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">
-                    {activeCrewCards.length} crew{activeCrewCards.length !== 1 ? "s" : ""}
-                    {unassignedJobs.length > 0 ? ` · ${unassignedJobs.length} unassigned` : ""}
-                  </span>
-                </div>
-
-                {activeCrewCards.map((workload) => (
-                  <CrewSection
-                    key={workload.crew.id}
-                    crewWorkload={workload}
-                    crewOptions={crewOptions}
-                    isActive={isActive}
-                    onAssign={handleAssign}
-                    onSetReadiness={handleSetReadiness}
-                    onDelay={handleDelay}
-                    onPlaceholderAction={handlePlaceholderAction}
-                  />
-                ))}
-
-                {unassignedJobs.length > 0 ? (
-                  <UnassignedCrewSection
-                    jobs={unassignedJobs}
-                    crewOptions={crewOptions}
-                    isActive={isActive}
-                    onAssign={handleAssign}
-                    onSetReadiness={handleSetReadiness}
-                    onDelay={handleDelay}
-                    onPlaceholderAction={handlePlaceholderAction}
-                  />
-                ) : null}
-              </div>
-
-              <div className="space-y-4">
-                <OperationalReadiness
-                  plannedJobs={plannedJobs}
-                  crewWorkloads={crewWorkloads}
-                  alerts={alerts}
-                  readinessScore={metrics.readinessScore}
-                  isActive={isActive}
-                />
-                <DayTimeline crewWorkloads={crewWorkloads} isActive={isActive} startedAt={hydratedPlanActivation?.startedAt} />
-                <PlanningNotes key={selectedDate} date={selectedDate} isActive={isActive} />
-              </div>
-            </div>
-          )}
-        </>
+          <ScheduleSection
+            title="Unscheduled"
+            icon={CircleAlert}
+            jobs={unscheduledJobs}
+            emptyMessage="All jobs have been scheduled — nothing in the backlog."
+            crewOptions={crewOptions}
+            onReschedule={handleReschedule}
+            onAssign={handleAssign}
+            isUnscheduled
+          />
+        </div>
       )}
     </div>
   );
 }
+
