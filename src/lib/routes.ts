@@ -11,6 +11,7 @@ export const ROUTES = {
   INSTALLED_SYSTEMS: "/installed-systems",
   VEHICLE_ALERTS: "/vehicle-alerts",
   DAILY_PLANS: "/daily-plans",
+  CALENDAR: "/calendar",
   LIVE_OPERATIONS: "/live-operations",
   INVENTORY: "/inventory",
   DISPATCH: "/dispatch",
