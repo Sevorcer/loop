@@ -21,6 +21,7 @@ export const ROUTES = {
   SETTINGS_USERS: "/settings/users",
   SETTINGS_APPEARANCE: "/settings/appearance",
   SETTINGS_ROLES: "/settings/roles",
+  SETTINGS_FEEDBACK: "/settings/feedback",
   OPS_FEEDBACK: "/ops/feedback",
 } as const;
 

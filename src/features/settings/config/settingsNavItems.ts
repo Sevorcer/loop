@@ -35,4 +35,9 @@ export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
     href: ROUTES.SETTINGS_APPEARANCE,
     description: "Customize your workspace look and feel",
   },
+  {
+    name: "Feedback",
+    href: ROUTES.SETTINGS_FEEDBACK,
+    description: "Review and triage field feedback",
+  },
 ] as const;

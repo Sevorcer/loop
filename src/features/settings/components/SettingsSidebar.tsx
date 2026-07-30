@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Shield, Palette } from "lucide-react";
+import { Users, Shield, Palette, MessageSquare } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { SETTINGS_NAV_ITEMS, type SettingsNavItem } from "../config/settingsNavItems";
@@ -18,6 +18,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ size?: number; className?:
   Users,
   "Roles & Permissions": Shield,
   Appearance: Palette,
+  Feedback: MessageSquare,
 };
 
 type SettingsNavItemWithIcon = SettingsNavItem & {
