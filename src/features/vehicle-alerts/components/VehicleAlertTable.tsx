@@ -240,7 +240,7 @@ export function VehicleAlertTable({ alerts, onUpdateStatus }: VehicleAlertTableP
         </div>
       </div>
 
-      <DataTable columns={columns} data={paginatedAlerts} />
+      <DataTable columns={columns} data={paginatedAlerts} disableInternalPagination />
     </div>
   );
 }

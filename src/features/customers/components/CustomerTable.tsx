@@ -179,7 +179,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
         </div>
       </div>
 
-      <DataTable columns={customerColumns} data={paginatedCustomers} onRowClick={handleRowClick} />
+      <DataTable columns={customerColumns} data={paginatedCustomers} onRowClick={handleRowClick} disableInternalPagination />
     </div>
   );
 }

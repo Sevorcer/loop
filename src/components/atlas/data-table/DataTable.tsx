@@ -27,6 +27,12 @@ interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   onRowClick?: (row: TData) => void;
+  /**
+   * When true, the table renders all rows with no internal pagination and no
+   * footer — the parent owns pagination (e.g. CustomerTable, VehicleAlertTable).
+   * Defaults to false (internal pagination, 5 rows per page).
+   */
+  disableInternalPagination?: boolean;
 }
 
 function getColumnMeta<TData>(columnDef: ColumnDef<TData, unknown>): MobileColumnMeta {
@@ -46,6 +52,7 @@ export function DataTable<TData>({
   columns,
   data,
   onRowClick,
+  disableInternalPagination = false,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const humanizedLabelCacheRef = useRef(new Map<string, string>());
@@ -59,12 +66,18 @@ export function DataTable<TData>({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 5,
-      },
-    },
+    // Parent-owned pagination (CustomerTable, VehicleAlertTable) must not be
+    // double-paginated by the table's internal 5-rows-per-page model.
+    ...(disableInternalPagination
+      ? {}
+      : {
+          getPaginationRowModel: getPaginationRowModel(),
+          initialState: {
+            pagination: {
+              pageSize: 5,
+            },
+          },
+        }),
   });
 
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -244,32 +257,34 @@ export function DataTable<TData>({
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 border-t px-4 py-4 text-sm text-muted-foreground sm:px-6 md:flex-row md:items-center md:justify-between">
-          <p>
-            Showing {startRow}-{endRow} of {totalRows}{" "}
-            {totalRows === 1 ? "result" : "results"}
-          </p>
+        {disableInternalPagination ? null : (
+          <div className="flex flex-col gap-3 border-t px-4 py-4 text-sm text-muted-foreground sm:px-6 md:flex-row md:items-center md:justify-between">
+            <p>
+              Showing {startRow}-{endRow} of {totalRows}{" "}
+              {totalRows === 1 ? "result" : "results"}
+            </p>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                Previous
+              </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                Next
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
