@@ -67,6 +67,7 @@ function isProtectedApiRoute(pathname: string): boolean {
 function isPublicRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/update-password") ||
     pathname.startsWith("/portal") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||

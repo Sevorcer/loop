@@ -22,7 +22,10 @@ export type AuthLifecycleEvent =
   | "session_refresh_failure"
   | "authz_decision_allow"
   | "authz_decision_deny"
-  | "unauthorized_access_attempt";
+  | "unauthorized_access_attempt"
+  | "password_update_success"
+  | "password_update_failure"
+  | "password_update_invalid_link";
 
 export type AuthMetricName =
   // Authorization
@@ -46,7 +49,10 @@ export type AuthMetricName =
   | "auth_session_refreshed_total"
   | "auth_session_rotated_total"
   | "auth_session_revoked_total"
-  | "auth_session_expired_total";
+  | "auth_session_expired_total"
+  // Password update
+  | "auth_password_update_success_total"
+  | "auth_password_update_failure_total";
 
 export interface AuthLogEvent {
   event: AuthLifecycleEvent;

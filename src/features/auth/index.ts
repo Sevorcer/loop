@@ -6,6 +6,7 @@ export { AuthProvider, useAuth } from "./state/AuthProvider";
 export { SignOutButton } from "./components/SignOutButton";
 export { UserDisplay } from "./components/UserDisplay";
 export { SignInScreen } from "./screens/SignInScreen";
+export { UpdatePasswordScreen } from "./screens/UpdatePasswordScreen";
 
 // Role context, permission hooks, and UI gating primitives
 export { RoleProvider, useCurrentRole } from "./RoleContext";
