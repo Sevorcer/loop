@@ -292,7 +292,7 @@ export function UsersScreen() {
                               )}
                             </p>
                             <p className="truncate text-xs text-slate-500">
-                              {user.email}
+                              {user.email || "—"}
                             </p>
                           </div>
                         </div>

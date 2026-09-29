@@ -80,12 +80,24 @@ export async function listOrgUsers(callerUserId: string): Promise<OrgUser[]> {
 
   if (error || !profiles) return [];
 
-  // Fetch auth metadata via admin client for email/last_sign_in_at/banned
-  const admin = createSupabaseAdminClient();
-  const { data: authData } = await admin.auth.admin.listUsers();
-  const authMap = new Map(
-    (authData?.users ?? []).map((u) => [u.id, u])
-  );
+  // Fetch auth metadata via admin client for email/last_sign_in_at/banned.
+  // When SUPABASE_SERVICE_ROLE_KEY isn't configured the admin client is
+  // unavailable — degrade to profile-only data so the page still loads
+  // instead of throwing.
+  let authUsers: Array<{
+    id: string;
+    email?: string | null;
+    banned_until?: string | null;
+    last_sign_in_at?: string | null;
+  }> = [];
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data: authData } = await admin.auth.admin.listUsers();
+    authUsers = authData?.users ?? [];
+  } catch {
+    authUsers = [];
+  }
+  const authMap = new Map(authUsers.map((u) => [u.id, u]));
 
   return profiles.map((profile): OrgUser => {
     const authUser = authMap.get(profile.id);
