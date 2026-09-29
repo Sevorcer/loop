@@ -22,7 +22,10 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    const models = await listPerformanceModels({ status: "active" });
+    // Pass the already-resolved userId through: requirePermission above
+    // performed a session refresh when needed, so re-resolving the session
+    // here can observe stale cookies and fail the request.
+    const models = await listPerformanceModels({ status: "active" }, { userId: guard.ctx.userId });
     return NextResponse.json({ performanceModels: models });
   } catch (error) {
     return mapRouteError(error);

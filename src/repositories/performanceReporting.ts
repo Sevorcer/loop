@@ -11,6 +11,7 @@ import "server-only";
 import type { PerformanceModel } from "@/features/reporting/types/reporting";
 
 import { getRepositoryContext } from "./supabaseContext";
+import type { SessionRepositoryContextInput } from "./supabaseContext";
 
 // ─── DB row shape ─────────────────────────────────────────────────────────────
 
@@ -52,10 +53,13 @@ function mapRow(row: PerformanceModelRow): PerformanceModel {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function listPerformanceModels(filter?: {
-  status?: PerformanceModel["status"];
-}): Promise<PerformanceModel[]> {
-  const { supabase, orgId } = await getRepositoryContext();
+export async function listPerformanceModels(
+  filter?: {
+    status?: PerformanceModel["status"];
+  },
+  input?: SessionRepositoryContextInput,
+): Promise<PerformanceModel[]> {
+  const { supabase, orgId } = await getRepositoryContext(input);
 
   let query = supabase
     .from("performance_models")
@@ -73,8 +77,11 @@ export async function listPerformanceModels(filter?: {
   return (data as PerformanceModelRow[]).map(mapRow);
 }
 
-export async function getPerformanceModelById(id: string): Promise<PerformanceModel | null> {
-  const { supabase, orgId } = await getRepositoryContext();
+export async function getPerformanceModelById(
+  id: string,
+  input?: SessionRepositoryContextInput,
+): Promise<PerformanceModel | null> {
+  const { supabase, orgId } = await getRepositoryContext(input);
 
   const { data, error } = await supabase
     .from("performance_models")
