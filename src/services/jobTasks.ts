@@ -3,10 +3,10 @@ import {
   deleteJobTask as deleteJobTaskRecord,
   listJobTasks as listJobTasksRecord,
   updateJobTask as updateJobTaskRecord,
-  type JobTask,
+  type JobTask, type JobTaskSection,
 } from "@/repositories/jobTasks";
 
-export type { JobTask };
+export type { JobTask, JobTaskSection };
 
 /** Default checklist the office works through on install jobs. */
 export const INSTALL_CHECKLIST_TEMPLATE = [
@@ -20,7 +20,7 @@ export async function listJobTasks(jobId: string) {
   return listJobTasksRecord(jobId);
 }
 
-export async function createJobTask(jobId: string, rawLabel: string) {
+export async function createJobTask(jobId: string, rawLabel: string, section: JobTaskSection = "field") {
   const label = rawLabel.trim();
 
   if (!label) {
@@ -35,7 +35,7 @@ export async function createJobTask(jobId: string, rawLabel: string) {
   const nextSortOrder =
     existing.reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1;
 
-  return createJobTaskRecord({ jobId, label, sortOrder: nextSortOrder });
+  return createJobTaskRecord({ jobId, label, sortOrder: nextSortOrder, section });
 }
 
 export async function setJobTaskDone(taskId: string, isDone: boolean) {
@@ -63,22 +63,22 @@ export async function deleteJobTask(taskId: string) {
 export async function applyInstallChecklistTemplate(jobId: string) {
   const existing = await listJobTasksRecord(jobId);
 
-  if (existing.length > 0) {
+  if (existing.some((task) => task.section === "office")) {
     return existing;
   }
 
   const created: JobTask[] = [];
-  let sortOrder = 1;
+  let sortOrder = existing.reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1;
 
   for (const label of INSTALL_CHECKLIST_TEMPLATE) {
     created.push(
       await createJobTaskRecord({
         jobId,
         label,
-        sortOrder: sortOrder++,
+        sortOrder: sortOrder++, section: "office",
       }),
     );
   }
 
-  return created;
+  return [...existing, ...created];
 }
