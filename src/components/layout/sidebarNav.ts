@@ -10,7 +10,6 @@ import {
   MonitorDot,
   CalendarDays,
   CalendarRange,
-  Radio,
   Building2,
   HardHat,
   AirVent,
@@ -34,7 +33,9 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
       { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
       { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
       { name: "Calendar", href: ROUTES.CALENDAR, icon: CalendarRange },
-      { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
+      // Live Operations hidden 2026-09-30 — mock-data tab, parked until it can
+      // run on real crew/job data (likely folded into Dispatch same-day view).
+      // { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
       { name: "Operations", href: ROUTES.OPERATIONS, icon: Workflow },
     ],
   },
