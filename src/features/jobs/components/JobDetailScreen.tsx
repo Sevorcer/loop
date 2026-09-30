@@ -31,7 +31,7 @@ import { JobFilesPanel } from "./JobFilesPanel";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTimeline } from "./JobTimeline";
-import { readJobAppointmentHour, formatJobAppointmentHour } from "../utils/appointmentWindow";
+import { formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
 
 function formatDate(value: string | null | undefined) {
@@ -73,7 +73,9 @@ export function JobDetailScreen({
   const [fileCount, setFileCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
   const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
-  const appointmentHour = readJobAppointmentHour(job);
+  // F20: prefer the real scheduled time over the legacy appointment-hour
+  // field, which always falls back to 9 AM for jobs created by the new form.
+  const appointmentDisplay = formatJobAppointmentDisplay(job);
   // F15: "Assigned To" (internal technician) and "Assigned Contractors"
   // (external subs) are stored separately and could silently disagree on this
   // screen. Render them side by side so both facts are always visible together.
@@ -223,7 +225,7 @@ export function JobDetailScreen({
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       Appointment Hour
                     </p>
-                    <p className="mt-1 text-sm text-slate-200">{formatJobAppointmentHour(appointmentHour)}</p>
+                    <p className="mt-1 text-sm text-slate-200">{appointmentDisplay}</p>
                   </div>
                 </div>
 

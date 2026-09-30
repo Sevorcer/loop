@@ -11,8 +11,12 @@
  *  - Display uses the browser's local timezone via toLocaleString.
  */
 
-import type { JobAppointmentHour } from "../types/job";
-import { DEFAULT_JOB_APPOINTMENT_HOUR } from "./appointmentWindow";
+import type { Job, JobAppointmentHour } from "../types/job";
+import {
+  DEFAULT_JOB_APPOINTMENT_HOUR,
+  formatJobAppointmentHour,
+  readJobAppointmentHour,
+} from "./appointmentWindow";
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
@@ -48,6 +52,23 @@ export function formatScheduledTime(
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/**
+ * F20: display helper for the job detail "Appointment Hour" block.
+ * The new-job form saves an offset-aware `scheduled_start_at` but never sends
+ * the legacy `appointmentHour`, so `readJobAppointmentHour` always falls back
+ * to DEFAULT_JOB_APPOINTMENT_HOUR (9) — rendering "9:00 AM" no matter what
+ * time was picked. Prefer the real scheduled time when present; fall back to
+ * the legacy hour display only for jobs with no `scheduled_start_at`.
+ */
+export function formatJobAppointmentDisplay(
+  job: Pick<Job, "scheduledStartAt" | "appointmentHour">,
+): string {
+  if (job.scheduledStartAt) {
+    return formatScheduledTime(job.scheduledStartAt);
+  }
+  return formatJobAppointmentHour(readJobAppointmentHour(job));
 }
 
 /**

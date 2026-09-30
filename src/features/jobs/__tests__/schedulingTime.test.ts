@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 
 import {
   formatScheduledShort,
+  formatScheduledTime,
+  formatJobAppointmentDisplay,
   parseDatetimeLocalInput,
   toDatetimeLocalValue,
   isValidTimeWindow,
@@ -220,5 +222,35 @@ describe("deriveScheduledStartAt", () => {
 
   it("pads hours below 10 with a leading zero", () => {
     expect(deriveScheduledStartAt("2026-07-29", 8)).toBe("2026-07-29T08:00:00Z");
+  });
+});
+
+// ─── formatJobAppointmentDisplay (F20) ───────────────────────────────────────
+
+describe("formatJobAppointmentDisplay", () => {
+  it("renders the real scheduled time when scheduledStartAt is present", () => {
+    const scheduledStartAt = "2026-10-15T14:30:00-07:00";
+    const result = formatJobAppointmentDisplay({
+      scheduledStartAt,
+      appointmentHour: 9,
+    });
+    // The legacy hour (9) must NOT win over the real scheduled time.
+    expect(result).toBe(formatScheduledTime(scheduledStartAt));
+    expect(result).not.toContain("9:00 AM");
+  });
+
+  it("falls back to the legacy appointment hour when scheduledStartAt is absent", () => {
+    expect(
+      formatJobAppointmentDisplay({ scheduledStartAt: null, appointmentHour: 10 }),
+    ).toBe("10:00 AM");
+    expect(
+      formatJobAppointmentDisplay({ scheduledStartAt: undefined, appointmentHour: 10 }),
+    ).toBe("10:00 AM");
+  });
+
+  it("falls back to the default hour when neither is set", () => {
+    expect(
+      formatJobAppointmentDisplay({ scheduledStartAt: null, appointmentHour: undefined }),
+    ).toBe("9:00 AM");
   });
 });
