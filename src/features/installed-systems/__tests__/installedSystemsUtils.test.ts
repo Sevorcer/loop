@@ -3,8 +3,11 @@ import { describe, it, expect } from "vitest";
 import type { Job } from "@/features/jobs/types/job";
 import {
   buildInstalledSystemsSnapshot,
+  EMPTY_SYSTEM_FILTER,
+  filterInstalledSystems,
   getEstimateEquipmentBundle,
 } from "../utils/installedSystemsUtils";
+import type { InstalledSystem } from "../types/installedSystem";
 
 // ─── Test Fixtures ─────────────────────────────────────────────────────────────
 
@@ -197,5 +200,77 @@ describe("installed system matchState semantics via snapshot", () => {
       expect(derived.matchConfidence).toBeGreaterThanOrEqual(0);
       expect(derived.matchConfidence).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+// ─── filterInstalledSystems ────────────────────────────────────────────────
+
+function makeSystem(overrides: Partial<InstalledSystem> = {}): InstalledSystem {
+  return {
+    id: "sys-test-001",
+    technicalIdentityId: "TI-001",
+    technicalProfileId: "tp-001",
+    systemName: "Trane XR16 Air Conditioner",
+    lifecycleStatus: "Active",
+    customerName: "Jennifer Alvarez",
+    propertyName: "Alvarez Home",
+    location: "123 Main St",
+    matchState: "exact",
+    matchConfidence: 1,
+    permitReady: true,
+    installDate: "2026-09-01",
+    manufacturer: "Trane",
+    modelNumber: "XR16",
+    serialNumbers: [],
+    warrantyExpiry: "",
+    accessories: [],
+    linkedWorkflowIds: [],
+    operationalHistory: [],
+    ...overrides,
+  };
+}
+
+describe("filterInstalledSystems", () => {
+  const systems = [
+    makeSystem({ id: "s1", systemName: "Trane XR16 Air Conditioner", customerName: "Jennifer Alvarez", propertyName: "Alvarez Home", lifecycleStatus: "Active" }),
+    makeSystem({ id: "s2", systemName: "Carrier Furnace 59TP6", customerName: "Bob Smith", propertyName: "Smith Residence", lifecycleStatus: "Planned" }),
+    makeSystem({ id: "s3", systemName: "Mitsubishi Mini-Split", customerName: "Alvarez LLC", propertyName: "Rental Unit 4", lifecycleStatus: "Active" }),
+  ];
+
+  it("returns everything for the empty filter", () => {
+    expect(filterInstalledSystems(systems, EMPTY_SYSTEM_FILTER)).toHaveLength(3);
+  });
+
+  it("matches query against system, customer, and property names (case-insensitive)", () => {
+    expect(
+      filterInstalledSystems(systems, { query: "alvarez", lifecycle: "all" }).map((s) => s.id)
+    ).toEqual(["s1", "s3"]);
+    expect(
+      filterInstalledSystems(systems, { query: "FURNACE", lifecycle: "all" }).map((s) => s.id)
+    ).toEqual(["s2"]);
+    expect(
+      filterInstalledSystems(systems, { query: "rental unit", lifecycle: "all" }).map((s) => s.id)
+    ).toEqual(["s3"]);
+  });
+
+  it("filters by lifecycle status", () => {
+    expect(
+      filterInstalledSystems(systems, { query: "", lifecycle: "Planned" }).map((s) => s.id)
+    ).toEqual(["s2"]);
+  });
+
+  it("combines query and lifecycle", () => {
+    expect(
+      filterInstalledSystems(systems, { query: "alvarez", lifecycle: "Active" }).map((s) => s.id)
+    ).toEqual(["s1", "s3"]);
+    expect(
+      filterInstalledSystems(systems, { query: "alvarez", lifecycle: "Planned" })
+    ).toHaveLength(0);
+  });
+
+  it("trims the query", () => {
+    expect(
+      filterInstalledSystems(systems, { query: "  trane  ", lifecycle: "all" }).map((s) => s.id)
+    ).toEqual(["s1"]);
   });
 });

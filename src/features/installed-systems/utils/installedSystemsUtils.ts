@@ -373,3 +373,31 @@ export function buildInstalledSystemsSnapshot(jobs: Job[]): InstalledSystemsSnap
 }
 
 export { estimateEquipmentBundles };
+
+// ─── Asset register filtering ────────────────────────────────────────────────
+
+export interface InstalledSystemFilter {
+  query: string;
+  lifecycle: InstalledSystemLifecycle | "all";
+}
+
+export const EMPTY_SYSTEM_FILTER: InstalledSystemFilter = {
+  query: "",
+  lifecycle: "all",
+};
+
+export function filterInstalledSystems(
+  systems: InstalledSystem[],
+  filter: InstalledSystemFilter
+): InstalledSystem[] {
+  const query = filter.query.trim().toLowerCase();
+  return systems.filter((system) => {
+    if (filter.lifecycle !== "all" && system.lifecycleStatus !== filter.lifecycle) {
+      return false;
+    }
+    if (!query) return true;
+    const haystack =
+      `${system.systemName} ${system.customerName} ${system.propertyName}`.toLowerCase();
+    return haystack.includes(query);
+  });
+}

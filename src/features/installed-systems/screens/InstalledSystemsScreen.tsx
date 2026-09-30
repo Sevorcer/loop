@@ -73,30 +73,6 @@ export function InstalledSystemsScreen() {
         </div>
       </SurfaceCard>
 
-      <SurfaceCard>
-        <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[1.4fr_1fr]">
-          <div>
-            <h3 className="text-base font-semibold text-white sm:text-lg">Architecture first</h3>
-            <p className="mt-1.5 hidden text-sm leading-6 text-slate-400 sm:block">
-              Equipment catalog entries own canonical manufacturer knowledge.
-              LOOP derives a technical profile from trusted matches, then anchors
-              the customer asset with a permanent technical identity. Jobs and
-              permits consume those references instead of storing disconnected copies.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
-            <ol className="space-y-2 text-sm text-slate-300 sm:space-y-3">
-              <li>1. Estimate accepted with equipment selected</li>
-              <li>2. Job created and linked to a technical identity</li>
-              <li>3. Equipment catalog matching establishes confidence</li>
-              <li>4. Technical profile normalizes permit-ready truth</li>
-              <li>5. Future workflows reference the installed system record</li>
-            </ol>
-          </div>
-        </div>
-      </SurfaceCard>
-
       <InstalledSystemsList />
     </div>
   );
