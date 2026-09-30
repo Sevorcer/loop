@@ -112,6 +112,7 @@ export function MorningOperationsHero({
                     Started at {formatStartTime(startedAt)}
                   </span>
                 </div>
+                {/* Live Operations CTA hidden 2026-09-30 — tab parked, page redirects to Dispatch.
                 <Link
                   href={ROUTES.LIVE_OPERATIONS}
                   className="flex items-center gap-2 rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.06] px-3 py-2 transition-colors hover:border-indigo-400/40 hover:text-indigo-200"
@@ -120,7 +121,7 @@ export function MorningOperationsHero({
                   <span className="text-xs font-medium text-indigo-200">
                     Open Live Operations →
                   </span>
-                </Link>
+                </Link> */}
               </div>
             ) : null}
 

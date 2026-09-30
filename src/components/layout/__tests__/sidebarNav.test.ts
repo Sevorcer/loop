@@ -38,14 +38,14 @@ describe("TODAY group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Dashboard, Command Center, Dispatch, Daily Plans, Calendar, Live Operations in that order", () => {
+  it("contains Dashboard, Command Center, Dispatch, Daily Plans, Calendar, Operations in that order (Live Operations hidden 2026-09-30)", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.DASHBOARD,
       ROUTES.COMMAND_CENTER,
       ROUTES.DISPATCH,
       ROUTES.DAILY_PLANS,
       ROUTES.CALENDAR,
-      ROUTES.LIVE_OPERATIONS,
+      ROUTES.OPERATIONS,
     ]);
   });
 
@@ -56,7 +56,7 @@ describe("TODAY group", () => {
       "Dispatch",
       "Daily Plans",
       "Calendar",
-      "Live Operations",
+      "Operations",
     ]);
   });
 });

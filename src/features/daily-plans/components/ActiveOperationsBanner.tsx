@@ -29,13 +29,14 @@ export function ActiveOperationsBanner({ startedAt }: ActiveOperationsBannerProp
             <Clock className="h-3.5 w-3.5" />
             Started {formatStartTime(startedAt)}
           </span>
+          {/* Live Operations CTA hidden 2026-09-30 — tab parked, page redirects to Dispatch.
           <Link
             href={ROUTES.LIVE_OPERATIONS}
             className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/[0.08] px-3 py-1 text-xs font-medium text-indigo-300 transition-colors hover:border-indigo-400/40 hover:text-indigo-200"
           >
             <Zap className="h-3.5 w-3.5" />
             Open Live Operations →
-          </Link>
+          </Link> */}
         </div>
       </div>
     </div>
