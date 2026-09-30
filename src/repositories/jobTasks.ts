@@ -11,11 +11,11 @@ import { getRepositoryContext } from "./supabaseContext";
 // maps thrown errors via mapRouteError).
 // ---------------------------------------------------------------------------
 
-interface JobTaskRow {
+export type JobTaskSection = "field" | "office"; interface JobTaskRow {
   id: string;
   job_id: string;
   label: string;
-  is_done: boolean;
+  is_done: boolean; section: string;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -25,21 +25,21 @@ export interface JobTask {
   id: string;
   jobId: string;
   label: string;
-  isDone: boolean;
+  isDone: boolean; section: JobTaskSection;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
 
 const JOB_TASK_COLUMNS =
-  "id,job_id,label,is_done,sort_order,created_at,updated_at";
+  "id,job_id,label,is_done,sort_order,section,created_at,updated_at";
 
 function mapJobTask(row: JobTaskRow): JobTask {
   return {
     id: row.id,
     jobId: row.job_id,
     label: row.label,
-    isDone: row.is_done,
+    isDone: row.is_done, section: row.section === "office" ? "office" : "field",
     sortOrder: row.sort_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -63,7 +63,7 @@ export async function listJobTasks(jobId: string): Promise<JobTask[]> {
 export async function createJobTask(input: {
   jobId: string;
   label: string;
-  sortOrder?: number;
+  sortOrder?: number; section?: JobTaskSection;
 }): Promise<JobTask> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
@@ -71,7 +71,7 @@ export async function createJobTask(input: {
     .insert({
       org_id: orgId,
       job_id: input.jobId,
-      label: input.label,
+      label: input.label, section: input.section ?? "field",
       sort_order: input.sortOrder ?? 0,
     })
     .select(JOB_TASK_COLUMNS)
