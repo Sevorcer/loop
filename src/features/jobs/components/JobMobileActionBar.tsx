@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, MapPin, PlayCircle } from "lucide-react";
 
+import { useMobileActionBarFlag } from "@/components/mobile/useMobileActionBarFlag";
+
 import type { Job, JobStatus } from "../types/job";
 import { buildDirectionsUrl, getPrimaryAdvance } from "../utils/jobMobileActions";
 
@@ -23,6 +25,9 @@ export function JobMobileActionBar({ job, onUpdateStatus }: JobMobileActionBarPr
 
   const advance = useMemo(() => getPrimaryAdvance(job.status), [job.status]);
   const directionsUrl = useMemo(() => buildDirectionsUrl(job.location), [job.location]);
+
+  // Lift AppShell's floating FAB stack above this bar so the buttons never overlap.
+  useMobileActionBarFlag(Boolean(advance) || Boolean(directionsUrl));
 
   async function handleAdvance() {
     if (!advance || isUpdating) return;

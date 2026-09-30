@@ -204,9 +204,10 @@ export default function AppShell({ children }: AppShellProps) {
         onOpenChange={setIsCommandBarOpen}
       />
 
-      {/* Floating Actions Stack — vertical column, bottom-right corner */}
+      {/* Floating Actions Stack — vertical column, bottom-right corner.
+          Lifts above any sticky mobile action bar via the body flag. */}
       <div
-        className="fixed bottom-6 right-6 z-40 flex flex-col-reverse items-end gap-3 lg:bottom-8 lg:right-8"
+        className="floating-actions-stack fixed bottom-6 right-6 z-40 flex flex-col-reverse items-end gap-3 lg:bottom-8 lg:right-8"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Report Feedback */}
