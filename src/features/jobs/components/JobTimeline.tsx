@@ -13,6 +13,10 @@ import { EmptyState } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
 import type { JobActivity } from "../types/jobActivity";
+import {
+  normalizeQaChecklist,
+  REQUIRED_QA_CHECKLIST_ITEMS,
+} from "../utils/jobCompletionChecklist";
 import { sortJobActivity } from "../utils/jobWorkspace";
 
 function formatTimestamp(value: string) {
@@ -25,6 +29,25 @@ const UUID_PATTERN =
 
 function isDisplayableActor(actorId: string): boolean {
   return !UUID_PATTERN.test(actorId);
+}
+
+// QA checklist updates are stored as a JSON payload; render a human-readable
+// summary instead of the raw object (an 88-char unbreakable string that
+// overflows phone screens and gets clipped by the app shell).
+function formatQaDescription(description: string): string {
+  const trimmed = description.trim();
+  if (!trimmed.startsWith("{")) {
+    return description;
+  }
+  try {
+    const checklist = normalizeQaChecklist(JSON.parse(trimmed));
+    const completeCount = REQUIRED_QA_CHECKLIST_ITEMS.filter(
+      ({ key }) => checklist[key],
+    ).length;
+    return `${completeCount} of ${REQUIRED_QA_CHECKLIST_ITEMS.length} items complete.`;
+  } catch {
+    return description;
+  }
 }
 
 function getActivityIcon(type: JobActivity["type"]) {
@@ -80,14 +103,16 @@ export function JobTimeline({ activity }: { activity: JobActivity[] }) {
                   {getActivityIcon(item.type)}
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-white">
                         {item.title}
                       </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-400">
-                        {item.description}
+                      <p className="mt-1 break-words text-sm leading-6 text-slate-400">
+                        {item.type === "qa"
+                          ? formatQaDescription(item.description)
+                          : item.description}
                       </p>
                       {item.actorId && isDisplayableActor(item.actorId) ? (
                         <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
