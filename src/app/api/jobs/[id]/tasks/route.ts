@@ -47,7 +47,7 @@ export async function POST(
       return NextResponse.json({ tasks });
     }
 
-    const task = await createJobTask(id, String(body.label ?? ""));
+    const section = body.section === "office" ? "office" : "field"; const task = await createJobTask(id, String(body.label ?? ""), section);
     return NextResponse.json({ task });
   } catch (error) {
     if (
