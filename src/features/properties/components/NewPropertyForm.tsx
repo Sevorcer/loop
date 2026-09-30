@@ -70,14 +70,40 @@ function NewPropertyFormContent({ initialCustomerId }: { initialCustomerId?: str
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
+  const [customerLoadError, setCustomerLoadError] = useState(false);
+  const [customerRetryCount, setCustomerRetryCount] = useState(0);
 
   // F6: customer picker instead of free text — typo-proof linking.
+  // F21 hardening: a failed customer fetch used to leave the dropdown with
+  // only the placeholder and no explanation, so the Create button stayed
+  // disabled with no visible reason. Surface the failure with a retry.
   useEffect(() => {
     if (!role) return;
-    requestJson<{ customers: Customer[] }>("/api/customers", { role })
-      .then((res) => setCustomerOptions(res.customers ?? []))
-      .catch(() => setCustomerOptions([]));
-  }, [role]);
+    let cancelled = false;
+
+    async function loadCustomers() {
+      setCustomerLoadError(false);
+      try {
+        const res = await requestJson<{ customers: Customer[] }>("/api/customers", {
+          role,
+        });
+        if (!cancelled) {
+          setCustomerOptions(res.customers ?? []);
+        }
+      } catch {
+        if (!cancelled) {
+          setCustomerOptions([]);
+          setCustomerLoadError(true);
+        }
+      }
+    }
+
+    void loadCustomers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [role, customerRetryCount]);
 
   // F5: prefill the customer when arriving from a customer page (?customerId=).
   // The select is name-valued but the URL carries the id, so resolve the id
@@ -235,6 +261,19 @@ function NewPropertyFormContent({ initialCustomerId }: { initialCustomerId?: str
                   <option value={effectiveCustomer}>{effectiveCustomer}</option>
                 ) : null}
               </select>
+              {customerLoadError ? (
+                <p className="text-xs text-red-300">
+                  Couldn&apos;t load customers — check your connection, then{" "}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:text-red-200"
+                    onClick={() => setCustomerRetryCount((count) => count + 1)}
+                  >
+                    retry
+                  </button>
+                  .
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
