@@ -62,7 +62,8 @@ export function JobNoteComposer({
             onChange={(e) => setNote(e.target.value)}
             rows={4}
             placeholder="Capture job notes, field updates, and closeout details..."
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
+            // F14: text-base on phones prevents iOS auto-zoom on focus.
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-base text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40 md:text-sm"
           />
 
           {error ? (
@@ -77,8 +78,13 @@ export function JobNoteComposer({
             </p>
           ) : null}
 
-          <div className="flex justify-end">
-            <Button onClick={() => void handleSubmit()} className="gap-2" disabled={isSaving}>
+          {/* F14: full-width thumb target on phones. */}
+          <div className="md:flex md:justify-end">
+            <Button
+              onClick={() => void handleSubmit()}
+              className="min-h-[48px] w-full gap-2 text-base md:w-auto md:min-h-0 md:text-sm"
+              disabled={isSaving}
+            >
               <Save className="h-4 w-4" />
               {isSaving ? "Saving..." : "Save Notes"}
             </Button>

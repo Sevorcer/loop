@@ -140,6 +140,9 @@ export const jobColumns: ColumnDef<Job>[] = [
     accessorKey: "assignedTo",
     meta: {
       mobileLabel: "Assigned To",
+      // F14: redundant on a phone card for the tech's own jobs; the status,
+      // schedule, customer, and property carry the card.
+      mobileHidden: true,
     },
     header: ({ column }) => (
       <SortableHeader label="Assigned To" column={column} />

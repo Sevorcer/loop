@@ -76,7 +76,7 @@ export function CustomerDeleteButton({ customerId, customerName }: CustomerDelet
     <Button
       variant="ghost"
       size="sm"
-      className="gap-2 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+      className="min-h-[44px] gap-2 text-red-400 hover:bg-red-500/10 hover:text-red-300"
       onClick={() => setConfirming(true)}
     >
       <Trash2 className="h-4 w-4" />

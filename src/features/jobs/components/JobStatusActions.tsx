@@ -102,12 +102,14 @@ export function JobStatusActions({
         {availableActions.length === 0 ? (
           <p className="mt-6 text-sm text-slate-500">No further actions available for this job.</p>
         ) : (
+          // F14: glove-friendly targets on phones — full-width, 48px tall,
+          // larger type. Desktop keeps the compact two-column grid.
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {availableActions.map(({ status: nextStatus, icon: Icon, label }) => (
               <Button
                 key={nextStatus}
                 onClick={() => void handleChange(nextStatus)}
-                className="justify-start gap-2"
+                className="min-h-[48px] justify-start gap-2 text-base md:min-h-0 md:text-sm"
                 variant="secondary"
                 disabled={pendingStatus !== null}
               >

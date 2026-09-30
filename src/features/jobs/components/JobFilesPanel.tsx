@@ -223,7 +223,8 @@ export function JobFilesPanel({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 shrink-0 p-0 text-slate-400 hover:text-white"
+                  // F14: glove-sized file action target.
+                  className="min-h-[44px] min-w-[44px] shrink-0 p-0 text-slate-400 hover:text-white"
                   onClick={() => void handleDownload(file)}
                   disabled={downloadingId === file.id}
                   aria-label={`Download ${file.fileName}`}

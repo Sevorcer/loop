@@ -9,6 +9,7 @@ import { formatDateOnly } from "@/lib/dates";
 
 import { CustomerDeleteButton } from "../components/CustomerDeleteButton";
 import { CustomerDetailTabs } from "../components/CustomerDetailTabs";
+import { CustomerMobileActionBar } from "../components/CustomerMobileActionBar";
 import type { Customer } from "../types/customer";
 import type {
   CustomerInstalledSystemItem,
@@ -52,7 +53,9 @@ export function CustomerDetailScreen({
         : "neutral";
 
   return (
-    <div className="space-y-6">
+    // F14: bottom padding keeps page content clear of the sticky mobile
+    // action bar (rendered only on small screens).
+    <div className="space-y-6 pb-28 md:pb-0">
       <div className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-4">
@@ -62,7 +65,7 @@ export function CustomerDetailScreen({
               </div>
 
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight">
+                <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
                   {customer.name}
                 </h1>
 
@@ -179,10 +182,10 @@ export function CustomerDetailScreen({
               </Card>
             </div>
 
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <PermissionGuard table="customers" action="update">
                 <Link href={ROUTE_BUILDERS.CUSTOMER_EDIT(customer.id)}>
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" className="min-h-[44px] gap-2">
                     <Pencil className="h-4 w-4" />
                     Edit
                   </Button>
@@ -191,7 +194,7 @@ export function CustomerDetailScreen({
 
               <PermissionGuard table="jobs" action="insert">
                 <Link href={ROUTE_BUILDERS.JOB_NEW({ customerId: customer.id })}>
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" className="min-h-[44px] gap-2">
                     <CalendarClock className="h-4 w-4" />
                     Create Job
                   </Button>
@@ -220,6 +223,9 @@ export function CustomerDetailScreen({
         initialTab={initialTab}
         initialPropertyId={initialPropertyId}
       />
+
+      {/* F14: sticky phone action bar (Call / Directions). */}
+      <CustomerMobileActionBar customer={customer} />
     </div>
   );
 }

@@ -227,7 +227,7 @@ export function CustomerDetailTabs({
             <div className="flex items-center gap-2">
               <PermissionGuard table="properties" action="insert">
                 <Link href={addPropertyHref}>
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" className="min-h-[44px] gap-2">
                     <Building2 className="h-4 w-4" />
                     Add Property
                   </Button>
@@ -235,7 +235,7 @@ export function CustomerDetailTabs({
               </PermissionGuard>
               <PermissionGuard table="jobs" action="insert">
                 <Link href={openJobHref}>
-                  <Button size="sm" className="gap-2">
+                  <Button size="sm" className="min-h-[44px] gap-2">
                     <CalendarClock className="h-4 w-4" />
                     Create Job
                   </Button>
@@ -347,7 +347,7 @@ export function CustomerDetailTabs({
 
                   <div className="flex items-center justify-between gap-3 pt-2">
                     <Link href={ROUTE_BUILDERS.PROPERTY_DETAIL(property.id)}>
-                      <Button variant="ghost" size="sm">Open Property</Button>
+                      <Button variant="ghost" size="sm" className="min-h-[44px]">Open Property</Button>
                     </Link>
                     <PermissionGuard table="jobs" action="insert">
                       <Link
@@ -356,7 +356,7 @@ export function CustomerDetailTabs({
                           propertyId: property.id,
                         })}
                       >
-                        <Button size="sm" className="gap-2">
+                        <Button size="sm" className="min-h-[44px] gap-2">
                           <CalendarClock className="h-4 w-4" />
                           Create Job
                         </Button>

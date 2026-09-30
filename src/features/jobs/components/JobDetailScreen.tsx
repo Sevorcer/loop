@@ -28,6 +28,7 @@ import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import { AssignContractorPanel } from "./AssignContractorPanel";
 import { JobCompletionChecklistCard } from "./JobCompletionChecklistCard";
 import { JobFilesPanel } from "./JobFilesPanel";
+import { JobMobileActionBar } from "./JobMobileActionBar";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTimeline } from "./JobTimeline";
@@ -95,12 +96,14 @@ export function JobDetailScreen({
   const jobNotesCompleted = job.notes.trim().length > 0;
 
   return (
-    <div className="space-y-6">
+    // F14: bottom padding keeps page content clear of the sticky mobile
+    // action bar (md+ only shows the bar on small screens).
+    <div className="space-y-6 pb-28 md:pb-0">
       <div className="flex items-center justify-between gap-4">
         <Link href="/jobs">
           <Button
             variant="ghost"
-            className="gap-2 text-slate-300 hover:text-white"
+            className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Jobs
@@ -109,7 +112,9 @@ export function JobDetailScreen({
 
         <PermissionGuard table="jobs" action="update">
           <Link href={`/jobs/${job.id}/edit`}>
-            <Button variant="secondary">Edit Job</Button>
+            <Button variant="secondary" className="min-h-[44px]">
+              Edit Job
+            </Button>
           </Link>
         </PermissionGuard>
       </div>
@@ -126,7 +131,7 @@ export function JobDetailScreen({
               <p className="text-sm font-medium text-slate-400">
                 {job.jobNumber}
               </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white md:text-3xl">
                 {job.title}
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
@@ -250,7 +255,7 @@ export function JobDetailScreen({
                     {job.customerId ? (
                       <Link
                         href={ROUTE_BUILDERS.CUSTOMER_DETAIL(job.customerId)}
-                        className="mt-1 inline-flex items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
+                        className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
                       >
                         {job.customerName}
                         <ExternalLink className="h-3 w-3" />
@@ -277,7 +282,7 @@ export function JobDetailScreen({
                     {job.propertyId ? (
                       <Link
                         href={ROUTE_BUILDERS.PROPERTY_DETAIL(job.propertyId)}
-                        className="mt-1 inline-flex items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
+                        className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
                       >
                         {job.propertyName}
                         <ExternalLink className="h-3 w-3" />
@@ -354,6 +359,9 @@ export function JobDetailScreen({
       </div>
 
       <JobTimeline activity={orderedActivity} />
+
+      {/* F14: sticky phone action bar (Start / Mark Complete / Directions). */}
+      <JobMobileActionBar job={job} onUpdateStatus={onUpdateStatus} />
     </div>
   );
 }

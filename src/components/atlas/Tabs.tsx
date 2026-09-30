@@ -41,7 +41,8 @@ export function AtlasTabs<T extends string>({
               type="button"
               variant={value === item.key ? "primary" : "ghost"}
               onClick={() => onChange(item.key)}
-              className="rounded-full whitespace-nowrap px-4"
+              // F14: 44px targets for gloved taps.
+              className="min-h-[44px] rounded-full whitespace-nowrap px-4"
             >
               {item.label}
             </Button>

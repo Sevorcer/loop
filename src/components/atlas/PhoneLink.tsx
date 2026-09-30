@@ -11,7 +11,7 @@ interface PhoneLinkProps {
   className?: string;
 }
 
-function toTelHref(phone: string): string {
+export function toTelHref(phone: string): string {
   const trimmed = phone.trim();
   const hasPlus = trimmed.startsWith("+");
   const digits = trimmed.replace(/[^\d]/g, "");

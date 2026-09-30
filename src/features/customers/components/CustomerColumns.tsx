@@ -38,6 +38,9 @@ function SortableHeader({
 export const customerColumns: ColumnDef<Customer>[] = [
   {
     accessorKey: "name",
+    // F14: mobile card view (atlas DataTable) renders all columns as detail
+    // cells by default — curate which survive on a 390px phone card.
+    meta: { mobileLabel: "Customer", mobilePrimary: true },
     header: ({ column }) => (
       <SortableHeader label="Customer" column={column} />
     ),
@@ -58,6 +61,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "city",
+    meta: { mobileLabel: "Contact" },
     header: ({ column }) => <SortableHeader label="City" column={column} />,
     cell: ({ row }) => (
       <div>
@@ -68,6 +72,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "phone",
+    meta: { mobileLabel: "Phone" },
     header: "Phone",
     cell: ({ row }) =>
       row.original.phone ? (
@@ -81,6 +86,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "status",
+    meta: { mobileLabel: "Status" },
     header: ({ column }) => <SortableHeader label="Status" column={column} />,
     cell: ({ row }) => {
       const status = row.original.status;
@@ -97,6 +103,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "propertyCount",
+    meta: { mobileLabel: "Properties" },
     header: ({ column }) => (
       <SortableHeader label="Properties" column={column} />
     ),
@@ -106,6 +113,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "openJobs",
+    meta: { mobileLabel: "Open Jobs" },
     header: ({ column }) => (
       <SortableHeader label="Open Jobs" column={column} />
     ),
@@ -115,6 +123,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "lastActivity",
+    meta: { mobileLabel: "Last Activity", mobileHidden: true },
     header: ({ column }) => (
       <SortableHeader label="Last Activity" column={column} />
     ),
@@ -126,6 +135,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
   },
   {
     accessorKey: "createdAt",
+    meta: { mobileLabel: "Created", mobileHidden: true },
     header: ({ column }) => (
       <SortableHeader label="Created" column={column} />
     ),

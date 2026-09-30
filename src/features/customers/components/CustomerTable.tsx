@@ -150,7 +150,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
 
         <div className="flex items-center gap-2">
           {hasActiveFilters ? (
-            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+            <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={handleClearFilters}>
               Clear filters
             </Button>
           ) : null}
@@ -158,6 +158,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
           <Button
             variant="outline"
             size="sm"
+            className="min-h-[44px]"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
             disabled={safeCurrentPage === 1}
           >
@@ -171,6 +172,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
           <Button
             variant="outline"
             size="sm"
+            className="min-h-[44px]"
             onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
             disabled={safeCurrentPage === totalPages}
           >
