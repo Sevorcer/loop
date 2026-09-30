@@ -11,6 +11,12 @@ import {
   CalendarDays,
   CalendarRange,
   Radio,
+  Building2,
+  HardHat,
+  AirVent,
+  Truck,
+  Workflow,
+  MessageSquare,
 } from "lucide-react";
 
 import { getNavItemsForRole, type NavGroup } from "@/features/auth";
@@ -29,13 +35,18 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
       { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
       { name: "Calendar", href: ROUTES.CALENDAR, icon: CalendarRange },
       { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
+      { name: "Operations", href: ROUTES.OPERATIONS, icon: Workflow },
     ],
   },
   {
     label: "FIELD",
     items: [
       { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
+      { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
       { name: "Customers", href: ROUTES.CUSTOMERS, icon: Users },
+      { name: "Contractors", href: ROUTES.CONTRACTORS, icon: HardHat },
+      { name: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS, icon: AirVent },
+      { name: "Vehicle Alerts", href: ROUTES.VEHICLE_ALERTS, icon: Truck },
     ],
   },
   {
@@ -49,6 +60,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
     label: "INSIGHTS",
     items: [
       { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
+      { name: "Feedback Reports", href: ROUTES.OPS_FEEDBACK, icon: MessageSquare },
     ],
   },
   {
