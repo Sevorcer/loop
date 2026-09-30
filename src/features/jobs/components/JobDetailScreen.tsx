@@ -164,7 +164,7 @@ export function JobDetailScreen({
       </SurfaceCard>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <SurfaceCard className="xl:col-span-2">
+        <SurfaceCard className="min-w-0 xl:col-span-2">
           <div className="p-6">
             <h2 className="text-lg font-semibold text-white">Work Summary</h2>
             <p className="mt-3 text-sm leading-7 text-slate-400">
@@ -180,7 +180,7 @@ export function JobDetailScreen({
           </div>
         </SurfaceCard>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <SurfaceCard>
             <div className="p-6">
               <h2 className="text-lg font-semibold text-white">Operational Context</h2>
