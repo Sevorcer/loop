@@ -42,6 +42,7 @@ export interface StorageObjectMeta {
   mimeType: string;
   sizeBytes: number;
   uploadedBy: string | null;
+  uploaderRole: string | null;
   jobId: string | null;
   propertyId: string | null;
   visibility: "internal" | "customer";
@@ -58,6 +59,7 @@ function mapStorageObject(row: StorageObjectRow): StorageObjectMeta {
     mimeType: row.mime_type,
     sizeBytes: row.size_bytes,
     uploadedBy: row.uploaded_by,
+    uploaderRole: null,
     jobId: row.job_id,
     propertyId: row.property_id,
     visibility: row.visibility,
@@ -234,7 +236,23 @@ export async function listStorageObjects(filter?: {
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  return (data as StorageObjectRow[]).map(mapStorageObject);
+  const rows = (data as StorageObjectRow[]).map(mapStorageObject);
+
+  // Enrich with uploader roles so callers can distinguish tech field uploads
+  // from office uploads (e.g. the job completion photo gate).
+  const uploaderIds = [...new Set(rows.map((row) => row.uploadedBy).filter((id): id is string => Boolean(id)))];
+  if (uploaderIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("id, role")
+      .in("id", uploaderIds);
+    const roleById = new Map((profiles ?? []).map((profile) => [profile.id as string, profile.role as string]));
+    for (const row of rows) {
+      row.uploaderRole = row.uploadedBy ? roleById.get(row.uploadedBy) ?? null : null;
+    }
+  }
+
+  return rows;
 }
 
 export async function getStorageObjectById(id: string): Promise<StorageObjectMeta | null> {
