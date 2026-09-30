@@ -31,7 +31,7 @@ import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentW
 
 import type { JobAppointmentHour, JobPriority, JobType } from "../types/job";
 
-const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection", "Estimate"];
+const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
 
 export interface JobFormValues {

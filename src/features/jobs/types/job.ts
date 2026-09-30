@@ -1,4 +1,4 @@
-export type JobType = "Install" | "Service" | "Maintenance" | "Inspection" | "Estimate";
+export type JobType = "Install" | "Service" | "Maintenance" | "Inspection" | "Estimate" | "Callback";
 
 export type JobStatus =
   | "Scheduled"

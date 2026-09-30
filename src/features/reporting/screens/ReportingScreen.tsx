@@ -1,209 +1,305 @@
 "use client";
 
-import { BarChart3 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { EmptyState, ErrorState, LoadingState, PageHeader, SectionCard } from "@/components/atlas";
+import {
+  ErrorState,
+  KPICard,
+  LoadingState,
+  PageHeader,
+  SectionCard,
+} from "@/components/atlas";
+import { useOperationalReports } from "../state/useOperationalReports";
+import {
+  currentMonthKey,
+  isValidMonth,
+  type OperationalReports,
+} from "../utils/operationalReports";
 
-import { HealthIndicatorCard } from "../components/HealthIndicatorCard";
-import { ScorecardSection } from "../components/ScorecardSection";
-import { useReporting } from "../state/ReportingProvider";
-import { resolveReportingUiState } from "../utils/uiState";
+function pct(value: number | null): string {
+  return value == null ? "—" : `${Math.round(value * 100)}%`;
+}
 
-function CompanyHealthBanner({
-  status,
-  attentionCount,
+function shiftMonth(month: string, delta: number): string {
+  const year = Number(month.slice(0, 4));
+  const m = Number(month.slice(5, 7)) - 1 + delta;
+  const date = new Date(Date.UTC(year, m, 1));
+  const y = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${mm}`;
+}
+
+function ReportTable({
+  headers,
+  rows,
+  emptyMessage,
 }: {
-  status: string;
-  attentionCount: number;
+  headers: string[];
+  rows: ReactNode[][];
+  emptyMessage: string;
 }) {
-  const colorMap: Record<string, { bg: string; border: string; text: string; label: string }> = {
-    healthy: {
-      bg: "bg-emerald-500/[0.08]",
-      border: "border-emerald-500/20",
-      text: "text-emerald-200",
-      label: "Healthy",
-    },
-    improving: {
-      bg: "bg-blue-500/[0.08]",
-      border: "border-blue-500/20",
-      text: "text-blue-200",
-      label: "Improving",
-    },
-    "at-risk": {
-      bg: "bg-amber-500/[0.08]",
-      border: "border-amber-500/20",
-      text: "text-amber-200",
-      label: "At Risk",
-    },
-    deteriorating: {
-      bg: "bg-red-500/[0.08]",
-      border: "border-red-500/20",
-      text: "text-red-200",
-      label: "Deteriorating",
-    },
-  };
-
-  const colors = colorMap[status] ?? colorMap["healthy"];
-
+  if (rows.length === 0) {
+    return <p className="px-1 py-3 text-sm text-slate-400">{emptyMessage}</p>;
+  }
   return (
-    <div
-      className={[
-        "flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
-        colors.bg,
-        colors.border,
-      ].join(" ")}
-    >
-      <div className="flex items-center gap-3">
-        <BarChart3 className={["h-5 w-5", colors.text].join(" ")} />
-        <div>
-          <p className={["text-sm font-semibold", colors.text].join(" ")}>
-            Company Health: {colors.label}
-          </p>
-          <p className="mt-0.5 text-xs text-slate-400">
-            Aggregated across all active performance models
-          </p>
-        </div>
-      </div>
-      {attentionCount > 0 ? (
-        <div className="rounded-full border border-amber-500/20 bg-amber-500/[0.12] px-3 py-1 text-xs font-medium text-amber-200">
-          {attentionCount} item{attentionCount !== 1 ? "s" : ""} require attention
-        </div>
-      ) : null}
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[560px] text-left text-sm">
+        <thead>
+          <tr className="border-b border-white/10">
+            {headers.map((header) => (
+              <th
+                key={header}
+                className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-500"
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((cells, rowIndex) => (
+            <tr
+              key={rowIndex}
+              className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]"
+            >
+              {cells.map((cell, cellIndex) => (
+                <td key={cellIndex} className="px-3 py-2 text-slate-200">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-export function ReportingScreen() {
-  const {
-    enrichedScorecards,
-    healthIndicators,
-    companyHealthStatus,
-    attentionItemCount,
-    performanceModels,
-    loading,
-    error,
-  } = useReporting();
-
-  const uiState = resolveReportingUiState({
-    loading,
-    error,
-    modelCount: performanceModels.length,
-  });
-
-  if (uiState === "loading") {
-    return <LoadingState message="Loading reporting models..." />;
-  }
-
-  if (uiState === "error") {
-    return (
-      <ErrorState
-        title="Unable to load Reporting"
-        description={
-          error ?? "We couldn't load reporting models right now. Please try again shortly."
-        }
+function MonthPicker({
+  month,
+  onChange,
+}: {
+  month: string;
+  onChange: (month: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => onChange(shiftMonth(month, -1))}
+        className="rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-slate-300 hover:bg-white/[0.08]"
+        aria-label="Previous month"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <input
+        type="month"
+        value={month}
+        onChange={(event) => {
+          if (isValidMonth(event.target.value)) onChange(event.target.value);
+        }}
+        className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white [color-scheme:dark]"
+        aria-label="Report month"
       />
-    );
-  }
+      <button
+        type="button"
+        onClick={() => onChange(shiftMonth(month, 1))}
+        className="rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-slate-300 hover:bg-white/[0.08]"
+        aria-label="Next month"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
-  if (uiState === "empty") {
-    return (
-      <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-        <PageHeader
-          title="Performance Intelligence"
-          description="How is the company performing over time, and what patterns require attention?"
+function InstallReportSection({ reports }: { reports: OperationalReports }) {
+  const install = reports.install;
+  return (
+    <SectionCard
+      title={`Install Report — ${reports.monthLabel}`}
+      description="Install jobs by week and by tech. Unscheduled installs are counted in the total but not in a week."
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KPICard title="Installs" value={install.total} />
+        <KPICard title="Unscheduled" value={install.unscheduled} />
+      </div>
+
+      <h4 className="mb-2 mt-6 text-xs font-medium uppercase tracking-wide text-slate-500">
+        By week
+      </h4>
+      <ReportTable
+        headers={["Week", "Installs"]}
+        rows={install.byWeek.map((week) => [week.label, String(week.count)])}
+        emptyMessage="No weeks in this month."
+      />
+
+      <h4 className="mb-2 mt-6 text-xs font-medium uppercase tracking-wide text-slate-500">
+        By tech
+      </h4>
+      <ReportTable
+        headers={["Tech", "Installs"]}
+        rows={install.byTech.map((row) => [row.tech, String(row.count)])}
+        emptyMessage="No installs this month."
+      />
+
+      <h4 className="mb-2 mt-6 text-xs font-medium uppercase tracking-wide text-slate-500">
+        Install jobs
+      </h4>
+      <ReportTable
+        headers={["Job", "Title", "Customer", "Tech", "Date", "Status"]}
+        rows={install.jobs.map((job) => [
+          job.jobNumber,
+          job.title || "—",
+          job.customerName || "—",
+          job.tech,
+          job.date ?? "Unscheduled",
+          job.status,
+        ])}
+        emptyMessage="No install jobs this month."
+      />
+    </SectionCard>
+  );
+}
+
+function PipelineSection({ reports }: { reports: OperationalReports }) {
+  const pipeline = reports.pipeline;
+  return (
+    <SectionCard
+      title="Pipeline"
+      description="Open estimates, booked work, completions, and the estimate close rate. Mark an estimate Completed when it's sold, Cancelled when it's lost."
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KPICard title="Open estimates" value={pipeline.openEstimates} />
+        <KPICard title="Scheduled jobs" value={pipeline.scheduledJobs} />
+        <KPICard
+          title={`Completed — ${reports.monthLabel}`}
+          value={pipeline.completedInMonth}
         />
-        <EmptyState
-          title="No active performance models"
-          description="Reporting models will appear here after they are configured."
-          icon={<BarChart3 className="h-5 w-5" />}
+        <KPICard
+          title="Close rate"
+          value={pct(pipeline.closeRate)}
+          description={
+            pipeline.closeRate == null
+              ? "No estimates closed this month"
+              : `${pipeline.estimatesWon} won · ${pipeline.estimatesLost} lost`
+          }
         />
       </div>
-    );
-  }
+
+      <h4 className="mb-2 mt-6 text-xs font-medium uppercase tracking-wide text-slate-500">
+        Open estimates
+      </h4>
+      <ReportTable
+        headers={["Estimate", "Title", "Customer", "Status", "Tech"]}
+        rows={pipeline.openEstimatesList.map((estimate) => [
+          estimate.jobNumber,
+          estimate.title || "—",
+          estimate.customerName || "—",
+          estimate.status,
+          estimate.tech,
+        ])}
+        emptyMessage="No open estimates."
+      />
+    </SectionCard>
+  );
+}
+
+function TechScorecardsSection({ reports }: { reports: OperationalReports }) {
+  const scorecards = reports.techScorecards;
+  return (
+    <SectionCard
+      title={`Tech Scorecards — ${reports.monthLabel}`}
+      description="Jobs done, on-time completion, callbacks, and currently booked work per tech. On-time means finished on or before the scheduled date."
+    >
+      <ReportTable
+        headers={["Tech", "Jobs done", "On-time", "Callbacks", "Callback rate", "Booked"]}
+        rows={scorecards.map((card) => [
+          card.tech,
+          String(card.jobsDone),
+          card.onTimePct == null ? "—" : pct(card.onTimePct),
+          String(card.callbacks),
+          card.callbackRate == null ? "—" : pct(card.callbackRate),
+          String(card.booked),
+        ])}
+        emptyMessage="No tech activity to score."
+      />
+    </SectionCard>
+  );
+}
+
+function CallbacksSection({ reports }: { reports: OperationalReports }) {
+  const callbacks = reports.callbacks;
+  return (
+    <SectionCard
+      title={`Callbacks & Rework — ${reports.monthLabel}`}
+      description="Jobs typed as Callback. Create them from Jobs with type “Callback” to track rework here."
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KPICard title="Callbacks" value={callbacks.total} />
+      </div>
+
+      <h4 className="mb-2 mt-6 text-xs font-medium uppercase tracking-wide text-slate-500">
+        By tech
+      </h4>
+      <ReportTable
+        headers={["Tech", "Callbacks"]}
+        rows={callbacks.byTech.map((row) => [row.tech, String(row.count)])}
+        emptyMessage="No callbacks this month."
+      />
+
+      <h4 className="mb-2 mt-6 text-xs font-medium uppercase tracking-wide text-slate-500">
+        Callback jobs
+      </h4>
+      <ReportTable
+        headers={["Job", "Title", "Customer", "Property", "Tech", "Date", "Status"]}
+        rows={callbacks.jobs.map((job) => [
+          job.jobNumber,
+          job.title || "—",
+          job.customerName || "—",
+          job.propertyName || "—",
+          job.tech,
+          job.date ?? "—",
+          job.status,
+        ])}
+        emptyMessage="No callback jobs this month."
+      />
+    </SectionCard>
+  );
+}
+
+export function ReportingScreen() {
+  const [month, setMonth] = useState(currentMonthKey());
+  const { reports, loading, error } = useOperationalReports(month);
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-      <PageHeader
-        title="Performance Intelligence"
-        description="How is the company performing over time, and what patterns require attention?"
-      />
-
-      {/* Company Health Banner */}
-      <CompanyHealthBanner
-        status={companyHealthStatus}
-        attentionCount={attentionItemCount}
-      />
-
-      {/* Health Indicators Grid */}
-      <SectionCard
-        title="Operational Health"
-        description="Derived health signals across operational domains. Each indicator interprets recent performance, not just current state."
-      >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {healthIndicators.map((indicator) => (
-            <HealthIndicatorCard key={indicator.id} indicator={indicator} />
-          ))}
-        </div>
-      </SectionCard>
-
-      {/* Scorecards */}
-      {enrichedScorecards.map((enriched) => (
-        <SectionCard key={enriched.scorecard.id} title={enriched.scorecard.title}>
-          <ScorecardSection enrichedScorecard={enriched} />
-        </SectionCard>
-      ))}
-
-      {/* Performance Models Summary */}
-      <SectionCard
-        title="Active Performance Models"
-        description="The canonical performance models that define how LOOP measures, compares, and interprets operational health."
-      >
-        <div className="space-y-3">
-          {performanceModels.map((model) => (
-            <div
-              key={model.id}
-              className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 sm:flex-row sm:items-start sm:justify-between"
-            >
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-medium text-white">
-                  {model.title}
-                </p>
-                <p className="text-xs text-slate-400">{model.description}</p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {model.relatedDomains.map((domain) => (
-                    <span
-                      key={domain}
-                      className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-300"
-                    >
-                      {domain}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="shrink-0 text-left sm:ml-4 sm:text-right">
-                <span className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.12] px-2.5 py-0.5 text-xs font-medium capitalize text-emerald-200">
-                  {model.status}
-                </span>
-                <p className="mt-1 text-xs capitalize text-slate-500">
-                  {model.scope} · {model.owner}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-
-      {/* Domain Boundary Note */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Domain Boundary
-        </p>
-        <p className="text-sm leading-relaxed text-slate-300">
-          Reporting interprets operational truth — it does not own it. Performance intelligence
-          is derived from Morning Operations, Dispatch, Live Operations, and Inventory data.
-          Operational facts remain in their source domains.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          title="Reports"
+          description="Installs, pipeline, tech scorecards, and callback tracking — computed from job data."
+        />
+        <MonthPicker month={month} onChange={setMonth} />
       </div>
+
+      {loading ? (
+        <LoadingState message="Loading reports..." />
+      ) : error || !reports ? (
+        <ErrorState
+          title="Unable to load reports"
+          description={
+            error ?? "We couldn't load report data right now. Please try again shortly."
+          }
+        />
+      ) : (
+        <>
+          <InstallReportSection reports={reports} />
+          <PipelineSection reports={reports} />
+          <TechScorecardsSection reports={reports} />
+          <CallbacksSection reports={reports} />
+        </>
+      )}
     </div>
   );
 }

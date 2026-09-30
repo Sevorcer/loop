@@ -723,3 +723,84 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
 
   return ((data ?? []) as JobRow[]).map(mapJob);
 }
+
+// ─── Operational reporting (P3) ──────────────────────────────────────────────
+// Lean row shapes for the reports API — includes the raw timestamps the
+// mapped Job type omits (created_at / updated_at) for month bucketing and
+// terminal-status dating.
+
+export interface JobReportRow {
+  id: string;
+  jobNumber: string;
+  type: string;
+  status: string;
+  title: string;
+  customerName: string;
+  propertyName: string;
+  assignedTo: string;
+  scheduledStartAt: string | null;
+  scheduledFor: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobStatusActivity {
+  jobId: string;
+  title: string;
+  createdAt: string;
+}
+
+const JOB_REPORT_SELECT =
+  "id,job_number,type,status,title,customer_name,property_name,assigned_to,scheduled_start_at,scheduled_for,created_at,updated_at";
+
+export async function listJobReportRows(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<JobReportRow[]> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(JOB_REPORT_SELECT)
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    jobNumber: String(row.job_number ?? ""),
+    type: String(row.type ?? ""),
+    status: String(row.status ?? ""),
+    title: String(row.title ?? ""),
+    customerName: String(row.customer_name ?? ""),
+    propertyName: String(row.property_name ?? ""),
+    assignedTo: String(row.assigned_to ?? ""),
+    scheduledStartAt: (row.scheduled_start_at as string | null) ?? null,
+    scheduledFor: (row.scheduled_for as string | null) ?? null,
+    createdAt: String(row.created_at ?? ""),
+    updatedAt: String(row.updated_at ?? ""),
+  }));
+}
+
+export async function listJobStatusActivities(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<JobStatusActivity[]> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const { data, error } = await supabase
+    .from("job_activity")
+    .select("job_id,title,created_at")
+    .eq("org_id", orgId)
+    .eq("type", "status")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    jobId: String(row.job_id),
+    title: String(row.title ?? ""),
+    createdAt: String(row.created_at ?? ""),
+  }));
+}

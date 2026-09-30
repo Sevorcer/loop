@@ -22,7 +22,7 @@ import { normalizeQaChecklist } from "@/features/jobs/utils/jobCompletionCheckli
 import type { JobAppointmentHour } from "@/features/jobs/types/job";
 
 const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "contractor"]);
-const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate"]);
+const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
 const JOB_STATUSES = new Set([
   "Scheduled",
@@ -37,7 +37,7 @@ function readJobType(value: unknown) {
   if (!JOB_TYPES.has(normalized)) {
     throw new Error("Invalid job type.");
   }
-  return normalized as "Install" | "Service" | "Maintenance" | "Inspection" | "Estimate";
+  return normalized as "Install" | "Service" | "Maintenance" | "Inspection" | "Estimate" | "Callback";
 }
 
 function readJobPriority(value: unknown) {

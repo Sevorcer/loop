@@ -41,7 +41,7 @@ import { resolvePropertyIdByName, syncPropertyCounters } from "@/services/proper
 import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
 import { listFiles } from "@/services/storage";
 
-const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection", "Estimate"]);
+const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_STATUSES = new Set<JobStatus>([
   "Scheduled",
   "In Progress",
