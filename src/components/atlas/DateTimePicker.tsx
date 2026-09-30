@@ -13,7 +13,7 @@
  * parseDatetimeLocalInput / deriveScheduledForDate) with no changes downstream.
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface DateTimeParts {
   date: string;
@@ -57,6 +57,22 @@ const MINUTE_STEP_OPTIONS = Array.from({ length: 12 }, (_, i) =>
   String(i * 5).padStart(2, "0"),
 );
 
+/**
+ * Apply one part change, preserving partial input.
+ *
+ * The picker is filled one control at a time, so the parts the user already
+ * chose must stick while the rest are still empty. Returns the next parts plus
+ * the combined "YYYY-MM-DDTHH:mm" value ("" until every part is present).
+ */
+export function applyDateTimePartChange(
+  parts: DateTimeParts,
+  part: keyof DateTimeParts,
+  partValue: string,
+): { next: DateTimeParts; combined: string } {
+  const next = { ...parts, [part]: partValue };
+  return { next, combined: formatDateTimeLocal(next) };
+}
+
 interface DateTimePickerProps {
   id?: string;
   value: string;
@@ -79,7 +95,20 @@ export function DateTimePicker({
   ariaLabel,
   invalid = false,
 }: DateTimePickerProps) {
-  const parts = useMemo(() => parseDateTimeLocal(value), [value]);
+  // Local part state: the user fills the controls one at a time, and each
+  // choice must stick while the rest are still empty. Deriving the parts from
+  // `value` on every render would wipe partial input, because onChange only
+  // emits "" until every part is present.
+  const [parts, setParts] = useState<DateTimeParts>(() => parseDateTimeLocal(value));
+  const lastEmittedRef = useRef<string>(formatDateTimeLocal(parseDateTimeLocal(value)));
+
+  // Resync when the parent changes the value externally (form reset, loaded record).
+  useEffect(() => {
+    if (value !== lastEmittedRef.current) {
+      setParts(parseDateTimeLocal(value));
+      lastEmittedRef.current = value;
+    }
+  }, [value]);
 
   const minuteOptions = useMemo(() => {
     if (parts.minute && !MINUTE_STEP_OPTIONS.includes(parts.minute)) {
@@ -89,7 +118,10 @@ export function DateTimePicker({
   }, [parts.minute]);
 
   function handlePartChange(part: keyof DateTimeParts, partValue: string) {
-    onChange(formatDateTimeLocal({ ...parts, [part]: partValue }));
+    const { next, combined } = applyDateTimePartChange(parts, part, partValue);
+    setParts(next);
+    lastEmittedRef.current = combined;
+    onChange(combined);
   }
 
   const label = ariaLabel ?? "Date and time";

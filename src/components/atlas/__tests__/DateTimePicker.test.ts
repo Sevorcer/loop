@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyDateTimePartChange,
   formatDateTimeLocal,
   parseDateTimeLocal,
 } from "@/components/atlas/DateTimePicker";
@@ -62,6 +63,41 @@ describe("DateTimePicker helpers (F11)", () => {
     for (const value of ["2026-09-30T09:05", "2026-09-30T14:30", "2026-01-01T00:00"]) {
       expect(formatDateTimeLocal(parseDateTimeLocal(value))).toBe(value);
     }
+  });
+});
+
+describe("applyDateTimePartChange (F11 regression: partial input must stick)", () => {
+  it("preserves each chosen part until all parts are filled", () => {
+    // Simulates a user filling the picker one control at a time: hour, then
+    // minute, then AM/PM, then date. Before this fix the component derived the
+    // parts from `value` on every render, so each choice was wiped because the
+    // combined value stayed "" until complete — the picker could never be filled.
+    let parts = { date: "", hour12: "", minute: "", period: "" };
+
+    let r = applyDateTimePartChange(parts, "hour12", "9");
+    expect(r.next.hour12).toBe("9");
+    expect(r.combined).toBe("");
+    parts = r.next;
+
+    r = applyDateTimePartChange(parts, "minute", "05");
+    expect(r.next).toEqual({ date: "", hour12: "9", minute: "05", period: "" });
+    expect(r.combined).toBe("");
+    parts = r.next;
+
+    r = applyDateTimePartChange(parts, "period", "AM");
+    expect(r.next.period).toBe("AM");
+    expect(r.combined).toBe("");
+    parts = r.next;
+
+    r = applyDateTimePartChange(parts, "date", "2026-09-30");
+    expect(r.next).toEqual({ date: "2026-09-30", hour12: "9", minute: "05", period: "AM" });
+    expect(r.combined).toBe("2026-09-30T09:05");
+  });
+
+  it("converts PM hours to 24h on completion", () => {
+    const parts = { date: "2026-09-30", hour12: "2", minute: "30", period: "" };
+    const r = applyDateTimePartChange(parts, "period", "PM");
+    expect(r.combined).toBe("2026-09-30T14:30");
   });
 });
 
