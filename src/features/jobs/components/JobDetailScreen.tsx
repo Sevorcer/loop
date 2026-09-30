@@ -6,6 +6,7 @@ import {
   Briefcase,
   CalendarClock,
   ExternalLink,
+  HardHat,
   MapPin,
   User,
   Wrench,
@@ -13,6 +14,7 @@ import {
 import Link from "next/link";
 
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
+import { useContractors } from "@/features/contractors/state/ContractorsProvider";
 import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
 import { useInstalledSystems } from "@/features/installed-systems/state/InstalledSystemsProvider";
 import SurfaceCard from "@/components/layout/SurfaceCard";
@@ -67,10 +69,21 @@ export function JobDetailScreen({
   onUpdateQaChecklist,
 }: JobDetailScreenProps) {
   const { getInstalledSystemsForJob } = useInstalledSystems();
+  const { contractors } = useContractors();
   const [fileCount, setFileCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
   const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
   const appointmentHour = readJobAppointmentHour(job);
+  // F15: "Assigned To" (internal technician) and "Assigned Contractors"
+  // (external subs) are stored separately and could silently disagree on this
+  // screen. Render them side by side so both facts are always visible together.
+  const assignedContractorNames = useMemo(
+    () =>
+      (job.contractorIds ?? [])
+        .map((id) => contractors.find((c) => c.id === id)?.companyName)
+        .filter((name): name is string => Boolean(name)),
+    [job.contractorIds, contractors],
+  );
   const statusVariant = getStatusVariant(job.status);
   const priorityVariant = getPriorityVariant(job.priority);
   const statusIntent = getJobStatusIntent(job.status);
@@ -170,10 +183,24 @@ export function JobDetailScreen({
                   <User className="mt-0.5 h-4 w-4 text-slate-400" />
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Assigned To
+                      Assigned Technician
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
                       {job.assignedTo || "No technician assigned"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <HardHat className="mt-0.5 h-4 w-4 text-slate-400" />
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Assigned Contractors
+                    </p>
+                    <p className="mt-1 text-sm text-slate-200">
+                      {assignedContractorNames.length > 0
+                        ? assignedContractorNames.join(", ")
+                        : "None assigned"}
                     </p>
                   </div>
                 </div>
