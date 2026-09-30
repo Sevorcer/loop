@@ -1,5 +1,8 @@
 import "server-only";
 
+import { listContractors } from "@/repositories/contractors";
+import { listJobs } from "@/repositories/jobs";
+
 import type {
   AssignmentStatus,
   DispatchEventType,
@@ -20,6 +23,36 @@ import {
 
 export { loadDispatchSnapshot };
 
+/**
+ * Job-level context the dispatch board filters need but the snapshot lacks:
+ * the contractors assigned to each job (jobs carry contractor_ids; dispatch
+ * plans don't) and the contractor list for the filter dropdown.
+ */
+export async function loadDispatchJobContext(): Promise<{
+  contractors: { id: string; name: string }[];
+  jobContractorIds: Record<string, string[]>;
+}> {
+  const [jobs, contractorList] = await Promise.all([
+    listJobs(),
+    listContractors(),
+  ]);
+
+  const jobContractorIds: Record<string, string[]> = {};
+
+  for (const job of jobs) {
+    if (job.contractorIds && job.contractorIds.length > 0) {
+      jobContractorIds[job.id] = job.contractorIds;
+    }
+  }
+
+  return {
+    contractors: contractorList.map((contractor) => ({
+      id: contractor.id,
+      name: contractor.companyName,
+    })),
+    jobContractorIds,
+  };
+}
 export async function createPlan(input: DispatchPlanWriteInput) {
   return createDispatchPlan(input);
 }

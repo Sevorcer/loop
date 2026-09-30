@@ -88,12 +88,34 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   // ── Filters ──────────────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "ready" | "scheduled" | "blocked">("all");
   const [crewFilter, setCrewFilter] = useState<string>("all");
+  const [jobTypeFilter, setJobTypeFilter] = useState<string>("all");
+  const [contractorFilter, setContractorFilter] = useState<string>("all");
+  const [technicianFilter, setTechnicianFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("");
 
   const crewNames = useMemo(() => {
     const names = new Set(crews.map((c) => c.name));
     return [...names].sort();
   }, [crews]);
+
+  const jobTypeOptions = useMemo(() => {
+    return [...new Set(plans.map((plan) => plan.jobType))].sort();
+  }, [plans]);
+
+  const technicianOptions = useMemo(() => {
+    const names = new Set<string>();
+
+    for (const assignment of assignments) {
+      if (assignment.leadInstaller) names.add(assignment.leadInstaller);
+      for (const tech of assignment.supportingTechnicians ?? []) {
+        names.add(tech);
+      }
+    }
+
+    return [...names].sort();
+  }, [assignments]);
+
+  const contractors = initialSnapshot.contractors ?? [];
 
   const filteredPlans = useMemo(() => {
     let result = plans;
@@ -123,9 +145,38 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         if (!assigned || assigned.crewName !== crewFilter) return false;
       }
 
+      if (jobTypeFilter !== "all" && plan.jobType !== jobTypeFilter) {
+        return false;
+      }
+
+      if (contractorFilter !== "all") {
+        const contractorIds = plan.jobId
+          ? initialSnapshot.jobContractorIds?.[plan.jobId]
+          : undefined;
+        if (!contractorIds?.includes(contractorFilter)) return false;
+      }
+
+      if (technicianFilter !== "all") {
+        const assigned = assignments.find((a) => a.dispatchPlanId === plan.id);
+        const onPlan =
+          assigned?.leadInstaller === technicianFilter ||
+          (assigned?.supportingTechnicians ?? []).includes(technicianFilter);
+        if (!onPlan) return false;
+      }
+
       return true;
     });
-  }, [plans, assignments, statusFilter, crewFilter, dateFilter]);
+  }, [
+    plans,
+    assignments,
+    statusFilter,
+    crewFilter,
+    jobTypeFilter,
+    contractorFilter,
+    technicianFilter,
+    dateFilter,
+    initialSnapshot.jobContractorIds,
+  ]);
 
   const handleAssignCrew = useCallback(
     async (planId: string, crewId: string) => {
@@ -245,7 +296,13 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   );
 
   const sections = buildDispatchQueueSections(filteredPlans);
-  const hasActiveFilters = statusFilter !== "all" || crewFilter !== "all" || !!dateFilter;
+  const hasActiveFilters =
+    statusFilter !== "all" ||
+    crewFilter !== "all" ||
+    jobTypeFilter !== "all" ||
+    contractorFilter !== "all" ||
+    technicianFilter !== "all" ||
+    !!dateFilter;
 
   return (
     <div className="space-y-6">
@@ -285,6 +342,54 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           </select>
         )}
 
+        {jobTypeOptions.length > 1 && (
+          <select
+            value={jobTypeFilter}
+            onChange={(e) => setJobTypeFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+            aria-label="Filter by job type"
+          >
+            <option value="all">All job types</option>
+            {jobTypeOptions.map((jobType) => (
+              <option key={jobType} value={jobType}>
+                {jobType}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {contractors.length > 0 && (
+          <select
+            value={contractorFilter}
+            onChange={(e) => setContractorFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+            aria-label="Filter by contractor"
+          >
+            <option value="all">All contractors</option>
+            {contractors.map((contractor) => (
+              <option key={contractor.id} value={contractor.id}>
+                {contractor.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {technicianOptions.length > 0 && (
+          <select
+            value={technicianFilter}
+            onChange={(e) => setTechnicianFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+            aria-label="Filter by technician"
+          >
+            <option value="all">All technicians</option>
+            {technicianOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+
         <div className="flex items-center gap-1.5">
           <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
           <input
@@ -312,6 +417,9 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
             onClick={() => {
               setStatusFilter("all");
               setCrewFilter("all");
+              setJobTypeFilter("all");
+              setContractorFilter("all");
+              setTechnicianFilter("all");
               setDateFilter("");
             }}
             className="text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"

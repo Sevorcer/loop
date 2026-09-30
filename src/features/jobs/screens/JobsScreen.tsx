@@ -1,13 +1,13 @@
 "use client";
 
-import { Briefcase, ClipboardList, Wrench } from "lucide-react";
+import { Briefcase, CalendarDays, ClipboardList, Wrench } from "lucide-react";
 import Link from "next/link";
 
 import { PermissionGuard } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
-import { ROUTE_BUILDERS } from "@/lib/routes";
+import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import { JobTable } from "../components/JobTable";
 import { JobsMetrics } from "../components/JobsMetrics";
@@ -44,14 +44,26 @@ export function JobsScreen({ initialSearchParams }: JobsScreenProps) {
             </div>
           </div>
 
-          <PermissionGuard table="jobs" action="insert">
-            <Link href={ROUTE_BUILDERS.JOB_NEW()} className="w-full sm:w-auto">
-              <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700">
-                <Briefcase className="h-4 w-4" />
-                New Job
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Link href={ROUTES.CALENDAR} className="w-full sm:w-auto">
+              <Button
+                variant="outline"
+                className="w-full gap-2 border-white/10 bg-white/[0.03] text-slate-200 hover:bg-white/[0.07]"
+              >
+                <CalendarDays className="h-4 w-4" />
+                Calendar View
               </Button>
             </Link>
-          </PermissionGuard>
+
+            <PermissionGuard table="jobs" action="insert">
+              <Link href={ROUTE_BUILDERS.JOB_NEW()} className="w-full sm:w-auto">
+                <Button className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700">
+                  <Briefcase className="h-4 w-4" />
+                  New Job
+                </Button>
+              </Link>
+            </PermissionGuard>
+          </div>
         </div>
       </SurfaceCard>
 

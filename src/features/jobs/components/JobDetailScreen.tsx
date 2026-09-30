@@ -31,6 +31,7 @@ import { JobFilesPanel } from "./JobFilesPanel";
 import { JobMobileActionBar } from "./JobMobileActionBar";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
+import { JobTasksCard } from "./JobTasksCard";
 import { JobTimeline } from "./JobTimeline";
 import { formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
@@ -339,6 +340,8 @@ export function JobDetailScreen({
             initialChecklist={qaChecklist}
             onSaveChecklist={onUpdateQaChecklist}
           />
+
+          <JobTasksCard jobId={job.id} jobType={job.type} />
 
           <AssignContractorPanel jobId={job.id} />
 

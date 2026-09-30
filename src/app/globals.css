@@ -7,6 +7,12 @@
 
 @layer base {
   :root {
+    /* Dark UI by default: tells the browser to render native form controls
+       (select popups, date pickers) dark. Without this, Android Chrome paints
+       <option> popups light while our text is light — options look washed
+       out / unselectable. */
+    color-scheme: dark;
+
     /* ----------------------------------------------------------------------
        Colors
        ---------------------------------------------------------------------- */
@@ -347,6 +353,7 @@
 
 /* Light color mode */
 [data-color-mode="light"] {
+  color-scheme: light;
   --background: #f8fafc;
   --surface: #ffffff;
   --surface-elevated: #f1f5f9;

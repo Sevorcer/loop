@@ -144,7 +144,7 @@ export function DateTimePicker({
         required={required}
         className={`${controlClass(invalid)} bg-slate-950`}
       >
-        <option value="">Hr</option>
+        <option value="" disabled>Hr</option>
         {HOUR_OPTIONS.map((h) => (
           <option key={h} value={h}>
             {h}
@@ -158,7 +158,7 @@ export function DateTimePicker({
         required={required}
         className={`${controlClass(invalid)} bg-slate-950`}
       >
-        <option value="">Min</option>
+        <option value="" disabled>Min</option>
         {minuteOptions.map((m) => (
           <option key={m} value={m}>
             {m}
@@ -172,7 +172,7 @@ export function DateTimePicker({
         required={required}
         className={`${controlClass(invalid)} bg-slate-950 font-medium`}
       >
-        <option value="">—</option>
+        <option value="" disabled>—</option>
         <option value="AM">AM</option>
         <option value="PM">PM</option>
       </select>

@@ -295,6 +295,9 @@ export interface DispatchSnapshot {
   scheduleBlocks: ScheduleBlock[];
   dispatchEvents: DispatchEvent[];
   crews: Crew[];
+  /** Job-level context for board filters (contractor filter). Loaded with the snapshot. */
+  contractors?: { id: string; name: string }[];
+  jobContractorIds?: Record<string, string[]>;
   metrics: {
     readyToSchedule: number;
     scheduled: number;
