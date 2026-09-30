@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowUpRight, Building2, CalendarClock, ClipboardList, User, Users, Wrench } from "lucide-react";
+import { ArrowUpRight, Building2, CalendarClock, ClipboardList, Plus, User, Users, Wrench } from "lucide-react";
 
 import { AtlasTabs, AtlasTimeline, EmptyState, ErrorState, PermissionGuard, StatusBadge } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +37,7 @@ const tabs: CustomerDetailTab[] = [
   { key: "overview", label: "Overview" },
   { key: "jobs", label: "Jobs" },
   { key: "properties", label: "Properties" },
-  { key: "systems", label: "Systems" },
+  { key: "systems", label: "Equipment" },
   { key: "timeline", label: "Timeline" },
   { key: "docs", label: "Docs" },
   { key: "financials", label: "Financials" },
@@ -417,39 +417,64 @@ export function CustomerDetailTabs({
       ) : null}
 
       {activeTab === "systems" ? (
-        systemsError ? (
-          <ErrorState description={systemsError} />
-        ) : filteredSystems.length === 0 ? (
-          <EmptyState
-            title="No installed systems in this scope"
-            description="Installed systems linked to this customer will appear here."
-          />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Installed Systems</CardTitle>
-            </CardHeader>
+        <div className="space-y-4">
+          {/* Model/serial entry starts here (the form captures manufacturer,
+              model and serial). Mirrors the property Equipment tab Add System. */}
+          <div className="flex items-center justify-end">
+            <PermissionGuard table="installed_systems" action="insert">
+              <Link
+                href={ROUTE_BUILDERS.INSTALLED_SYSTEM_NEW({
+                  propertyId:
+                    scopedProperty?.id ??
+                    properties[0]?.id,
+                  propertyName:
+                    scopedProperty?.name ??
+                    properties[0]?.name,
+                  customerName: customer.name,
+                })}
+              >
+                <Button size="sm" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add System
+                </Button>
+              </Link>
+            </PermissionGuard>
+          </div>
 
-            <CardContent className="space-y-4">
-              {filteredSystems.map((system) => (
-                <div key={system.id} className="rounded-xl border bg-muted/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">{system.systemName}</p>
-                    <StatusBadge variant={system.lifecycleStatus === "Active" ? "success" : "warning"}>
-                      {system.lifecycleStatus}
-                    </StatusBadge>
+          {systemsError ? (
+            <ErrorState description={systemsError} />
+          ) : filteredSystems.length === 0 ? (
+            <EmptyState
+              title="No equipment recorded yet"
+              description="Add the customer's equipment (manufacturer, model, serial) with the Add System button above."
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Installed Systems</CardTitle>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {filteredSystems.map((system) => (
+                  <div key={system.id} className="rounded-xl border bg-muted/20 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium">{system.systemName}</p>
+                      <StatusBadge variant={system.lifecycleStatus === "Active" ? "success" : "warning"}>
+                        {system.lifecycleStatus}
+                      </StatusBadge>
+                    </div>
+                    <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                      <p>Property: {system.propertyName}</p>
+                      <p>Installed: {formatDate(system.installDate)}</p>
+                      <p>Manufacturer: {system.manufacturer || "Unknown"}</p>
+                      <p>Model: {system.modelNumber || "Unknown"}</p>
+                    </div>
                   </div>
-                  <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                    <p>Property: {system.propertyName}</p>
-                    <p>Installed: {formatDate(system.installDate)}</p>
-                    <p>Manufacturer: {system.manufacturer || "Unknown"}</p>
-                    <p>Model: {system.modelNumber || "Unknown"}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       ) : null}
 
       {activeTab === "timeline" ? (

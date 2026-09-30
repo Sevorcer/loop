@@ -12,6 +12,26 @@ import {
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// ─── Job type colors (feedback: color-code Service vs Install on calendar) ───
+
+export const JOB_TYPE_DOT: Record<string, string> = {
+  Install: "bg-blue-400",
+  Service: "bg-emerald-400",
+  Maintenance: "bg-amber-400",
+  Inspection: "bg-violet-400",
+  Estimate: "bg-slate-400",
+  Callback: "bg-rose-400",
+};
+
+const JOB_TYPE_LEGEND = [
+  "Install",
+  "Service",
+  "Maintenance",
+  "Inspection",
+  "Estimate",
+  "Callback",
+] as const;
+
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -50,18 +70,30 @@ export function CalendarGrid({
   const today = getTodayDate();
   const weeks = getCalendarMonthGrid(year, month);
 
-  // Build lookup maps — only from jobs that actually have scheduledFor set.
-  const jobCountByDate: Record<string, number> = {};
+  // Group jobs by date (only jobs that actually have scheduledFor set).
+  const jobsByDate: Record<string, Job[]> = {};
   const unassignedCountByDate: Record<string, number> = {};
 
   for (const job of scheduledJobs) {
     // Guard: scheduledFor must be non-null (caller should filter, but be safe)
     if (!job.scheduledFor) continue;
-    jobCountByDate[job.scheduledFor] = (jobCountByDate[job.scheduledFor] ?? 0) + 1;
+
+    if (!jobsByDate[job.scheduledFor]) {
+      jobsByDate[job.scheduledFor] = [];
+    }
+    jobsByDate[job.scheduledFor].push(job);
+
     if (!job.assignedTo.trim()) {
       unassignedCountByDate[job.scheduledFor] =
         (unassignedCountByDate[job.scheduledFor] ?? 0) + 1;
     }
+  }
+
+  // Earliest first inside each day cell.
+  for (const date of Object.keys(jobsByDate)) {
+    jobsByDate[date].sort((a, b) =>
+      (a.scheduledStartAt ?? "").localeCompare(b.scheduledStartAt ?? ""),
+    );
   }
 
   const viewingCurrentMonth =
@@ -107,6 +139,21 @@ export function CalendarGrid({
         </div>
       </div>
 
+      {/* Type legend */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {JOB_TYPE_LEGEND.map((type) => (
+          <span
+            key={type}
+            className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${JOB_TYPE_DOT[type] ?? "bg-slate-400"}`}
+            />
+            {type}
+          </span>
+        ))}
+      </div>
+
       {/* Day-of-week headers */}
       <div className="mb-1 grid grid-cols-7 gap-1">
         {DAY_LABELS.map((d) => (
@@ -125,10 +172,13 @@ export function CalendarGrid({
           <div key={wi} className="grid grid-cols-7 gap-1">
             {week.map((date, di) => {
               if (date === null) {
-                return <div key={di} className="h-16 rounded-xl" />;
+                return <div key={di} className="h-24 rounded-xl sm:h-28" />;
               }
 
-              const jobCount = jobCountByDate[date] ?? 0;
+              const dayJobs = jobsByDate[date] ?? [];
+              const jobCount = dayJobs.length;
+              const visibleJobs = dayJobs.slice(0, 2);
+              const overflowCount = jobCount - visibleJobs.length;
               const unassignedCount = unassignedCountByDate[date] ?? 0;
               const isSelected = date === selectedDate;
               const isToday = date === today;
@@ -140,7 +190,7 @@ export function CalendarGrid({
                   type="button"
                   onClick={() => onSelectDate(date)}
                   className={[
-                    "relative flex h-16 flex-col rounded-xl border px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70",
+                    "relative flex h-24 flex-col overflow-hidden rounded-xl border px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 sm:h-28",
                     isSelected
                       ? "border-blue-500/40 bg-blue-500/10"
                       : isToday
@@ -148,7 +198,7 @@ export function CalendarGrid({
                         : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
                     isPast && !isSelected && !isToday ? "opacity-50" : "",
                   ].join(" ")}
-                  aria-label={`${date}${jobCount > 0 ? `, ${jobCount} job${jobCount !== 1 ? "s" : ""}` : ""}`}
+                  aria-label={`${date}${jobCount > 0 ? `: ${dayJobs.map((job) => `${job.customerName} – ${job.title}`).join("; ")}` : ""}`}
                   aria-pressed={isSelected}
                 >
                   {/* Date number */}
@@ -165,10 +215,30 @@ export function CalendarGrid({
                     {parseInt(date.split("-")[2], 10)}
                   </span>
 
-                  {/* Job count */}
-                  {jobCount > 0 && (
-                    <span className="mt-1 text-[10px] font-medium text-slate-300">
-                      {jobCount} job{jobCount !== 1 ? "s" : ""}
+                  {/* Jobs: customer name + brief description, color-coded by type */}
+                  {visibleJobs.map((job) => (
+                    <span
+                      key={job.id}
+                      className="mt-1.5 flex items-start gap-1 text-[10px] leading-snug"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${JOB_TYPE_DOT[job.type] ?? "bg-slate-400"}`}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-slate-100">
+                          {job.customerName}
+                        </span>
+                        <span className="block truncate text-slate-400">
+                          {job.title}
+                        </span>
+                      </span>
+                    </span>
+                  ))}
+
+                  {overflowCount > 0 && (
+                    <span className="mt-1 text-[9px] font-medium text-slate-500">
+                      +{overflowCount} more
                     </span>
                   )}
 
