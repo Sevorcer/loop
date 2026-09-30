@@ -21,6 +21,7 @@ import { MapViewCard } from "../components/MapViewCard";
 import { PropertyDeleteButton } from "../components/PropertyDeleteButton";
 import { PropertyDetailTabs } from "../components/PropertyDetailTabs";
 import { formatPropertyAddress } from "../utils/formatPropertyAddress";
+import { formatDateOnly } from "@/lib/dates";
 
 interface PropertyDetailScreenProps {
   property: Property;
@@ -33,7 +34,7 @@ interface PropertyDetailScreenProps {
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString();
+  return formatDateOnly(value);
 }
 
 

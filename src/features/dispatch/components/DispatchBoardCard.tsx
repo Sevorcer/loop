@@ -15,6 +15,7 @@ import Link from "next/link";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
+import { todayLocalISODate } from "@/lib/dates";
 
 import type { Crew, DispatchPlan } from "../types/dispatch";
 import {
@@ -239,7 +240,7 @@ export function DispatchBoardCard({
               <input
                 type="date"
                 defaultValue={plan.targetDate}
-                min={new Date().toISOString().slice(0, 10)}
+                min={todayLocalISODate()}
                 onChange={(e) => {
                   if (e.target.value) {
                     onSchedulePlan(plan.id, e.target.value);

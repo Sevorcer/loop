@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { mockVehicleAlerts } from "../data/mockVehicleAlerts";
+import { todayLocalISODate } from "@/lib/dates";
 import type {
   VehicleAlert,
   VehicleAlertPriority,
@@ -85,7 +86,7 @@ export function VehicleAlertsProvider({ children }: { children: ReactNode }) {
         priority: input.priority,
         status: "New",
         reportedBy: input.reportedBy.trim(),
-        reportedAt: new Date().toISOString().slice(0, 10),
+        reportedAt: todayLocalISODate(),
       };
       setAlerts((current) => [newAlert, ...current]);
       return newAlert;

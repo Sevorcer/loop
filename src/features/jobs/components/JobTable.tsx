@@ -8,6 +8,7 @@ import { DataTable, ErrorState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
 import { useAuth, useCurrentRole } from "@/features/auth";
 import { isOpenStatus, normalizeJobStatus } from "@/lib/jobs/status";
+import { todayLocalISODate } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 
 import { useJobs } from "../state/JobsProvider";
@@ -97,7 +98,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   const filteredJobs = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
     const isTechView = role === "tech";
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = todayLocalISODate();
     const scopedTechnicianNames = new Set<string>();
     const fullName = user?.user_metadata?.full_name;
     if (typeof fullName === "string" && fullName.trim()) {

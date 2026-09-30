@@ -12,6 +12,7 @@ import {
   type InstalledSystemsRepositorySnapshot,
   type InstalledSystemWriteInput,
 } from "@/repositories/installedSystems";
+import { resolvePropertyIdByName } from "@/services/properties";
 
 export async function getInstalledSystemsSnapshot(): Promise<InstalledSystemsRepositorySnapshot> {
   return loadInstalledSystemsSnapshot();
@@ -28,7 +29,18 @@ export async function getInstalledSystemsForProperty(
 export async function createInstalledSystem(
   input: InstalledSystemWriteInput,
 ): Promise<InstalledSystem> {
-  const result = await upsertInstalledSystem(undefined, input);
+  // Resolve the free-text property name to a real property_id when the caller
+  // didn't supply one (e.g. standalone /installed-systems/new). Readers (job
+  // panel, customer Systems tab) match on property_id, so without this the
+  // record is invisible everywhere it should appear.
+  let propertyId = input.propertyId ?? null;
+  if (!propertyId && input.propertyName) {
+    propertyId = await resolvePropertyIdByName(input.propertyName);
+  }
+  const result = await upsertInstalledSystem(undefined, {
+    ...input,
+    propertyId: propertyId ?? undefined,
+  });
   if (!result.ok) throw new Error(result.error.message);
   return result.data;
 }

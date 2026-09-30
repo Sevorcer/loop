@@ -6,6 +6,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTES } from "@/lib/routes";
+import { formatDateOnly } from "@/lib/dates";
 
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import type { InstalledSystem } from "../types/installedSystem";
@@ -67,7 +68,7 @@ export function InstalledSystemsList() {
                   <Fact label="Workflow reference" value={system.jobNumber ?? "Service linked"} />
                   <Fact
                     label="Install date"
-                    value={new Date(system.installDate).toLocaleDateString()}
+                    value={formatDateOnly(system.installDate)}
                   />
                 </div>
 

@@ -28,6 +28,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
 import type { TimelineEventItem } from "@/lib/timeline";
+import { formatDateOnly } from "@/lib/dates";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
@@ -70,7 +71,7 @@ const tabs: PropertyDetailTab[] = [
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Unscheduled";
-  return new Date(value).toLocaleDateString();
+  return formatDateOnly(value);
 }
 
 function getPropertyDetails(property: Property): PropertyDetails {

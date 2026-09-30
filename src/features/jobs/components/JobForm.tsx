@@ -24,6 +24,7 @@ import {
   isValidTimeWindow,
   getTimeWindowError,
   deriveScheduledStartAt,
+  deriveScheduledForDate,
 } from "@/features/jobs/utils/schedulingTime";
 import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
 
@@ -47,6 +48,12 @@ export interface JobFormValues {
   arrivalWindowStartAt: string;
   /** datetime-local value — optional arrival window end. */
   arrivalWindowEndAt: string;
+  /**
+   * Legacy calendar date ("YYYY-MM-DD") derived from the wall-clock date the
+   * user picked. Kept in sync so schedule readers (calendar, daily plans) see
+   * the job without a second scheduling step.
+   */
+  scheduledFor?: string | null;
   type: JobType;
   priority: JobPriority;
   location: string;
@@ -116,6 +123,24 @@ function normalizeValues(values: JobFormValues): JobFormValues {
     location: values.location.trim(),
     summary: values.summary.trim(),
     notes: values.notes.trim(),
+    // Store offset-aware instants so timestamptz columns keep the wall-clock
+    // time the user picked instead of misreading it as UTC.
+    scheduledStartAt:
+      parseDatetimeLocalInput(values.scheduledStartAt) ?? values.scheduledStartAt,
+    scheduledEndAt:
+      parseDatetimeLocalInput(values.scheduledEndAt) ?? values.scheduledEndAt,
+    arrivalWindowStartAt:
+      parseDatetimeLocalInput(values.arrivalWindowStartAt) ??
+      values.arrivalWindowStartAt,
+    arrivalWindowEndAt:
+      parseDatetimeLocalInput(values.arrivalWindowEndAt) ?? values.arrivalWindowEndAt,
+    // Derive the legacy calendar-date column from the wall-clock date picked
+    // in the form, so the job appears on the calendar / in daily plans without
+    // requiring a separate scheduling step.
+    scheduledFor:
+      deriveScheduledForDate(values.scheduledStartAt) ??
+      values.scheduledFor ??
+      null,
   };
 }
 
@@ -392,19 +417,30 @@ export function JobForm({
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Assigned Technician</label>
-              <input
-                list="job-technician-options"
+              <select
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
-                placeholder="Marcus Rivera"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
                 required
-              />
-              <datalist id="job-technician-options">
+              >
+                <option value="" disabled>
+                  Select technician
+                </option>
+                {/* Keep a legacy free-text value selectable on edit so an
+                    existing assignment is never lost when it predates the
+                    technician roster. */}
+                {form.assignedTo.trim() &&
+                  !technicianOptions.includes(form.assignedTo.trim()) && (
+                    <option value={form.assignedTo.trim()}>
+                      {form.assignedTo.trim()}
+                    </option>
+                  )}
                 {technicianOptions.map((technician) => (
-                  <option key={technician} value={technician} />
+                  <option key={technician} value={technician}>
+                    {technician}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </div>
 
             {/* Scheduling — PR3C clock-time fields */}

@@ -5,11 +5,12 @@ import { AlertTriangle, ArrowUpDown } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
+import { formatDateOnly } from "@/lib/dates";
 
 import type { VehicleAlert, VehicleAlertStatus } from "../types/vehicleAlert";
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString();
+  return formatDateOnly(value);
 }
 
 function SortableHeader({

@@ -18,6 +18,7 @@ import {
   isValidJobAppointmentHour,
 } from "@/features/jobs/utils/appointmentWindow";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
+import { formatDateOnly } from "@/lib/dates";
 import {
   countJobs,
   createJob as createJobRecord,
@@ -223,9 +224,9 @@ export async function createJob(
       type: "scheduled",
       title: "Schedule confirmed",
       description: createdJob.scheduledStartAt
-        ? `Job scheduled for ${new Date(createdJob.scheduledStartAt).toLocaleDateString()}.`
+        ? `Job scheduled for ${formatDateOnly(createdJob.scheduledStartAt)}.`
         : createdJob.scheduledFor
-          ? `Job scheduled for ${new Date(createdJob.scheduledFor).toLocaleDateString()}.`
+          ? `Job scheduled for ${formatDateOnly(createdJob.scheduledFor)}.`
           : "Job created without a scheduled date.",
     }, contextInput),
   ]);

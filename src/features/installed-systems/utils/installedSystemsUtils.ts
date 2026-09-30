@@ -1,4 +1,5 @@
 import type { Job, JobStatus } from "@/features/jobs/types/job";
+import { formatDateOnly } from "@/lib/dates";
 
 import { equipmentCatalog } from "../data/equipmentCatalog";
 import { estimateEquipmentBundles } from "../data/estimateEquipmentBundles";
@@ -328,7 +329,7 @@ function buildInstalledSystemFromJob(job: Job) {
     linkedWorkflowIds: [job.id],
     permitReady: profile.matchState === "exact",
     operationalHistory: [
-      `${bundle.estimateId} accepted on ${new Date(bundle.soldDate).toLocaleDateString()}.`,
+      `${bundle.estimateId} accepted on ${formatDateOnly(bundle.soldDate)}.`,
       `${job.jobNumber} created and linked to permanent technical identity ${technicalIdentityId}.`,
       profile.matchState === "exact"
         ? "Permit-ready technical profile inherited automatically from trusted catalog data."

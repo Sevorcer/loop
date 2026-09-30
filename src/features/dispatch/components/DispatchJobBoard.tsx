@@ -22,13 +22,13 @@ import { DispatchBoardCard } from "./DispatchBoardCard";
 
 const BOARD_GROUPS = {
   active: {
-    emptyMessage: "No jobs are currently in progress.",
+    emptyMessage: "No dispatch plans are currently in progress.",
   },
   ready: {
     emptyMessage: "No plans are currently ready for scheduling.",
   },
   scheduled: {
-    emptyMessage: "No work is currently scheduled.",
+    emptyMessage: "No dispatch plans are currently scheduled.",
   },
   blocked: {
     emptyMessage: "No plans are blocked right now.",
