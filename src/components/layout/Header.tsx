@@ -14,12 +14,27 @@ const headerDateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 });
 
-const pageContent: Record<string, { title: string; description: string }> = {
+interface PageMeta {
+  title: string;
+  description: string;
+  parent?: { title: string; href: string };
+}
+
+const pageContent: Record<string, PageMeta> = {
   [ROUTES.DASHBOARD]: {
     title: "Dashboard",
     description: "Welcome back. Here's what's happening today.",
   },
   // Operations
+  [ROUTES.OPERATIONS]: {
+    title: "Operations",
+    description: "Coordinate schedules, dispatch, and field execution from one hub.",
+  },
+  [ROUTES.COMMAND_CENTER]: {
+    title: "Command Center",
+    description:
+      "Operational health at a glance — risk, crew load, and intervention priorities for today.",
+  },
   [ROUTES.DAILY_PLANS]: {
     title: "Daily Plans",
     description: "Coordinate schedules, technician priorities, and day-of execution.",
@@ -31,6 +46,10 @@ const pageContent: Record<string, { title: string; description: string }> = {
   [ROUTES.DISPATCH]: {
     title: "Dispatch",
     description: "Assign crews, schedule blocks, and coordinate same-day field deployments.",
+  },
+  [ROUTES.CALENDAR]: {
+    title: "Calendar",
+    description: "See scheduled jobs by date. Unscheduled jobs are managed in Daily Plans.",
   },
   // Field
   [ROUTES.JOBS]: {
@@ -44,6 +63,10 @@ const pageContent: Record<string, { title: string; description: string }> = {
   [ROUTES.CUSTOMERS]: {
     title: "Customers",
     description: "Manage customer relationships, service history, and account context.",
+  },
+  [ROUTES.CONTRACTORS]: {
+    title: "Contractors",
+    description: "Manage contractor relationships, certifications, and assignments.",
   },
   [ROUTES.INSTALLED_SYSTEMS]: {
     title: "Installed Systems",
@@ -73,47 +96,168 @@ const pageContent: Record<string, { title: string; description: string }> = {
     title: "Settings",
     description: "Configure system preferences, users, and workspace behavior.",
   },
+  [ROUTES.SETTINGS_USERS]: {
+    title: "Users",
+    description: "Manage team members, roles, and invitations.",
+    parent: { title: "Settings", href: ROUTES.SETTINGS },
+  },
+  [ROUTES.SETTINGS_APPEARANCE]: {
+    title: "Appearance",
+    description: "Customize theme, layout, and navigation preferences.",
+    parent: { title: "Settings", href: ROUTES.SETTINGS },
+  },
+  [ROUTES.SETTINGS_ROLES]: {
+    title: "Roles & Permissions",
+    description: "Control what each role can see and do.",
+    parent: { title: "Settings", href: ROUTES.SETTINGS },
+  },
+  [ROUTES.SETTINGS_FEEDBACK]: {
+    title: "Feedback",
+    description: "Review in-app feedback submitted from Settings.",
+    parent: { title: "Settings", href: ROUTES.SETTINGS },
+  },
   [ROUTES.OPS_FEEDBACK]: {
     title: "Feedback Reports",
     description: "Triage in-app feedback from the pilot team — review, prioritize, and resolve.",
   },
 };
 
-function getPageMeta(pathname: string) {
-  const directMatch = pageContent[pathname];
-  if (directMatch) return directMatch;
+interface DynamicRoute {
+  test: (pathname: string) => boolean;
+  meta: PageMeta;
+}
 
-  if (pathname.startsWith("/customers/")) {
-    return {
+// Ordered most-specific first: /new and /edit must come before /:id.
+const dynamicPageMeta: DynamicRoute[] = [
+  {
+    test: (p) => p === `${ROUTES.JOBS}/new`,
+    meta: {
+      title: "New Job",
+      description: "Create a job and get it ready for scheduling.",
+      parent: { title: "Jobs", href: ROUTES.JOBS },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.JOBS}/`) && p.endsWith("/edit"),
+    meta: {
+      title: "Edit Job",
+      description: "Update job details, assignment, or schedule.",
+      parent: { title: "Jobs", href: ROUTES.JOBS },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.JOBS}/`),
+    meta: {
+      title: "Job Details",
+      description: "Review job progress, timeline, and field activity.",
+      parent: { title: "Jobs", href: ROUTES.JOBS },
+    },
+  },
+  {
+    test: (p) => p === `${ROUTES.CUSTOMERS}/new`,
+    meta: {
+      title: "New Customer",
+      description: "Add a customer to your service portfolio.",
+      parent: { title: "Customers", href: ROUTES.CUSTOMERS },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.CUSTOMERS}/`) && p.endsWith("/edit"),
+    meta: {
+      title: "Edit Customer",
+      description: "Update customer details and account context.",
+      parent: { title: "Customers", href: ROUTES.CUSTOMERS },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.CUSTOMERS}/`),
+    meta: {
       title: "Customer Details",
       description: "Review account activity, notes, related jobs, and history.",
-    };
-  }
-  if (pathname === `${ROUTES.PROPERTIES}/new`) {
-    return {
+      parent: { title: "Customers", href: ROUTES.CUSTOMERS },
+    },
+  },
+  {
+    test: (p) => p === `${ROUTES.PROPERTIES}/new`,
+    meta: {
       title: "Create Property",
       description: "Capture a new service location and add it to your property portfolio.",
-    };
-  }
-  if (pathname.startsWith("/properties/")) {
-    return {
+      parent: { title: "Properties", href: ROUTES.PROPERTIES },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.PROPERTIES}/`) && p.endsWith("/edit"),
+    meta: {
+      title: "Edit Property",
+      description: "Update site information and service context.",
+      parent: { title: "Properties", href: ROUTES.PROPERTIES },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.PROPERTIES}/`),
+    meta: {
       title: "Property Details",
       description: "Inspect site information, service history, and related operational data.",
-    };
-  }
-  if (pathname.startsWith(`${ROUTES.INSTALLED_SYSTEMS}/`)) {
-    return {
+      parent: { title: "Properties", href: ROUTES.PROPERTIES },
+    },
+  },
+  {
+    test: (p) => p === `${ROUTES.CONTRACTORS}/new`,
+    meta: {
+      title: "New Contractor",
+      description: "Add a contractor to your field network.",
+      parent: { title: "Contractors", href: ROUTES.CONTRACTORS },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.INSTALLED_SYSTEMS}/`) && p.endsWith("/edit"),
+    meta: {
+      title: "Edit Installed System",
+      description: "Update the technical identity and profile for this installed system.",
+      parent: { title: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.INSTALLED_SYSTEMS}/`),
+    meta: {
       title: "Installed System Record",
       description:
         "Review the technical identity, catalog-backed profile, and workflow inheritance for this installed system.",
-    };
-  }
-  if (pathname.startsWith(`${ROUTES.JOBS}/`)) {
-    if (pathname.endsWith("/edit")) {
-      return { title: "Edit Job", description: "Update job details, assignment, or schedule." };
-    }
-    return { title: "Job Details", description: "Review job progress, timeline, and field activity." };
-  }
+      parent: { title: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS },
+    },
+  },
+  {
+    test: (p) => p === `${ROUTES.COMPANY_BRAIN}/new`,
+    meta: {
+      title: "New Knowledge Entry",
+      description: "Capture a procedure, note, or piece of shared context.",
+      parent: { title: "Company Brain", href: ROUTES.COMPANY_BRAIN },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.COMPANY_BRAIN}/`) && p.endsWith("/edit"),
+    meta: {
+      title: "Edit Knowledge Entry",
+      description: "Update this shared knowledge entry.",
+      parent: { title: "Company Brain", href: ROUTES.COMPANY_BRAIN },
+    },
+  },
+  {
+    test: (p) => p.startsWith(`${ROUTES.COMPANY_BRAIN}/`),
+    meta: {
+      title: "Knowledge Entry",
+      description: "Review this shared procedure or operational note.",
+      parent: { title: "Company Brain", href: ROUTES.COMPANY_BRAIN },
+    },
+  },
+];
+
+export function getPageMeta(pathname: string): PageMeta {
+  const directMatch = pageContent[pathname];
+  if (directMatch) return directMatch;
+
+  const dynamicMatch = dynamicPageMeta.find((route) => route.test(pathname));
+  if (dynamicMatch) return dynamicMatch.meta;
 
   return pageContent[ROUTES.DASHBOARD];
 }
@@ -155,9 +299,9 @@ export default function Header({
         {showDashboardCrumb ? (
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <Link
-              href={ROUTES.DASHBOARD}
+              href={pageMeta.parent?.href ?? ROUTES.DASHBOARD}
               className="flex shrink-0 items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
-              aria-label="Back to Dashboard"
+              aria-label={pageMeta.parent ? `Back to ${pageMeta.parent.title}` : "Back to Dashboard"}
             >
               <ArrowLeft className="h-3 w-3" />
             </Link>
@@ -260,7 +404,24 @@ export default function Header({
                       <li aria-hidden="true" className="px-1 text-slate-600">
                         /
                       </li>
-                      <li className="text-slate-300">{pageMeta.title}</li>
+                      {pageMeta.parent ? (
+                        <>
+                          <li>
+                            <Link
+                              href={pageMeta.parent.href}
+                              className="transition-colors hover:text-slate-300"
+                            >
+                              {pageMeta.parent.title}
+                            </Link>
+                          </li>
+                          <li aria-hidden="true" className="px-1 text-slate-600">
+                            /
+                          </li>
+                        </>
+                      ) : null}
+                      <li className="text-slate-300" aria-current="page">
+                        {pageMeta.title}
+                      </li>
                     </>
                   ) : (
                     <li className="text-slate-300">Dashboard</li>
