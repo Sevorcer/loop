@@ -78,7 +78,7 @@ export const COMMAND_CENTER_KPI_DEFINITIONS: Record<CommandCenterKPIKey, KPIView
   avgCompletionHours: {
     label: "Avg Completion",
     description: "Estimated hours for today’s completed dispatch plans",
-    helpText: "Uses estimated_duration_hours; measured completion timing is deferred to Sprint 8.",
+    helpText: "Based on estimated job durations; actual completion timing isn't tracked yet.",
     href: ACTIONABLE_VIEWS.avgCompletion,
   },
 };

@@ -164,7 +164,7 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
 
           <div className="mt-5 rounded-2xl border border-blue-500/15 bg-blue-500/5 px-5 py-4">
             <p className="text-sm text-blue-300">
-              <span className="font-semibold">Product Law:</span> Dispatch
+              <span className="font-semibold">Dispatch rule:</span> Dispatch
               should only schedule work that is operationally ready. The calendar
               is a view of dispatch truth — not its source.
             </p>

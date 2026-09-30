@@ -19,6 +19,14 @@ function formatTimestamp(value: string) {
   return new Date(value).toLocaleString();
 }
 
+// Raw database IDs sometimes land in the actor field; never show those to users.
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isDisplayableActor(actorId: string): boolean {
+  return !UUID_PATTERN.test(actorId);
+}
+
 function getActivityIcon(type: JobActivity["type"]) {
   switch (type) {
     case "created":
@@ -81,7 +89,7 @@ export function JobTimeline({ activity }: { activity: JobActivity[] }) {
                       <p className="mt-1 text-sm leading-6 text-slate-400">
                         {item.description}
                       </p>
-                      {item.actorId ? (
+                      {item.actorId && isDisplayableActor(item.actorId) ? (
                         <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
                           Actor: {item.actorId}
                         </p>

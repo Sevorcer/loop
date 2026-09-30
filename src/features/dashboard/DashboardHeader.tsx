@@ -39,7 +39,7 @@ export function DashboardHeader() {
       </div>
 
       <p className="text-muted text-xs">
-        {getGreeting()}, {userName}
+        {`${getGreeting()}, ${userName}`}
       </p>
     </div>
   )
