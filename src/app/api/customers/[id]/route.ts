@@ -67,7 +67,11 @@ export async function PATCH(
         body.primaryContact !== undefined ? String(body.primaryContact).trim() : undefined,
       email: body.email !== undefined ? String(body.email).trim() : undefined,
       phone: body.phone !== undefined ? String(body.phone).trim() : undefined,
+      phone2: body.phone2 !== undefined ? String(body.phone2).trim() : undefined,
       city: body.city !== undefined ? String(body.city).trim() : undefined,
+      street: body.street !== undefined ? String(body.street).trim() : undefined,
+      zip: body.zip !== undefined ? String(body.zip).trim() : undefined,
+      notes: body.notes !== undefined ? String(body.notes).trim() : undefined,
       status: readOptionalCustomerStatus(body.status),
     });
 

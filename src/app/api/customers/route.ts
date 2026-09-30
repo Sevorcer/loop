@@ -45,7 +45,11 @@ export async function POST(request: Request) {
       primaryContact: String(body.primaryContact ?? "").trim(),
       email: String(body.email ?? "").trim(),
       phone: String(body.phone ?? "").trim(),
+      phone2: String(body.phone2 ?? "").trim(),
       city: String(body.city ?? "").trim(),
+      street: String(body.street ?? "").trim(),
+      zip: String(body.zip ?? "").trim(),
+      notes: String(body.notes ?? "").trim(),
       status: readCustomerStatus(body.status),
     });
 

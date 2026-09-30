@@ -13,7 +13,7 @@ import { createJob, listJobsWithActivity } from "@/services/jobs";
 
 import type { JobAppointmentHour } from "@/features/jobs/types/job";
 
-const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection"]);
+const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
 
 function readJobType(value: unknown) {
@@ -21,7 +21,7 @@ function readJobType(value: unknown) {
   if (!JOB_TYPES.has(normalized)) {
     throw new Error("Invalid job type.");
   }
-  return normalized as "Install" | "Service" | "Maintenance" | "Inspection";
+  return normalized as "Install" | "Service" | "Maintenance" | "Inspection" | "Estimate";
 }
 
 function readJobPriority(value: unknown) {

@@ -11,7 +11,11 @@ interface CustomerRow {
   primary_contact: string;
   email: string;
   phone: string;
+  phone2: string;
   city: string;
+  street: string;
+  zip: string;
+  notes: string;
   status: CustomerStatus;
   property_count: number;
   open_jobs: number;
@@ -24,7 +28,11 @@ export interface CustomerWriteInput {
   primaryContact: string;
   email: string;
   phone: string;
+  phone2: string;
   city: string;
+  street: string;
+  zip: string;
+  notes: string;
   status: CustomerStatus;
   propertyCount?: number;
   openJobs?: number;
@@ -38,7 +46,11 @@ function mapCustomer(row: CustomerRow): Customer {
     primaryContact: row.primary_contact,
     email: row.email,
     phone: row.phone,
+    phone2: row.phone2,
     city: row.city,
+    street: row.street,
+    zip: row.zip,
+    notes: row.notes,
     status: row.status,
     propertyCount: row.property_count,
     openJobs: row.open_jobs,
@@ -51,7 +63,7 @@ export async function listCustomers(): Promise<Customer[]> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("customers")
-    .select("id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at")
+    .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
@@ -66,7 +78,7 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("customers")
-    .select("id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at")
+    .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
     .eq("org_id", orgId)
     .eq("id", id)
     .maybeSingle();
@@ -88,13 +100,17 @@ export async function createCustomer(input: CustomerWriteInput): Promise<Custome
       primary_contact: input.primaryContact,
       email: input.email,
       phone: input.phone,
+      phone2: input.phone2,
       city: input.city,
+      street: input.street,
+      zip: input.zip,
+      notes: input.notes,
       status: input.status,
       property_count: input.propertyCount ?? 0,
       open_jobs: input.openJobs ?? 0,
       last_activity: input.lastActivity ?? new Date().toISOString().slice(0, 10),
     })
-    .select("id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at")
+    .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
     .single();
 
   if (error) {
@@ -115,7 +131,11 @@ export async function updateCustomer(
   if (input.primaryContact !== undefined) updatePayload.primary_contact = input.primaryContact;
   if (input.email !== undefined) updatePayload.email = input.email;
   if (input.phone !== undefined) updatePayload.phone = input.phone;
+  if (input.phone2 !== undefined) updatePayload.phone2 = input.phone2;
   if (input.city !== undefined) updatePayload.city = input.city;
+  if (input.street !== undefined) updatePayload.street = input.street;
+  if (input.zip !== undefined) updatePayload.zip = input.zip;
+  if (input.notes !== undefined) updatePayload.notes = input.notes;
   if (input.status !== undefined) updatePayload.status = input.status;
   if (input.propertyCount !== undefined) updatePayload.property_count = input.propertyCount;
   if (input.openJobs !== undefined) updatePayload.open_jobs = input.openJobs;
@@ -126,7 +146,7 @@ export async function updateCustomer(
     .update(updatePayload)
     .eq("org_id", orgId)
     .eq("id", id)
-    .select("id,name,primary_contact,email,phone,city,status,property_count,open_jobs,last_activity,created_at")
+    .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
     .maybeSingle();
 
   if (error) {

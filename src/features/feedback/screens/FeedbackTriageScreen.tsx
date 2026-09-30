@@ -189,6 +189,11 @@ export function FeedbackTriageScreen() {
   // Expanded row for inline triage
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // F16: bulk triage selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
   useEffect(() => {
     return () => {
       if (successTimerRef.current !== null) {
@@ -210,6 +215,7 @@ export function FeedbackTriageScreen() {
 
       if (res.ok && data.reports) {
         setReports(data.reports);
+        setSelectedIds(new Set());
       } else {
         setLoadError(data.message ?? "Failed to load feedback reports.");
       }
@@ -242,14 +248,66 @@ export function FeedbackTriageScreen() {
     fetchReports();
   }
 
-  function handleUpdated(updated: FeedbackReport) {
-    setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-    setExpandedId(null);
-    setSuccessMessage("Status updated successfully.");
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) =>
+      prev.size === reports.length ? new Set() : new Set(reports.map((r) => r.id)),
+    );
+  }
+
+  function flashSuccess(message: string) {
+    setSuccessMessage(message);
     if (successTimerRef.current !== null) {
       clearTimeout(successTimerRef.current);
     }
     successTimerRef.current = setTimeout(() => setSuccessMessage(null), SUCCESS_MESSAGE_DURATION_MS);
+  }
+
+  async function handleBulkUpdate(status: FeedbackStatus) {
+    if (selectedIds.size === 0 || isBulkUpdating) return;
+    setBulkError(null);
+    setIsBulkUpdating(true);
+    try {
+      const res = await fetch("/api/feedback/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds), status }),
+      });
+      const data = await res.json().catch(() => ({})) as {
+        reports?: FeedbackReport[];
+        updated?: number;
+        message?: string;
+      };
+      if (res.ok && data.reports) {
+        const updatedById = new Map(data.reports.map((r) => [r.id, r]));
+        setReports((prev) => prev.map((r) => updatedById.get(r.id) ?? r));
+        flashSuccess(`${data.updated ?? data.reports.length} report(s) marked as ${FEEDBACK_STATUS_LABELS[status]}.`);
+        setSelectedIds(new Set());
+      } else {
+        setBulkError(data.message ?? "Bulk update failed.");
+      }
+    } catch {
+      setBulkError("Network error. Please try again.");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  }
+
+  function handleUpdated(updated: FeedbackReport) {
+    setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    setExpandedId(null);
+    flashSuccess("Status updated successfully.");
   }
 
   return (
@@ -352,6 +410,58 @@ export function FeedbackTriageScreen() {
           </Button>
         </div>
 
+        {/* F16: bulk triage bar */}
+        {selectedIds.size > 0 ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
+            <p className="text-sm font-medium text-blue-300">
+              {selectedIds.size} selected
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={isBulkUpdating}
+                onClick={() => handleBulkUpdate("triaged")}
+              >
+                {isBulkUpdating ? "Updating…" : "Mark triaged"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={isBulkUpdating}
+                onClick={() => handleBulkUpdate("resolved")}
+              >
+                Mark resolved
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isBulkUpdating}
+                onClick={() => handleBulkUpdate("wontfix")}
+                className="text-slate-300 hover:text-white"
+              >
+                Dismiss
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isBulkUpdating}
+                onClick={() => setSelectedIds(new Set())}
+                className="text-slate-400 hover:text-white"
+              >
+                Clear
+              </Button>
+            </div>
+            {bulkError ? (
+              <p role="alert" className="w-full text-xs text-red-400">{bulkError}</p>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Results */}
         {isLoading ? (
           <LoadingState />
@@ -379,6 +489,15 @@ export function FeedbackTriageScreen() {
               <table className="w-full text-sm" aria-label="Feedback reports">
                 <thead>
                   <tr className="border-b border-default bg-surface-elevated text-left text-xs text-muted">
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all feedback reports"
+                        checked={reports.length > 0 && selectedIds.size === reports.length}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 accent-blue-500"
+                      />
+                    </th>
                     <th scope="col" className="px-4 py-3 font-medium">Severity</th>
                     <th scope="col" className="px-4 py-3 font-medium">Intended action</th>
                     <th scope="col" className="px-4 py-3 font-medium">Role</th>
@@ -399,6 +518,15 @@ export function FeedbackTriageScreen() {
                           setExpandedId((prev) => (prev === report.id ? null : report.id))
                         }
                       >
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Select feedback report: ${report.intendedAction}`}
+                            checked={selectedIds.has(report.id)}
+                            onChange={() => toggleSelected(report.id)}
+                            className="h-4 w-4 accent-blue-500"
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <StatusBadge variant={severityBadgeVariant(report.severity)}>
                             {report.severity}
@@ -463,7 +591,7 @@ export function FeedbackTriageScreen() {
 
                       {expandedId === report.id ? (
                         <tr key={`${report.id}-detail`}>
-                          <td colSpan={8} className="px-4 pb-4 pt-1 bg-surface-elevated/30">
+                          <td colSpan={9} className="px-4 pb-4 pt-1 bg-surface-elevated/30">
                             <div className="mb-3 space-y-2 text-sm">
                               <div>
                                 <p className="text-xs font-medium text-muted mb-0.5">What happened</p>

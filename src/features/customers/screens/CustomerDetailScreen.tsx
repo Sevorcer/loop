@@ -1,7 +1,7 @@
 import { CalendarClock, Heart, Mail, Pencil, Phone, Users } from "lucide-react";
 import Link from "next/link";
 
-import { PermissionGuard, StatusBadge } from "@/components/atlas";
+import { PermissionGuard, PhoneLink, StatusBadge } from "@/components/atlas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ROUTE_BUILDERS } from "@/lib/routes";
@@ -74,8 +74,20 @@ export function CustomerDetailScreen({
 
                   <span className="inline-flex items-center gap-1.5">
                     <Phone className="h-4 w-4" />
-                    {customer.phone}
+                    <PhoneLink
+                      phone={customer.phone}
+                      className="text-blue-400 hover:text-blue-300 hover:underline"
+                    />
                   </span>
+                  {customer.phone2 ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Phone className="h-4 w-4" />
+                      <PhoneLink
+                        phone={customer.phone2}
+                        className="text-blue-400 hover:text-blue-300 hover:underline"
+                      />
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -90,7 +102,26 @@ export function CustomerDetailScreen({
               <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
                 City: {customer.city}
               </span>
+              {customer.street ? (
+                <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                  {customer.street}
+                  {customer.zip ? ` ${customer.zip}` : ""}
+                </span>
+              ) : customer.zip ? (
+                <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                  ZIP: {customer.zip}
+                </span>
+              ) : null}
             </div>
+
+            {customer.notes ? (
+              <div className="rounded-xl border border-default bg-surface-elevated/50 p-3 text-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Intake Notes
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-primary">{customer.notes}</p>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex shrink-0 flex-col gap-4">

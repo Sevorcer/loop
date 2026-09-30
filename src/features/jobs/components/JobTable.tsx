@@ -30,6 +30,7 @@ const typeOptions: Array<JobType | "All"> = [
   "Service",
   "Maintenance",
   "Inspection",
+  "Estimate",
 ];
 
 const priorityOptions: Array<JobPriority | "All"> = [

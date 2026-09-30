@@ -64,15 +64,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // F8: serial numbers are optional — the caller often doesn't have them.
     const serialNumbers = Array.isArray(body.serialNumbers)
       ? (body.serialNumbers as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0)
       : [];
-    if (serialNumbers.length === 0) {
-      return NextResponse.json(
-        { error: "VALIDATION", message: "At least one serial number is required.", code: 400 },
-        { status: 400 },
-      );
-    }
 
     const installDate =
       typeof body.installDate === "string" && body.installDate.trim()

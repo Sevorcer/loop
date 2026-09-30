@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/atlas";
 import {
   estimateEquipmentBundles,
   getEstimateEquipmentBundle,
@@ -30,7 +31,7 @@ import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentW
 
 import type { JobAppointmentHour, JobPriority, JobType } from "../types/job";
 
-const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection"];
+const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection", "Estimate"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
 
 export interface JobFormValues {
@@ -448,11 +449,11 @@ export function JobForm({
               <label className="text-sm font-medium text-slate-200">
                 Scheduled Start <span className="text-red-400">*</span>
               </label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
+                id="job-scheduled-start"
+                ariaLabel="Scheduled start"
                 value={form.scheduledStartAt}
-                onChange={(e) => updateField("scheduledStartAt", e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+                onChange={(next) => updateField("scheduledStartAt", next)}
                 required
               />
             </div>
@@ -461,15 +462,12 @@ export function JobForm({
               <label className="text-sm font-medium text-slate-200">
                 Scheduled End <span className="text-slate-500">(optional)</span>
               </label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
+                id="job-scheduled-end"
+                ariaLabel="Scheduled end"
                 value={form.scheduledEndAt}
-                onChange={(e) => updateField("scheduledEndAt", e.target.value)}
-                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40 ${
-                  scheduledWindowError
-                    ? "border-red-500/50 bg-red-500/5"
-                    : "border-white/10 bg-white/[0.03]"
-                }`}
+                onChange={(next) => updateField("scheduledEndAt", next)}
+                invalid={Boolean(scheduledWindowError)}
               />
               {scheduledWindowError && (
                 <p className="text-xs text-red-400">{scheduledWindowError}</p>
@@ -480,11 +478,11 @@ export function JobForm({
               <label className="text-sm font-medium text-slate-200">
                 Arrival Window Start <span className="text-slate-500">(optional)</span>
               </label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
+                id="job-arrival-window-start"
+                ariaLabel="Arrival window start"
                 value={form.arrivalWindowStartAt}
-                onChange={(e) => updateField("arrivalWindowStartAt", e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+                onChange={(next) => updateField("arrivalWindowStartAt", next)}
               />
             </div>
 
@@ -492,15 +490,12 @@ export function JobForm({
               <label className="text-sm font-medium text-slate-200">
                 Arrival Window End <span className="text-slate-500">(optional)</span>
               </label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
+                id="job-arrival-window-end"
+                ariaLabel="Arrival window end"
                 value={form.arrivalWindowEndAt}
-                onChange={(e) => updateField("arrivalWindowEndAt", e.target.value)}
-                className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40 ${
-                  arrivalWindowError
-                    ? "border-red-500/50 bg-red-500/5"
-                    : "border-white/10 bg-white/[0.03]"
-                }`}
+                onChange={(next) => updateField("arrivalWindowEndAt", next)}
+                invalid={Boolean(arrivalWindowError)}
               />
               {arrivalWindowError && (
                 <p className="text-xs text-red-400">{arrivalWindowError}</p>

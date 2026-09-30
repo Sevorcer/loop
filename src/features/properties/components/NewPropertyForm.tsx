@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Building2, CheckCircle2, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
 
 import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { useCurrentRole } from "@/features/auth";
+import type { Customer } from "@/features/customers/types/customer";
+import { requestJson } from "@/lib/api/client";
 import { ROUTES } from "@/lib/routes";
 
 import { useProperties } from "../state/PropertiesProvider";
@@ -60,18 +63,29 @@ export function NewPropertyForm() {
 
 function NewPropertyFormContent() {
   const { createProperty } = useProperties();
+  const { role } = useCurrentRole();
 
   const [form, setForm] = useState<PropertyFormValues>(defaultPropertyFormValues);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
 
+  // F6: customer picker instead of free text — typo-proof linking.
+  useEffect(() => {
+    if (!role) return;
+    requestJson<{ customers: Customer[] }>("/api/customers", { role })
+      .then((res) => setCustomerOptions(res.customers ?? []))
+      .catch(() => setCustomerOptions([]));
+  }, [role]);
+
+  // F7: Primary System is no longer required — the office often doesn't know
+  // the equipment yet at property creation time.
   const canSubmit =
     form.name.trim().length > 0 &&
     form.customer.trim().length > 0 &&
     form.address.trim().length > 0 &&
-    form.city.trim().length > 0 &&
-    form.primarySystem.trim().length > 0;
+    form.city.trim().length > 0;
 
   function updateField<K extends keyof PropertyFormValues>(
     key: K,
@@ -187,14 +201,24 @@ function NewPropertyFormContent() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Customer Name</label>
-              <input
+              <label className="text-sm font-medium text-slate-200">Customer</label>
+              <select
                 value={form.customer}
                 onChange={(e) => updateField("customer", e.target.value)}
-                placeholder="Northside Retail Group"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
                 required
-              />
+              >
+                <option value="">Select a customer…</option>
+                {customerOptions.map((customer) => (
+                  <option key={customer.id} value={customer.name}>
+                    {customer.name}
+                  </option>
+                ))}
+                {form.customer &&
+                !customerOptions.some((customer) => customer.name === form.customer) ? (
+                  <option value={form.customer}>{form.customer}</option>
+                ) : null}
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -250,14 +274,18 @@ function NewPropertyFormContent() {
             </div>
 
             <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium text-slate-200">Primary System</label>
+              <label className="text-sm font-medium text-slate-200">
+                Primary System <span className="text-slate-500">(optional)</span>
+              </label>
               <input
                 value={form.primarySystem}
                 onChange={(e) => updateField("primarySystem", e.target.value)}
-                placeholder="Mitsubishi Hyper Heat"
+                placeholder="Mitsubishi Hyper Heat — leave blank if unknown"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
-                required
               />
+              <p className="text-xs text-slate-500">
+                Optional — add it later from the property page once the equipment is known.
+              </p>
             </div>
           </div>
 

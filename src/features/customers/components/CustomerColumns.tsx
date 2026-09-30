@@ -3,7 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, Users } from "lucide-react";
 
-import { StatusBadge } from "@/components/atlas";
+import { PhoneLink, StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 import { formatDateOnly } from "@/lib/dates";
 
@@ -69,9 +69,15 @@ export const customerColumns: ColumnDef<Customer>[] = [
   {
     accessorKey: "phone",
     header: "Phone",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{row.original.phone}</span>
-    ),
+    cell: ({ row }) =>
+      row.original.phone ? (
+        <PhoneLink
+          phone={row.original.phone}
+          className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
+        />
+      ) : (
+        <span className="text-sm text-muted-foreground">—</span>
+      ),
   },
   {
     accessorKey: "status",

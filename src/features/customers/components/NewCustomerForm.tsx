@@ -20,7 +20,11 @@ interface CustomerFormValues {
   primaryContact: string;
   email: string;
   phone: string;
+  phone2: string;
   city: string;
+  street: string;
+  zip: string;
+  notes: string;
   status: CustomerStatus;
 }
 
@@ -29,7 +33,11 @@ const defaultCustomerFormValues: CustomerFormValues = {
   primaryContact: "",
   email: "",
   phone: "",
+  phone2: "",
   city: "",
+  street: "",
+  zip: "",
+  notes: "",
   status: "Active",
 };
 
@@ -40,7 +48,11 @@ function normalizeValues(values: CustomerFormValues): CustomerFormValues {
     primaryContact: values.primaryContact.trim(),
     email: values.email.trim(),
     phone: values.phone.trim(),
+    phone2: values.phone2.trim(),
     city: values.city.trim(),
+    street: values.street.trim(),
+    zip: values.zip.trim(),
+    notes: values.notes.trim(),
   };
 }
 
@@ -64,8 +76,9 @@ function NewCustomerFormContent() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // F2: Account Name is optional for residential customers — the service falls
+  // back to the primary contact's name when it is left blank.
   const canSubmit =
-    form.name.trim().length > 0 &&
     form.primaryContact.trim().length > 0 &&
     form.email.trim().length > 0 &&
     form.city.trim().length > 0;
@@ -179,14 +192,18 @@ function NewCustomerFormContent() {
         <SurfaceCard>
           <div className="grid gap-6 p-6 lg:grid-cols-2">
             <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium text-slate-200">Account Name</label>
+              <label className="text-sm font-medium text-slate-200">
+                Account Name <span className="text-slate-500">(optional)</span>
+              </label>
               <input
                 value={form.name}
                 onChange={(e) => updateField("name", e.target.value)}
                 placeholder="Smith Family or Northside Retail Group"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
-                required
               />
+              <p className="text-xs text-slate-500">
+                For residential customers, leave blank to use the primary contact&apos;s name.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -231,6 +248,57 @@ function NewCustomerFormContent() {
                 onChange={(e) => updateField("phone", e.target.value)}
                 placeholder="(555) 000-0000"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Second Phone <span className="text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="tel"
+                value={form.phone2}
+                onChange={(e) => updateField("phone2", e.target.value)}
+                placeholder="(555) 000-0000"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                Street Address <span className="text-slate-500">(optional)</span>
+              </label>
+              <input
+                value={form.street}
+                onChange={(e) => updateField("street", e.target.value)}
+                placeholder="1450 Northside Blvd, Apt 4"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                ZIP Code <span className="text-slate-500">(optional)</span>
+              </label>
+              <input
+                value={form.zip}
+                onChange={(e) => updateField("zip", e.target.value)}
+                placeholder="98101"
+                inputMode="numeric"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+              />
+            </div>
+
+            <div className="space-y-2 lg:col-span-2">
+              <label className="text-sm font-medium text-slate-200">
+                Intake Notes <span className="text-slate-500">(optional)</span>
+              </label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => updateField("notes", e.target.value)}
+                placeholder="Call reason, e.g. AC blowing warm air…"
+                rows={3}
+                className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
               />
             </div>
 

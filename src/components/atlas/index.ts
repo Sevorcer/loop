@@ -1,4 +1,6 @@
 export { AccessDenied } from "./AccessDenied";
+export { DateTimePicker } from "./DateTimePicker";
+export { PhoneLink } from "./PhoneLink";
 export { DataTable } from "./data-table";
 export { EmptyState } from "./EmptyState";
 export { ErrorState } from "./ErrorState";

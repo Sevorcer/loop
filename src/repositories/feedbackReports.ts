@@ -196,3 +196,31 @@ export async function updateFeedbackReport(
 
   return mapRow(data as FeedbackReportRow);
 }
+
+/**
+ * F16: bulk status update for triage. Updates all matching rows in the caller's
+ * org and returns the updated reports.
+ */
+export async function bulkUpdateFeedbackReports(
+  ids: string[],
+  input: UpdateFeedbackReportInput,
+): Promise<FeedbackReport[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const patch: Record<string, unknown> = {};
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.triageNotes !== undefined) patch.triage_notes = input.triageNotes;
+
+  const { data, error } = await supabase
+    .from("feedback_reports")
+    .update(patch)
+    .in("id", ids)
+    .eq("org_id", orgId)
+    .select("*");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as FeedbackReportRow[]).map(mapRow);
+}

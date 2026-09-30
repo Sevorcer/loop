@@ -213,7 +213,11 @@ async function insertCustomerRow(row: Record<string, string>): Promise<void> {
     primaryContact: parsed.primaryContact,
     email: parsed.email,
     phone: parsed.phone,
+    phone2: "",
     city: parsed.city,
+    street: "",
+    zip: "",
+    notes: "",
     status: parsed.status,
   });
 }

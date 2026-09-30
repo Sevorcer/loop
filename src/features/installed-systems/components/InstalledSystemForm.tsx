@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Cpu, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,8 +9,9 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { requestJson } from "@/lib/api/client";
 import { useCurrentRole } from "@/features/auth";
+import type { Customer } from "@/features/customers/types/customer";
+import type { Property } from "@/features/properties/types/property";
 import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
-import { todayLocalISODate } from "@/lib/dates";
 
 import type { InstalledSystem, InstalledSystemLifecycle } from "../types/installedSystem";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
@@ -40,9 +41,14 @@ function toFormValues(system?: InstalledSystem): FormValues {
     customerName: system?.customerName ?? "",
     propertyName: system?.propertyName ?? "",
     location: system?.location ?? "",
-    installDate: system?.installDate ?? todayLocalISODate(),
+    installDate: system?.installDate ?? "",
     lifecycleStatus: system?.lifecycleStatus ?? "Planned",
   };
+}
+
+/** F9: install date accepts a year ("2024") or a full date ("2024-06-15"). */
+export function isInstallDateValueValid(value: string): boolean {
+  return /^(\d{4}|\d{4}-\d{2}-\d{2})$/.test(value.trim());
 }
 
 export interface InstalledSystemFormContext {
@@ -76,6 +82,19 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
+  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
+
+  // F6: pickers instead of free text — typo-proof customer/property linking.
+  useEffect(() => {
+    if (!role) return;
+    requestJson<{ customers: Customer[] }>("/api/customers", { role })
+      .then((res) => setCustomerOptions(res.customers ?? []))
+      .catch(() => setCustomerOptions([]));
+    requestJson<{ properties: Property[] }>("/api/properties", { role })
+      .then((res) => setPropertyOptions(res.properties ?? []))
+      .catch(() => setPropertyOptions([]));
+  }, [role]);
 
   const isEdit = Boolean(system);
   const cancelHref = isEdit
@@ -87,8 +106,7 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
       f.systemName.trim().length > 0 &&
       f.manufacturer.trim().length > 0 &&
       f.modelNumber.trim().length > 0 &&
-      f.serialNumber.trim().length > 0 &&
-      f.installDate.trim().length > 0 &&
+      isInstallDateValueValid(f.installDate) &&
       f.customerName.trim().length > 0 &&
       f.propertyName.trim().length > 0
     );
@@ -107,8 +125,8 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
     if (!form.systemName.trim()) errors.systemName = "System name is required.";
     if (!form.manufacturer.trim()) errors.manufacturer = "Manufacturer is required.";
     if (!form.modelNumber.trim()) errors.modelNumber = "Model number is required.";
-    if (!form.serialNumber.trim()) errors.serialNumber = "Serial number is required.";
-    if (!form.installDate.trim()) errors.installDate = "Install date is required.";
+    if (!isInstallDateValueValid(form.installDate))
+      errors.installDate = "Enter a year (2024) or a full date (2024-06-15).";
     if (!form.customerName.trim()) errors.customerName = "Customer name is required.";
     if (!form.propertyName.trim()) errors.propertyName = "Property name is required.";
     setFieldErrors(errors);
@@ -277,14 +295,13 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
             {/* Serial Number */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
-                Serial Number <span className="text-red-400">*</span>
+                Serial Number <span className="text-slate-500">(optional)</span>
               </label>
               <input
                 value={form.serialNumber}
                 onChange={(e) => updateField("serialNumber", e.target.value)}
-                placeholder="SN-2024-001234"
+                placeholder="SN-2024-001234 — leave blank if unknown"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
-                required
               />
               {fieldErrors.serialNumber ? (
                 <p className="text-xs text-red-400">{fieldErrors.serialNumber}</p>
@@ -297,12 +314,15 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
                 Install Date <span className="text-red-400">*</span>
               </label>
               <input
-                type="date"
                 value={form.installDate}
                 onChange={(e) => updateField("installDate", e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+                placeholder="2024 or 2024-06-15"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
                 required
               />
+              <p className="text-xs text-slate-500">
+                Year is enough if that&apos;s all the caller knows.
+              </p>
               {fieldErrors.installDate ? (
                 <p className="text-xs text-red-400">{fieldErrors.installDate}</p>
               ) : null}
@@ -322,15 +342,25 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
             {/* Customer Name */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
-                Customer Name <span className="text-red-400">*</span>
+                Customer <span className="text-red-400">*</span>
               </label>
-              <input
+              <select
                 value={form.customerName}
                 onChange={(e) => updateField("customerName", e.target.value)}
-                placeholder="Northside Retail Group"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
                 required
-              />
+              >
+                <option value="">Select a customer…</option>
+                {customerOptions.map((customer) => (
+                  <option key={customer.id} value={customer.name}>
+                    {customer.name}
+                  </option>
+                ))}
+                {form.customerName &&
+                !customerOptions.some((customer) => customer.name === form.customerName) ? (
+                  <option value={form.customerName}>{form.customerName}</option>
+                ) : null}
+              </select>
               {fieldErrors.customerName ? (
                 <p className="text-xs text-red-400">{fieldErrors.customerName}</p>
               ) : null}
@@ -339,15 +369,25 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
             {/* Property Name */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
-                Property Name <span className="text-red-400">*</span>
+                Property <span className="text-red-400">*</span>
               </label>
-              <input
+              <select
                 value={form.propertyName}
                 onChange={(e) => updateField("propertyName", e.target.value)}
-                placeholder="Northside Plaza"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
                 required
-              />
+              >
+                <option value="">Select a property…</option>
+                {propertyOptions.map((property) => (
+                  <option key={property.id} value={property.name}>
+                    {property.name}
+                  </option>
+                ))}
+                {form.propertyName &&
+                !propertyOptions.some((property) => property.name === form.propertyName) ? (
+                  <option value={form.propertyName}>{form.propertyName}</option>
+                ) : null}
+              </select>
               {fieldErrors.propertyName ? (
                 <p className="text-xs text-red-400">{fieldErrors.propertyName}</p>
               ) : null}

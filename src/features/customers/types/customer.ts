@@ -6,7 +6,11 @@ export interface Customer {
   primaryContact: string;
   email: string;
   phone: string;
+  phone2: string;
   city: string;
+  street: string;
+  zip: string;
+  notes: string;
   status: CustomerStatus;
   propertyCount: number;
   openJobs: number;

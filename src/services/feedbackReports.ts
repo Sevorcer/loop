@@ -20,6 +20,7 @@ import {
 } from "@/features/feedback/utils/feedbackValidation";
 
 import {
+  bulkUpdateFeedbackReports as bulkUpdateRecords,
   createFeedbackReport as createRecord,
   getFeedbackReportById,
   listFeedbackReports as listRecords,
@@ -68,4 +69,24 @@ export async function updateFeedbackReport(
   }
 
   return updateRecord(id, input);
+}
+
+/** F16: bulk triage — same validation as the single update, applied to many. */
+export async function bulkUpdateFeedbackReports(
+  ids: string[],
+  input: UpdateFeedbackReportInput,
+): Promise<FeedbackReport[]> {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error("Select at least one feedback report.");
+  }
+  if (ids.length > 200) {
+    throw new Error("Bulk update is limited to 200 reports at a time.");
+  }
+  const result = validateFeedbackUpdate(input);
+  if (!result.valid) {
+    const firstError = Object.values(result.errors)[0];
+    throw new Error(firstError ?? "Invalid triage input.");
+  }
+
+  return bulkUpdateRecords(ids, input);
 }

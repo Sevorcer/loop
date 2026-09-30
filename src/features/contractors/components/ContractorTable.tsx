@@ -5,6 +5,7 @@ import { HardHat, Search } from "lucide-react";
 import Link from "next/link";
 
 import { ROUTES } from "@/lib/routes";
+import { PhoneLink } from "@/components/atlas";
 
 import { useContractors } from "../state/ContractorsProvider";
 import type { Contractor } from "../types/contractor";
@@ -25,7 +26,12 @@ function ContractorRow({ contractor }: { contractor: Contractor }) {
         </p>
         <p className="text-sm text-slate-300">{contractor.email}</p>
         {contractor.phone ? (
-          <p className="mt-0.5 text-xs text-slate-400">{contractor.phone}</p>
+          <p className="mt-0.5 text-xs text-slate-400">
+            <PhoneLink
+              phone={contractor.phone}
+              className="text-blue-400 hover:text-blue-300 hover:underline"
+            />
+          </p>
         ) : null}
       </div>
 

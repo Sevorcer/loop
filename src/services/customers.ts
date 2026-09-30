@@ -19,7 +19,11 @@ export interface CustomerInput {
   primaryContact: string;
   email: string;
   phone: string;
+  phone2: string;
   city: string;
+  street: string;
+  zip: string;
+  notes: string;
   status: CustomerStatus;
 }
 
@@ -29,12 +33,20 @@ export type UpdateCustomerInput = Partial<CustomerInput>;
 const CUSTOMER_STATUSES = new Set<CustomerStatus>(["Active", "Prospect", "Inactive"]);
 
 function normalizeCustomerInput(input: CustomerInput): CustomerInput {
+  const name = input.name.trim();
+  const primaryContact = input.primaryContact.trim();
   return {
-    name: input.name.trim(),
-    primaryContact: input.primaryContact.trim(),
+    // F2: residential customers may leave Account Name blank — fall back to the
+    // primary contact so the DB NOT NULL constraint stays satisfied.
+    name: name.length > 0 ? name : primaryContact,
+    primaryContact,
     email: input.email.trim(),
     phone: input.phone.trim(),
+    phone2: input.phone2.trim(),
     city: input.city.trim(),
+    street: input.street.trim(),
+    zip: input.zip.trim(),
+    notes: input.notes.trim(),
     status: input.status,
   };
 }
@@ -83,7 +95,11 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput) {
     primaryContact: input.primaryContact ?? existing.primaryContact,
     email: input.email ?? existing.email,
     phone: input.phone ?? existing.phone,
+    phone2: input.phone2 ?? existing.phone2,
     city: input.city ?? existing.city,
+    street: input.street ?? existing.street,
+    zip: input.zip ?? existing.zip,
+    notes: input.notes ?? existing.notes,
     status: input.status ?? existing.status,
   });
 
