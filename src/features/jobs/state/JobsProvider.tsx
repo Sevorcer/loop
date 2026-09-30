@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -17,20 +16,10 @@ import { requestJson } from "@/lib/api/client";
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type { CreateJobInput, JobsStoreValue, UpdateJobInput } from "../types/jobStore";
-import { applyAssignment, removeAssignment, validateAssignment } from "../utils/assignmentUtils";
+import { validateAssignment } from "../utils/assignmentUtils";
 import { sortJobActivity } from "../utils/jobWorkspace";
 
 const JobsContext = createContext<JobsStoreValue | null>(null);
-
-function mergeContractorAssignments(
-  jobs: Job[],
-  assignments: Record<string, string[]>,
-): Job[] {
-  return jobs.map((job) => ({
-    ...job,
-    contractorIds: assignments[job.id] ?? job.contractorIds,
-  }));
-}
 
 export function JobsProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
@@ -39,12 +28,6 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contractorAssignments, setContractorAssignments] = useState<Record<string, string[]>>({});
-  const contractorAssignmentsRef = useRef<Record<string, string[]>>({});
-
-  useEffect(() => {
-    contractorAssignmentsRef.current = contractorAssignments;
-  }, [contractorAssignments]);
 
   const refreshJobs = useCallback(async () => {
     if (!role) {
@@ -58,7 +41,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         role,
         cache: "no-store",
       });
-      setJobs(mergeContractorAssignments(response.jobs, contractorAssignmentsRef.current));
+      setJobs(response.jobs);
       setActivity(response.activity);
     } catch (loadError) {
       setJobs([]);
@@ -86,15 +69,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
           },
         );
 
-        const hydratedJob: Job = {
-          ...response.job,
-          contractorIds:
-            contractorAssignmentsRef.current[jobId] ?? response.job.contractorIds,
-        };
+        const hydratedJob: Job = response.job;
 
         setJobs((current) =>
           current.some((job) => job.id === hydratedJob.id)
-            ? current.map((job) => (job.id === hydratedJob.id ? hydratedJob : job))
+            ? current.map((job) => (job.id === jobId ? hydratedJob : job))
             : [hydratedJob, ...current],
         );
         setActivity((current) => {
@@ -189,31 +168,35 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: validation.error };
       }
 
-      const updated = applyAssignment(job, contractorId);
+      try {
+        await requestJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+          method: "PATCH",
+          role,
+          body: { action: "contractor", contractorId },
+        });
+      } catch (requestError) {
+        return {
+          ok: false,
+          error:
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to assign contractor.",
+        };
+      }
 
-      setContractorAssignments((current) => ({
-        ...current,
-        [jobId]: updated.contractorIds ?? [],
-      }));
-      setJobs((current) => current.map((item) => (item.id === jobId ? updated : item)));
+      await refreshJobs();
 
       return { ok: true };
     }
 
     async function removeContractorAssignment(jobId: string, contractorId: string) {
-      const job = jobs.find((entry) => entry.id === jobId);
+      await requestJson<{ job: Job }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        role,
+        body: { action: "contractor", direction: "remove", contractorId },
+      });
 
-      if (!job) {
-        return;
-      }
-
-      const updated = removeAssignment(job, contractorId);
-
-      setContractorAssignments((current) => ({
-        ...current,
-        [jobId]: updated.contractorIds ?? [],
-      }));
-      setJobs((current) => current.map((item) => (item.id === jobId ? updated : item)));
+      await refreshJobs();
     }
 
     return {

@@ -10,13 +10,13 @@ import {
   type ReactNode,
 } from "react";
 
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
+
 import { mockContractors } from "../data/mockContractors";
 import type { Contractor } from "../types/contractor";
 import type { CreateContractorInput } from "../types/contractor";
-import {
-  buildContractor,
-  validateCreateContractorInput,
-} from "../utils/contractorUtils";
+import { validateCreateContractorInput } from "../utils/contractorUtils";
 
 interface ContractorsContextValue {
   hydrated: boolean;
@@ -24,7 +24,7 @@ interface ContractorsContextValue {
   getContractorById: (id: string) => Contractor | undefined;
   createContractor: (
     input: CreateContractorInput
-  ) => { ok: true; contractor: Contractor } | { ok: false; error: string };
+  ) => Promise<{ ok: true; contractor: Contractor } | { ok: false; error: string }>;
 }
 
 const CONTRACTORS_STORAGE_KEY = "loop.contractors.items";
@@ -53,6 +53,7 @@ function parseStoredValue<T>(value: string | null, fallback: T): T {
 const ContractorsContext = createContext<ContractorsContextValue | null>(null);
 
 export function ContractorsProvider({ children }: { children: ReactNode }) {
+  const { role } = useCurrentRole();
   const [contractors, setContractors] = useState<Contractor[]>(() => {
     if (typeof window === "undefined") {
       return mockContractors;
@@ -63,6 +64,7 @@ export function ContractorsProvider({ children }: { children: ReactNode }) {
       mockContractors
     );
   });
+  const [loadedFromServer, setLoadedFromServer] = useState(false);
 
   const hydrated = useSyncExternalStore(
     subscribeToHydration,
@@ -70,36 +72,83 @@ export function ContractorsProvider({ children }: { children: ReactNode }) {
     () => false
   );
 
+  // F19: contractors live in the real `contractors` table. Load them once the
+  // session role is known; on failure keep the local/mock fallback so the
+  // directory UI still renders (e.g. before login).
   useEffect(() => {
-    if (!hydrated) {
+    if (!role || loadedFromServer) {
       return;
     }
 
-    window.localStorage.setItem(
-      CONTRACTORS_STORAGE_KEY,
-      JSON.stringify(contractors)
-    );
-  }, [hydrated, contractors]);
+    let cancelled = false;
+
+    requestJson<{ contractors: Contractor[] }>("/api/contractors", {
+      cache: "no-store",
+    })
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+
+        setContractors(response.contractors);
+        setLoadedFromServer(true);
+        window.localStorage.setItem(
+          CONTRACTORS_STORAGE_KEY,
+          JSON.stringify(response.contractors)
+        );
+      })
+      .catch(() => {
+        // Graceful fallback: keep localStorage/mock data.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [role, loadedFromServer]);
 
   const value = useMemo<ContractorsContextValue>(() => {
     function getContractorById(id: string) {
       return contractors.find((c) => c.id === id);
     }
 
-    function createContractor(
+    async function createContractor(
       input: CreateContractorInput
-    ): { ok: true; contractor: Contractor } | { ok: false; error: string } {
+    ): Promise<
+      { ok: true; contractor: Contractor } | { ok: false; error: string }
+    > {
       const validation = validateCreateContractorInput(contractors, input);
 
       if (!validation.valid) {
         return { ok: false, error: validation.error };
       }
 
-      const newContractor = buildContractor(input, crypto.randomUUID());
+      try {
+        const response = await requestJson<{ contractor: Contractor }>(
+          "/api/contractors",
+          {
+            method: "POST",
+            body: {
+              companyName: input.companyName,
+              contactName: input.contactName,
+              email: input.email,
+              phone: input.phone,
+              trade: input.trade,
+            },
+          }
+        );
 
-      setContractors((current) => [...current, newContractor]);
+        setContractors((current) => [...current, response.contractor]);
 
-      return { ok: true, contractor: newContractor };
+        return { ok: true, contractor: response.contractor };
+      } catch (requestError) {
+        return {
+          ok: false,
+          error:
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to add contractor.",
+        };
+      }
     }
 
     return {

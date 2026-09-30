@@ -7,9 +7,11 @@ import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
 import {
   addJobNote,
+  assignContractor,
   deleteJob,
   getJob,
   listJobActivity,
+  removeContractorAssignment,
   updateJob,
   updateJobStatus,
   updateRequiredQaChecklist,
@@ -19,7 +21,7 @@ import { normalizeQaChecklist } from "@/features/jobs/utils/jobCompletionCheckli
 
 import type { JobAppointmentHour } from "@/features/jobs/types/job";
 
-const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa"]);
+const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "contractor"]);
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
 const JOB_STATUSES = new Set([
@@ -149,6 +151,16 @@ export async function PATCH(
                     role: guard.ctx.role,
                   },
                 )
+          : action === "contractor"
+            ? String(body.direction ?? "assign") === "remove"
+              ? await removeContractorAssignment(id, String(body.contractorId ?? ""), {
+                  actorId: guard.ctx.userId,
+                  role: guard.ctx.role,
+                })
+              : await assignContractor(id, String(body.contractorId ?? ""), {
+                  actorId: guard.ctx.userId,
+                  role: guard.ctx.role,
+                })
           : await updateJob(id, {
               estimateId:
                 body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,

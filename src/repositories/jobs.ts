@@ -48,6 +48,8 @@ interface JobRow {
   property_name: string;
   assigned_to: string;
   scheduled_for: string | null;
+  // F19: present once migration 20260929000003 is applied.
+  contractor_ids?: string[] | null;
   // Legacy scheduling column (PR3A/PR3B) — absent when migration not yet applied.
   // @deprecated Use scheduled_start_at instead.
   appointment_window?: number | null;
@@ -84,6 +86,8 @@ export interface JobWriteInput {
   propertyId?: string | null;
   propertyName: string;
   assignedTo: string;
+  // F19: contractor assignments, persisted to jobs.contractor_ids.
+  contractorIds?: string[];
   // PR3C fields (primary)
   scheduledStartAt?: string | null;
   scheduledEndAt?: string | null;
@@ -135,6 +139,7 @@ function mapJob(row: JobRow): Job {
     propertyId: row.property_id,
     propertyName: row.property_name,
     assignedTo: row.assigned_to,
+    contractorIds: row.contractor_ids ?? [],
     // PR3C fields
     scheduledStartAt,
     scheduledEndAt: row.scheduled_end_at ?? null,
@@ -150,7 +155,7 @@ function mapJob(row: JobRow): Job {
 }
 
 const JOB_SELECT_BASE =
-  "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,scheduled_for,summary,location,notes,created_at";
+  "id,job_number,estimate_id,equipment_bundle_id,title,type,status,priority,customer_id,customer_name,property_id,property_name,assigned_to,contractor_ids,scheduled_for,summary,location,notes,created_at";
 
 // PR3A/PR3B column (legacy, deprecated)
 const JOB_SELECT_WITH_LEGACY = JOB_SELECT_BASE + ",appointment_window";
@@ -508,6 +513,7 @@ export async function updateJob(
   if (input.propertyId !== undefined) updatePayload.property_id = input.propertyId;
   if (input.propertyName !== undefined) updatePayload.property_name = input.propertyName;
   if (input.assignedTo !== undefined) updatePayload.assigned_to = input.assignedTo;
+  if (input.contractorIds !== undefined) updatePayload.contractor_ids = input.contractorIds;
   if (input.scheduledFor !== undefined) updatePayload.scheduled_for = input.scheduledFor;
   if (input.appointmentHour !== undefined) {
     updatePayload.appointment_window = input.appointmentHour;

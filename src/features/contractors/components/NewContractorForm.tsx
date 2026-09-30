@@ -66,6 +66,7 @@ function NewContractorFormContent() {
   const [form, setForm] = useState<ContractorFormValues>(defaultValues);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const canSubmit =
     form.companyName.trim().length > 0 &&
@@ -80,7 +81,7 @@ function NewContractorFormContent() {
     setError(null);
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const normalized = normalizeValues(form);
@@ -93,7 +94,14 @@ function NewContractorFormContent() {
       trade: normalized.trade,
     };
 
-    const result = createContractor(input);
+    setIsSaving(true);
+
+    let result: Awaited<ReturnType<typeof createContractor>>;
+    try {
+      result = await createContractor(input);
+    } finally {
+      setIsSaving(false);
+    }
 
     if (!result.ok) {
       setError(result.error);
@@ -254,11 +262,11 @@ function NewContractorFormContent() {
 
           <Button
             type="submit"
-            disabled={!canSubmit}
+            disabled={!canSubmit || isSaving}
             className="w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700 disabled:opacity-50 sm:w-auto"
           >
             <HardHat className="h-4 w-4" />
-            Add Contractor
+            {isSaving ? "Adding…" : "Add Contractor"}
           </Button>
         </div>
       </form>

@@ -3,6 +3,7 @@ export type JobActivityType =
   | "edited"
   | "scheduled"
   | "assigned"
+  | "contractor"
   | "status"
   | "note"
   | "qa"

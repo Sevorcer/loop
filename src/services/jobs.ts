@@ -35,6 +35,7 @@ import {
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
 import { updateDispatchPlanStatusByJobId } from "@/repositories/dispatch";
+import { getContractorById } from "@/repositories/contractors";
 import { syncCustomerCounters } from "@/services/customers";
 import { resolvePropertyIdByName, syncPropertyCounters } from "@/services/properties";
 import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
@@ -393,8 +394,85 @@ export async function addJobNote(id: string, note: string, context?: JobMutation
   return updatedJob;
 }
 
-export async function setJobNotes(id: string, notes: string, context?: JobMutationContext) {
-  const trimmedNotes = notes.trim();
+/** F19: persist a contractor assignment to jobs.contractor_ids + timeline event. */
+export async function assignContractor(
+  id: string,
+  contractorId: string,
+  context?: JobMutationContext,
+) {
+  const trimmedId = contractorId.trim();
+
+  if (!trimmedId) {
+    throw new Error("Contractor is required.");
+  }
+
+  const existing = await getJobById(id);
+
+  if (!existing) {
+    return null;
+  }
+
+  const currentIds = existing.contractorIds ?? [];
+
+  if (currentIds.includes(trimmedId)) {
+    throw new Error("This contractor is already assigned to the job.");
+  }
+
+  const updatedJob = await updateJobRecord(id, {
+    contractorIds: [...currentIds, trimmedId],
+  });
+
+  if (!updatedJob) {
+    return null;
+  }
+
+  const contractor = await getContractorById(trimmedId);
+
+  await createJobActivityRecord({
+    jobId: id,
+    actorId: context?.actorId,
+    type: "contractor",
+    title: "Contractor assigned",
+    description: `${contractor?.companyName ?? trimmedId} assigned to the job.`,
+  });
+
+  return updatedJob;
+}
+
+/** F19: remove a contractor assignment, persisted + timeline event. */
+export async function removeContractorAssignment(
+  id: string,
+  contractorId: string,
+  context?: JobMutationContext,
+) {
+  const existing = await getJobById(id);
+
+  if (!existing) {
+    return null;
+  }
+
+  const nextIds = (existing.contractorIds ?? []).filter((entry) => entry !== contractorId);
+
+  const updatedJob = await updateJobRecord(id, { contractorIds: nextIds });
+
+  if (!updatedJob) {
+    return null;
+  }
+
+  const contractor = await getContractorById(contractorId);
+
+  await createJobActivityRecord({
+    jobId: id,
+    actorId: context?.actorId,
+    type: "contractor",
+    title: "Contractor unassigned",
+    description: `${contractor?.companyName ?? contractorId} removed from the job.`,
+  });
+
+  return updatedJob;
+}
+
+export async function setJobNotes(id: string, notes: string, context?: JobMutationContext) {  const trimmedNotes = notes.trim();
   if (!trimmedNotes) {
     throw new Error("Notes are required.");
   }
