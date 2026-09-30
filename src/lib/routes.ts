@@ -36,10 +36,34 @@ export const ROUTE_BUILDERS = {
   },
   JOB_DETAIL: (jobId: string) => `${ROUTES.JOBS}/${jobId}`,
   JOB_EDIT: (jobId: string) => `${ROUTES.JOBS}/${jobId}/edit`,
+  PROPERTY_NEW: (context?: { customerId?: string }) => {
+    const params = new URLSearchParams();
+    if (context?.customerId) params.set("customerId", context.customerId);
+    const query = params.toString();
+    return query ? `${ROUTES.PROPERTIES}/new?${query}` : `${ROUTES.PROPERTIES}/new`;
+  },
   PROPERTY_DETAIL: (propertyId: string) => `${ROUTES.PROPERTIES}/${propertyId}`,
   PROPERTY_EDIT: (propertyId: string) => `${ROUTES.PROPERTIES}/${propertyId}/edit`,
   CUSTOMER_DETAIL: (customerId: string) => `${ROUTES.CUSTOMERS}/${customerId}`,
   CUSTOMER_EDIT: (customerId: string) => `${ROUTES.CUSTOMERS}/${customerId}/edit`,
+  INSTALLED_SYSTEM_NEW: (context?: {
+    propertyId?: string;
+    propertyName?: string;
+    customerName?: string;
+    jobId?: string;
+    jobNumber?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (context?.propertyId) params.set("propertyId", context.propertyId);
+    if (context?.propertyName) params.set("propertyName", context.propertyName);
+    if (context?.customerName) params.set("customerName", context.customerName);
+    if (context?.jobId) params.set("jobId", context.jobId);
+    if (context?.jobNumber) params.set("jobNumber", context.jobNumber);
+    const query = params.toString();
+    return query
+      ? `${ROUTES.INSTALLED_SYSTEMS}/new?${query}`
+      : `${ROUTES.INSTALLED_SYSTEMS}/new`;
+  },
   INSTALLED_SYSTEM_DETAIL: (installedSystemId: string) =>
     `${ROUTES.INSTALLED_SYSTEMS}/${installedSystemId}`,
   INSTALLED_SYSTEM_EDIT: (installedSystemId: string) =>

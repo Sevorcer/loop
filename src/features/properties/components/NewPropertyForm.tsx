@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Building2, CheckCircle2, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
 
@@ -49,19 +49,19 @@ function normalizeValues(values: PropertyFormValues): PropertyFormValues {
   };
 }
 
-export function NewPropertyForm() {
+export function NewPropertyForm({ initialCustomerId }: { initialCustomerId?: string }) {
   return (
     <RoutePermissionGuard
       table="properties"
       action="insert"
       deniedDescription="You don't have permission to create properties."
     >
-      <NewPropertyFormContent />
+      <NewPropertyFormContent initialCustomerId={initialCustomerId} />
     </RoutePermissionGuard>
   );
 }
 
-function NewPropertyFormContent() {
+function NewPropertyFormContent({ initialCustomerId }: { initialCustomerId?: string }) {
   const { createProperty } = useProperties();
   const { role } = useCurrentRole();
 
@@ -79,11 +79,24 @@ function NewPropertyFormContent() {
       .catch(() => setCustomerOptions([]));
   }, [role]);
 
+  // F5: prefill the customer when arriving from a customer page (?customerId=).
+  // The select is name-valued but the URL carries the id, so resolve the id
+  // to a name once the options load. Derived during render (not setState in
+  // an effect): an explicit user choice in form.customer always wins.
+  const prefilledCustomerName = useMemo(() => {
+    if (!initialCustomerId || form.customer) return "";
+    return (
+      customerOptions.find((customer) => customer.id === initialCustomerId)?.name ?? ""
+    );
+  }, [initialCustomerId, customerOptions, form.customer]);
+
+  const effectiveCustomer = form.customer || prefilledCustomerName;
+
   // F7: Primary System is no longer required — the office often doesn't know
   // the equipment yet at property creation time.
   const canSubmit =
     form.name.trim().length > 0 &&
-    form.customer.trim().length > 0 &&
+    effectiveCustomer.trim().length > 0 &&
     form.address.trim().length > 0 &&
     form.city.trim().length > 0;
 
@@ -109,7 +122,10 @@ function NewPropertyFormContent() {
     try {
       setIsSaving(true);
       setError(null);
-      await createProperty(normalizeValues(form));
+      await createProperty({
+        ...normalizeValues(form),
+        customer: effectiveCustomer.trim(),
+      });
       setIsSubmitted(true);
     } catch (nextError) {
       setError(
@@ -203,7 +219,7 @@ function NewPropertyFormContent() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Customer</label>
               <select
-                value={form.customer}
+                value={effectiveCustomer}
                 onChange={(e) => updateField("customer", e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
                 required
@@ -214,9 +230,9 @@ function NewPropertyFormContent() {
                     {customer.name}
                   </option>
                 ))}
-                {form.customer &&
-                !customerOptions.some((customer) => customer.name === form.customer) ? (
-                  <option value={form.customer}>{form.customer}</option>
+                {effectiveCustomer &&
+                !customerOptions.some((customer) => customer.name === effectiveCustomer) ? (
+                  <option value={effectiveCustomer}>{effectiveCustomer}</option>
                 ) : null}
               </select>
             </div>

@@ -214,6 +214,8 @@ export function CustomerDetailTabs({
     propertyId: scopedProperty?.id,
   });
 
+  const addPropertyHref = ROUTE_BUILDERS.PROPERTY_NEW({ customerId: customer.id });
+
   return (
     <div className="space-y-6">
       <AtlasTabs items={tabs} value={activeTab} onChange={handleTabChange} sticky />
@@ -222,14 +224,24 @@ export function CustomerDetailTabs({
         <CardContent className="space-y-4 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">Property Lens</p>
-            <PermissionGuard table="jobs" action="insert">
-              <Link href={openJobHref}>
-                <Button size="sm" className="gap-2">
-                  <CalendarClock className="h-4 w-4" />
-                  Create Job
-                </Button>
-              </Link>
-            </PermissionGuard>
+            <div className="flex items-center gap-2">
+              <PermissionGuard table="properties" action="insert">
+                <Link href={addPropertyHref}>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Add Property
+                  </Button>
+                </Link>
+              </PermissionGuard>
+              <PermissionGuard table="jobs" action="insert">
+                <Link href={openJobHref}>
+                  <Button size="sm" className="gap-2">
+                    <CalendarClock className="h-4 w-4" />
+                    Create Job
+                  </Button>
+                </Link>
+              </PermissionGuard>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
