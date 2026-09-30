@@ -418,6 +418,14 @@ export async function assignContractor(
     throw new Error("This contractor is already assigned to the job.");
   }
 
+  // Reject unknown/stale contractor ids before writing — without this a
+  // crafted or deleted id persists silently and renders "Unknown Contractor".
+  const contractor = await getContractorById(trimmedId);
+
+  if (!contractor) {
+    throw new Error("Contractor not found.");
+  }
+
   const updatedJob = await updateJobRecord(id, {
     contractorIds: [...currentIds, trimmedId],
   });
@@ -426,14 +434,12 @@ export async function assignContractor(
     return null;
   }
 
-  const contractor = await getContractorById(trimmedId);
-
   await createJobActivityRecord({
     jobId: id,
     actorId: context?.actorId,
     type: "contractor",
     title: "Contractor assigned",
-    description: `${contractor?.companyName ?? trimmedId} assigned to the job.`,
+    description: `${contractor.companyName} assigned to the job.`,
   });
 
   return updatedJob;
