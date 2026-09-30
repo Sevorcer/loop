@@ -624,22 +624,30 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
   ];
 
   const scheduledStartAtByJobId = new Map<string, string>();
+  const jobTitleByJobId = new Map<string, string>();
   if (jobIds.length > 0) {
     // Try PR3C column first; silently skip on column-missing errors.
     const { data: jobRows, error: jobsError } = await supabase
       .from("jobs")
-      .select("id,scheduled_start_at")
+      .select("id,title,scheduled_start_at")
       .in("id", jobIds);
 
     if (!jobsError) {
       for (const row of jobRows ?? []) {
-        const jRow = row as { id: string; scheduled_start_at: string | null };
+        const jRow = row as {
+          id: string;
+          title: string | null;
+          scheduled_start_at: string | null;
+        };
         if (jRow.scheduled_start_at) {
           scheduledStartAtByJobId.set(jRow.id, jRow.scheduled_start_at);
         }
+        if (jRow.title) {
+          jobTitleByJobId.set(jRow.id, jRow.title);
+        }
       }
     }
-    // If the column is missing (pre-migration), we simply leave the map empty —
+    // If the column is missing (pre-migration), we simply leave the maps empty —
     // dispatch cards will render without a scheduled time badge rather than crash.
   }
 
@@ -648,6 +656,8 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
     if (row.job_id) {
       const startAt = scheduledStartAtByJobId.get(row.job_id);
       if (startAt) plan.scheduledStartAt = startAt;
+      const jobTitle = jobTitleByJobId.get(row.job_id);
+      if (jobTitle) plan.jobTitle = jobTitle;
     }
     return plan;
   });

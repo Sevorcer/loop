@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { DispatchScreen } from "@/features/dispatch";
 import type { DispatchSnapshot } from "@/features/dispatch/types/dispatch";
+import { assembleDispatchSnapshot } from "@/features/dispatch/utils/dispatchUtils";
 import {
   loadDispatchJobContext,
   loadDispatchSnapshot,
@@ -33,14 +34,15 @@ export default async function DispatchPage() {
 
   const dispatchSnapshot: DispatchSnapshot = snapshot
     ? {
-        ...EMPTY_DISPATCH_SNAPSHOT,
+        ...assembleDispatchSnapshot(
+          snapshot.plans,
+          snapshot.assignments,
+          snapshot.scheduleBlocks,
+          snapshot.events,
+          snapshot.crews,
+        ),
         contractors: jobContext?.contractors ?? [],
         jobContractorIds: jobContext?.jobContractorIds ?? {},
-        dispatchPlans: snapshot.plans,
-        crewAssignments: snapshot.assignments,
-        scheduleBlocks: snapshot.scheduleBlocks,
-        dispatchEvents: snapshot.events,
-        crews: snapshot.crews,
       }
     : EMPTY_DISPATCH_SNAPSHOT;
 
