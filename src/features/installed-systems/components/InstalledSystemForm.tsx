@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { requestJson } from "@/lib/api/client";
 import { useCurrentRole } from "@/features/auth";
 import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
+import { todayLocalISODate } from "@/lib/dates";
 
 import type { InstalledSystem, InstalledSystemLifecycle } from "../types/installedSystem";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
@@ -39,7 +40,7 @@ function toFormValues(system?: InstalledSystem): FormValues {
     customerName: system?.customerName ?? "",
     propertyName: system?.propertyName ?? "",
     location: system?.location ?? "",
-    installDate: system?.installDate ?? new Date().toISOString().split("T")[0],
+    installDate: system?.installDate ?? todayLocalISODate(),
     lifecycleStatus: system?.lifecycleStatus ?? "Planned",
   };
 }

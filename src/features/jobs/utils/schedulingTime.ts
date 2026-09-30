@@ -108,7 +108,40 @@ export function parseDatetimeLocalInput(
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return null;
 
-  return normalized;
+  // Interpret the wall-clock time in the browser's local timezone and return an
+  // offset-aware ISO string, so timestamptz columns store the correct instant.
+  // (Previously the naive string was returned as-is and Postgres read it as UTC,
+  // shifting every appointment by the local UTC offset.)
+  return date.toISOString();
+}
+
+/**
+ * Derives the legacy calendar-date (`scheduled_for`, "YYYY-MM-DD") from a
+ * datetime-local wall-clock string ("YYYY-MM-DDTHH:mm").
+ *
+ * The date part is taken from the wall time the user picked — NOT from a
+ * timezone-shifted instant — so the calendar/day views agree with the form.
+ * Returns null when the value is missing or not a valid calendar date.
+ */
+export function deriveScheduledForDate(
+  value: string | null | undefined,
+): string | null {
+  if (!value || typeof value !== "string") return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const y = Number(year);
+  const m = Number(month);
+  const d = Number(day);
+  const probe = new Date(y, m - 1, d);
+  if (
+    probe.getFullYear() !== y ||
+    probe.getMonth() !== m - 1 ||
+    probe.getDate() !== d
+  ) {
+    return null;
+  }
+  return `${year}-${month}-${day}`;
 }
 
 /**

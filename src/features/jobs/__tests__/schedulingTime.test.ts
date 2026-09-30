@@ -7,6 +7,7 @@ import {
   isValidTimeWindow,
   getTimeWindowError,
   deriveScheduledStartAt,
+  deriveScheduledForDate,
 } from "../utils/schedulingTime";
 
 // ─── formatScheduledShort ────────────────────────────────────────────────────
@@ -56,16 +57,50 @@ describe("parseDatetimeLocalInput", () => {
     expect(parseDatetimeLocalInput("")).toBeNull();
   });
 
-  it("normalises YYYY-MM-DDTHH:mm to YYYY-MM-DDTHH:mm:00", () => {
-    expect(parseDatetimeLocalInput("2026-07-29T09:00")).toBe("2026-07-29T09:00:00");
+  it("returns an offset-aware ISO instant matching the wall-clock time", () => {
+    const result = parseDatetimeLocalInput("2026-07-29T09:00");
+    expect(result).not.toBeNull();
+    // The instant must equal the wall-clock time interpreted in local time —
+    // this is timezone-independent: the stored instant is the same moment.
+    expect(new Date(result as string).getTime()).toBe(
+      new Date("2026-07-29T09:00:00").getTime(),
+    );
   });
 
-  it("returns the value unchanged when already HH:mm:ss", () => {
-    expect(parseDatetimeLocalInput("2026-07-29T09:00:00")).toBe("2026-07-29T09:00:00");
+  it("returns an offset-aware ISO instant when already HH:mm:ss", () => {
+    const result = parseDatetimeLocalInput("2026-07-29T09:00:00");
+    expect(result).not.toBeNull();
+    expect(new Date(result as string).getTime()).toBe(
+      new Date("2026-07-29T09:00:00").getTime(),
+    );
   });
 
   it("returns null for obviously invalid input", () => {
     expect(parseDatetimeLocalInput("not-a-date")).toBeNull();
+  });
+});
+
+// ─── deriveScheduledForDate ──────────────────────────────────────────────────
+
+describe("deriveScheduledForDate", () => {
+  it("extracts the calendar date from a datetime-local wall string", () => {
+    expect(deriveScheduledForDate("2026-09-30T09:00")).toBe("2026-09-30");
+  });
+
+  it("takes the wall-clock date, not a timezone-shifted instant", () => {
+    // 11 PM local must stay the 30th even though it's the 1st in UTC.
+    expect(deriveScheduledForDate("2026-09-30T23:00")).toBe("2026-09-30");
+  });
+
+  it("returns null for null/undefined/empty", () => {
+    expect(deriveScheduledForDate(null)).toBeNull();
+    expect(deriveScheduledForDate(undefined)).toBeNull();
+    expect(deriveScheduledForDate("")).toBeNull();
+  });
+
+  it("returns null for invalid calendar dates", () => {
+    expect(deriveScheduledForDate("2026-13-45T09:00")).toBeNull();
+    expect(deriveScheduledForDate("not-a-date")).toBeNull();
   });
 });
 

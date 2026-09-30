@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { TimelineEventItem } from "@/lib/timeline";
 import { ROUTE_BUILDERS } from "@/lib/routes";
+import { formatDateOnly } from "@/lib/dates";
 
 import type { Customer } from "../types/customer";
 import type {
@@ -45,7 +46,7 @@ const tabs: CustomerDetailTab[] = [
 const TAB_KEYS = new Set<CustomerDetailTabKey>(tabs.map((tab) => tab.key));
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString();
+  return formatDateOnly(value);
 }
 
 function normalizeTab(value?: string): CustomerDetailTabKey {

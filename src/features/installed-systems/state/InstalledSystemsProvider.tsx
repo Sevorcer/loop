@@ -29,7 +29,10 @@ interface InstalledSystemsContextValue {
   technicalProfiles: TechnicalProfile[];
   loading: boolean;
   getInstalledSystemById: (id: string) => InstalledSystem | undefined;
-  getInstalledSystemsForJob: (jobId: string) => InstalledSystem[];
+  getInstalledSystemsForJob: (
+    jobId: string,
+    propertyId?: string,
+  ) => InstalledSystem[];
   getTechnicalProfileById: (id: string) => TechnicalProfile | undefined;
   getCatalogEntryById: (id: string) => EquipmentCatalogEntry | undefined;
   refreshSystems: () => Promise<void>;
@@ -95,10 +98,17 @@ export function InstalledSystemsProvider({
       return installedSystems.find((system) => system.id === id);
     }
 
-    function getInstalledSystemsForJob(jobId: string) {
+    function getInstalledSystemsForJob(jobId: string, propertyId?: string) {
       return installedSystems.filter(
         (system) =>
-          system.jobId === jobId || system.linkedWorkflowIds.includes(jobId)
+          system.jobId === jobId ||
+          system.linkedWorkflowIds.includes(jobId) ||
+          // Systems entered standalone (e.g. from /installed-systems/new) often
+          // carry only the property link — surface them on the job panel for
+          // the job's property too.
+          (propertyId != null &&
+            propertyId !== "" &&
+            system.propertyId === propertyId),
       );
     }
 

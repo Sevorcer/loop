@@ -40,7 +40,7 @@ export function JobInstalledSystemsPanel({
   const { getInstalledSystemsForJob, getTechnicalProfileById } =
     useInstalledSystems();
 
-  const systems = getInstalledSystemsForJob(jobId);
+  const systems = getInstalledSystemsForJob(jobId, propertyId);
 
   const addSystemParams = new URLSearchParams({
     ...(jobId ? { jobId } : {}),

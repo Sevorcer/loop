@@ -30,10 +30,11 @@ import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTimeline } from "./JobTimeline";
 import { readJobAppointmentHour, formatJobAppointmentHour } from "../utils/appointmentWindow";
+import { formatDateOnly } from "@/lib/dates";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Unscheduled";
-  return new Date(value).toLocaleDateString();
+  return formatDateOnly(value);
 }
 
 function getStatusVariant(status: JobStatus) {
@@ -74,7 +75,8 @@ export function JobDetailScreen({
   const priorityVariant = getPriorityVariant(job.priority);
   const statusIntent = getJobStatusIntent(job.status);
   const qaChecklist = useMemo(() => parseLatestQaChecklist(activity), [activity]);
-  const installedSystemsEntered = getInstalledSystemsForJob(job.id).length > 0;
+  const installedSystemsEntered =
+    getInstalledSystemsForJob(job.id, job.propertyId ?? undefined).length > 0;
   const jobNotesCompleted = job.notes.trim().length > 0;
 
   return (

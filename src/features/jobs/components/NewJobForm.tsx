@@ -14,6 +14,7 @@ import type { Property } from "@/features/properties/types/property";
 import { requestJson } from "@/lib/api/client";
 import { ROUTES } from "@/lib/routes";
 import { useContractors } from "@/features/contractors/state/ContractorsProvider";
+import type { Crew } from "@/features/dispatch/types/dispatch";
 import {
   buildTechnicianSuggestions,
   resolveInitialSmartSelection,
@@ -40,13 +41,16 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
   const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
 
+  const [crewTechnicians, setCrewTechnicians] = useState<string[]>([]);
+
   const technicianOptions = useMemo(
     () =>
       buildTechnicianSuggestions([
+        ...crewTechnicians,
         ...jobs.map((job) => job.assignedTo),
         ...contractors.map((contractor) => contractor.contactName),
       ]),
-    [contractors, jobs],
+    [contractors, crewTechnicians, jobs],
   );
 
   useEffect(() => {
@@ -56,10 +60,17 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
     void Promise.all([
       requestJson<{ customers: Customer[] }>("/api/customers", { role }),
       requestJson<{ properties: Property[] }>("/api/properties", { role }),
+      requestJson<{ crews: Crew[] }>("/api/crews", { role }),
     ])
-      .then(([customerResponse, propertyResponse]) => {
+      .then(([customerResponse, propertyResponse, crewsResponse]) => {
         setCustomerOptions(customerResponse.customers);
         setPropertyOptions(propertyResponse.properties);
+        setCrewTechnicians(
+          (crewsResponse.crews ?? []).flatMap((crew) => [
+            crew.leadInstaller,
+            ...crew.members.map((member) => member.name),
+          ]),
+        );
         setSmartLoadError(null);
         setHasLoadedOptions(true);
       })
@@ -67,6 +78,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         console.error("[jobs] failed to load smart creation options", error);
         setCustomerOptions([]);
         setPropertyOptions([]);
+        setCrewTechnicians([]);
         setSmartLoadError("Autocomplete is temporarily unavailable. Manual entry still works.");
         setHasLoadedOptions(true);
       });

@@ -5,6 +5,7 @@ import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ROUTE_BUILDERS } from "@/lib/routes";
+import { formatDateOnly } from "@/lib/dates";
 
 import { CustomerDeleteButton } from "../components/CustomerDeleteButton";
 import { CustomerDetailTabs } from "../components/CustomerDetailTabs";
@@ -29,7 +30,7 @@ interface CustomerDetailScreenProps {
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString();
+  return formatDateOnly(value);
 }
 
 export function CustomerDetailScreen({

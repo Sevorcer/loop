@@ -5,11 +5,12 @@ import { ArrowUpDown, Building2, MoreHorizontal } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
+import { formatDateOnly } from "@/lib/dates";
 
 import type { Property } from "../types/property";
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString();
+  return formatDateOnly(value);
 }
 
 export const propertyColumns: ColumnDef<Property>[] = [
