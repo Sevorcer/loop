@@ -223,21 +223,22 @@ export function CompanyBrainScreen() {
             {searchText && (
               <button
                 onClick={() => setSearchText("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                aria-label="Clear search"
+                className="absolute right-1.5 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center text-slate-500 hover:text-slate-300"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
 
-          {/* Type Filters */}
+          {/* Type Filters — F14: 44px targets for gloved taps. */}
           <div className="flex flex-wrap gap-2">
             {TYPE_FILTERS.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setTypeFilter(f.key as KnowledgeType | "all")}
                 className={[
-                  "rounded-full border px-3 py-1 text-xs font-medium transition-all",
+                  "min-h-[44px] rounded-full border px-4 py-2 text-xs font-medium transition-all",
                   typeFilter === f.key
                     ? "border-violet-500/50 bg-violet-500/20 text-violet-200"
                     : "border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-slate-200",
@@ -648,7 +649,8 @@ function KnowledgeDetailPanel({
             </PermissionGuard>
             <button
               onClick={onClose}
-              className="rounded-lg border border-white/10 p-2 text-slate-500 transition-colors hover:border-white/20 hover:text-slate-300"
+              aria-label="Close knowledge detail"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-white/10 text-slate-500 transition-colors hover:border-white/20 hover:text-slate-300"
             >
               <X className="h-4 w-4" />
             </button>
@@ -669,9 +671,9 @@ function KnowledgeDetailPanel({
           </div>
         )}
 
-        {/* Body */}
+        {/* Body — F14: larger type on phones for sunlight readability. */}
         <div className="mb-5 rounded-2xl border border-white/10 bg-black/20 p-5">
-          <pre className="whitespace-pre-wrap text-xs leading-relaxed text-slate-300 font-sans">
+          <pre className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300 font-sans md:text-xs">
             {item.body}
           </pre>
         </div>

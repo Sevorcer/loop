@@ -83,7 +83,21 @@ export function KnowledgeItemCard({
           : "",
       ].join(" ")}
     >
-      <div className="p-5" onClick={onClick}>
+      <div
+        className="p-5"
+        onClick={onClick}
+        // F14: full-card tap target on phones; keyboard-operable like the
+        // atlas mobile table cards.
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={(event) => {
+          if (!onClick) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onClick();
+          }
+        }}
+      >
         {/* Header row */}
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">

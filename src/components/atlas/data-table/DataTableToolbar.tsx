@@ -33,6 +33,7 @@ export function DataTableToolbar({
             border-default
             text-primary
             placeholder:text-muted
+            min-h-[44px]
             w-full
             rounded-atlas-lg
             border

@@ -39,7 +39,7 @@ export function CustomerToolbar({
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search customers, contacts, email, phone, or city..."
-          className="h-10 w-full rounded-md border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary"
+          className="h-11 w-full rounded-md border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary"
         />
       </div>
 
@@ -47,7 +47,7 @@ export function CustomerToolbar({
         <select
           value={statusFilter}
           onChange={(event) => onStatusChange(event.target.value)}
-          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+          className="h-11 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
         >
           {statusOptions.map((status) => (
             <option key={status} value={status}>
@@ -59,7 +59,7 @@ export function CustomerToolbar({
         <select
           value={cityFilter}
           onChange={(event) => onCityChange(event.target.value)}
-          className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+          className="h-11 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
         >
           <option value="all">All cities</option>
 

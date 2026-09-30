@@ -236,7 +236,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as JobStatus | "All")}
-              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40 sm:w-auto"
+              className="min-h-[44px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40 sm:w-auto"
             >
               {statusOptions.map((option) => (
                 <option key={option} value={option}>
@@ -248,7 +248,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as JobType | "All")}
-              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/40 sm:w-auto"
+              className="min-h-[44px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/40 sm:w-auto"
             >
               {typeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -262,7 +262,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
               onChange={(e) =>
                 setPriorityFilter(e.target.value as JobPriority | "All")
               }
-              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40 sm:w-auto"
+              className="min-h-[44px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40 sm:w-auto"
             >
               {priorityOptions.map((option) => (
                 <option key={option} value={option}>

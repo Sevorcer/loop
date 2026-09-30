@@ -110,7 +110,8 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
 
                 <button
                   onClick={() => void handleRemove(c.id)}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-red-300"
+                  // F14: glove-sized remove target.
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-red-300"
                   aria-label={`Remove ${c.companyName}`}
                 >
                   <UserMinus className="h-3.5 w-3.5" />
