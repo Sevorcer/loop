@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, Clock, Activity } from "lucide-react";
+import { ShieldCheck, Clock, Activity, Upload } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas/PageHeader";
 import { ADMIN_ROUTES } from "@/lib/routes";
@@ -57,6 +57,43 @@ export function AdminLandingScreen() {
               </p>
             </div>
           </Link>
+          {(
+            [
+              {
+                href: ADMIN_ROUTES.IMPORT_CUSTOMERS,
+                name: "Import Customers",
+                description: "Bulk-import customer records from a CSV file.",
+              },
+              {
+                href: ADMIN_ROUTES.IMPORT_PROPERTIES,
+                name: "Import Properties",
+                description: "Bulk-import property records from a CSV file.",
+              },
+              {
+                href: ADMIN_ROUTES.IMPORT_JOBS,
+                name: "Import Jobs",
+                description: "Bulk-import job records from a CSV file.",
+              },
+            ] as const
+          ).map((mod) => (
+            <Link
+              key={mod.name}
+              href={mod.href}
+              className="group flex items-start gap-4 rounded-xl border border-default bg-surface p-4 transition-colors hover-surface-elevated"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-elevated ring-1 ring-default">
+                <Upload size={17} className="text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium transition-colors group-hover:text-primary">
+                  {mod.name}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted">
+                  {mod.description}
+                </p>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 
