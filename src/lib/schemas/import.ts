@@ -86,8 +86,8 @@ export type PropertyImportRow = z.infer<typeof PropertyImportRowSchema>;
 export const JobImportRowSchema = z.object({
   title: nonEmptyString("title").max(255, "title must be 255 characters or fewer"),
   type: z
-    .enum(["Install", "Service", "Maintenance", "Inspection", "Estimate"], {
-      message: 'type must be one of: Install, Service, Maintenance, Inspection, Estimate',
+    .enum(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"], {
+      message: 'type must be one of: Install, Service, Maintenance, Inspection, Estimate, Callback',
     })
     .default("Service"),
   status: z

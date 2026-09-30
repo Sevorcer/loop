@@ -31,6 +31,7 @@ const typeOptions: Array<JobType | "All"> = [
   "Maintenance",
   "Inspection",
   "Estimate",
+  "Callback",
 ];
 
 const priorityOptions: Array<JobPriority | "All"> = [
