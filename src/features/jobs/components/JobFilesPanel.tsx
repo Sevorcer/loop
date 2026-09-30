@@ -157,7 +157,7 @@ export function JobFilesPanel({
             {uploading ? "Uploading…" : "Upload file"}
             <input
               type="file"
-              className="hidden"
+              className="sr-only"
               accept={ALLOWED_FILE_ACCEPT}
               onChange={(event) => void handleUpload(event.target.files)}
               disabled={uploading}
@@ -170,7 +170,7 @@ export function JobFilesPanel({
             <span className="sr-only">Take photo</span>
             <input
               type="file"
-              className="hidden"
+              className="sr-only"
               accept="image/*"
               onChange={(event) => void handleUpload(event.target.files)}
               disabled={uploading}
