@@ -13,6 +13,7 @@ import {
   ImageIcon,
   Mail,
   Phone,
+  Plus,
   ShieldCheck,
   Users,
   Wrench,
@@ -23,9 +24,11 @@ import {
   AtlasTimeline,
   EmptyState,
   ErrorState,
+  PermissionGuard,
   StatusBadge,
 } from "@/components/atlas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
 import type { TimelineEventItem } from "@/lib/timeline";
 import { formatDateOnly } from "@/lib/dates";
@@ -237,22 +240,44 @@ function OverviewSection({
 function EquipmentSection({
   details,
   installedSystems,
+  property,
+  customerName,
 }: {
   details: PropertyDetails;
   installedSystems: InstalledSystem[];
+  property: Property;
+  customerName?: string;
 }) {
-  if (details.equipment.length === 0 && installedSystems.length === 0) {
-    return (
-      <EmptyState
-        title="No equipment recorded yet"
-        description="Equipment records will appear here once systems and controls are documented for this property."
-      />
-    );
-  }
+  // F10: "Add system" from the property Equipment tab. The installed-system
+  // form already accepts ?propertyId=&propertyName=&customerName= and prefills
+  // its F6 pickers from them (plus id-based linking on submit).
+  const addSystemHref = ROUTE_BUILDERS.INSTALLED_SYSTEM_NEW({
+    propertyId: property.id,
+    propertyName: property.name,
+    customerName,
+  });
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {installedSystems.map((system) => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-end">
+        <PermissionGuard table="installed_systems" action="insert">
+          <Link href={addSystemHref}>
+            <Button size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add System
+            </Button>
+          </Link>
+        </PermissionGuard>
+      </div>
+
+      {details.equipment.length === 0 && installedSystems.length === 0 ? (
+        <EmptyState
+          title="No equipment recorded yet"
+          description="Equipment records will appear here once systems and controls are documented for this property."
+        />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {installedSystems.map((system) => (
         <Card key={system.id}>
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -349,6 +374,8 @@ function EquipmentSection({
           </CardContent>
         </Card>
       ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -848,7 +875,12 @@ export function PropertyDetailTabs({
       ) : null}
 
       {activeTab === "equipment" ? (
-        <EquipmentSection details={details} installedSystems={installedSystems} />
+        <EquipmentSection
+          details={details}
+          installedSystems={installedSystems}
+          property={property}
+          customerName={customer?.name}
+        />
       ) : null}
 
       {activeTab === "jobs" ? (
