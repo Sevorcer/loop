@@ -28,12 +28,6 @@ export async function GET(request: Request) {
     const models = await listPerformanceModels({ status: "active" }, { userId: guard.ctx.userId });
     return NextResponse.json({ performanceModels: models });
   } catch (error) {
-    // TEMP DEBUG — remove after diagnosing prod 500
-    console.error("[REPORTING_DEBUG] listPerformanceModels failed:", {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack?.split("\n").slice(0, 5) : undefined,
-      userId: guard.ctx.userId,
-    });
     return mapRouteError(error);
   }
 }
