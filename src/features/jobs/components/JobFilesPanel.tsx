@@ -15,6 +15,7 @@ interface JobFileMeta {
   mimeType: string;
   sizeBytes: number;
   uploadedBy: string | null;
+  uploaderRole: string | null;
   createdAt: string;
 }
 
@@ -32,6 +33,7 @@ export function JobFilesPanel({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
   const imageCount = useMemo(
     () => files.filter((file) => file.mimeType.toLowerCase().startsWith("image/")).length,
@@ -50,6 +52,17 @@ export function JobFilesPanel({
       });
       const nextFiles = response.files ?? [];
       setFiles(nextFiles);
+      // Signed preview URLs for image files (thumbnails; click opens full size).
+      for (const file of nextFiles) {
+        if (!file.mimeType.toLowerCase().startsWith("image/")) continue;
+        requestJson<{ url: string }>(`/api/jobs/${jobId}/files/${file.id}`, { role, cache: "no-store" })
+          .then((result) => {
+            if (result?.url) {
+              setPreviewUrls((current) => ({ ...current, [file.id]: result.url }));
+            }
+          })
+          .catch(() => undefined);
+      }
       onFilesChanged?.(nextFiles);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load files.");
@@ -207,7 +220,15 @@ export function JobFilesPanel({
                 key={file.id}
                 className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
               >
-                {file.mimeType.toLowerCase().startsWith("image/") ? (
+                {file.mimeType.toLowerCase().startsWith("image/") && previewUrls[file.id] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewUrls[file.id]}
+                    alt={file.fileName}
+                    className="h-11 w-11 shrink-0 cursor-pointer rounded-lg object-cover"
+                    onClick={() => void handleDownload(file)}
+                  />
+                ) : file.mimeType.toLowerCase().startsWith("image/") ? (
                   <Camera className="h-4 w-4 shrink-0 text-blue-300" />
                 ) : file.mimeType === "application/pdf" ? (
                   <FileText className="h-4 w-4 shrink-0 text-red-300" />

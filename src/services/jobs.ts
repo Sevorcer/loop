@@ -592,7 +592,9 @@ export async function getJobCompletionChecklist(
   }
 
   const qaChecklist = parseLatestQaChecklist(activity);
-  const photosUploaded = files.some((file) => file.mimeType.toLowerCase().startsWith("image/"));
+  const photosUploaded = files.some(
+    (file) => file.mimeType.toLowerCase().startsWith("image/") && file.uploaderRole === "tech",
+  );
   const installedSystemsEntered = snapshot.installedSystems.some(
     (system) => system.jobId === jobId || system.linkedWorkflowIds.includes(jobId),
   );

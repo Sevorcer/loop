@@ -328,7 +328,10 @@ export function JobDetailScreen({
             onFilesChanged={(files) => {
               setFileCount(files.length);
               setPhotoCount(
-                files.filter((file) => file.mimeType.toLowerCase().startsWith("image/")).length,
+                files.filter(
+                  (file) =>
+                    file.mimeType.toLowerCase().startsWith("image/") && file.uploaderRole === "tech",
+                ).length,
               );
             }}
           />
