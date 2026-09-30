@@ -1,6 +1,9 @@
+"use client";
+
 import { MapPin, Phone } from "lucide-react";
 
 import { toTelHref } from "@/components/atlas";
+import { useMobileActionBarFlag } from "@/components/mobile/useMobileActionBarFlag";
 import { buildCustomerDirectionsUrl } from "@/features/jobs/utils/jobMobileActions";
 
 import type { Customer } from "../types/customer";
@@ -17,6 +20,9 @@ interface CustomerMobileActionBarProps {
 export function CustomerMobileActionBar({ customer }: CustomerMobileActionBarProps) {
   const callHref = toTelHref(customer.phone);
   const directionsUrl = buildCustomerDirectionsUrl(customer.street, customer.city, customer.zip);
+
+  // Lift AppShell's floating FAB stack above this bar so the buttons never overlap.
+  useMobileActionBarFlag(Boolean(callHref) || Boolean(directionsUrl));
 
   if (!callHref && !directionsUrl) return null;
 

@@ -368,3 +368,14 @@
 [data-spacing="compact"] .space-y-6 > * + * {
   margin-top: 1rem;
 }
+
+/* ==========================================================================
+   F14 fix: when a sticky mobile action bar is on screen, lift the floating
+   action stack above it on phones so the FABs never cover the bar.
+   The bar sets data-mobile-action-bar="1" on <body> while mounted.
+   ========================================================================== */
+@media (max-width: 767px) {
+  body[data-mobile-action-bar="1"] .floating-actions-stack {
+    bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
