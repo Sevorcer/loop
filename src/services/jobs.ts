@@ -20,7 +20,7 @@ import {
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import { formatDateOnly } from "@/lib/dates";
 import {
-  countJobs,
+  getMaxJobNumberSuffix,
   createJob as createJobRecord,
   createJobActivity as createJobActivityRecord,
   deleteJob as deleteJobRecord,
@@ -147,8 +147,9 @@ async function syncRelatedCounters(
   }
 }
 
-function createJobNumber(index: number) {
-  return `JOB-${1000 + index}`;
+function createJobNumber(suffix: number) {
+  // Job numbers start at JOB-1001.
+  return `JOB-${Math.max(suffix, 1001)}`;
 }
 
 export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
@@ -192,7 +193,9 @@ export async function createJob(
   normalized.appointmentHour = appointmentHour;
   validateJobInput(normalized);
 
-  const nextIndex = (await countJobs(contextInput)) + 1;
+  // Next number = highest JOB-<n> in use + 1. Never derive this from the
+  // job count: deleting a job drops the count and reuses a live number.
+  const nextIndex = (await getMaxJobNumberSuffix(contextInput)) + 1;
   const [customerId, propertyId] = await Promise.all([
     resolveCustomerIdByName(normalized.customerName, contextInput),
     resolvePropertyIdByName(normalized.propertyName, contextInput),

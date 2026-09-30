@@ -675,6 +675,38 @@ export async function countJobs(
   return count ?? 0;
 }
 
+const JOB_NUMBER_PATTERN = /^JOB-(\d+)$/;
+
+/**
+ * Highest numeric suffix among existing JOB-<n> numbers in the org.
+ * Job numbers must be derived from this — never from the row count:
+ * a deleted job drops the count and the next create would reuse a
+ * number that is still in use (duplicate JOB-1006 incident, 2026-09-30).
+ */
+export async function getMaxJobNumberSuffix(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<number> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("job_number")
+    .eq("org_id", orgId)
+    .like("job_number", "JOB-%");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  let max = 0;
+  for (const row of (data ?? []) as { job_number: string }[]) {
+    const match = JOB_NUMBER_PATTERN.exec(row.job_number ?? "");
+    if (match) {
+      max = Math.max(max, Number.parseInt(match[1], 10));
+    }
+  }
+  return max;
+}
+
 export function toJob(row: JobRow): Job {
   return mapJob(row);
 }
