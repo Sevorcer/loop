@@ -145,10 +145,15 @@ export function DispatchBoardCard({
             </div>
 
             <div className="mt-2">
-              <p className="text-sm font-semibold text-white">
+              {plan.jobTitle && (
+                <p className="truncate text-sm font-semibold text-white" title={plan.jobTitle}>
+                  {plan.jobTitle}
+                </p>
+              )}
+              <p className="text-xs text-slate-400">
                 {plan.customerName}
               </p>
-              <p className="text-xs text-slate-400">{plan.propertyName}</p>
+              <p className="text-xs text-slate-500">{plan.propertyName}</p>
             </div>
           </div>
 

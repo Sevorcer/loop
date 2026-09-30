@@ -98,12 +98,33 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
     return [...names].sort();
   }, [crews]);
 
+  /**
+   * All job types the board can filter by: the canonical set plus anything
+   * already present on plans (kept in sync with JobType in features/jobs).
+   * Always rendered — an office filter that only appears with enough data
+   * trains people to think the feature doesn't exist.
+   */
   const jobTypeOptions = useMemo(() => {
-    return [...new Set(plans.map((plan) => plan.jobType))].sort();
+    const canonical = [
+      "Install",
+      "Service",
+      "Maintenance",
+      "Inspection",
+      "Estimate",
+      "Callback",
+    ];
+    return [...new Set([...canonical, ...plans.map((plan) => plan.jobType)])];
   }, [plans]);
 
   const technicianOptions = useMemo(() => {
     const names = new Set<string>();
+
+    for (const crew of crews) {
+      if (crew.leadInstaller) names.add(crew.leadInstaller);
+      for (const member of crew.members ?? []) {
+        if (member.name) names.add(member.name);
+      }
+    }
 
     for (const assignment of assignments) {
       if (assignment.leadInstaller) names.add(assignment.leadInstaller);
@@ -113,7 +134,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
     }
 
     return [...names].sort();
-  }, [assignments]);
+  }, [assignments, crews]);
 
   const contractors = initialSnapshot.contractors ?? [];
 
@@ -342,21 +363,19 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           </select>
         )}
 
-        {jobTypeOptions.length > 1 && (
-          <select
-            value={jobTypeFilter}
-            onChange={(e) => setJobTypeFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
-            aria-label="Filter by job type"
-          >
-            <option value="all">All job types</option>
-            {jobTypeOptions.map((jobType) => (
-              <option key={jobType} value={jobType}>
-                {jobType}
-              </option>
-            ))}
-          </select>
-        )}
+        <select
+          value={jobTypeFilter}
+          onChange={(e) => setJobTypeFilter(e.target.value)}
+          className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+          aria-label="Filter by job type"
+        >
+          <option value="all">All job types</option>
+          {jobTypeOptions.map((jobType) => (
+            <option key={jobType} value={jobType}>
+              {jobType}
+            </option>
+          ))}
+        </select>
 
         {contractors.length > 0 && (
           <select
@@ -374,21 +393,19 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           </select>
         )}
 
-        {technicianOptions.length > 0 && (
-          <select
-            value={technicianFilter}
-            onChange={(e) => setTechnicianFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
-            aria-label="Filter by technician"
-          >
-            <option value="all">All technicians</option>
-            {technicianOptions.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
+        <select
+          value={technicianFilter}
+          onChange={(e) => setTechnicianFilter(e.target.value)}
+          className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+          aria-label="Filter by technician"
+        >
+          <option value="all">All technicians</option>
+          {technicianOptions.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
 
         <div className="flex items-center gap-1.5">
           <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
