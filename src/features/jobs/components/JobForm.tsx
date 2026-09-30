@@ -384,36 +384,68 @@ export function JobForm({
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Customer Name</label>
-              <input
-                list="job-customer-options"
+              {/* F18: native select replaces the datalist combobox so only a
+                  real customer record can be picked — a typo can no longer
+                  silently unlink the job. Name-valued options match the F6
+                  pattern; the existing handleCustomerInput resolution and
+                  property scoping are unchanged. */}
+              <select
                 value={form.customerName}
                 onChange={(e) => handleCustomerInput(e.target.value)}
-                placeholder="Northside Retail Group"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
                 required
-              />
-              <datalist id="job-customer-options">
+              >
+                <option value="" disabled>
+                  Select customer
+                </option>
+                {/* Keep a legacy free-text value selectable on edit so an
+                    existing value is never lost when it predates the picker. */}
+                {form.customerName.trim() &&
+                  !customerOptions.some(
+                    (customer) => customer.name === form.customerName.trim(),
+                  ) && (
+                    <option value={form.customerName.trim()}>
+                      {form.customerName.trim()}
+                    </option>
+                  )}
                 {customerOptions.map((customer) => (
-                  <option key={customer.id} value={customer.name} />
+                  <option key={customer.id} value={customer.name}>
+                    {customer.name}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Property Name</label>
-              <input
-                list="job-property-options"
+              {/* F18: native select replaces the datalist combobox. Options stay
+                  scoped to the selected customer (same getScopedProperties
+                  behavior as before); only real linked records can be picked. */}
+              <select
                 value={form.propertyName}
                 onChange={(e) => handlePropertyInput(e.target.value)}
-                placeholder="Northside Plaza"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
                 required
-              />
-              <datalist id="job-property-options">
+              >
+                <option value="" disabled>
+                  Select property
+                </option>
+                {/* Keep a legacy free-text value selectable on edit so an
+                    existing value is never lost when it predates the picker. */}
+                {form.propertyName.trim() &&
+                  !scopedPropertyOptions.some(
+                    (property) => property.name === form.propertyName.trim(),
+                  ) && (
+                    <option value={form.propertyName.trim()}>
+                      {form.propertyName.trim()}
+                    </option>
+                  )}
                 {scopedPropertyOptions.map((property) => (
-                  <option key={property.id} value={property.name} />
+                  <option key={property.id} value={property.name}>
+                    {property.name}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </div>
 
             <div className="space-y-2">

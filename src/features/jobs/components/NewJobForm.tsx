@@ -79,7 +79,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         setCustomerOptions([]);
         setPropertyOptions([]);
         setCrewTechnicians([]);
-        setSmartLoadError("Autocomplete is temporarily unavailable. Manual entry still works.");
+        setSmartLoadError("Customer and property pickers are temporarily unavailable. Reload the page and try again before saving.");
         setHasLoadedOptions(true);
       });
   }, [role]);
