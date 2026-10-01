@@ -53,7 +53,7 @@ function getTypeIcon(type: Job["type"]) {
   return <Briefcase className="h-4 w-4 text-red-300" />;
 }
 
-export const jobColumns: ColumnDef<Job>[] = [
+function formatListDateRange(job: Job): string | null { const startValue = job.scheduledStartAt ?? job.scheduledFor; if (!startValue || !job.scheduledEndAt) { return null; } const start = new Date(startValue); const end = new Date(job.scheduledEndAt); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { return null; } const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); const yearFmt = new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "UTC" }); return monthDay.format(start) + " – " + monthDay.format(end) + ", " + yearFmt.format(end); } export const jobColumns: ColumnDef<Job>[] = [
   {
     accessorKey: "jobNumber",
     meta: {
@@ -160,7 +160,7 @@ export const jobColumns: ColumnDef<Job>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm text-slate-400">
-        {formatScheduledShort(row.original.scheduledStartAt ?? row.original.scheduledFor)}
+        {formatListDateRange(row.original) ?? formatScheduledShort(row.original.scheduledStartAt ?? row.original.scheduledFor)}
       </span>
     ),
   },
