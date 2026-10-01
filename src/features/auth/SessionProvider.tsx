@@ -14,13 +14,13 @@
 import {
   createContext,
   useContext,
-  useMemo,
+  useEffect, useMemo,
   useState,
   type ReactNode,
 } from "react";
 
 import type { AppRole } from "@/services/authorization";
-import { useAuth } from "./state/AuthProvider";
+import { useAuth } from "./state/AuthProvider"; import { getSupabaseBrowserClient } from "@/lib/supabase/client"; import { isAppRole } from "./utils/appRole";
 import {
   DEFAULT_APP_ROLE,
   readStoredDevRole,
@@ -35,7 +35,7 @@ interface SessionContextValue {
   /** The resolved role for the current user. Null while loading. */
   role: AppRole | null;
   /** True until the session has been resolved from the auth provider. */
-  loading: boolean;
+  loading: boolean; /** Current user's display name from their own user_profiles row. */ displayName: string | null; /** First-name token for compact greetings/menus. */ firstName: string | null;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -43,18 +43,18 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 function useDerivedSessionValue(): SessionContextValue {
   const { session, user, isLoading } = useAuth();
   const [devRole] = useState<AppRole | null>(() => readStoredDevRole());
-  const authUser = session?.user ?? user;
+  const authUser = session?.user ?? user; const authUserId = authUser?.id ?? null; const [profile, setProfile] = useState<{ userId: string; name: string | null; role: AppRole | null } | null>(null); useEffect(() => { if (!authUserId) { setProfile(null); return; } let cancelled = false; (async () => { let name: string | null = null; let profileRole: AppRole | null = null; try { const supabase = getSupabaseBrowserClient(); const { data } = await supabase.from("user_profiles").select("full_name, app_role").eq("id", authUserId).maybeSingle(); const row = data as { full_name?: string | null; app_role?: string | null } | null; if (row && typeof row.full_name === "string" && row.full_name.trim()) name = row.full_name.trim(); if (row && isAppRole(row.app_role)) profileRole = row.app_role; } catch { /* best-effort */ } if (!cancelled) setProfile({ userId: authUserId, name, role: profileRole }); })(); return () => { cancelled = true; }; }, [authUserId]);
 
   const role = useMemo<AppRole | null>(() => {
-    if (isLoading) {
+    if (isLoading || (authUserId && profile?.userId !== authUserId)) {
       return null;
     }
 
     // Fallback order: dev override → hydrated auth session/user metadata → owner.
-    return devRole ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
-  }, [authUser, devRole, isLoading]);
+    return devRole ?? profile?.role ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+  }, [authUser, devRole, isLoading, profile]);
 
-  return { role, loading: isLoading };
+  const displayName = profile?.name ?? (typeof authUser?.user_metadata?.full_name === "string" ? (authUser.user_metadata.full_name as string) : null); const firstName = displayName ? displayName.trim().split(/\s+/)[0] : null; return { role, loading: isLoading || Boolean(authUserId && profile?.userId !== authUserId), displayName, firstName };
 }
 
 // ---------------------------------------------------------------------------
