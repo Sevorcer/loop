@@ -111,7 +111,7 @@ export interface DispatchPlan {
   jobId: string;
   jobNumber: string;
   /** Job title from the jobs table (enriched at snapshot load). */
-  jobTitle?: string;
+  jobTitle?: string; assignedTechNames?: string[];
   customerName: string;
   propertyName: string;
   jobType: string;
