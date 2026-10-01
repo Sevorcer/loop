@@ -9,7 +9,7 @@ export const DEFAULT_DEVELOPMENT_ORG_ID = "00000000-0000-4000-8000-000000000001"
 export interface RepositoryContext {
   orgId: string;
   supabase: SupabaseClient;
-  mode: "session" | "development";
+  mode: "session" | "development"; userId: string | null;
 }
 
 /**
@@ -112,7 +112,7 @@ export async function getRepositoryContext(
     return {
       orgId: profile.org_id,
       supabase,
-      mode: "session",
+      mode: "session", userId,
     };
   }
 
@@ -123,7 +123,7 @@ export async function getRepositoryContext(
       return {
         orgId: process.env.LOOP_DEFAULT_ORG_ID ?? DEFAULT_DEVELOPMENT_ORG_ID,
         supabase: adminClient,
-        mode: "development",
+        mode: "development", userId: null,
       };
     }
   }
