@@ -13,7 +13,7 @@ import type { Customer } from "@/features/customers/types/customer";
 import type { Property } from "@/features/properties/types/property";
 import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
-import { useContractors } from "@/features/contractors/state/ContractorsProvider";
+
 import type { Crew } from "@/features/dispatch/types/dispatch";
 import {
   buildTechnicianSuggestions,
@@ -32,7 +32,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const { jobs, createJob } = useJobs();
-  const { contractors } = useContractors();
+  
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
@@ -48,9 +48,9 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
       buildTechnicianSuggestions([
         ...crewTechnicians,
         ...jobs.map((job) => job.assignedTo),
-        ...contractors.map((contractor) => contractor.contactName),
+        
       ]),
-    [contractors, crewTechnicians, jobs],
+    [crewTechnicians, jobs],
   );
 
   useEffect(() => {
