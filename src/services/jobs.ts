@@ -199,9 +199,7 @@ export async function createJob(
   const [customerId, propertyId] = await Promise.all([
     resolveCustomerIdByName(normalized.customerName, contextInput),
     resolvePropertyIdByName(normalized.propertyName, contextInput),
-  ]);
-
-  const createdJob = await createJobRecord(
+  ]); if (!customerId && normalized.customerName.trim()) throw new Error("Customer not found: " + normalized.customerName.trim() + ". Use '+ Create new'."); if (!propertyId && normalized.propertyName.trim()) throw new Error("Property not found: " + normalized.propertyName.trim() + ". Use '+ Create new'."); const createdJob = await createJobRecord(
     createJobNumber(nextIndex),
     {
       ...normalized,
