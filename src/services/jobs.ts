@@ -357,7 +357,7 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     return null;
   }
 
-  if (!canTransitionStatus(existing.status, status)) {
+  if (existing.status === status) { return existing; } if (!canTransitionStatus(existing.status, status)) {
     throw new Error(
       `Invalid transition: job cannot move from '${existing.status}' to '${status}'.`,
     );
