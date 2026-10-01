@@ -40,7 +40,7 @@ export interface JobFormValues {
   title: string;
   customerName: string;
   propertyName: string;
-  assignedTo: string;
+  assignedTo: string;   assigneeIds?: string[];
   /** datetime-local value "YYYY-MM-DDTHH:mm" — the primary scheduling field. */
   scheduledStartAt: string;
   /** datetime-local value — optional committed end time. */
