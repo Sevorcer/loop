@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 export interface RecordOption {
   id: string;
@@ -12,115 +12,151 @@ interface RecordComboboxProps {
   options: RecordOption[];
   value: string;
   onSelect: (name: string, id: string | null) => void;
-  onCreateNew: (name: string) => void;
-  placeholder?: string;
+  onCreateNew: (name: string) => void | Promise<void>;
   required?: boolean;
-  disabled?: boolean;
 }
 
-/**
- * Fix C(1): type-ahead combobox for linking a customer or property record.
- * Type to filter the existing records, pick one to link it. When the typed
- * text matches no record, an explicit "+ Create new: <typed name>" choice
- * is shown — creating a record is always an explicit user action, never a
- * silent consequence of a typo.
- */
+type Row =
+  | { kind: "option"; option: RecordOption }
+  | { kind: "create"; name: string };
+
 export function RecordCombobox({
   label,
   options,
   value,
   onSelect,
   onCreateNew,
-  placeholder,
   required,
-  disabled,
 }: RecordComboboxProps) {
-  const [query, setQuery] = useState(value);
+  const [query, setQuery] = useState(value ?? "");
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Keep the visible text in sync when the value changes externally
-  // (e.g. form reset or a programmatic selection).
   useEffect(() => {
-    setQuery(value);
+    setQuery(value ?? "");
   }, [value]);
 
-  // Close the dropdown on outside click.
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+    const onDocClick = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const filtered = normalizedQuery
-    ? options.filter((option) =>
-        option.name.toLowerCase().includes(normalizedQuery),
-      )
-    : options;
-  const exactMatch = options.some(
-    (option) => option.name.toLowerCase() === normalizedQuery,
+  const trimmed = query.trim();
+
+  const filtered = useMemo(() => {
+    const q = trimmed.toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.name.toLowerCase().includes(q));
+  }, [options, trimmed]);
+
+  const exactMatch = useMemo(
+    () => options.some((o) => o.name.toLowerCase() === trimmed.toLowerCase()),
+    [options, trimmed]
   );
-  const showCreateNew = normalizedQuery.length > 0 && !exactMatch;
+
+  const showCreate = trimmed.length > 0 && !exactMatch;
+
+  const rows: Row[] = useMemo(() => {
+    const list: Row[] = filtered.map((option) => ({ kind: "option", option }));
+    if (showCreate) list.push({ kind: "create", name: trimmed });
+    return list;
+  }, [filtered, showCreate, trimmed]);
+
+  const choose = (option: RecordOption) => {
+    setQuery(option.name);
+    setOpen(false);
+    setHighlight(0);
+    onSelect(option.name, option.id);
+  };
+
+  const create = async () => {
+    if (!trimmed) return;
+    setQuery(trimmed);
+    setOpen(false);
+    setHighlight(0);
+    await onCreateNew(trimmed);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setOpen(true);
+      setHighlight((h) => Math.min(h + 1, Math.max(rows.length - 1, 0)));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const row = rows[highlight];
+      if (!row) return;
+      if (row.kind === "option") choose(row.option);
+      else void create();
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={rootRef} className="relative">
+      <label className="mb-1.5 block text-sm font-medium text-white/80">
+        {label}
+        {required ? <span className="text-red-400"> *</span> : null}
+      </label>
       <input
         type="text"
         value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
+        required={required}
+        placeholder={`Select ${label.toLowerCase()}`}
+        autoComplete="off"
+        onChange={(e) => {
+          setQuery(e.target.value);
           setOpen(true);
+          setHighlight(0);
         }}
         onFocus={() => setOpen(true)}
-        placeholder={placeholder ?? `Type to search ${label.toLowerCase()}...`}
-        required={required}
-        disabled={disabled}
-        aria-label={label}
-        autoComplete="off"
-        className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+        onKeyDown={onKeyDown}
+        className="w-full rounded-full border border-white/10 bg-white/5 px-5 py-3 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
       />
-      {open && !disabled && (
-        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-white/10 bg-slate-900 shadow-xl">
-          {filtered.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => {
-                onSelect(option.name, option.id);
-                setQuery(option.name);
-                setOpen(false);
-              }}
-              className="block w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-white/5"
-            >
-              {option.name}
-            </button>
-          ))}
-          {showCreateNew && (
-            <button
-              type="button"
-              onClick={() => {
-                onCreateNew(query.trim());
-                setOpen(false);
-              }}
-              className="block w-full px-4 py-2.5 text-left text-sm font-medium text-emerald-300 hover:bg-white/5"
-            >
-              + Create new: {query.trim()}
-            </button>
+      {open && rows.length > 0 && (
+        <ul className="absolute z-30 mt-2 max-h-60 w-full overflow-auto rounded-2xl border border-white/10 bg-zinc-900 py-1 shadow-xl">
+          {rows.map((row, i) =>
+            row.kind === "option" ? (
+              <li key={row.option.id}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => choose(row.option)}
+                  onMouseEnter={() => setHighlight(i)}
+                  className={`block w-full px-4 py-2.5 text-left text-sm text-white ${
+                    i === highlight ? "bg-white/10" : ""
+                  }`}
+                >
+                  {row.option.name}
+                </button>
+              </li>
+            ) : (
+              <li key="__create">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => void create()}
+                  onMouseEnter={() => setHighlight(i)}
+                  className={`block w-full px-4 py-2.5 text-left text-sm font-medium text-emerald-300 ${
+                    i === highlight ? "bg-white/10" : ""
+                  }`}
+                >
+                  + Create new: {row.name}
+                </button>
+              </li>
+            )
           )}
-          {filtered.length === 0 && !showCreateNew && (
-            <div className="px-4 py-2.5 text-sm text-slate-500">
-              No matches
-            </div>
-          )}
-        </div>
+        </ul>
       )}
     </div>
   );
