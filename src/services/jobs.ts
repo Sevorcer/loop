@@ -18,7 +18,7 @@ import {
   isValidJobAppointmentHour,
 } from "@/features/jobs/utils/appointmentWindow";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
-import { formatDateOnly } from "@/lib/dates";
+import { formatDateOnly } from "@/lib/dates"; import { actorDisplayName } from "@/lib/actors";
 import {
   getMaxJobNumberSuffix,
   createJob as createJobRecord,
@@ -391,7 +391,7 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
         : status === "Completed"
           ? "Job completed"
           : "Status updated",
-    description: `Status changed from ${existing.status} to ${status}${context?.actorId ? ` by ${context.actorId}` : ""}.`,
+    description: `Status changed from ${existing.status} to ${status}${context?.actorId ? ` by ${actorDisplayName(context.actorId) ?? "a team member"}` : ""}.`,
   });
 
   if (existing.status !== updatedJob.status) {
