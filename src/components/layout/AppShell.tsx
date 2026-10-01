@@ -152,32 +152,6 @@ export default function AppShell({ children }: AppShellProps) {
           </button>
         )}
       </div>
-
-      {/* ── Mobile backdrop ─────────────────────────────────────────────── */}
-      {isMobileNavOpen ? (
-        <button
-          type="button"
-          aria-label="Close navigation"
-          className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm lg:hidden"
-          onClick={() => setIsMobileNavOpen(false)}
-        />
-      ) : null}
-
-      {/* ── Mobile sidebar drawer ───────────────────────────────────────── */}
-      <div
-        className={[
-          "fixed inset-y-0 left-0 z-50 w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 lg:hidden safe-area-drawer",
-          isMobileNavOpen ? "translate-x-0" : "-translate-x-full",
-        ].join(" ")}
-      >
-        <Sidebar
-          id="mobile-navigation"
-          onNavigate={() => setIsMobileNavOpen(false)}
-          navOverride={preferences.sidebarNavOverride}
-          // Pin control is desktop-only; omit onPinToggle to hide the button.
-        />
-      </div>
-
       {/* ── Main content ────────────────────────────────────────────────── */}
       <div className="relative flex min-h-dvh min-w-0 flex-1 flex-col overflow-x-hidden bg-slate-950">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -242,6 +216,32 @@ export default function AppShell({ children }: AppShellProps) {
           <Search className="h-5 w-5" />
         </Button>
       </div>
+
+      {/* ── Mobile backdrop ─────────────────────────────────────────────── */}
+      {isMobileNavOpen ? (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm lg:hidden"
+          onClick={() => setIsMobileNavOpen(false)}
+        />
+      ) : null}
+
+      {/* ── Mobile sidebar drawer ───────────────────────────────────────── */}
+      <div
+        className={[
+          "fixed inset-y-0 left-0 z-[70] w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 lg:hidden safe-area-drawer",
+          isMobileNavOpen ? "translate-x-0" : "-translate-x-full",
+        ].join(" ")}
+      >
+        <Sidebar
+          id="mobile-navigation"
+          onNavigate={() => setIsMobileNavOpen(false)}
+          navOverride={preferences.sidebarNavOverride}
+          // Pin control is desktop-only; omit onPinToggle to hide the button.
+        />
+      </div>
+
     </div>
   );
 }
