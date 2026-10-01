@@ -29,7 +29,7 @@ import {
 } from "@/features/jobs/utils/schedulingTime";
 import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
 
-import type { JobAppointmentHour, JobPriority, JobType } from "../types/job";
+import type { JobAppointmentHour, JobPriority, JobType } from "../types/job"; import { RecordCombobox } from "./RecordCombobox";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
@@ -38,8 +38,8 @@ export interface JobFormValues {
   estimateId?: string;
   equipmentBundleId?: string;
   title: string;
-  customerName: string;
-  propertyName: string;
+  customerName: string; customerId?: string | null; createNewCustomer?: boolean;
+  propertyName: string; propertyId?: string | null; createNewProperty?: boolean;
   assignedTo: string;   assigneeIds?: string[];
   /** datetime-local value "YYYY-MM-DDTHH:mm" — the primary scheduling field. */
   scheduledStartAt: string;
@@ -118,8 +118,8 @@ function normalizeValues(values: JobFormValues): JobFormValues {
   return {
     ...values,
     title: values.title.trim(),
-    customerName: values.customerName.trim(),
-    propertyName: values.propertyName.trim(),
+    customerName: values.customerName.trim(), customerId: values.customerId ?? null, createNewCustomer: values.createNewCustomer ?? false,
+    propertyName: values.propertyName.trim(), propertyId: values.propertyId ?? null, createNewProperty: values.createNewProperty ?? false,
     assignedTo: values.assignedTo.trim(), assigneeIds: Array.from(new Set(values.assigneeIds ?? [])),
     location: values.location.trim(),
     summary: values.summary.trim(),
@@ -389,31 +389,7 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
-              <select
-                value={form.customerName}
-                onChange={(e) => handleCustomerInput(e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
-                required
-              >
-                <option value="" disabled>
-                  Select customer
-                </option>
-                {/* Keep a legacy free-text value selectable on edit so an
-                    existing value is never lost when it predates the picker. */}
-                {form.customerName.trim() &&
-                  !customerOptions.some(
-                    (customer) => customer.name === form.customerName.trim(),
-                  ) && (
-                    <option value={form.customerName.trim()}>
-                      {form.customerName.trim()}
-                    </option>
-                  )}
-                {customerOptions.map((customer) => (
-                  <option key={customer.id} value={customer.name}>
-                    {customer.name}
-                  </option>
-                ))}
-              </select>
+              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id, propertyId: null })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: null, propertyId: null })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} required />
             </div>
 
             <div className="space-y-2">
@@ -421,31 +397,7 @@ export function JobForm({
               {/* F18: native select replaces the datalist combobox. Options stay
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
-              <select
-                value={form.propertyName}
-                onChange={(e) => handlePropertyInput(e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
-                required
-              >
-                <option value="" disabled>
-                  Select property
-                </option>
-                {/* Keep a legacy free-text value selectable on edit so an
-                    existing value is never lost when it predates the picker. */}
-                {form.propertyName.trim() &&
-                  !scopedPropertyOptions.some(
-                    (property) => property.name === form.propertyName.trim(),
-                  ) && (
-                    <option value={form.propertyName.trim()}>
-                      {form.propertyName.trim()}
-                    </option>
-                  )}
-                {scopedPropertyOptions.map((property) => (
-                  <option key={property.id} value={property.name}>
-                    {property.name}
-                  </option>
-                ))}
-              </select>
+              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: null })); }} required />
             </div>
 
             <div className="space-y-2">
