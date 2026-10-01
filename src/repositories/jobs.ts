@@ -33,7 +33,7 @@ const WARN_LEGACY_INSERT_FALLBACK =
 const WARN_PR3C_UPDATE_FALLBACK =
   "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy update.";
 
-function normalizeAssigneeValue(value: string | null | undefined): string { return (value ?? "").trim().toLowerCase(); } async function resolveAssignedUserId(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, assignedTo: string | null | undefined): Promise<string | null> { const normalized = normalizeAssigneeValue(assignedTo); if (!normalized) { return null; } const { data, error } = await supabase.from("user_profiles").select("id,full_name,email").eq("org_id", orgId); if (error) { return null; } const matches = ((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).filter((profile) => normalizeAssigneeValue(profile.full_name) === normalized || normalizeAssigneeValue(profile.email) === normalized); return matches.length === 1 ? matches[0].id : null; } interface JobRow {
+function normalizeAssigneeValue(value: string | null | undefined): string { return (value ?? "").trim().toLowerCase(); } async function resolveAssignedUserId(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, assignedTo: string | null | undefined): Promise<string | null> { const normalized = normalizeAssigneeValue(assignedTo); if (!normalized) { return null; } const { data, error } = await supabase.from("user_profiles").select("id,full_name,email").eq("org_id", orgId); if (error) { return null; } const matches = ((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).filter((profile) => normalizeAssigneeValue(profile.full_name) === normalized || normalizeAssigneeValue(profile.email) === normalized); return matches.length === 1 ? matches[0].id : null; } async function writeJobAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobId: string, assigneeIds: string[] | undefined): Promise<void> { if (assigneeIds === undefined) { return; } const ids = Array.from(new Set(assigneeIds)); const { error: deleteError } = await supabase.from("job_assignees").delete().eq("org_id", orgId).eq("job_id", jobId); if (deleteError) { throw new Error(deleteError.message); } if (ids.length > 0) { const { error: insertError } = await supabase.from("job_assignees").insert(ids.map((userId) => ({ org_id: orgId, job_id: jobId, user_id: userId }))); if (insertError) { throw new Error(insertError.message); } } } async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobIds: string[]): Promise<Map<string, { id: string; name: string }[]>> { const byJob = new Map<string, { id: string; name: string }[]>(); if (jobIds.length === 0) { return byJob; } const { data, error } = await supabase.from("job_assignees").select("job_id,user_id").eq("org_id", orgId).in("job_id", jobIds).order("created_at", { ascending: true }); if (error) { throw new Error(error.message); } const rows = (data ?? []) as Array<{ job_id: string; user_id: string }>; if (rows.length === 0) { return byJob; } const userIds = Array.from(new Set(rows.map((row) => row.user_id))); const { data: profiles, error: profileError } = await supabase.from("user_profiles").select("id,full_name,email").in("id", userIds); if (profileError) { throw new Error(profileError.message); } const nameById = new Map<string, string>(); for (const profile of (profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) { nameById.set(profile.id, (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member"); } for (const row of rows) { const list = byJob.get(row.job_id) ?? []; list.push({ id: row.user_id, name: nameById.get(row.user_id) ?? "Team member" }); byJob.set(row.job_id, list); } return byJob; } async function attachAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobsList: Job[]): Promise<void> { if (jobsList.length === 0) { return; } const byJob = await readJobAssignees(supabase, orgId, jobsList.map((job) => job.id)); for (const job of jobsList) { job.assignees = byJob.get(job.id) ?? []; } } interface JobRow {
   id: string;
   job_number: string;
   estimate_id: string | null;
@@ -86,7 +86,7 @@ export interface JobWriteInput {
   propertyId?: string | null;
   propertyName: string;
   assignedTo: string;
-  // F19: contractor assignments, persisted to jobs.contractor_ids.
+  assigneeIds?: string[];   // F19: contractor assignments, persisted to jobs.contractor_ids.
   contractorIds?: string[];
   // PR3C fields (primary)
   scheduledStartAt?: string | null;
@@ -267,7 +267,7 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
     throw new Error(error.message);
   }
 
-  return ((data ?? []) as JobRow[]).map(mapJob);
+  const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
 export async function listJobs(): Promise<Job[]> {
@@ -308,7 +308,7 @@ export async function listJobs(): Promise<Job[]> {
     throw new Error(error.message);
   }
 
-  return ((data ?? []) as JobRow[]).map(mapJob);
+  const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
 export async function listJobActivity(): Promise<JobActivity[]> {
@@ -367,7 +367,7 @@ export async function getJobById(id: string): Promise<Job | null> {
     throw new Error(error.message);
   }
 
-  return data ? mapJob(data) : null;
+  if (!data) { return null; } const fetchedJob = mapJob(data); await attachAssignees(supabase, orgId, [fetchedJob]); return fetchedJob;
 }
 
 export async function getJobRowById(id: string): Promise<JobRow | null> {
@@ -421,7 +421,7 @@ export async function createJob(
 ): Promise<Job> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
 
-  const assignedUserId = await resolveAssignedUserId(supabase, orgId, input.assignedTo); const insertPayload: Record<string, unknown> = { assigned_user_id: assignedUserId,
+  const assignedUserId = input.assigneeIds && input.assigneeIds.length > 0 ? input.assigneeIds[0] : await resolveAssignedUserId(supabase, orgId, input.assignedTo); const insertPayload: Record<string, unknown> = { assigned_user_id: assignedUserId,
     org_id: orgId,
     job_number: jobNumber,
     estimate_id: input.estimateId ?? null,
@@ -490,7 +490,7 @@ export async function createJob(
     throw new Error(error.message);
   }
 
-  return mapJob(data as JobRow);
+  const createdJob = mapJob(data as JobRow); await writeJobAssignees(supabase, orgId, createdJob.id, input.assigneeIds ?? (assignedUserId ? [assignedUserId] : [])); await attachAssignees(supabase, orgId, [createdJob]); return createdJob;
 }
 
 export async function updateJob(
@@ -512,7 +512,7 @@ export async function updateJob(
   if (input.customerName !== undefined) updatePayload.customer_name = input.customerName;
   if (input.propertyId !== undefined) updatePayload.property_id = input.propertyId;
   if (input.propertyName !== undefined) updatePayload.property_name = input.propertyName;
-  if (input.assignedTo !== undefined) { updatePayload.assigned_to = input.assignedTo; updatePayload.assigned_user_id = await resolveAssignedUserId(supabase, orgId, input.assignedTo); }
+  if (input.assignedTo !== undefined) { updatePayload.assigned_to = input.assignedTo; updatePayload.assigned_user_id = await resolveAssignedUserId(supabase, orgId, input.assignedTo); } if (input.assigneeIds !== undefined) { updatePayload.assigned_user_id = input.assigneeIds[0] ?? null; }
   if (input.contractorIds !== undefined) updatePayload.contractor_ids = input.contractorIds;
   if (input.scheduledFor !== undefined) updatePayload.scheduled_for = input.scheduledFor;
   if (input.appointmentHour !== undefined) {
@@ -580,7 +580,7 @@ export async function updateJob(
     throw new Error(error.message);
   }
 
-  return data ? mapJob(data) : null;
+  if (!data) { return null; } const updatedJob = mapJob(data); await writeJobAssignees(supabase, orgId, updatedJob.id, input.assigneeIds); await attachAssignees(supabase, orgId, [updatedJob]); return updatedJob;
 }
 
 export async function deleteJob(id: string): Promise<boolean> {
@@ -753,7 +753,7 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
     throw new Error(error.message);
   }
 
-  return ((data ?? []) as JobRow[]).map(mapJob);
+  const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
 // ─── Operational reporting (P3) ──────────────────────────────────────────────
