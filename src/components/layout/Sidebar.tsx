@@ -74,7 +74,7 @@ export default function Sidebar({
               onClick={onPinToggle}
               aria-label={isPinned ? "Unpin sidebar" : "Pin sidebar"}
               aria-pressed={isPinned}
-              className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+              className="hidden shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 lg:inline-flex"
             >
               {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
