@@ -357,7 +357,7 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     return null;
   }
 
-  if (existing.status === status) { return existing; } if (!canTransitionStatus(existing.status, status)) {
+  if (existing.status === status) { const dispatchStatus = existing.status === "In Progress" ? "in_progress" : existing.status === "Completed" ? "completed" : null; if (dispatchStatus) { const dispatchResult = await updateDispatchPlanStatusByJobId(existing.id, dispatchStatus); if (!dispatchResult.ok) throw new Error(dispatchResult.error.message); } return existing; } if (!canTransitionStatus(existing.status, status)) {
     throw new Error(
       `Invalid transition: job cannot move from '${existing.status}' to '${status}'.`,
     );
