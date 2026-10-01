@@ -76,12 +76,12 @@ export function CalendarGrid({
 
   for (const job of scheduledJobs) {
     // Guard: scheduledFor must be non-null (caller should filter, but be safe)
-    if (!job.scheduledFor) continue;
+    if (!job.scheduledFor) continue; const jobDates = [job.scheduledFor]; const endDate = job.scheduledEndAt ? job.scheduledEndAt.slice(0, 10) : null; if (endDate && endDate > job.scheduledFor) { let cursor = job.scheduledFor; while (cursor < endDate) { const d = new Date(cursor + "T00:00:00.000Z"); d.setUTCDate(d.getUTCDate() + 1); cursor = d.toISOString().slice(0, 10); jobDates.push(cursor); } }
 
     if (!jobsByDate[job.scheduledFor]) {
       jobsByDate[job.scheduledFor] = [];
     }
-    jobsByDate[job.scheduledFor].push(job);
+    for (const jobDate of jobDates) { if (!jobsByDate[jobDate]) { jobsByDate[jobDate] = []; } jobsByDate[jobDate].push(job); }
 
     if (!job.assignedTo.trim()) {
       unassignedCountByDate[job.scheduledFor] =
