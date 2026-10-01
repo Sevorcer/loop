@@ -36,7 +36,7 @@ import {
 } from "@/repositories/jobs";
 import {
   createDispatchPlan,
-  updateDispatchPlanStatusByJobId,
+  updateDispatchPlanStatusByJobId, listDispatchPlans,
 } from "@/repositories/dispatch";
 import { getContractorById } from "@/repositories/contractors";
 import { syncCustomerCounters } from "@/services/customers";
@@ -67,7 +67,7 @@ function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInp
     title: input.title.trim(),
     customerName: input.customerName.trim(),
     propertyName: input.propertyName.trim(),
-    assignedTo: input.assignedTo.trim(),
+    assignedTo: input.assignedTo.trim(), assigneeIds: input.assigneeIds,
     scheduledFor: input.scheduledFor,
     appointmentHour: input.appointmentHour,
     scheduledStartAt: input.scheduledStartAt,
@@ -152,7 +152,7 @@ function createJobNumber(suffix: number) {
   return `JOB-${Math.max(suffix, 1001)}`;
 }
 
-export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
+async function ensureDispatchPlanForJob(job: Job): Promise<void> { try { const startDate = job.scheduledStartAt ? formatDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined; if (!startDate) { return; } const endDate = job.scheduledEndAt ? formatDateOnly(job.scheduledEndAt) : startDate; const existingPlans = await listDispatchPlans(); const plannedDates = new Set(existingPlans.filter((plan) => plan.jobId === job.id).map((plan) => plan.targetDate)); const cursor = new Date(startDate + "T00:00:00Z"); const last = new Date(endDate + "T00:00:00Z"); while (cursor <= last) { const dateKey = cursor.toISOString().slice(0, 10); if (!plannedDates.has(dateKey)) { await createDispatchPlan({ jobId: job.id, jobNumber: job.jobNumber, customerName: job.customerName, propertyName: job.propertyName, jobType: job.type, dispatchStatus: "ready_to_schedule", dispatchability: { isDispatchable: false, materialReadiness: { state: "not_satisfied", reason: "" }, technicalReadiness: { state: "not_satisfied", reason: "" }, customerReadiness: { state: "not_satisfied", reason: "" }, crewReadiness: { state: "not_satisfied", reason: "" } }, targetDate: dateKey, estimatedDurationHours: 4, priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal", constraints: [] }); plannedDates.add(dateKey); } cursor.setUTCDate(cursor.getUTCDate() + 1); } } catch { return; } } export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
   const [jobs, activity] = await Promise.all([listJobs(), listAllJobActivity()]);
   return { jobs, activity };
 }
@@ -278,7 +278,7 @@ export async function createJob(
     // Job exists either way; leave dispatch to backfill.
   }
 
-  return createdJob;
+  await ensureDispatchPlanForJob(createdJob); return createdJob;
 }
 
 export async function updateJob(id: string, input: UpdateJobInput) {
@@ -341,7 +341,7 @@ export async function updateJob(id: string, input: UpdateJobInput) {
     });
   }
 
-  await Promise.all([syncRelatedCounters(previousJob), syncRelatedCounters(updatedJob)]);
+  await Promise.all([syncRelatedCounters(previousJob), syncRelatedCounters(updatedJob)]); await ensureDispatchPlanForJob(updatedJob);
 
   return updatedJob;
 }
