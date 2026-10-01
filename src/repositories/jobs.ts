@@ -33,7 +33,7 @@ const WARN_LEGACY_INSERT_FALLBACK =
 const WARN_PR3C_UPDATE_FALLBACK =
   "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy update.";
 
-interface JobRow {
+function normalizeAssigneeValue(value: string | null | undefined): string { return (value ?? "").trim().toLowerCase(); } async function resolveAssignedUserId(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, assignedTo: string | null | undefined): Promise<string | null> { const normalized = normalizeAssigneeValue(assignedTo); if (!normalized) { return null; } const { data, error } = await supabase.from("user_profiles").select("id,full_name,email").eq("org_id", orgId); if (error) { return null; } const matches = ((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).filter((profile) => normalizeAssigneeValue(profile.full_name) === normalized || normalizeAssigneeValue(profile.email) === normalized); return matches.length === 1 ? matches[0].id : null; } interface JobRow {
   id: string;
   job_number: string;
   estimate_id: string | null;
@@ -421,7 +421,7 @@ export async function createJob(
 ): Promise<Job> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
 
-  const insertPayload: Record<string, unknown> = {
+  const assignedUserId = await resolveAssignedUserId(supabase, orgId, input.assignedTo); const insertPayload: Record<string, unknown> = { assigned_user_id: assignedUserId,
     org_id: orgId,
     job_number: jobNumber,
     estimate_id: input.estimateId ?? null,
@@ -512,7 +512,7 @@ export async function updateJob(
   if (input.customerName !== undefined) updatePayload.customer_name = input.customerName;
   if (input.propertyId !== undefined) updatePayload.property_id = input.propertyId;
   if (input.propertyName !== undefined) updatePayload.property_name = input.propertyName;
-  if (input.assignedTo !== undefined) updatePayload.assigned_to = input.assignedTo;
+  if (input.assignedTo !== undefined) { updatePayload.assigned_to = input.assignedTo; updatePayload.assigned_user_id = await resolveAssignedUserId(supabase, orgId, input.assignedTo); }
   if (input.contractorIds !== undefined) updatePayload.contractor_ids = input.contractorIds;
   if (input.scheduledFor !== undefined) updatePayload.scheduled_for = input.scheduledFor;
   if (input.appointmentHour !== undefined) {

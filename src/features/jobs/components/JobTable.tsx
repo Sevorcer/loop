@@ -113,7 +113,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
     return jobs.filter((job) => {
       if (isTechView) {
         const scheduledDate = job.scheduledFor?.slice(0, 10) ?? null;
-        const isTodaysJob = scheduledDate === todayIso || job.status === "In Progress";
+        const normalizedTechStatus = normalizeJobStatus(job.status) ?? job.status; const isInProgress = normalizedTechStatus === "In Progress"; const isScheduledOrInProgress = normalizedTechStatus === "Scheduled" || normalizedTechStatus === "In Progress"; const isDueOrOverdue = scheduledDate !== null && scheduledDate <= todayIso; const isTodaysJob = isInProgress || (isScheduledOrInProgress && isDueOrOverdue);
         if (!isTodaysJob) {
           return false;
         }
