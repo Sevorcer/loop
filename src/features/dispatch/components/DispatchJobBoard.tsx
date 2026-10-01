@@ -31,14 +31,14 @@ const BOARD_GROUPS = {
     emptyMessage: "No dispatch plans are currently scheduled.",
   },
   blocked: {
-    emptyMessage: "No plans are blocked right now.",
+    emptyMessage: "No plans are blocked right now.", }, other: { emptyMessage: "No cancelled plans.",
   },
 } as const;
 
 function BoardGroupIcon({
   groupKey,
 }: {
-  groupKey: "active" | "ready" | "scheduled" | "blocked";
+  groupKey: "active" | "ready" | "scheduled" | "blocked" | "other";
 }) {
   switch (groupKey) {
     case "active":
@@ -48,7 +48,7 @@ function BoardGroupIcon({
     case "scheduled":
       return <CalendarDays className="h-4 w-4 text-blue-400" />;
     case "blocked":
-      return <XCircle className="h-4 w-4 text-amber-400" />;
+      return <XCircle className="h-4 w-4 text-amber-400" />; case "other": return <XCircle className="h-4 w-4 text-slate-400" />;
   }
 }
 
