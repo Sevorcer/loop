@@ -7,7 +7,7 @@ export interface CreateJobInput {
   title: string;
   customerName: string;
   propertyName: string;
-  assignedTo: string;
+  assignedTo: string; assigneeIds?: string[];
   // Real clock-time scheduling (PR3C)
   scheduledStartAt?: string | null;
   scheduledEndAt?: string | null;
@@ -31,7 +31,7 @@ export interface UpdateJobInput {
   title: string;
   customerName: string;
   propertyName: string;
-  assignedTo: string;
+  assignedTo: string; assigneeIds?: string[];
   // Real clock-time scheduling (PR3C)
   scheduledStartAt?: string | null;
   scheduledEndAt?: string | null;
