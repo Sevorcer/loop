@@ -53,7 +53,7 @@ export function getDispatchStatusLabel(status: DispatchStatus): string {
     case "in_progress":
       return "In Progress"; case "on_hold": return "On Hold";
     case "completed":
-      return "Completed"; case "cancelled": return "Cancelled";
+      return "Completed"; case "cancelled": return "Cancelled"; default: return status;
   }
 }
 
@@ -97,7 +97,7 @@ export function getDispatchBoardGroup(
     case "awaiting_crew_availability": case "on_hold":
       return "blocked";
     case "completed":
-      return "other";
+      default: return "other";
   }
 }
 
