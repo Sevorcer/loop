@@ -7,7 +7,7 @@ import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTES } from "@/lib/routes";
 
-import { useInstalledSystems } from "../state/InstalledSystemsProvider";
+import { useEffect, useMemo, useState } from "react"; import { actorDisplayName } from "@/lib/actors"; import { getSupabaseBrowserClient } from "@/lib/supabase/client"; import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import type { InstalledSystem } from "../types/installedSystem";
 
 function getMatchVariant(system: InstalledSystem) {
@@ -40,7 +40,7 @@ export function JobInstalledSystemsPanel({
   const { getInstalledSystemsForJob, getTechnicalProfileById } =
     useInstalledSystems();
 
-  const systems = getInstalledSystemsForJob(jobId, propertyId);
+  const systems = getInstalledSystemsForJob(jobId, propertyId);    const technicalIdentityIds = useMemo(     () =>       Array.from(         new Set(           systems             .map((system) => system.technicalIdentityId)             .filter((value): value is string => Boolean(value)),         ),       ),     [systems],   );   const [identityNames, setIdentityNames] = useState<Record<string, string>>({});    useEffect(() => {     let cancelled = false;     async function loadIdentityNames() {       if (technicalIdentityIds.length === 0) {         if (!cancelled) setIdentityNames({});         return;       }       try {         const supabase = getSupabaseBrowserClient();         const { data } = await supabase           .from("user_profiles")           .select("id, full_name, email")           .in("id", technicalIdentityIds);         if (cancelled) return;         const next: Record<string, string> = {};         for (const row of data ?? []) {           const profile = row as { id: string; full_name?: string | null; email?: string | null };           const label = profile.full_name?.trim() || profile.email?.trim() || null;           if (label) next[profile.id] = label;         }         setIdentityNames(next);       } catch {         if (!cancelled) setIdentityNames({});       }     }     void loadIdentityNames();     return () => {       cancelled = true;     };   }, [technicalIdentityIds]);    function technicalIdentityLabel(technicalIdentityId: string | null | undefined): string {     if (!technicalIdentityId) return "a team member";     const direct = actorDisplayName(technicalIdentityId);     if (direct) return direct;     return identityNames[technicalIdentityId] ?? "a team member";   }
 
   const addSystemParams = new URLSearchParams({
     ...(jobId ? { jobId } : {}),
@@ -119,7 +119,7 @@ export function JobInstalledSystemsPanel({
                       {system.systemName}
                     </h3>
                     <p className="mt-1 text-sm text-slate-400">
-                      Technical identity {system.technicalIdentityId}
+                      Technical identity {technicalIdentityLabel(system.technicalIdentityId)}
                     </p>
                   </div>
 
