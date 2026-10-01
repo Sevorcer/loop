@@ -152,7 +152,7 @@ interface JobFormProps {
   customerOptions?: JobCustomerOption[];
   propertyOptions?: JobPropertyOption[];
   technicianOptions?: string[]; technicianProfiles?: { id: string; name: string }[];
-  onSubmit: (values: JobFormValues) => Promise<void> | void;
+  onSubmit: (values: JobFormValues) => Promise<void> | void; onCreateCustomer?: (name: string) => Promise<{ id: string; name: string }>; onCreateProperty?: (name: string) => Promise<{ id: string; name: string }>;
 }
 
 export function JobForm({
@@ -161,7 +161,7 @@ export function JobForm({
   initialValues,
   customerOptions = [],
   propertyOptions = [],
-  technicianOptions = [], technicianProfiles = [],
+  technicianOptions = [], technicianProfiles = [], onCreateCustomer, onCreateProperty,
   onSubmit,
 }: JobFormProps) {
   const [form, setForm] = useState<JobFormValues>({
