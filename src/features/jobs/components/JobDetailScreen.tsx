@@ -31,7 +31,7 @@ import { JobFilesPanel } from "./JobFilesPanel";
 import { JobMobileActionBar } from "./JobMobileActionBar";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
-import { JobTasksCard } from "./JobTasksCard";
+import { JobTasksCard } from "./JobTasksCard"; import { JobDayByDay } from "./JobDayByDay";
 import { JobTimeline } from "./JobTimeline";
 import { formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
@@ -364,7 +364,7 @@ export function JobDetailScreen({
         </div>
       </div>
 
-      <JobTimeline activity={orderedActivity} />
+      <JobTimeline activity={orderedActivity} /> <JobDayByDay jobId={job.id} activity={orderedActivity} />
 
       {/* F14: sticky phone action bar (Start / Mark Complete / Directions). */}
       <JobMobileActionBar job={job} onUpdateStatus={onUpdateStatus} />

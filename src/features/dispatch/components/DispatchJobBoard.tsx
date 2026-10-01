@@ -16,7 +16,7 @@ import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
 import type { CrewAssignment, DispatchPlan, DispatchSnapshot } from "../types/dispatch";
-import { buildDispatchQueueSections, getCrewNameForPlan } from "../utils/dispatchWorkspace";
+import { buildDispatchQueueSections, getAssignedCrewLabelForPlan } from "../utils/dispatchWorkspace";
 import { filterPlansByDate } from "../utils/dispatchUtils";
 import { DispatchBoardCard } from "./DispatchBoardCard";
 
@@ -479,7 +479,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
                   >
                     <DispatchBoardCard
                       plan={plan}
-                      crewName={getCrewNameForPlan(assignments, plan.id)}
+                      crewName={getAssignedCrewLabelForPlan(plan, assignments)}
                       availableCrews={crews}
                       onAssignCrew={handleAssignCrew}
                       onSchedulePlan={handleSchedulePlan}

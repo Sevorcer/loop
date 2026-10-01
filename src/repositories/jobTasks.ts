@@ -18,7 +18,7 @@ export type JobTaskSection = "field" | "office"; interface JobTaskRow {
   is_done: boolean; section: string;
   sort_order: number;
   created_at: string;
-  updated_at: string;
+  updated_at: string;   completed_at: string | null;   completed_by: string | null;
 }
 
 export interface JobTask {
@@ -28,11 +28,11 @@ export interface JobTask {
   isDone: boolean; section: JobTaskSection;
   sortOrder: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt: string;   completedAt: string | null;   completedBy: string | null;
 }
 
 const JOB_TASK_COLUMNS =
-  "id,job_id,label,is_done,sort_order,section,created_at,updated_at";
+  "id,job_id,label,is_done,sort_order,section,created_at,updated_at,completed_at,completed_by";
 
 function mapJobTask(row: JobTaskRow): JobTask {
   return {
@@ -42,7 +42,7 @@ function mapJobTask(row: JobTaskRow): JobTask {
     isDone: row.is_done, section: row.section === "office" ? "office" : "field",
     sortOrder: row.sort_order,
     createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    updatedAt: row.updated_at, completedAt: row.completed_at ?? null, completedBy: row.completed_by ?? null,
   };
 }
 
@@ -90,7 +90,7 @@ export async function updateJobTask(
     updated_at: new Date().toISOString(),
   };
   if (input.label !== undefined) patch.label = input.label;
-  if (input.isDone !== undefined) patch.is_done = input.isDone;
+  if (input.isDone !== undefined) { patch.is_done = input.isDone; patch.completed_at = input.isDone ? new Date().toISOString() : null; patch.completed_by = input.isDone ? ((await getRepositoryContext()).userId ?? null) : null; }
 
   const { data, error } = await supabase
     .from("job_tasks")

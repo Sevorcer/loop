@@ -123,7 +123,7 @@ export function sortDispatchEvents(events: DispatchEvent[]): DispatchEvent[] {
   });
 }
 
-export function getCrewNameForPlan(
+export function getAssignedCrewLabelForPlan(plan: DispatchPlan, assignments: CrewAssignment[]): string | undefined { const names = (plan.assignedTechNames ?? []).map((n) => n.trim()).filter((n) => n.length > 0); if (names.length > 0) return names.join(", "); return getCrewNameForPlan(assignments, plan.id); } export function getCrewNameForPlan(
   assignments: CrewAssignment[],
   dispatchPlanId: string,
 ): string | undefined {
