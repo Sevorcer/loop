@@ -39,7 +39,7 @@ const statusVariant = {
   awaiting_technical_readiness: "blocked",
   awaiting_customer_confirmation: "warning",
   awaiting_crew_availability: "warning",
-  completed: "neutral",
+  completed: "neutral", on_hold: "warning", cancelled: "neutral",
 } as const;
 
 type Variant = "success" | "info" | "active" | "blocked" | "warning" | "neutral";
