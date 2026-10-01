@@ -103,10 +103,10 @@ export function InstalledSystemsProvider({
         (system) =>
           system.jobId === jobId ||
           system.linkedWorkflowIds.includes(jobId) ||
-          // Systems entered standalone (e.g. from /installed-systems/new) often
-          // carry only the property link — surface them on the job panel for
-          // the job's property too.
-          (propertyId != null &&
+          // Job panels are strictly job-scoped: only this job's own systems.
+          // Property fallback removed: it leaked other jobs' systems onto a job.
+          // Only jobId / linkedWorkflowIds matches below count.
+          (false &&
             propertyId !== "" &&
             system.propertyId === propertyId),
       );
