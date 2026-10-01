@@ -623,7 +623,7 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
     ]),
   ];
 
-  const scheduledStartAtByJobId = new Map<string, string>();
+  const scheduledStartAtByJobId = new Map<string, string>(); const assignedTechNamesByJobId = new Map<string, string[]>();
   const jobTitleByJobId = new Map<string, string>();
   if (jobIds.length > 0) {
     // Try PR3C column first; silently skip on column-missing errors.
@@ -651,12 +651,12 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
     // dispatch cards will render without a scheduled time badge rather than crash.
   }
 
-  const plans = rawPlans.map((row) => {
+  if (jobIds.length > 0) { const { data: assigneeRows } = await supabase.from("job_assignees").select("job_id,user_id").eq("org_id", orgId).in("job_id", jobIds).order("created_at", { ascending: true }); const assigneeUserIds = [...new Set((assigneeRows ?? []).map((r) => (r as { user_id: string }).user_id).filter(Boolean))]; if (assigneeUserIds.length > 0) { const { data: profileRows } = await supabase.from("user_profiles").select("id,full_name,email").in("id", assigneeUserIds); const nameById = new Map<string, string>(); for (const p of profileRows ?? []) { const pr = p as { id: string; full_name: string | null; email: string | null }; nameById.set(pr.id, pr.full_name ?? pr.email ?? ""); } for (const r of assigneeRows ?? []) { const ar = r as { job_id: string; user_id: string }; const nm = nameById.get(ar.user_id); if (!nm) continue; const list = assignedTechNamesByJobId.get(ar.job_id) ?? []; if (!list.includes(nm)) list.push(nm); assignedTechNamesByJobId.set(ar.job_id, list); } } } const plans = rawPlans.map((row) => {
     const plan = mapDispatchPlan(row);
     if (row.job_id) {
       const startAt = scheduledStartAtByJobId.get(row.job_id);
       if (startAt) plan.scheduledStartAt = startAt;
-      const jobTitle = jobTitleByJobId.get(row.job_id);
+      const jobTitle = jobTitleByJobId.get(row.job_id); const techNames = assignedTechNamesByJobId.get(row.job_id); if (techNames && techNames.length > 0) plan.assignedTechNames = techNames;
       if (jobTitle) plan.jobTitle = jobTitle;
     }
     return plan;
