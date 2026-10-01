@@ -47,14 +47,13 @@ export function getDispatchStatusLabel(status: DispatchStatus): string {
       return "Awaiting Technical Readiness";
     case "awaiting_customer_confirmation":
       return "Awaiting Customer Confirmation";
-    case "awaiting_crew_availability":
-      return "Awaiting Crew Availability";
+    case "awaiting_crew_availability": return "Awaiting Crew Availability";
     case "scheduled":
       return "Scheduled";
     case "in_progress":
-      return "In Progress";
+      return "In Progress"; case "on_hold": return "On Hold";
     case "completed":
-      return "Completed";
+      return "Completed"; case "cancelled": return "Cancelled";
   }
 }
 
@@ -95,7 +94,7 @@ export function getDispatchBoardGroup(
     case "awaiting_materials":
     case "awaiting_technical_readiness":
     case "awaiting_customer_confirmation":
-    case "awaiting_crew_availability":
+    case "awaiting_crew_availability": case "on_hold":
       return "blocked";
     case "completed":
       return "other";
