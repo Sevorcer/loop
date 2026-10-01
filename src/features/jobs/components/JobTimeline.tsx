@@ -9,7 +9,7 @@ import {
   Wrench,
 } from "lucide-react";
 
-import { EmptyState } from "@/components/atlas";
+import { EmptyState } from "@/components/atlas"; import { actorDisplayName, sanitizeActorText } from "@/lib/actors";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
 import type { JobActivity } from "../types/jobActivity";
@@ -24,11 +24,11 @@ function formatTimestamp(value: string) {
 }
 
 // Raw database IDs sometimes land in the actor field; never show those to users.
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Raw actor IDs are detected centrally in @/lib/actors.
+  // (see isRawActorId there)
 
 function isDisplayableActor(actorId: string): boolean {
-  return !UUID_PATTERN.test(actorId);
+  return actorDisplayName(actorId) !== null;
 }
 
 // QA checklist updates are stored as a JSON payload; render a human-readable
@@ -112,7 +112,7 @@ export function JobTimeline({ activity }: { activity: JobActivity[] }) {
                       <p className="mt-1 break-words text-sm leading-6 text-slate-400">
                         {item.type === "qa"
                           ? formatQaDescription(item.description)
-                          : item.description}
+                          : sanitizeActorText(item.description)}
                       </p>
                       {item.actorId && isDisplayableActor(item.actorId) ? (
                         <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">

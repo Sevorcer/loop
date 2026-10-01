@@ -6,12 +6,12 @@ import { usePathname } from "next/navigation";
 import { Bell, Search, User, Sparkles, CalendarDays, Menu, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES } from "@/lib/routes"; import { useSession } from "@/features/auth";
 
 const headerDateFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
   month: "long",
-  day: "numeric",
+  day: "numeric", timeZone: "America/Los_Angeles",
 });
 
 interface PageMeta {
@@ -273,7 +273,7 @@ export default function Header({
   onMenuToggle,
   onOpenCommandBar,
 }: HeaderProps) {
-  const pathname = usePathname();
+  const pathname = usePathname(); const { firstName } = useSession(); const userLabel = firstName ?? "Account";
   const pageMeta = getPageMeta(pathname);
   const todayLabel = useMemo(() => headerDateFormatter.format(new Date()), []);
 
@@ -465,7 +465,7 @@ export default function Header({
                 className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 px-3 text-white hover:from-red-500/20 hover:to-blue-500/15"
               >
                 <User size={18} />
-                <span className="hidden sm:inline">Collin</span>
+                <span className="hidden sm:inline">{userLabel}</span>
               </Button>
             </Link>
           </div>

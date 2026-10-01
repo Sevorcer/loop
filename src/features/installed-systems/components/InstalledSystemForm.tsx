@@ -99,7 +99,7 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
   const isEdit = Boolean(system);
   const cancelHref = isEdit
     ? ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system!.id)
-    : ROUTES.INSTALLED_SYSTEMS;
+    : context?.jobId ? ROUTE_BUILDERS.JOB_DETAIL(context.jobId) : ROUTES.INSTALLED_SYSTEMS;
 
   function isFormValid(f: FormValues): boolean {
     return (

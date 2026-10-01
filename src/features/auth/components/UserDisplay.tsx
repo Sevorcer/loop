@@ -1,18 +1,18 @@
 "use client";
 
 import { User } from "lucide-react";
-import { useAuth } from "../state/AuthProvider";
+import { useAuth } from "../state/AuthProvider"; import { useSession } from "../SessionProvider";
 
 /**
  * Displays the currently authenticated user's email address in the Sidebar.
  * Must be rendered inside `AuthProvider`.
  */
 export function UserDisplay() {
-  const { user } = useAuth();
+  const { user } = useAuth(); const { displayName: profileName } = useSession();
 
   if (!user) return null;
 
-  const displayName = user.user_metadata?.full_name ?? user.email ?? "User";
+  const displayName = profileName ?? user.user_metadata?.full_name ?? user.email ?? "User";
   const initials = displayName
     .split(" ")
     .filter((p: string) => p.length > 0)

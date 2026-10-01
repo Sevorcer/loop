@@ -1,9 +1,9 @@
-import { PageHeader } from '@/components/atlas/PageHeader'
+import { PageHeader } from '@/components/atlas/PageHeader'; import { redirect } from 'next/navigation'; import { ROUTES } from '@/lib/routes'; import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { operationalHealthSignals, operationalHealthSummary } from './data/dashboardSnapshot'
 
-export function DashboardHeader() {
-  const userName = 'Collin'
-  const currentHour = new Date().getHours()
+export async function DashboardHeader() { const supabase = await createSupabaseServerClient(); const { data: authData } = await supabase.auth.getUser(); let userName = 'Team'; if (authData.user) { const { data: profileRow } = await supabase.from('user_profiles').select('full_name, app_role').eq('id', authData.user.id).maybeSingle(); const row = profileRow as { full_name?: string | null; app_role?: string | null } | null; if (row?.app_role === 'tech') redirect(ROUTES.JOBS); if (row && typeof row.full_name === 'string' && row.full_name.trim()) userName = row.full_name.trim(); }
+  // userName resolved above from the signed-in user's own user_profiles row.
+  const currentHour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Los_Angeles' }).format(new Date()))
 
   const getGreeting = () => {
     if (currentHour < 12) return 'Good Morning'
