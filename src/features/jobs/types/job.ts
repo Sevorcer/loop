@@ -48,5 +48,5 @@ export interface Job {
   summary: string;
   location: string;
   notes: string;
-  contractorIds?: string[];
+  contractorIds?: string[];   assignees?: { id: string; name: string }[];
 }
