@@ -10,7 +10,7 @@ import {
   logAuthEvent,
 } from "@/lib/observability/auth";
 import { ROUTES } from "@/lib/routes";
-import { isAuthClientConfigured, signInWithPassword } from "@/services/authClient";
+import { isAuthClientConfigured, signInWithPassword } from "@/services/authClient"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
 function getEmailDomain(value: string): string {
@@ -86,7 +86,7 @@ export function SignInScreen() {
       });
 
       // Redirect to the intended destination (set by middleware) or dashboard.
-      const next = searchParams.get("next") ?? ROUTES.DASHBOARD;
+      const requestedNext = searchParams.get("next");       let next = requestedNext ?? ROUTES.DASHBOARD;       if (!requestedNext) {         try {           const supabase = getSupabaseBrowserClient();           const { data: authData } = await supabase.auth.getUser();           const userId = authData.user?.id;           if (userId) {             const { data: profileRow } = await supabase               .from("user_profiles")               .select("app_role")               .eq("id", userId)               .maybeSingle();             if ((profileRow as { app_role?: string | null } | null)?.app_role === "tech") {               next = ROUTES.JOBS;             }           }         } catch {           // Fall through to the default destination on any lookup failure.         }       }
       router.push(next);
       router.refresh();
     },
