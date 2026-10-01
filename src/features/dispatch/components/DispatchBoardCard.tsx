@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
-import { ROUTE_BUILDERS } from "@/lib/routes";
+import { ROUTE_BUILDERS } from "@/lib/routes"; import { useCurrentRole } from "@/features/auth";
 import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
 import { todayLocalISODate } from "@/lib/dates";
 
@@ -95,7 +95,7 @@ export function DispatchBoardCard({
   onAssignCrew,
   onSchedulePlan,
 }: DispatchBoardCardProps) {
-  const variant: Variant =
+  const { role } = useCurrentRole(); const variant: Variant =
     statusVariant[plan.dispatchStatus] ?? "neutral";
   const styles = variantStyles[variant];
 
@@ -110,7 +110,7 @@ export function DispatchBoardCard({
   const canAssign =
     plan.dispatchStatus !== "completed" &&
     !!onAssignCrew &&
-    availableCrews.length > 0;
+    role !== "tech" && availableCrews.length > 0;
 
   const canSchedule =
     (plan.dispatchStatus === "ready_to_schedule" ||
