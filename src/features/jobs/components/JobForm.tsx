@@ -389,7 +389,7 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
-              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} required />
+              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={async (name) => { const created = onCreateCustomer ? await onCreateCustomer(name).catch(() => null) : null; if (created) { setForm((p) => ({ ...p, customerName: created.name, customerId: created.id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: created.id, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); } else { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); } }} required />
             </div>
 
             <div className="space-y-2">
@@ -397,7 +397,7 @@ export function JobForm({
               {/* F18: native select replaces the datalist combobox. Options stay
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
-              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} required />
+              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={async (name) => { const created = onCreateProperty ? await onCreateProperty(name).catch(() => null) : null; if (created) { setForm((p) => ({ ...p, propertyName: created.name, propertyId: created.id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: created.id })); } else { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); } }} required />
             </div>
 
             <div className="space-y-2">
