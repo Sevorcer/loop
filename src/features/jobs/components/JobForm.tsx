@@ -40,7 +40,7 @@ export interface JobFormValues {
   title: string;
   customerName: string;
   propertyName: string;
-  assignedTo: string;
+  assignedTo: string;   assigneeIds?: string[];
   /** datetime-local value "YYYY-MM-DDTHH:mm" — the primary scheduling field. */
   scheduledStartAt: string;
   /** datetime-local value — optional committed end time. */
@@ -68,7 +68,7 @@ export const defaultJobFormValues: JobFormValues = {
   title: "",
   customerName: "",
   propertyName: "",
-  assignedTo: "",
+  assignedTo: "", assigneeIds: [],
   scheduledStartAt: "",
   scheduledEndAt: "",
   arrivalWindowStartAt: "",
@@ -120,7 +120,7 @@ function normalizeValues(values: JobFormValues): JobFormValues {
     title: values.title.trim(),
     customerName: values.customerName.trim(),
     propertyName: values.propertyName.trim(),
-    assignedTo: values.assignedTo.trim(),
+    assignedTo: values.assignedTo.trim(), assigneeIds: Array.from(new Set(values.assigneeIds ?? [])),
     location: values.location.trim(),
     summary: values.summary.trim(),
     notes: values.notes.trim(),
@@ -151,7 +151,7 @@ interface JobFormProps {
   initialValues?: Partial<JobFormValues>;
   customerOptions?: JobCustomerOption[];
   propertyOptions?: JobPropertyOption[];
-  technicianOptions?: string[];
+  technicianOptions?: string[]; technicianProfiles?: { id: string; name: string }[];
   onSubmit: (values: JobFormValues) => Promise<void> | void;
 }
 
@@ -161,7 +161,7 @@ export function JobForm({
   initialValues,
   customerOptions = [],
   propertyOptions = [],
-  technicianOptions = [],
+  technicianOptions = [], technicianProfiles = [],
   onSubmit,
 }: JobFormProps) {
   const [form, setForm] = useState<JobFormValues>({
@@ -170,7 +170,7 @@ export function JobForm({
   });
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [selection, setSelection] = useState<SmartSelectionState>({});
+  const [selection, setSelection] = useState<SmartSelectionState>({}); function toggleAssignee(id: string, checked: boolean) { setForm((current) => { const currentIds = current.assigneeIds ?? []; const nextIds = checked ? Array.from(new Set([...currentIds, id])) : currentIds.filter((value) => value !== id); const names = technicianProfiles.filter((profile) => nextIds.includes(profile.id)).map((profile) => profile.name); return { ...current, assigneeIds: nextIds, assignedTo: names.join(", ") }; }); setError(null); }
 
   const scopedPropertyOptions = useMemo(
     () => getScopedProperties(propertyOptions, selection.customerId),
@@ -449,8 +449,8 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Assigned Technician</label>
-              <select
+              <label className="text-sm font-medium text-slate-200">Assigned Technician</label> {technicianProfiles.length > 0 && (<div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">{technicianProfiles.map((profile) => (<label key={profile.id} className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" checked={(form.assigneeIds ?? []).includes(profile.id)} onChange={(e) => toggleAssignee(profile.id, e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-white/[0.03]" />{profile.name}</label>))}</div>)}
+              {technicianProfiles.length === 0 && (<select
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
@@ -473,7 +473,7 @@ export function JobForm({
                     {technician}
                   </option>
                 ))}
-              </select>
+              </select>)}
             </div>
 
             {/* Scheduling — PR3C clock-time fields */}

@@ -119,8 +119,8 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
         }
 
         if (scopedTechnicianNames.size > 0) {
-          const assigned = job.assignedTo.trim().toLowerCase();
-          if (!scopedTechnicianNames.has(assigned)) {
+          const assigned = job.assignedTo.trim().toLowerCase(); const assignedNames = assigned.split(",").map((part) => part.trim()).filter(Boolean); const isAssignedToTech = assignedNames.some((name) => scopedTechnicianNames.has(name)) || scopedTechnicianNames.has(assigned);
+          if (!isAssignedToTech) {
             return false;
           }
         }

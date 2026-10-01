@@ -41,7 +41,7 @@ function formatDate(value: string | null | undefined) {
   return formatDateOnly(value);
 }
 
-function getStatusVariant(status: JobStatus) {
+function formatJobDateRange(startValue: string | null | undefined, endValue: string | null | undefined): string | null { if (!startValue || !endValue) { return null; } const start = new Date(startValue); const end = new Date(endValue); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { return null; } const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); const yearFmt = new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "UTC" }); return monthDay.format(start) + " – " + monthDay.format(end) + ", " + yearFmt.format(end); } function getStatusVariant(status: JobStatus) {
   if (status === "Completed") return "success" as const;
   if (status === "Scheduled") return "info" as const;
   if (status === "In Progress") return "warning" as const;
@@ -77,7 +77,7 @@ export function JobDetailScreen({
   const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
   // F20: prefer the real scheduled time over the legacy appointment-hour
   // field, which always falls back to 9 AM for jobs created by the new form.
-  const appointmentDisplay = formatJobAppointmentDisplay(job);
+  const appointmentDisplay = formatJobAppointmentDisplay(job); const assignedTechNames = job.assignees && job.assignees.length > 0 ? job.assignees.map((assignee) => assignee.name).join(", ") : job.assignedTo || "No technician assigned"; const scheduleRangeLabel = formatJobDateRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
   // F15: "Assigned To" (internal technician) and "Assigned Contractors"
   // (external subs) are stored separately and could silently disagree on this
   // screen. Render them side by side so both facts are always visible together.
@@ -194,7 +194,7 @@ export function JobDetailScreen({
                       Assigned Technician
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {job.assignedTo || "No technician assigned"}
+                      {assignedTechNames}
                     </p>
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export function JobDetailScreen({
                       Scheduled For
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
-                      {job.scheduledFor ? formatDate(job.scheduledFor) : "Unscheduled"}
+                      {scheduleRangeLabel ?? (job.scheduledFor ? formatDate(job.scheduledFor) : job.scheduledStartAt ? formatDate(job.scheduledStartAt) : "Unscheduled")}
                     </p>
                   </div>
                 </div>

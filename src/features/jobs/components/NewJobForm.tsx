@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import type { Customer } from "@/features/customers/types/customer";
 import type { Property } from "@/features/properties/types/property";
-import { requestJson } from "@/lib/api/client";
+import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 import { useContractors } from "@/features/contractors/state/ContractorsProvider";
 import type { Crew } from "@/features/dispatch/types/dispatch";
@@ -41,7 +41,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
   const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
 
-  const [crewTechnicians, setCrewTechnicians] = useState<string[]>([]);
+  const [crewTechnicians, setCrewTechnicians] = useState<string[]>([]); const [technicianProfiles, setTechnicianProfiles] = useState<{ id: string; name: string }[]>([]);
 
   const technicianOptions = useMemo(
     () =>
@@ -82,7 +82,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         setSmartLoadError("Customer and property pickers are temporarily unavailable. Reload the page and try again before saving.");
         setHasLoadedOptions(true);
       });
-  }, [role]);
+  }, [role]); useEffect(() => { if (!role) { return; } let cancelled = false; void (async () => { try { const supabase = getSupabaseBrowserClient(); const { data, error } = await supabase.from("user_profiles").select("id, full_name, email").eq("app_role", "tech"); if (!cancelled && !error) { setTechnicianProfiles(((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map((profile) => ({ id: profile.id, name: (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member" })).sort((a, b) => a.name.localeCompare(b.name))); } } catch { if (!cancelled) { setTechnicianProfiles([]); } } })(); return () => { cancelled = true; }; }, [role]);
 
   const prefilledValues = useMemo(() => {
     if (!initialContext) {
@@ -161,7 +161,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         initialValues={prefilledValues}
         customerOptions={customerOptions}
         propertyOptions={propertyOptions}
-        technicianOptions={technicianOptions}
+        technicianOptions={technicianOptions} technicianProfiles={technicianProfiles}
         onSubmit={handleSubmit}
       />
     </div>

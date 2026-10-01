@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { RoutePermissionGuard } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
-import { requestJson } from "@/lib/api/client";
+import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Customer } from "@/features/customers/types/customer";
 import type { Property } from "@/features/properties/types/property";
 
@@ -25,7 +25,7 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
   // F18: the edit form shares JobForm's customer/property pickers, so it
   // needs the same option lists the create form loads.
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
-  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
+  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]); const [technicianProfiles, setTechnicianProfiles] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (!role) {
@@ -44,7 +44,7 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
       });
   }, [role]);
 
-  const schedulingValues = jobToFormScheduling(job);
+  useEffect(() => { if (!role) { return; } let cancelled = false; void (async () => { try { const supabase = getSupabaseBrowserClient(); const { data, error } = await supabase.from("user_profiles").select("id, full_name, email").eq("app_role", "tech"); if (!cancelled && !error) { setTechnicianProfiles(((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map((profile) => ({ id: profile.id, name: (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member" })).sort((a, b) => a.name.localeCompare(b.name))); } } catch { if (!cancelled) { setTechnicianProfiles([]); } } })(); return () => { cancelled = true; }; }, [role]); const schedulingValues = jobToFormScheduling(job);
 
   return (
     <JobForm
@@ -56,7 +56,7 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
         title: job.title,
         customerName: job.customerName,
         propertyName: job.propertyName,
-        assignedTo: job.assignedTo,
+        assignedTo: job.assignedTo, assigneeIds: (job.assignees ?? []).map((assignee) => assignee.id),
         ...schedulingValues,
         type: job.type,
         priority: job.priority,
@@ -65,7 +65,7 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
         notes: job.notes,
       }}
       customerOptions={customerOptions}
-      propertyOptions={propertyOptions}
+      propertyOptions={propertyOptions} technicianProfiles={technicianProfiles}
       onSubmit={async (values) => {
         await requestJson(`/api/jobs/${job.id}`, {
           method: "PATCH",

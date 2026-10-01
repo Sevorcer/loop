@@ -171,7 +171,7 @@ export async function PATCH(
               title: String(body.title ?? "").trim(),
               customerName: String(body.customerName ?? "").trim(),
               propertyName: String(body.propertyName ?? "").trim(),
-              assignedTo: String(body.assignedTo ?? "").trim(),
+              assignedTo: String(body.assignedTo ?? "").trim(), assigneeIds: Array.isArray(body.assigneeIds) ? body.assigneeIds.map((value) => String(value)) : undefined,
               scheduledFor: body.scheduledFor === null ? null : body.scheduledFor !== undefined ? String(body.scheduledFor).trim() || null : undefined,
               appointmentHour: readJobAppointmentHour(body.appointmentHour),
               // PR3C clock-time fields
