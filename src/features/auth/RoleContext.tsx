@@ -22,7 +22,7 @@ import {
 } from "react";
 
 import type { AppRole } from "@/services/authorization";
-import { useAuth } from "./state/AuthProvider";
+import { useAuth } from "./state/AuthProvider"; import { useSession } from "./SessionProvider";
 import {
   DEV_ROLE_KEY,
   DEFAULT_APP_ROLE,
@@ -56,15 +56,15 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [devRoleOverride, setDevRoleOverride] = useState<AppRole | null>(() =>
     readStoredDevRole()
   );
-  const authUser = session?.user ?? user;
+  const authUser = session?.user ?? user; const { role: sessionRole, loading: sessionLoading } = useSession();
 
   const role = useMemo<AppRole | null>(() => {
-    if (isLoading) {
+    if (isLoading || sessionLoading) {
       return null;
     }
 
-    return devRoleOverride ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
-  }, [authUser, devRoleOverride, isLoading]);
+    return devRoleOverride ?? sessionRole ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+  }, [authUser, devRoleOverride, isLoading, sessionRole, sessionLoading]);
 
   const setDevRole = useCallback((next: AppRole) => {
     if (typeof window !== "undefined") {
