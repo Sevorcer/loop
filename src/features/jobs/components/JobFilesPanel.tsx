@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Camera, Download, FileText, Loader2, Paperclip, Upload } from "lucide-react";
+import { Camera, Download, FileText, Loader2, Paperclip, Trash2, Upload } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export function JobFilesPanel({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const imageCount = useMemo(
     () => files.filter((file) => file.mimeType.toLowerCase().startsWith("image/")).length,
@@ -165,6 +166,27 @@ export function JobFilesPanel({
     }
   }
 
+  async function handleDelete(file: JobFileMeta) {
+    if (!role) return;
+    if (!window.confirm(`Delete "${file.fileName}"? This cannot be undone.`)) {
+      return;
+    }
+    setDeletingId(file.id);
+    try {
+      setError(null);
+      await requestJson(`/api/jobs/${jobId}/files/${file.id}`, {
+        method: "DELETE",
+        role,
+      });
+      setSuccess("File deleted.");
+      await loadFiles();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete file.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <SurfaceCard>
       <div className="p-6">
@@ -282,6 +304,20 @@ export function JobFilesPanel({
                     <Download className="h-3.5 w-3.5" />
                   )}
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-[44px] min-w-[44px] shrink-0 p-0 text-slate-400 hover:text-red-300"
+                  onClick={() => void handleDelete(file)}
+                  disabled={deletingId === file.id}
+                  aria-label={`Delete ${file.fileName}`}
+                >
+                  {deletingId === file.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                </Button>
               </div>
             ))
           )}
@@ -296,4 +332,3 @@ export function JobFilesPanel({
     </SurfaceCard>
   );
 }
-
