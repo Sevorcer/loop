@@ -421,6 +421,9 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
+              <div data-testid="debug-form-state" className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+                DEBUG customerName={JSON.stringify(form.customerName)} customerId={JSON.stringify(form.customerId)} propertyName={JSON.stringify(form.propertyName)} propertyId={JSON.stringify(form.propertyId)}
+              </div>
               <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); }} required />
             </div>
 
