@@ -13,6 +13,7 @@ interface RecordComboboxProps {
   value: string;
   onSelect: (name: string, id: string | null) => void;
   onCreateNew: (name: string) => void | Promise<void>;
+  onQueryChange?: (text: string) => void;
   required?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function RecordCombobox({
   value,
   onSelect,
   onCreateNew,
+  onQueryChange,
   required,
 }: RecordComboboxProps) {
   const [query, setQuery] = useState(value ?? "");
@@ -118,6 +120,7 @@ export function RecordCombobox({
           setQuery(e.target.value);
           setOpen(true);
           setHighlight(0);
+          onQueryChange?.(e.target.value);
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}

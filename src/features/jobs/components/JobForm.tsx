@@ -322,18 +322,37 @@ export function JobForm({
       setIsSaving(true);
       setError(null);
       const normalized = normalizeValues(form);
-      let customerId = normalized.customerId;
-      let propertyId = normalized.propertyId;
-      if (normalized.createNewCustomer) {
+      // Resolve the customer: an explicitly picked id wins. Otherwise, if a
+      // name was typed, match it against existing options (avoids duplicates
+      // when the user types an exact existing name) or create it inline.
+      // This makes the flow work even if the "+ Create new" click misfires —
+      // the typed text is always synced into form state via onQueryChange.
+      const resolveCustomerId = async (): Promise<string | null> => {
+        if (normalized.customerId) return normalized.customerId;
+        const name = normalized.customerName;
+        if (!name) return null;
+        const match = customerOptions.find(
+          (o) => o.name.toLowerCase() === name.toLowerCase(),
+        );
+        if (match) return match.id;
         if (!onCreateCustomer) throw new Error("Customer creation is not available on this form.");
-        const createdCustomer = await onCreateCustomer(normalized.customerName);
-        customerId = createdCustomer.id;
-      }
-      if (normalized.createNewProperty) {
+        const created = await onCreateCustomer(name);
+        return created.id;
+      };
+      const resolvePropertyId = async (): Promise<string | null> => {
+        if (normalized.propertyId) return normalized.propertyId;
+        const name = normalized.propertyName;
+        if (!name) return null;
+        const match = propertyOptions.find(
+          (o) => o.name.toLowerCase() === name.toLowerCase(),
+        );
+        if (match) return match.id;
         if (!onCreateProperty) throw new Error("Property creation is not available on this form.");
-        const createdProperty = await onCreateProperty(normalized.propertyName);
-        propertyId = createdProperty.id;
-      }
+        const created = await onCreateProperty(name);
+        return created.id;
+      };
+      const customerId = await resolveCustomerId();
+      const propertyId = await resolvePropertyId();
       await onSubmit({ ...normalized, customerId, propertyId, createNewCustomer: false, createNewProperty: false });
     } catch (nextError) {
       setError(
@@ -402,7 +421,7 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
-              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} required />
+              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); }} required />
             </div>
 
             <div className="space-y-2">
@@ -410,7 +429,7 @@ export function JobForm({
               {/* F18: native select replaces the datalist combobox. Options stay
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
-              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} required />
+              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, propertyName: text, propertyId: null, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: undefined })); }} required />
             </div>
 
             <div className="space-y-2">
