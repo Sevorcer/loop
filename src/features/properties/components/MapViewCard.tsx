@@ -42,6 +42,8 @@ interface MapViewCardProps {
   aerialSrc: string | null;
   /** Google Maps navigation URL for the Navigate button. */
   navigationUrl: string;
+  /** Apple Maps navigation URL (same destination). */
+  appleMapsUrl: string;
   /** Human-readable arrival address shown in the address row. */
   arrivalAddress: string;
   /** Property name used for image alt text and iframe accessibility title. */
@@ -61,6 +63,7 @@ export function MapViewCard({
   streetImageSrc,
   aerialSrc,
   navigationUrl,
+  appleMapsUrl,
   arrivalAddress,
   propertyName,
 }: MapViewCardProps) {
@@ -128,18 +131,32 @@ export function MapViewCard({
           )}
         </div>
 
-        <a
-          href={navigationUrl}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(
-            "inline-flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
-            "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          )}
-        >
-          <Navigation className="h-4 w-4" />
-          Navigate
-        </a>
+        <div className="flex gap-2">
+          <a
+            href={navigationUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              "inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
+              "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            <Navigation className="h-4 w-4" />
+            Google Maps
+          </a>
+          <a
+            href={appleMapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              "inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
+              "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            <Navigation className="h-4 w-4" />
+            Apple Maps
+          </a>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-4">

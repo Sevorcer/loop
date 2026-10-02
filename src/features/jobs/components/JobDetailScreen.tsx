@@ -101,22 +101,27 @@ export function JobDetailScreen({
     // action bar (md+ only shows the bar on small screens).
     <div className="space-y-6 pb-28 md:pb-0">
       <div className="flex items-center justify-between gap-4">
-        <Link href="/jobs">
-          <Button
-            variant="ghost"
-            className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Jobs
-          </Button>
-        </Link>
+        <Button
+          variant="ghost"
+          className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
+          onClick={() => {
+            window.location.href = "/jobs";
+          }}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Jobs
+        </Button>
 
         <PermissionGuard table="jobs" action="update">
-          <Link href={`/jobs/${job.id}/edit`}>
-            <Button variant="secondary" className="min-h-[44px]">
-              Edit Job
-            </Button>
-          </Link>
+          <Button
+            variant="secondary"
+            className="min-h-[44px]"
+            onClick={() => {
+              window.location.href = `/jobs/${job.id}/edit`;
+            }}
+          >
+            Edit Job
+          </Button>
         </PermissionGuard>
       </div>
 

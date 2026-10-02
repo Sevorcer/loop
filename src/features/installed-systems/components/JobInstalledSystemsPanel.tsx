@@ -73,13 +73,16 @@ export function JobInstalledSystemsPanel({
           </div>
 
           <PermissionGuard table="installed_systems" action="insert">
-            <Link
-              href={addSystemHref}
-              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = addSystemHref;
+              }}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
             >
               <PlusCircle className="h-4 w-4" />
               Add System
-            </Link>
+            </button>
           </PermissionGuard>
         </div>
       </div>
