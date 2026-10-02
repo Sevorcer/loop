@@ -8,6 +8,7 @@ import {
   ExternalLink,
   HardHat,
   MapPin,
+  Navigation,
   User,
   Wrench,
 } from "lucide-react";
@@ -249,6 +250,28 @@ export function JobDetailScreen({
                     <p className="mt-1 text-sm text-slate-200">
                       {job.location}
                     </p>
+                    {job.location ? (
+                      <div className="mt-2 flex gap-2">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.location)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08]"
+                        >
+                          <Navigation className="h-3.5 w-3.5" />
+                          Google Maps
+                        </a>
+                        <a
+                          href={`https://maps.apple.com/?q=${encodeURIComponent(job.location)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08]"
+                        >
+                          <Navigation className="h-3.5 w-3.5" />
+                          Apple Maps
+                        </a>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
