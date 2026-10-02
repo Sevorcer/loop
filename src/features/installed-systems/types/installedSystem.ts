@@ -152,7 +152,7 @@ export interface InstalledSystem {
   /** ISO date string (YYYY-MM-DD) for warranty expiry, or empty string. */
   warrantyExpiry: string;
   /** Whether the manufacturer warranty has been registered (office marks this). */
-  warrantyRegistered: boolean;
+  warrantyRegistered?: boolean;
   /** ISO timestamp when the warranty was marked registered, if ever. */
   warrantyRegisteredAt?: string;
   /** Display name of who marked the warranty registered, if known. */
