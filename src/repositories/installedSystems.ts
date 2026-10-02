@@ -52,6 +52,9 @@ interface InstalledSystemRow {
   model_number: string;
   serial_numbers: string[];
   warranty_expiry: string;
+  warranty_registered: boolean;
+  warranty_registered_at: string | null;
+  warranty_registered_by: string | null;
   accessories: string[];
   linked_workflow_ids: string[];
   permit_ready: boolean;
@@ -101,6 +104,9 @@ function mapInstalledSystem(row: InstalledSystemRow): InstalledSystem {
     modelNumber: row.model_number ?? "",
     serialNumbers: row.serial_numbers ?? [],
     warrantyExpiry: row.warranty_expiry ?? "",
+    warrantyRegistered: row.warranty_registered ?? false,
+    warrantyRegisteredAt: row.warranty_registered_at ?? undefined,
+    warrantyRegisteredBy: row.warranty_registered_by ?? undefined,
     accessories: row.accessories ?? [],
     linkedWorkflowIds: row.linked_workflow_ids ?? [],
     permitReady: row.permit_ready,
@@ -118,7 +124,7 @@ export async function listInstalledSystems() {
     const { data, error } = await supabase
       .from("installed_systems")
       .select(
-        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
+        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
       )
       .eq("org_id", orgId)
       .order("created_at", { ascending: false });
@@ -134,7 +140,7 @@ export async function getInstalledSystemById(id: string) {
     const { data, error } = await supabase
       .from("installed_systems")
       .select(
-        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
+        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
       )
       .eq("org_id", orgId)
       .eq("id", id)
@@ -151,7 +157,7 @@ export async function listInstalledSystemsByProperty(propertyId: string) {
     const { data, error } = await supabase
       .from("installed_systems")
       .select(
-        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
+        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
       )
       .eq("org_id", orgId)
       .eq("property_id", propertyId)
@@ -254,6 +260,9 @@ export async function upsertInstalledSystem(id: string | undefined, input: Insta
       model_number: input.modelNumber,
       serial_numbers: input.serialNumbers,
       warranty_expiry: input.warrantyExpiry,
+      warranty_registered: input.warrantyRegistered ?? false,
+      warranty_registered_at: input.warrantyRegisteredAt ?? null,
+      warranty_registered_by: input.warrantyRegisteredBy ?? null,
       accessories: input.accessories,
       linked_workflow_ids: input.linkedWorkflowIds,
       permit_ready: input.permitReady,
@@ -268,7 +277,7 @@ export async function upsertInstalledSystem(id: string | undefined, input: Insta
         .eq("org_id", orgId)
         .eq("id", id)
         .select(
-          "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
+          "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
         )
         .single();
       if (error) throw new Error(error.message);
@@ -279,7 +288,7 @@ export async function upsertInstalledSystem(id: string | undefined, input: Insta
       .from("installed_systems")
       .insert(row)
       .select(
-        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
+        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
       )
       .single();
     if (error) throw new Error(error.message);
@@ -317,7 +326,7 @@ export async function loadInstalledSystemsSnapshot(): Promise<InstalledSystemsRe
     supabase
       .from("installed_systems")
       .select(
-        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
+        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
       )
       .eq("org_id", orgId)
       .order("created_at", { ascending: false }),
