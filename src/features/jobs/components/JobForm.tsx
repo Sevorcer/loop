@@ -318,25 +318,30 @@ export function JobForm({
       return;
     }
 
+    let debugStep = "start";
     try {
       setIsSaving(true);
       setError(null);
       const normalized = normalizeValues(form);
+      debugStep = `normalized customerName=${JSON.stringify(normalized.customerName)} customerId=${JSON.stringify(normalized.customerId)}`;
       // Resolve the customer: an explicitly picked id wins. Otherwise, if a
       // name was typed, match it against existing options (avoids duplicates
       // when the user types an exact existing name) or create it inline.
       // This makes the flow work even if the "+ Create new" click misfires —
       // the typed text is always synced into form state via onQueryChange.
       const resolveCustomerId = async (): Promise<string | null> => {
+        debugStep = `resolveCustomer enter name=${JSON.stringify(normalized.customerName)}`;
         if (normalized.customerId) return normalized.customerId;
         const name = normalized.customerName;
-        if (!name) return null;
+        if (!name) { debugStep = "resolveCustomer: empty name, returning null"; return null; }
         const match = customerOptions.find(
           (o) => o.name.toLowerCase() === name.toLowerCase(),
         );
-        if (match) return match.id;
+        if (match) { debugStep = `resolveCustomer: matched option id=${match.id}`; return match.id; }
         if (!onCreateCustomer) throw new Error("Customer creation is not available on this form.");
+        debugStep = `resolveCustomer: calling onCreateCustomer with ${JSON.stringify(name)}`;
         const created = await onCreateCustomer(name);
+        debugStep = `resolveCustomer: onCreateCustomer returned id=${JSON.stringify(created && created.id)}`;
         return created.id;
       };
       const resolvePropertyId = async (): Promise<string | null> => {
@@ -352,12 +357,14 @@ export function JobForm({
         return created.id;
       };
       const customerId = await resolveCustomerId();
+      debugStep = `customerId resolved=${JSON.stringify(customerId)}, resolving property`;
       const propertyId = await resolvePropertyId();
+      debugStep = `propertyId resolved=${JSON.stringify(propertyId)}, calling onSubmit`;
       await onSubmit({ ...normalized, customerId, propertyId, createNewCustomer: false, createNewProperty: false });
     } catch (nextError) {
       setError(
         nextError instanceof Error
-          ? nextError.message
+          ? `[${debugStep}] ${nextError.message}`
           : "Failed to save job. Please check your connection and try again.",
       );
     } finally {
