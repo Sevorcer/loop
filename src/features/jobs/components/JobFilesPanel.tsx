@@ -33,7 +33,6 @@ export function JobFilesPanel({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
   const imageCount = useMemo(
     () => files.filter((file) => file.mimeType.toLowerCase().startsWith("image/")).length,
@@ -52,17 +51,6 @@ export function JobFilesPanel({
       });
       const nextFiles = response.files ?? [];
       setFiles(nextFiles);
-      // Signed preview URLs for image files (thumbnails; click opens full size).
-      for (const file of nextFiles) {
-        if (!file.mimeType.toLowerCase().startsWith("image/")) continue;
-        requestJson<{ url: string }>(`/api/jobs/${jobId}/files/${file.id}`, { role, cache: "no-store" })
-          .then((result) => {
-            if (result?.url) {
-              setPreviewUrls((current) => ({ ...current, [file.id]: result.url }));
-            }
-          })
-          .catch(() => undefined);
-      }
       onFilesChanged?.(nextFiles);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load files.");
@@ -82,20 +70,20 @@ export function JobFilesPanel({
       return;
     }
 
-    const uploadFile = fileList[0];
+    const filesToUpload = Array.from(fileList);
 
-    // Client-side validation — mirrors server checks for fast, actionable feedback
-    const validationError = validateJobFile({
-      mimeType: uploadFile.type || "application/octet-stream",
-      sizeBytes: uploadFile.size,
-    });
-    if (validationError) {
-      setError(validationError);
-      return;
+    // Client-side validation — mirrors server checks for fast, actionable feedback.
+    // Validate all files up front so the user knows about problems before any upload starts.
+    for (const file of filesToUpload) {
+      const validationError = validateJobFile({
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+      if (validationError) {
+        setError(`${file.name}: ${validationError}`);
+        return;
+      }
     }
-
-    const formData = new FormData();
-    formData.set("file", uploadFile);
 
     try {
       setUploading(true);
@@ -107,23 +95,52 @@ export function JobFilesPanel({
         headers.set("x-loop-role", role);
       }
 
-      const response = await fetch(`/api/jobs/${jobId}/files`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-        headers,
-      });
+      let uploadedCount = 0;
+      const errors: string[] = [];
 
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string; error?: string }
-        | null;
+      // Upload each file individually so one failure doesn't block the rest.
+      for (const file of filesToUpload) {
+        const formData = new FormData();
+        formData.set("file", file);
 
-      if (!response.ok) {
-        throw new Error(payload?.message ?? payload?.error ?? "Upload failed.");
+        try {
+          const response = await fetch(`/api/jobs/${jobId}/files`, {
+            method: "POST",
+            credentials: "include",
+            body: formData,
+            headers,
+          });
+
+          const payload = (await response.json().catch(() => null)) as
+            | { message?: string; error?: string }
+            | null;
+
+          if (!response.ok) {
+            throw new Error(payload?.message ?? payload?.error ?? "Upload failed.");
+          }
+          uploadedCount++;
+        } catch (fileError) {
+          errors.push(
+            `${file.name}: ${fileError instanceof Error ? fileError.message : "Upload failed."}`,
+          );
+        }
       }
 
-      setSuccess("File uploaded successfully.");
       await loadFiles();
+
+      if (errors.length > 0) {
+        setError(
+          uploadedCount > 0
+            ? `${uploadedCount} of ${filesToUpload.length} files uploaded. Failed: ${errors.join("; ")}`
+            : `Upload failed: ${errors.join("; ")}`,
+        );
+      } else {
+        setSuccess(
+          filesToUpload.length === 1
+            ? "File uploaded successfully."
+            : `${uploadedCount} files uploaded successfully.`,
+        );
+      }
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Upload failed. Please try again.");
     } finally {
@@ -163,16 +180,25 @@ export function JobFilesPanel({
           </div>
         </div>
 
-        {/* Upload controls — two affordances for mobile (camera vs file picker) */}
+        {/* Upload controls — two affordances for mobile (camera vs file picker).
+            `multiple` lets the OS picker select several files at once (and on Android
+            surfaces the gallery grid instead of just camera/files). */}
         <div className="mt-4 flex gap-2">
           <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/[0.06]">
             <Upload className="h-4 w-4" />
-            {uploading ? "Uploading…" : "Upload file"}
+            {uploading ? "Uploading…" : "Upload files"}
             <input
               type="file"
               className="sr-only"
               accept={ALLOWED_FILE_ACCEPT}
-              onChange={(event) => void handleUpload(event.target.files)}
+              multiple
+              onChange={(event) => {
+                const input = event.target;
+                void handleUpload(input.files).finally(() => {
+                  // Clear so the same files can be selected again
+                  input.value = "";
+                });
+              }}
               disabled={uploading}
             />
           </label>
@@ -185,14 +211,22 @@ export function JobFilesPanel({
               type="file"
               className="sr-only"
               accept="image/*"
-              onChange={(event) => void handleUpload(event.target.files)}
+              multiple
+              onChange={(event) => {
+                const input = event.target;
+                void handleUpload(input.files).finally(() => {
+                  // Clear so the same files can be selected again
+                  input.value = "";
+                });
+              }}
               disabled={uploading}
             />
           </label>
         </div>
 
         <p className="mt-2 text-xs text-slate-500">
-          JPEG, PNG, WebP, HEIC, PDF · max {formatFileSize(MAX_JOB_FILE_SIZE_BYTES)}
+          JPEG, PNG, WebP, HEIC, PDF · max {formatFileSize(MAX_JOB_FILE_SIZE_BYTES)} per file ·
+          select multiple files at once
         </p>
 
         {error ? (
@@ -220,15 +254,7 @@ export function JobFilesPanel({
                 key={file.id}
                 className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
               >
-                {file.mimeType.toLowerCase().startsWith("image/") && previewUrls[file.id] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={previewUrls[file.id]}
-                    alt={file.fileName}
-                    className="h-11 w-11 shrink-0 cursor-pointer rounded-lg object-cover"
-                    onClick={() => void handleDownload(file)}
-                  />
-                ) : file.mimeType.toLowerCase().startsWith("image/") ? (
+                {file.mimeType.toLowerCase().startsWith("image/") ? (
                   <Camera className="h-4 w-4 shrink-0 text-blue-300" />
                 ) : file.mimeType === "application/pdf" ? (
                   <FileText className="h-4 w-4 shrink-0 text-red-300" />
