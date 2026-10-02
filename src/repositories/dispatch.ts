@@ -327,7 +327,7 @@ export async function updateDispatchPlanStatus(id: string, status: DispatchStatu
   });
 }
 
-export async function updateDispatchPlanStatusByJobId(jobId: string, status: DispatchStatus) {
+export async function updateDispatchPlanStatusByJobId(jobId: string, status: DispatchStatus, onlyUpToDate?: string) {
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
 
@@ -335,7 +335,7 @@ export async function updateDispatchPlanStatusByJobId(jobId: string, status: Dis
       .from("dispatch_plans")
       .update({ dispatch_status: status, updated_at: new Date().toISOString() })
       .eq("org_id", orgId)
-      .eq("job_id", jobId)
+      .eq("job_id", jobId).lte("target_date", status === "in_progress" && onlyUpToDate ? onlyUpToDate : "9999-12-31")
       .select(
         "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
       );

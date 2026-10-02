@@ -89,9 +89,9 @@ export type DispatchStatus =
   /** Dispatch Plan exists and has schedule placement */
   | "scheduled"
   /** Work has begun */
-  | "in_progress"
+  | "in_progress" | "on_hold"
   /** Work is complete */
-  | "completed";
+  | "completed" | "cancelled";
 
 // ------------------------------------------------------------------
 // Scheduling Priority

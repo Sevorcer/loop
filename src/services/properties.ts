@@ -66,9 +66,9 @@ function normalizePropertyInput(input: CreatePropertyInput): CreatePropertyInput
 
 function validatePropertyInput(input: CreatePropertyInput) {
   if (!input.name) throw new Error("Property name is required.");
-  if (!input.customer) throw new Error("Customer is required.");
-  if (!input.address) throw new Error("Address is required.");
-  if (!input.city) throw new Error("City is required.");
+  
+  
+  
 }
 
 async function resolveLocation(

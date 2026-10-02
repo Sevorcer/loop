@@ -199,9 +199,7 @@ export async function createJob(
   const [customerId, propertyId] = await Promise.all([
     resolveCustomerIdByName(normalized.customerName, contextInput),
     resolvePropertyIdByName(normalized.propertyName, contextInput),
-  ]);
-
-  const createdJob = await createJobRecord(
+  ]); if (!customerId && normalized.customerName.trim()) throw new Error("Customer not found: " + normalized.customerName.trim() + ". Use '+ Create new'."); if (!propertyId && normalized.propertyName.trim()) throw new Error("Property not found: " + normalized.propertyName.trim() + ". Use '+ Create new'."); const createdJob = await createJobRecord(
     createJobNumber(nextIndex),
     {
       ...normalized,
@@ -357,7 +355,7 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     return null;
   }
 
-  if (existing.status === status) { return existing; } if (!canTransitionStatus(existing.status, status)) {
+  if (existing.status === status) { const dispatchStatus = existing.status === "In Progress" ? "in_progress" : existing.status === "Completed" ? "completed" : null; if (dispatchStatus) { const dispatchResult = await updateDispatchPlanStatusByJobId(existing.id, dispatchStatus, new Intl.DateTimeFormat("en-CA",{timeZone:"America/Los_Angeles",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())); if (!dispatchResult.ok) throw new Error(dispatchResult.error.message); } return existing; } if (!canTransitionStatus(existing.status, status)) {
     throw new Error(
       `Invalid transition: job cannot move from '${existing.status}' to '${status}'.`,
     );
@@ -398,7 +396,7 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     await syncRelatedCounters(updatedJob);
     if (updatedJob.status === "In Progress" || updatedJob.status === "Completed") {
       const dispatchStatus = updatedJob.status === "In Progress" ? "in_progress" : "completed";
-      const dispatchResult = await updateDispatchPlanStatusByJobId(updatedJob.id, dispatchStatus);
+      const dispatchResult = await updateDispatchPlanStatusByJobId(updatedJob.id, dispatchStatus, new Intl.DateTimeFormat("en-CA",{timeZone:"America/Los_Angeles",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
       if (!dispatchResult.ok) {
         throw new Error(dispatchResult.error.message);
       }

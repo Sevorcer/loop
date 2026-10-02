@@ -13,7 +13,7 @@ import type { Customer } from "@/features/customers/types/customer";
 import type { Property } from "@/features/properties/types/property";
 import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
-import { useContractors } from "@/features/contractors/state/ContractorsProvider";
+
 import type { Crew } from "@/features/dispatch/types/dispatch";
 import {
   buildTechnicianSuggestions,
@@ -32,12 +32,12 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const { jobs, createJob } = useJobs();
-  const { contractors } = useContractors();
+  
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
-  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
-  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);const handleCreateCustomer=async(name:string)=>{const r=await requestJson<{customer:Customer}>("/api/customers",{method:"POST",body:{name},role});setCustomerOptions((p)=>[...p,r.customer]);return r.customer;};
+  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);const handleCreateProperty=async(name:string,customerId?:string)=>{const r=await requestJson<{property:Property}>("/api/properties",{method:"POST",body:{name,customer:customerId,type:"Residential",status:"Active"},role});setPropertyOptions((p)=>[...p,r.property]);return r.property;};
   const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
   const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
 
@@ -48,9 +48,9 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
       buildTechnicianSuggestions([
         ...crewTechnicians,
         ...jobs.map((job) => job.assignedTo),
-        ...contractors.map((contractor) => contractor.contactName),
+        
       ]),
-    [contractors, crewTechnicians, jobs],
+    [crewTechnicians, jobs],
   );
 
   useEffect(() => {
@@ -162,7 +162,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         customerOptions={customerOptions}
         propertyOptions={propertyOptions}
         technicianOptions={technicianOptions} technicianProfiles={technicianProfiles}
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmit} onCreateCustomer={handleCreateCustomer} onCreateProperty={handleCreateProperty}
       />
     </div>
   );
