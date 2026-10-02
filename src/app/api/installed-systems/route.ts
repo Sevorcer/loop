@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       manufacturer,
       modelNumber,
       serialNumbers,
-      warrantyExpiry:
+      warrantyRegistered: false, warrantyExpiry:
         typeof body.warrantyExpiry === "string" ? body.warrantyExpiry.trim() : "",
       accessories: Array.isArray(body.accessories)
         ? (body.accessories as unknown[]).filter((a): a is string => typeof a === "string")
