@@ -59,6 +59,19 @@ interface JobMutationContext {
   role?: AppRole;
 }
 
+/**
+ * Formats a date value as YYYY-MM-DD (ISO date-only) for dispatch plan
+ * target dates. Unlike formatDateOnly (which returns a display string like
+ * "Oct 2, 2026"), this produces a string safe for date arithmetic and for
+ * matching against existing plan targetDate values.
+ */
+function toIsoDateOnly(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString().slice(0, 10);
+}
+
 function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInput | UpdateJobInput {
   return {
     ...input,
@@ -152,7 +165,7 @@ function createJobNumber(suffix: number) {
   return `JOB-${Math.max(suffix, 1001)}`;
 }
 
-async function ensureDispatchPlanForJob(job: Job): Promise<void> { try { const startDate = job.scheduledStartAt ? formatDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined; if (!startDate) { return; } const endDate = job.scheduledEndAt ? formatDateOnly(job.scheduledEndAt) : startDate; const existingPlansResult = await listDispatchPlans(); const existingPlans = existingPlansResult.ok ? existingPlansResult.data : []; const plannedDates = new Set(existingPlans.filter((plan) => plan.jobId === job.id).map((plan) => plan.targetDate)); const cursor = new Date(startDate + "T00:00:00Z"); const last = new Date(endDate + "T00:00:00Z"); while (cursor <= last) { const dateKey = cursor.toISOString().slice(0, 10); if (!plannedDates.has(dateKey)) { await createDispatchPlan({ jobId: job.id, jobNumber: job.jobNumber, customerName: job.customerName, propertyName: job.propertyName, jobType: job.type, dispatchStatus: "ready_to_schedule", dispatchability: { isDispatchable: false, materialReadiness: { state: "not_satisfied", reason: "" }, technicalReadiness: { state: "not_satisfied", reason: "" }, customerReadiness: { state: "not_satisfied", reason: "" }, crewReadiness: { state: "not_satisfied", reason: "" } }, targetDate: dateKey, estimatedDurationHours: 4, priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal", constraints: [] }); plannedDates.add(dateKey); } cursor.setUTCDate(cursor.getUTCDate() + 1); } } catch { return; } } export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
+async function ensureDispatchPlanForJob(job: Job): Promise<void> { try { const startDate = job.scheduledStartAt ? toIsoDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined; if (!startDate) { return; } const endDate = job.scheduledEndAt ? toIsoDateOnly(job.scheduledEndAt) : startDate; const existingPlansResult = await listDispatchPlans(); const existingPlans = existingPlansResult.ok ? existingPlansResult.data : []; const plannedDates = new Set(existingPlans.filter((plan) => plan.jobId === job.id).map((plan) => plan.targetDate)); const cursor = new Date(startDate + "T00:00:00Z"); const last = new Date(endDate + "T00:00:00Z"); while (cursor <= last) { const dateKey = cursor.toISOString().slice(0, 10); if (!plannedDates.has(dateKey)) { await createDispatchPlan({ jobId: job.id, jobNumber: job.jobNumber, customerName: job.customerName, propertyName: job.propertyName, jobType: job.type, dispatchStatus: "ready_to_schedule", dispatchability: { isDispatchable: false, materialReadiness: { state: "not_satisfied", reason: "" }, technicalReadiness: { state: "not_satisfied", reason: "" }, customerReadiness: { state: "not_satisfied", reason: "" }, crewReadiness: { state: "not_satisfied", reason: "" } }, targetDate: dateKey, estimatedDurationHours: 4, priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal", constraints: [] }); plannedDates.add(dateKey); } cursor.setUTCDate(cursor.getUTCDate() + 1); } } catch { return; } } export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
   const [jobs, activity] = await Promise.all([listJobs(), listAllJobActivity()]);
   return { jobs, activity };
 }
@@ -261,7 +274,7 @@ export async function createJob(
       targetDate:
         createdJob.scheduledFor ??
         (createdJob.scheduledStartAt
-          ? formatDateOnly(createdJob.scheduledStartAt)
+          ? toIsoDateOnly(createdJob.scheduledStartAt)
           : undefined),
       estimatedDurationHours: 4,
       priority:
@@ -434,7 +447,7 @@ export async function addJobNote(id: string, note: string, context?: JobMutation
     description: trimmedNote,
   });
 
-  return updatedJob;
+  return true;
 }
 
 /** F19: persist a contractor assignment to jobs.contractor_ids + timeline event. */
@@ -541,7 +554,7 @@ export async function setJobNotes(id: string, notes: string, context?: JobMutati
     actorId: context?.actorId,
     type: "note",
     title: "Notes updated",
-    description: "Job notes updated.",
+    description: trimmedNotes,
   });
 
   return updatedJob;
@@ -626,7 +639,7 @@ export async function recordJobFileUpload(
   mimeType: string,
   context?: JobMutationContext,
 ) {
-  const existing = await getJobById(jobId);
+  const existing = await getJobById(id);
   if (!existing) {
     return null;
   }
