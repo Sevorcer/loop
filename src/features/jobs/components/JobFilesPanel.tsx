@@ -15,6 +15,7 @@ interface JobFileMeta {
   mimeType: string;
   sizeBytes: number;
   uploadedBy: string | null;
+  uploaderRole: string | null;
   createdAt: string;
 }
 
@@ -188,7 +189,7 @@ export function JobFilesPanel({
             {uploading ? "Uploading…" : "Upload files"}
             <input
               type="file"
-              className="hidden"
+              className="sr-only"
               accept={ALLOWED_FILE_ACCEPT}
               multiple
               onChange={(event) => {
@@ -208,7 +209,7 @@ export function JobFilesPanel({
             <span className="sr-only">Take photo</span>
             <input
               type="file"
-              className="hidden"
+              className="sr-only"
               accept="image/*"
               multiple
               onChange={(event) => {
