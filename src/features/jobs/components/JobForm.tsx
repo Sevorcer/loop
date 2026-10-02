@@ -152,7 +152,7 @@ interface JobFormProps {
   customerOptions?: JobCustomerOption[];
   propertyOptions?: JobPropertyOption[];
   technicianOptions?: string[]; technicianProfiles?: { id: string; name: string }[];
-  onSubmit: (values: JobFormValues) => Promise<void> | void; onCreateCustomer?: (name: string) => Promise<{ id: string; name: string }>; onCreateProperty?: (name: string) => Promise<{ id: string; name: string }>;
+  onSubmit: (values: JobFormValues) => Promise<void> | void; onCreateCustomer?: (name: string) => Promise<{ id: string; name: string }>; onCreateProperty?: (name: string, customerId?: string) => Promise<{ id: string; name: string }>;
 }
 
 export function JobForm({
@@ -318,33 +318,28 @@ export function JobForm({
       return;
     }
 
-    let debugStep = "start";
     try {
       setIsSaving(true);
       setError(null);
       const normalized = normalizeValues(form);
-      debugStep = `normalized customerName=${JSON.stringify(normalized.customerName)} customerId=${JSON.stringify(normalized.customerId)}`;
       // Resolve the customer: an explicitly picked id wins. Otherwise, if a
       // name was typed, match it against existing options (avoids duplicates
       // when the user types an exact existing name) or create it inline.
       // This makes the flow work even if the "+ Create new" click misfires —
       // the typed text is always synced into form state via onQueryChange.
       const resolveCustomerId = async (): Promise<string | null> => {
-        debugStep = `resolveCustomer enter name=${JSON.stringify(normalized.customerName)}`;
         if (normalized.customerId) return normalized.customerId;
         const name = normalized.customerName;
-        if (!name) { debugStep = "resolveCustomer: empty name, returning null"; return null; }
+        if (!name) return null;
         const match = customerOptions.find(
           (o) => o.name.toLowerCase() === name.toLowerCase(),
         );
-        if (match) { debugStep = `resolveCustomer: matched option id=${match.id}`; return match.id; }
+        if (match) return match.id;
         if (!onCreateCustomer) throw new Error("Customer creation is not available on this form.");
-        debugStep = `resolveCustomer: calling onCreateCustomer with ${JSON.stringify(name)}`;
         const created = await onCreateCustomer(name);
-        debugStep = `resolveCustomer: onCreateCustomer returned id=${JSON.stringify(created && created.id)}`;
         return created.id;
       };
-      const resolvePropertyId = async (): Promise<string | null> => {
+      const resolvePropertyId = async (custId: string | null): Promise<string | null> => {
         if (normalized.propertyId) return normalized.propertyId;
         const name = normalized.propertyName;
         if (!name) return null;
@@ -353,18 +348,16 @@ export function JobForm({
         );
         if (match) return match.id;
         if (!onCreateProperty) throw new Error("Property creation is not available on this form.");
-        const created = await onCreateProperty(name);
+        const created = await onCreateProperty(name, custId ?? undefined);
         return created.id;
       };
       const customerId = await resolveCustomerId();
-      debugStep = `customerId resolved=${JSON.stringify(customerId)}, resolving property`;
-      const propertyId = await resolvePropertyId();
-      debugStep = `propertyId resolved=${JSON.stringify(propertyId)}, calling onSubmit`;
+      const propertyId = await resolvePropertyId(customerId);
       await onSubmit({ ...normalized, customerId, propertyId, createNewCustomer: false, createNewProperty: false });
     } catch (nextError) {
       setError(
         nextError instanceof Error
-          ? `[${debugStep}] ${nextError.message}`
+          ? nextError.message
           : "Failed to save job. Please check your connection and try again.",
       );
     } finally {
@@ -428,9 +421,6 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
-              <div data-testid="debug-form-state" className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-300">
-                DEBUG customerName={JSON.stringify(form.customerName)} customerId={JSON.stringify(form.customerId)} propertyName={JSON.stringify(form.propertyName)} propertyId={JSON.stringify(form.propertyId)}
-              </div>
               <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); }} required />
             </div>
 
