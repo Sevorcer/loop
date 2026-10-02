@@ -554,7 +554,7 @@ export async function setJobNotes(id: string, notes: string, context?: JobMutati
     actorId: context?.actorId,
     type: "note",
     title: "Notes updated",
-    description: trimmedNotes,
+    description: "Job notes updated.",
   });
 
   return updatedJob;
@@ -639,7 +639,7 @@ export async function recordJobFileUpload(
   mimeType: string,
   context?: JobMutationContext,
 ) {
-  const existing = await getJobById(id);
+  const existing = await getJobById(jobId);
   if (!existing) {
     return null;
   }
