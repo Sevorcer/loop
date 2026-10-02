@@ -37,7 +37,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);const handleCreateCustomer=async(name:string)=>{const r=await requestJson<{customer:Customer}>("/api/customers",{method:"POST",body:{name},role});setCustomerOptions((p)=>[...p,r.customer]);return r.customer;};
-  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);const handleCreateProperty=async(name:string,customerId?:string)=>{const r=await requestJson<{property:Property}>("/api/properties",{method:"POST",body:{name,customer:customerId},role});setPropertyOptions((p)=>[...p,r.property]);return r.property;};
+  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);const handleCreateProperty=async(name:string,customerId?:string)=>{const r=await requestJson<{property:Property}>("/api/properties",{method:"POST",body:{name,customer:customerId,type:"Residential",status:"Active"},role});setPropertyOptions((p)=>[...p,r.property]);return r.property;};
   const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
   const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
 
