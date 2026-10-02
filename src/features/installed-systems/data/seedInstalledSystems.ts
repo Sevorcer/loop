@@ -77,7 +77,7 @@ export const seedInstalledSystems: InstalledSystem[] = [
     manufacturer: "Daikin",
     modelNumber: "RXL36QMVJU",
     serialNumbers: ["RXL36-LKV-2201", "FTQ36-LKV-2207"],
-    warrantyExpiry: "2031-03-14",
+    warrantyExpiry: "2031-03-14", warrantyRegistered: true,
     accessories: ["Condensate safety switch"],
     linkedWorkflowIds: ["job-002"],
     permitReady: true,
