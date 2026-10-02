@@ -53,9 +53,9 @@ function normalizeCustomerInput(input: CustomerInput): CustomerInput {
 
 function validateCustomerInput(input: CustomerInput) {
   if (!input.name) throw new Error("Customer name is required.");
-  if (!input.primaryContact) throw new Error("Primary contact is required.");
-  if (!input.email) throw new Error("Email is required.");
-  if (!input.city) throw new Error("City is required.");
+  
+  
+  
   if (!CUSTOMER_STATUSES.has(input.status)) throw new Error("Invalid customer status.");
 }
 
