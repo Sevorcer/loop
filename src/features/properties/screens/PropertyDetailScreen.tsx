@@ -64,6 +64,10 @@ export function PropertyDetailScreen({
     ? `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`;
 
+  const appleMapsUrl = location
+    ? `https://maps.apple.com/?q=${location.latitude},${location.longitude}`
+    : `https://maps.apple.com/?q=${encodeURIComponent(rawAddress)}`;
+
   // Read the Google Maps key server-side so it never reaches the browser
   // bundle as executable code. Support the existing embed-specific name for
   // backward compatibility while allowing a general-purpose key name for the
@@ -220,6 +224,7 @@ export function PropertyDetailScreen({
         streetImageSrc={streetImageSrc}
         aerialSrc={aerialSrc}
         navigationUrl={navigationUrl}
+        appleMapsUrl={appleMapsUrl}
         arrivalAddress={arrivalAddress}
         propertyName={property.name}
       />
