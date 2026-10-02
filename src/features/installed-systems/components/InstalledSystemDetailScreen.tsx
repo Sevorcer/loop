@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowLeft, Building2, Cpu, FileCheck2, HardHat, Pencil, Wrench } from "lucide-react";
 import Link from "next/link";
 
@@ -110,6 +111,11 @@ export function InstalledSystemDetailScreen({
               >
                 {installedSystem.permitReady ? "Permit ready" : "Awaiting confirmation"}
               </StatusBadge>
+              <StatusBadge
+                variant={installedSystem.warrantyRegistered ? "success" : "danger"}
+              >
+                {installedSystem.warrantyRegistered ? "Warranty registered" : "Warranty not registered"}
+              </StatusBadge>
             </div>
           </div>
 
@@ -148,6 +154,11 @@ export function InstalledSystemDetailScreen({
               />
               {installedSystem.warrantyExpiry ? (
                 <FactTile label="Warranty expiry" value={installedSystem.warrantyExpiry} />
+              ) : null}
+              {!installedSystem.warrantyRegistered ? (
+                <PermissionGuard table="installed_systems" action="update">
+                  <WarrantyRegisterButton systemId={installedSystem.id} />
+                </PermissionGuard>
               ) : null}
               <FactTile
                 label="Match confidence"
@@ -345,6 +356,38 @@ function Fact({ label, value }: { label: string; value: string }) {
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-1 text-sm text-slate-100">{value}</p>
     </div>
+  );
+}
+
+function WarrantyRegisterButton({ systemId }: { systemId: string }) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleRegister() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/installed-systems/${systemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ warrantyRegistered: true }),
+      });
+      if (!res.ok) throw new Error("Failed to mark warranty registered");
+      window.location.reload();
+    } catch {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleRegister}
+      disabled={saving}
+      className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-left transition hover:bg-amber-500/20 disabled:opacity-50"
+    >
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-300">Warranty</p>
+      <p className="mt-2 text-sm font-medium text-amber-100">
+        {saving ? "Saving…" : "Mark warranty registered"}
+      </p>
+    </button>
   );
 }
 

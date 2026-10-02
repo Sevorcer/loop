@@ -67,6 +67,15 @@ export async function PATCH(
     if (typeof body.manufacturer === "string") patch.manufacturer = body.manufacturer.trim();
     if (typeof body.modelNumber === "string") patch.modelNumber = body.modelNumber.trim();
     if (typeof body.warrantyExpiry === "string") patch.warrantyExpiry = body.warrantyExpiry.trim();
+    if (typeof body.warrantyRegistered === "boolean") {
+      patch.warrantyRegistered = body.warrantyRegistered;
+      if (body.warrantyRegistered) {
+        patch.warrantyRegisteredAt = new Date().toISOString();
+      } else {
+        patch.warrantyRegisteredAt = undefined;
+        patch.warrantyRegisteredBy = undefined;
+      }
+    }
     if (Array.isArray(body.serialNumbers)) {
       patch.serialNumbers = (body.serialNumbers as unknown[]).filter(
         (s): s is string => typeof s === "string",
