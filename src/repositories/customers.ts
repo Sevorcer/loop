@@ -59,13 +59,21 @@ function mapCustomer(row: CustomerRow): Customer {
   };
 }
 
-export async function listCustomers(): Promise<Customer[]> {
+export async function listCustomers(
+  options?: { page?: number; pageSize?: number },
+): Promise<Customer[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("customers")
     .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw new Error(error.message);

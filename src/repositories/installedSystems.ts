@@ -118,7 +118,12 @@ function mapInstalledSystem(row: InstalledSystemRow): InstalledSystem {
 // Queries
 // ---------------------------------------------------------------------------
 
-export async function listInstalledSystems() {
+export async function listInstalledSystems(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
@@ -127,7 +132,8 @@ export async function listInstalledSystems() {
         "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
       )
       .eq("org_id", orgId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as InstalledSystemRow[]).map(mapInstalledSystem);
@@ -151,7 +157,12 @@ export async function getInstalledSystemById(id: string) {
   });
 }
 
-export async function listInstalledSystemsByProperty(propertyId: string) {
+export async function listInstalledSystemsByProperty(propertyId: string, options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
@@ -161,14 +172,20 @@ export async function listInstalledSystemsByProperty(propertyId: string) {
       )
       .eq("org_id", orgId)
       .eq("property_id", propertyId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as InstalledSystemRow[]).map(mapInstalledSystem);
   });
 }
 
-export async function listTechnicalProfiles() {
+export async function listTechnicalProfiles(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
@@ -176,7 +193,8 @@ export async function listTechnicalProfiles() {
       .select(
         "id,org_id,technical_identity_id,system_name,manufacturer,equipment_type,catalog_entry_ids,match_state,match_confidence,permit_fields,known_facts,discovered_facts,confirmation_note"
       )
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as TechnicalProfileRow[]).map(mapTechnicalProfile);

@@ -46,7 +46,15 @@ function mapJobTask(row: JobTaskRow): JobTask {
   };
 }
 
-export async function listJobTasks(jobId: string): Promise<JobTask[]> {
+export async function listJobTasks(
+  jobId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<JobTask[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("job_tasks")
@@ -54,7 +62,8 @@ export async function listJobTasks(jobId: string): Promise<JobTask[]> {
     .eq("org_id", orgId)
     .eq("job_id", jobId)
     .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => mapJobTask(row as JobTaskRow));

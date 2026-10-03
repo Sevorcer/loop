@@ -226,7 +226,15 @@ function mapActivity(row: JobActivityRow): JobActivity {
   };
 }
 
-export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
+export async function listJobsByCustomerId(
+  customerId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<Job[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const result = await supabase
@@ -234,7 +242,8 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("customer_id", customerId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   let data = toJobRows(result.data);
   let error = result.error;
@@ -246,7 +255,8 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
       .eq("customer_id", customerId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     data = toJobRows(fallback.data);
     error = fallback.error;
 
@@ -257,7 +267,8 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
         .eq("customer_id", customerId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
       data = toJobRows(base.data);
       error = base.error;
     }
@@ -270,25 +281,41 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
-export async function listJobsForDispatch(): Promise<Job[]> {
+export async function listJobsForDispatch(
+  options?: { page?: number; pageSize?: number },
+): Promise<Job[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
-    .order("scheduled_start_at", { ascending: true });
+    .order("scheduled_start_at", { ascending: true })
+    .range(from, to);
   if (error) throw new Error(error.message);
   return (toJobRows(data) ?? []).map(mapJob);
 }
 
-export async function listJobs(): Promise<Job[]> {
+export async function listJobs(
+  options?: { page?: number; pageSize?: number },
+): Promise<Job[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const result = await supabase
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   let data = toJobRows(result.data);
   let error = result.error;
@@ -299,7 +326,8 @@ export async function listJobs(): Promise<Job[]> {
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     data = toJobRows(fallback.data);
     error = fallback.error;
 
@@ -309,7 +337,8 @@ export async function listJobs(): Promise<Job[]> {
         .from("jobs")
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
       data = toJobRows(base.data);
       error = base.error;
     }
@@ -322,13 +351,21 @@ export async function listJobs(): Promise<Job[]> {
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
-export async function listJobActivity(): Promise<JobActivity[]> {
+export async function listJobActivity(
+  options?: { page?: number; pageSize?: number },
+): Promise<JobActivity[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("job_activity")
     .select("id,job_id,actor_id,type,title,description,created_at")
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw new Error(error.message);
@@ -634,14 +671,23 @@ export async function createJobActivity(
   return mapActivity(data as JobActivityRow);
 }
 
-export async function listActivityByJobId(jobId: string): Promise<JobActivity[]> {
+export async function listActivityByJobId(
+  jobId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<JobActivity[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("job_activity")
     .select("id,job_id,actor_id,type,title,description,created_at")
     .eq("org_id", orgId)
     .eq("job_id", jobId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw new Error(error.message);
@@ -650,7 +696,15 @@ export async function listActivityByJobId(jobId: string): Promise<JobActivity[]>
   return ((data ?? []) as JobActivityRow[]).map(mapActivity);
 }
 
-export async function listActivityByJobIds(jobIds: string[]): Promise<JobActivity[]> {
+export async function listActivityByJobIds(
+  jobIds: string[],
+  options?: { page?: number; pageSize?: number },
+): Promise<JobActivity[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   if (jobIds.length === 0) {
     return [];
   }
@@ -661,7 +715,8 @@ export async function listActivityByJobIds(jobIds: string[]): Promise<JobActivit
     .select("id,job_id,actor_id,type,title,description,created_at")
     .eq("org_id", orgId)
     .in("job_id", jobIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw new Error(error.message);
@@ -723,7 +778,15 @@ export function toJob(row: JobRow): Job {
 }
 
 
-export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
+export async function listJobsByPropertyId(
+  propertyId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<Job[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const result = await supabase
@@ -731,7 +794,8 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("property_id", propertyId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   let data = toJobRows(result.data);
   let error = result.error;
@@ -743,7 +807,8 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
       .eq("property_id", propertyId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     data = toJobRows(fallback.data);
     error = fallback.error;
 
@@ -754,7 +819,8 @@ export async function listJobsByPropertyId(propertyId: string): Promise<Job[]> {
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
         .eq("property_id", propertyId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
       data = toJobRows(base.data);
       error = base.error;
     }
@@ -798,13 +864,20 @@ const JOB_REPORT_SELECT =
 
 export async function listJobReportRows(
   contextInput?: SessionRepositoryContextInput,
+  options?: { page?: number; pageSize?: number },
 ): Promise<JobReportRow[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext(contextInput);
   const { data, error } = await supabase
     .from("jobs")
     .select(JOB_REPORT_SELECT)
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw new Error(error.message);
@@ -828,14 +901,21 @@ export async function listJobReportRows(
 
 export async function listJobStatusActivities(
   contextInput?: SessionRepositoryContextInput,
+  options?: { page?: number; pageSize?: number },
 ): Promise<JobStatusActivity[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext(contextInput);
   const { data, error } = await supabase
     .from("job_activity")
     .select("job_id,title,created_at")
     .eq("org_id", orgId)
     .eq("type", "status")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .range(from, to);
 
   if (error) {
     throw new Error(error.message);
