@@ -70,15 +70,17 @@ export async function applyInstallChecklistTemplate(jobId: string) {
   const created: JobTask[] = [];
   let sortOrder = existing.reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1;
 
-  for (const label of INSTALL_CHECKLIST_TEMPLATE) {
-    created.push(
-      await createJobTaskRecord({
+  const newTasks = await Promise.all(
+    INSTALL_CHECKLIST_TEMPLATE.map((label) =>
+      createJobTaskRecord({
         jobId,
         label,
-        sortOrder: sortOrder++, section: "office",
-      }),
-    );
-  }
+        sortOrder: sortOrder++,
+        section: "office",
+      })
+    )
+  );
+  created.push(...newTasks);
 
   return [...existing, ...created];
 }
