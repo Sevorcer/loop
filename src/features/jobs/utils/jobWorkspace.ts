@@ -33,19 +33,19 @@ export function sortJobActivity(activity: JobActivity[]): JobActivity[] {
 
 // ─── Job Status Transitions ───────────────────────────────────────────────────
 // Defines the legal state machine for job execution lifecycle.
-// Completed and Cancelled are terminal — no outbound transitions.
+// Completed is terminal — no outbound transitions. Cancelled can be reopened to Scheduled.
 
 const VALID_JOB_STATUS_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   Scheduled: ["In Progress", "On Hold", "Cancelled"],
   "In Progress": ["Completed", "On Hold", "Cancelled"],
   "On Hold": ["Scheduled", "In Progress", "Cancelled"],
   Completed: [],
-  Cancelled: [],
+  Cancelled: ["Scheduled"],
 };
 
 /**
  * Returns all statuses that a job may legally transition to from its current state.
- * Returns an empty array for terminal statuses (Completed, Cancelled).
+ * Returns an empty array for terminal statuses (Completed).
  */
 export function getValidNextStatuses(current: JobStatus): JobStatus[] {
   return VALID_JOB_STATUS_TRANSITIONS[current];
