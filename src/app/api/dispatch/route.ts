@@ -11,14 +11,14 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import { mapRouteError } from "@/lib/api/routeErrors";
-import { listJobsWithActivity } from "@/services/jobs";
+import { listJobsForDispatchService } from "@/services/jobs";
 
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
 
   try {
-    const { jobs } = await listJobsWithActivity();
+    const jobs = await listJobsForDispatchService();
     return NextResponse.json({ jobs });
   } catch (error) {
     return mapRouteError(error);
