@@ -447,7 +447,7 @@ export async function addJobNote(id: string, note: string, context?: JobMutation
     description: trimmedNote,
   });
 
-  return true;
+  return updatedJob;
 }
 
 /** F19: persist a contractor assignment to jobs.contractor_ids + timeline event. */
