@@ -90,8 +90,8 @@ function TriageDrawer({ report, onUpdated, onClose }: TriageDrawerProps) {
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
-    setError(null);
-    setIsSubmitting(true);
+    setError(null); // Validate triage notes are provided
+    if (!triageNotes.trim()) { setError("Please add triage notes before saving."); return; } setIsSubmitting(true);
 
     try {
       const res = await fetch(`/api/feedback/${report.id}`, {
@@ -142,10 +142,10 @@ function TriageDrawer({ report, onUpdated, onClose }: TriageDrawerProps) {
       {/* Triage notes */}
       <div className="space-y-1.5">
         <label htmlFor={`triage-notes-${report.id}`} className="block text-xs font-medium text-primary">
-          Triage Notes
+          Triage Notes *
         </label>
         <textarea
-          id={`triage-notes-${report.id}`}
+          id={`triage-notes-${report.id}`} required
           value={triageNotes}
           onChange={(e) => setTriageNotes(e.target.value)}
           rows={3}
