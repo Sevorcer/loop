@@ -278,7 +278,7 @@ export async function listJobsForDispatch(): Promise<Job[]> {
     .eq("org_id", orgId)
     .order("scheduled_start_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return ((data ?? []) as JobRow[]).map(mapJob);
+  return (toJobRows(data) ?? []).map(mapJob);
 }
 
 export async function listJobs(): Promise<Job[]> {
