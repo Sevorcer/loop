@@ -36,7 +36,7 @@ import {
 } from "@/repositories/jobs";
 import {
   createDispatchPlan,
-  updateDispatchPlanStatusByJobId, listDispatchPlans,
+  updateDispatchPlanStatusByJobId, listDispatchPlansByJobId,
 } from "@/repositories/dispatch";
 import { getContractorById } from "@/repositories/contractors";
 import { syncCustomerCounters } from "@/services/customers";
