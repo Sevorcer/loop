@@ -270,6 +270,17 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
+export async function listJobsForDispatch(): Promise<Job[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(JOB_SELECT)
+    .eq("org_id", orgId)
+    .order("scheduled_start_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (toJobRows(data) ?? []).map(mapJob);
+}
+
 export async function listJobs(): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
 
@@ -687,24 +698,24 @@ export async function getMaxJobNumberSuffix(
   contextInput?: SessionRepositoryContextInput,
 ): Promise<number> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
+  // Order by created_at desc and take the most recent — job numbers are
+  // assigned sequentially at creation, so the newest job has the highest number.
   const { data, error } = await supabase
     .from("jobs")
     .select("job_number")
     .eq("org_id", orgId)
-    .like("job_number", "JOB-%");
+    .like("job_number", "JOB-%")
+    .order("created_at", { ascending: false })
+    .limit(1);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  let max = 0;
-  for (const row of (data ?? []) as { job_number: string }[]) {
-    const match = JOB_NUMBER_PATTERN.exec(row.job_number ?? "");
-    if (match) {
-      max = Math.max(max, Number.parseInt(match[1], 10));
-    }
-  }
-  return max;
+  const row = (data ?? [])[0] as { job_number: string } | undefined;
+  if (!row) return 0;
+  const match = JOB_NUMBER_PATTERN.exec(row.job_number ?? "");
+  return match ? Number.parseInt(match[1], 10) : 0;
 }
 
 export function toJob(row: JobRow): Job {

@@ -246,6 +246,23 @@ export async function listDispatchPlans() {
   });
 }
 
+export async function listDispatchPlansByJobId(jobId: string) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+      .from("dispatch_plans")
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
+      )
+      .eq("org_id", orgId)
+      .eq("job_id", jobId)
+      .order("target_date", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as DispatchPlanRow[]).map(mapDispatchPlan);
+  });
+}
+
 export async function getDispatchPlanById(id: string) {
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
