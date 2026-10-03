@@ -48,7 +48,7 @@ export function JobStatusActions({
 }) {
   const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null); const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const helperText = getJobStatusIntent(status);
 
   const validNextStatuses = getValidNextStatuses(status);
@@ -56,7 +56,7 @@ export function JobStatusActions({
     validNextStatuses.includes(s),
   );
 
-  async function handleChange(nextStatus: JobStatus) {
+  function requestChange(nextStatus: JobStatus) { if (nextStatus === "Cancelled") { setCancelConfirmOpen(true); return; } void handleChange(nextStatus); } async function confirmCancel() { setCancelConfirmOpen(false); await handleChange("Cancelled"); }   async function handleChange(nextStatus: JobStatus) {
     try {
       setError(null);
       setSuccess(null);
@@ -108,7 +108,7 @@ export function JobStatusActions({
             {availableActions.map(({ status: nextStatus, icon: Icon, label }) => (
               <Button
                 key={nextStatus}
-                onClick={() => void handleChange(nextStatus)}
+                onClick={() => requestChange(nextStatus)}
                 className="min-h-[48px] justify-start gap-2 text-base md:min-h-0 md:text-sm"
                 variant="secondary"
                 disabled={pendingStatus !== null}
@@ -120,6 +120,6 @@ export function JobStatusActions({
           </div>
         )}
       </div>
-    </SurfaceCard>
+          {cancelConfirmOpen ? (<div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-labelledby="cancel-job-title" aria-describedby="cancel-job-description"><div className="absolute inset-0 bg-black/60" onClick={() => setCancelConfirmOpen(false)} /><div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-xl"><h3 id="cancel-job-title" className="text-lg font-semibold text-white">Cancel this job?</h3><p id="cancel-job-description" className="mt-2 text-sm text-slate-400">This will remove the job from the active queue. You can reopen it later from the job detail page.</p><div className="mt-6 flex justify-end gap-2"><Button variant="outline" onClick={() => setCancelConfirmOpen(false)}>Keep Job</Button><Button variant="destructive" onClick={() => void confirmCancel()}>Cancel Job</Button></div></div></div>) : null}    </SurfaceCard>
   );
 }
