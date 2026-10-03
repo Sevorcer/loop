@@ -205,10 +205,7 @@ export function MapViewCard({
               </h3>
 
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Set{" "}
-                <code className="font-mono">GOOGLE_MAPS_API_KEY</code> or{" "}
-                <code className="font-mono">GOOGLE_MAPS_EMBED_API_KEY</code>{" "}
-                to enable property imagery.
+                Property imagery is not available. Contact your administrator to enable maps.
               </p>
 
               <div className="mt-6 rounded-full border bg-background/60 px-4 py-2 text-sm text-muted-foreground">

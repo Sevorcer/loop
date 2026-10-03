@@ -122,7 +122,7 @@ export async function POST(request: Request) {
           uploadedBy: guard.ctx.userId || null,
         });
 
-        screenshotUrl = uploaded.storagePath;
+        screenshotUrl = `/api/feedback/screenshots/${encodeURIComponent(uploaded.storagePath)}`;
       }
     } else {
       body = (await request.json()) as Record<string, unknown>;

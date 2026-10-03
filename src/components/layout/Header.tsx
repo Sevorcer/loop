@@ -328,7 +328,7 @@ export default function Header({
             <Search size={16} />
           </Button>
 
-          <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Notifications">
+          <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Vehicle Alerts">
             <Button
               variant="ghost"
               size="icon"
@@ -449,7 +449,7 @@ export default function Header({
               <Search size={18} />
             </Button>
 
-            <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Notifications">
+            <Link href={ROUTES.VEHICLE_ALERTS} aria-label="Vehicle Alerts">
               <Button
                 variant="ghost"
                 size="icon"
