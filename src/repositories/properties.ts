@@ -128,13 +128,20 @@ async function getCustomerNameMap(
 
 export async function listProperties(
   contextInput?: SessionRepositoryContextInput,
+  options?: { page?: number; pageSize?: number },
 ): Promise<Property[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext(contextInput);
   const { data, error } = await supabase
     .from("properties")
     .select(PROPERTY_SELECT)
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
 
@@ -153,14 +160,21 @@ export async function listProperties(
 export async function listPropertiesByCustomerId(
   customerId: string,
   contextInput?: SessionRepositoryContextInput,
+  options?: { page?: number; pageSize?: number },
 ): Promise<Property[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext(contextInput);
   const { data, error } = await supabase
     .from("properties")
     .select(PROPERTY_SELECT)
     .eq("org_id", orgId)
     .eq("customer_id", customerId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
 

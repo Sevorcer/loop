@@ -181,14 +181,20 @@ function mapDispatchEvent(row: DispatchEventRow): DispatchEvent {
 // CRUD — Crews
 // ---------------------------------------------------------------------------
 
-export async function listCrews() {
+export async function listCrews(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
       .from("crews")
       .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
       .eq("org_id", orgId)
-      .order("name");
+      .order("name")
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as CrewRow[]).map(mapCrew);
@@ -230,7 +236,12 @@ export async function createCrew(input: CrewWriteInput) {
 // CRUD — Dispatch Plans
 // ---------------------------------------------------------------------------
 
-export async function listDispatchPlans() {
+export async function listDispatchPlans(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
@@ -239,14 +250,20 @@ export async function listDispatchPlans() {
         "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
       )
       .eq("org_id", orgId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as DispatchPlanRow[]).map(mapDispatchPlan);
   });
 }
 
-export async function listDispatchPlansByJobId(jobId: string) {
+export async function listDispatchPlansByJobId(jobId: string, options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
@@ -256,7 +273,8 @@ export async function listDispatchPlansByJobId(jobId: string) {
       )
       .eq("org_id", orgId)
       .eq("job_id", jobId)
-      .order("target_date", { ascending: true });
+      .order("target_date", { ascending: true })
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as DispatchPlanRow[]).map(mapDispatchPlan);
@@ -366,7 +384,12 @@ export async function updateDispatchPlanStatusByJobId(jobId: string, status: Dis
 // CRUD — Crew Assignments
 // ---------------------------------------------------------------------------
 
-export async function listCrewAssignments() {
+export async function listCrewAssignments(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
@@ -374,7 +397,8 @@ export async function listCrewAssignments() {
       .select(
         "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history"
       )
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as CrewAssignmentRow[]).map(mapCrewAssignment);
@@ -459,7 +483,12 @@ export async function upsertCrewAssignment(input: CrewAssignmentWriteInput) {
 // CRUD — Schedule Blocks
 // ---------------------------------------------------------------------------
 
-export async function listScheduleBlocks() {
+export async function listScheduleBlocks(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
@@ -468,7 +497,8 @@ export async function listScheduleBlocks() {
         "id,org_id,dispatch_plan_id,job_id,crew_assignment_id,crew_name,scheduled_date,scheduled_start_time,scheduled_end_time,estimated_duration_hours,job_type,customer_name,property_name,dispatch_status"
       )
       .eq("org_id", orgId)
-      .order("scheduled_date");
+      .order("scheduled_date")
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as ScheduleBlockRow[]).map(mapScheduleBlock);
@@ -532,14 +562,20 @@ export async function upsertScheduleBlock(input: ScheduleBlockWriteInput) {
 // CRUD — Dispatch Events
 // ---------------------------------------------------------------------------
 
-export async function listDispatchEvents() {
+export async function listDispatchEvents(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
       .from("dispatch_events")
       .select("id,org_id,dispatch_plan_id,type,timestamp,description,metadata")
       .eq("org_id", orgId)
-      .order("timestamp");
+      .order("timestamp")
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as DispatchEventRow[]).map(mapDispatchEvent);

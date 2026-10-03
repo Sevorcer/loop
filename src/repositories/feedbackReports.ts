@@ -72,7 +72,13 @@ export interface ListFeedbackReportsFilter {
 
 export async function listFeedbackReports(
   filter: ListFeedbackReportsFilter = {},
+  options?: { page?: number; pageSize?: number },
 ): Promise<FeedbackReport[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -98,6 +104,8 @@ export async function listFeedbackReports(
   if (filter.to) {
     query = query.lte("created_at", filter.to);
   }
+
+  query = query.range(from, to);
 
   const { data, error } = await query;
 
