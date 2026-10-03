@@ -270,6 +270,17 @@ export async function listJobsByCustomerId(customerId: string): Promise<Job[]> {
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
+export async function listJobsForDispatch(): Promise<Job[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(JOB_SELECT)
+    .eq("org_id", orgId)
+    .order("scheduled_start_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as JobRow[]).map(mapJob);
+}
+
 export async function listJobs(): Promise<Job[]> {
   const { supabase, orgId } = await getRepositoryContext();
 
