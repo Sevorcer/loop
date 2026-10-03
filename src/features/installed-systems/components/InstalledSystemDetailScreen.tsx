@@ -367,6 +367,7 @@ function WarrantyRegisterButton({ systemId }: { systemId: string }) {
     try {
       const res = await fetch(`/api/installed-systems/${systemId}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ warrantyRegistered: true }),
       });
