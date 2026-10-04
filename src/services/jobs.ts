@@ -257,45 +257,12 @@ export async function createJob(
 
   await syncRelatedCounters(createdJob, contextInput);
 
-  // Every job needs a dispatch plan or it never shows on the dispatch board
-  // (which reads dispatch_plans, not jobs). Before this, a job created via
-  // the job form was structurally invisible to dispatch until someone created
-  // a plan through the API. Best-effort: a dispatch hiccup must never fail
-  // job creation — dispatch can backfill the plan later.
-  try {
-    await createDispatchPlan({
-      jobId: createdJob.id,
-      jobNumber: createdJob.jobNumber,
-      customerName: createdJob.customerName,
-      propertyName: createdJob.propertyName,
-      jobType: createdJob.type,
-      dispatchStatus: "ready_to_schedule",
-      dispatchability: {
-        isDispatchable: false,
-        materialReadiness: { state: "not_satisfied", reason: "" },
-        technicalReadiness: { state: "not_satisfied", reason: "" },
-        customerReadiness: { state: "not_satisfied", reason: "" },
-        crewReadiness: { state: "not_satisfied", reason: "" },
-      },
-      targetDate:
-        createdJob.scheduledFor ??
-        (createdJob.scheduledStartAt
-          ? toIsoDateOnly(createdJob.scheduledStartAt)
-          : undefined),
-      estimatedDurationHours: 4,
-      priority:
-        createdJob.priority === "High"
-          ? "high"
-          : createdJob.priority === "Low"
-            ? "low"
-            : "normal",
-      constraints: [],
-    });
-  } catch {
-    // Job exists either way; leave dispatch to backfill.
-  }
-
-  await ensureDispatchPlanForJob(createdJob); return createdJob;
+  // Dispatch plan creation is handled by ensureDispatchPlanForJob below, which
+  // creates one plan per date in the job's range and skips dates that already
+  // have a plan. (An inline createDispatchPlan call used to live here and
+  // produced duplicate plans for the same job + target date.)
+  await ensureDispatchPlanForJob(createdJob);
+  return createdJob;
 }
 
 export async function updateJob(id: string, input: UpdateJobInput) {

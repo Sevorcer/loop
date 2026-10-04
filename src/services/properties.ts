@@ -90,8 +90,11 @@ async function resolveLocation(
 // Queries
 // ---------------------------------------------------------------------------
 
-export async function listProperties(contextInput?: SessionRepositoryContextInput) {
-  return listPropertyRecords(contextInput);
+export async function listProperties(
+  contextInput?: SessionRepositoryContextInput,
+  options?: { search?: string },
+) {
+  return listPropertyRecords(contextInput, options);
 }
 
 export async function listPropertiesForCustomer(

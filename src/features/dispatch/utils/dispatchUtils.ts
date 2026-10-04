@@ -105,6 +105,23 @@ export function getDispatchBoardGroup(
 // Snapshot Assembly
 // ------------------------------------------------------------------
 
+/**
+ * Dedupes dispatch plans by job + target date, keeping only the most
+ * recently updated plan for each key. Guards the board against duplicate
+ * plans created before duplicate checking existed.
+ */
+function dedupeDispatchPlans(plans: DispatchPlan[]): DispatchPlan[] {
+  const latestByJobAndDate = new Map<string, DispatchPlan>();
+  for (const plan of plans) {
+    const key = `${plan.jobId}|${plan.targetDate}`;
+    const existing = latestByJobAndDate.get(key);
+    if (!existing || (plan.updatedAt ?? "") > (existing.updatedAt ?? "")) {
+      latestByJobAndDate.set(key, plan);
+    }
+  }
+  return [...latestByJobAndDate.values()];
+}
+
 export function assembleDispatchSnapshot(
   plans: DispatchPlan[],
   crewAssignments: CrewAssignment[],
@@ -112,29 +129,32 @@ export function assembleDispatchSnapshot(
   dispatchEvents: DispatchEvent[],
   crews: Crew[]
 ): DispatchSnapshot {
+  // Dedupe: when multiple plans exist for the same job + target date, keep
+  // only the most recently updated one.
+  const dedupedPlans = dedupeDispatchPlans(plans);
   const metrics = {
-    totalPlans: plans.length,
-    readyToSchedule: plans.filter(
+    totalPlans: dedupedPlans.length,
+    readyToSchedule: dedupedPlans.filter(
       (p) => p.dispatchStatus === "ready_to_schedule"
     ).length,
-    scheduled: plans.filter((p) => p.dispatchStatus === "scheduled").length,
-    inProgress: plans.filter((p) => p.dispatchStatus === "in_progress").length,
-    awaitingMaterials: plans.filter(
+    scheduled: dedupedPlans.filter((p) => p.dispatchStatus === "scheduled").length,
+    inProgress: dedupedPlans.filter((p) => p.dispatchStatus === "in_progress").length,
+    awaitingMaterials: dedupedPlans.filter(
       (p) => p.dispatchStatus === "awaiting_materials"
     ).length,
-    awaitingTechnicalReadiness: plans.filter(
+    awaitingTechnicalReadiness: dedupedPlans.filter(
       (p) => p.dispatchStatus === "awaiting_technical_readiness"
     ).length,
-    awaitingCustomer: plans.filter(
+    awaitingCustomer: dedupedPlans.filter(
       (p) => p.dispatchStatus === "awaiting_customer_confirmation"
     ).length,
-    awaitingCrew: plans.filter(
+    awaitingCrew: dedupedPlans.filter(
       (p) => p.dispatchStatus === "awaiting_crew_availability"
     ).length,
   };
 
   return {
-    dispatchPlans: plans,
+    dispatchPlans: dedupedPlans,
     crewAssignments,
     scheduleBlocks,
     dispatchEvents,

@@ -59,8 +59,8 @@ function validateCustomerInput(input: CustomerInput) {
   if (!CUSTOMER_STATUSES.has(input.status)) throw new Error("Invalid customer status.");
 }
 
-export async function listCustomers() {
-  return listCustomerRecords();
+export async function listCustomers(options?: { search?: string }) {
+  return listCustomerRecords(options);
 }
 
 export async function fetchCustomerById(id: string): Promise<Customer | null> {

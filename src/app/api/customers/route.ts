@@ -21,7 +21,8 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    const customers = await listCustomers();
+    const search = new URL(request.url).searchParams.get("search") ?? undefined;
+    const customers = await listCustomers({ search });
     return NextResponse.json({ customers });
   } catch (error) {
     return mapRouteError(error);
