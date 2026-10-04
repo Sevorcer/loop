@@ -43,14 +43,22 @@ function mapContractor(row: ContractorRow): Contractor {
   };
 }
 
-export async function listContractors(): Promise<Contractor[]> {
+export async function listContractors(
+  options?: { page?: number; pageSize?: number },
+): Promise<Contractor[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const { data, error } = await supabase
     .from("contractors")
     .select(CONTRACTOR_SELECT)
     .eq("org_id", orgId)
-    .order("company_name", { ascending: true });
+    .order("company_name", { ascending: true })
+    .range(from, to);
 
   if (error) {
     throw new Error(error.message);

@@ -216,11 +216,19 @@ export async function deleteFile(storageObjectId: string): Promise<void> {
 
 // ─── List metadata ────────────────────────────────────────────────────────────
 
-export async function listStorageObjects(filter?: {
-  jobId?: string;
-  propertyId?: string;
-  visibility?: "internal" | "customer";
-}): Promise<StorageObjectMeta[]> {
+export async function listStorageObjects(
+  filter?: {
+    jobId?: string;
+    propertyId?: string;
+    visibility?: "internal" | "customer";
+  },
+  options?: { page?: number; pageSize?: number },
+): Promise<StorageObjectMeta[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -232,6 +240,8 @@ export async function listStorageObjects(filter?: {
   if (filter?.jobId) query = query.eq("job_id", filter.jobId);
   if (filter?.propertyId) query = query.eq("property_id", filter.propertyId);
   if (filter?.visibility) query = query.eq("visibility", filter.visibility);
+
+  query = query.range(from, to);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

@@ -142,7 +142,14 @@ function mapPhoto(row: PortalPhotoRow): PortalPhoto {
 
 // ─── Portal projects ──────────────────────────────────────────────────────────
 
-export async function listPortalProjects(): Promise<PortalProject[]> {
+export async function listPortalProjects(
+  options?: { page?: number; pageSize?: number },
+): Promise<PortalProject[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const { data, error } = await supabase
@@ -151,7 +158,8 @@ export async function listPortalProjects(): Promise<PortalProject[]> {
       "id,org_id,name,address,status,completion_pct,estimated_completion_date,next_milestone,project_manager,photos_enabled,last_synced_at,created_at,updated_at",
     )
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
 
@@ -178,7 +186,15 @@ export async function getPortalProjectById(id: string): Promise<PortalProject | 
 
 // ─── Milestones ───────────────────────────────────────────────────────────────
 
-export async function listPortalMilestones(projectId: string): Promise<PortalMilestone[]> {
+export async function listPortalMilestones(
+  projectId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<PortalMilestone[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const { data, error } = await supabase
@@ -188,7 +204,8 @@ export async function listPortalMilestones(projectId: string): Promise<PortalMil
     )
     .eq("org_id", orgId)
     .eq("project_id", projectId)
-    .order("sequence", { ascending: true });
+    .order("sequence", { ascending: true })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
 
@@ -197,7 +214,15 @@ export async function listPortalMilestones(projectId: string): Promise<PortalMil
 
 // ─── Documents ────────────────────────────────────────────────────────────────
 
-export async function listPortalDocuments(projectId: string): Promise<PortalDocument[]> {
+export async function listPortalDocuments(
+  projectId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<PortalDocument[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const { data, error } = await supabase
@@ -207,7 +232,8 @@ export async function listPortalDocuments(projectId: string): Promise<PortalDocu
     )
     .eq("org_id", orgId)
     .eq("project_id", projectId)
-    .order("published_at", { ascending: false });
+    .order("published_at", { ascending: false })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
 
@@ -219,7 +245,13 @@ export async function listPortalDocuments(projectId: string): Promise<PortalDocu
 export async function listPortalPhotos(
   projectId: string,
   customerVisibleOnly = false,
+  options?: { page?: number; pageSize?: number },
 ): Promise<PortalPhoto[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -233,6 +265,8 @@ export async function listPortalPhotos(
 
   if (customerVisibleOnly) query = query.eq("customer_visible", true);
 
+  query = query.range(from, to);
+
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
@@ -242,7 +276,14 @@ export async function listPortalPhotos(
 // ─── Org-wide search helpers (for Copilot search index) ──────────────────────
 
 /** Returns all portal documents across all projects for the org — used by Copilot search. */
-export async function listAllPortalDocuments(): Promise<PortalDocument[]> {
+export async function listAllPortalDocuments(
+  options?: { page?: number; pageSize?: number },
+): Promise<PortalDocument[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const { data, error } = await supabase
@@ -251,7 +292,8 @@ export async function listAllPortalDocuments(): Promise<PortalDocument[]> {
       "id,org_id,project_id,name,document_type,visibility,file_size_bytes,mime_type,allowed_roles,published_at,created_at,updated_at",
     )
     .eq("org_id", orgId)
-    .order("published_at", { ascending: false });
+    .order("published_at", { ascending: false })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
 
@@ -259,7 +301,15 @@ export async function listAllPortalDocuments(): Promise<PortalDocument[]> {
 }
 
 /** Returns all portal photos across all projects for the org — used by Copilot search. */
-export async function listAllPortalPhotos(customerVisibleOnly = false): Promise<PortalPhoto[]> {
+export async function listAllPortalPhotos(
+  customerVisibleOnly = false,
+  options?: { page?: number; pageSize?: number },
+): Promise<PortalPhoto[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -271,6 +321,8 @@ export async function listAllPortalPhotos(customerVisibleOnly = false): Promise<
     .order("taken_at", { ascending: false });
 
   if (customerVisibleOnly) query = query.eq("customer_visible", true);
+
+  query = query.range(from, to);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
