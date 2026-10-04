@@ -12,7 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { useCurrentRole } from "@/features/auth";
+import { useAuth, useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
 import type { CrewAssignment, DispatchPlan, DispatchSnapshot } from "../types/dispatch";
@@ -76,7 +76,7 @@ function updatePlan(
 }
 
 export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
-  const { role } = useCurrentRole();
+  const { role } = useCurrentRole(); const { user } = useAuth();
   const router = useRouter();
   const [plans, setPlans] = useState<DispatchPlan[]>(initialSnapshot.dispatchPlans);
   const [crews] = useState(initialSnapshot.crews);
@@ -139,7 +139,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   const contractors = initialSnapshot.contractors ?? [];
 
   const filteredPlans = useMemo(() => {
-    let result = plans;
+    const techNames = new Set([user?.user_metadata?.full_name, user?.email].filter((n): n is string => typeof n === "string").map((n) => n.trim().toLowerCase())); let result = role === "tech" ? plans.filter((plan) => { const pa = assignments.find((a) => a.dispatchPlanId === plan.id); const pn = [...(plan.assignedTechNames ?? []), pa?.leadInstaller, ...(pa?.supportingTechnicians ?? [])].filter((n): n is string => typeof n === "string").map((n) => n.trim().toLowerCase()); return pn.some((n) => techNames.has(n)); }) : plans;
 
     if (dateFilter) {
       result = filterPlansByDate(result, dateFilter);
@@ -181,7 +181,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         const assigned = assignments.find((a) => a.dispatchPlanId === plan.id);
         const onPlan =
           assigned?.leadInstaller === technicianFilter ||
-          (assigned?.supportingTechnicians ?? []).includes(technicianFilter);
+          (assigned?.supportingTechnicians ?? []).includes(technicianFilter) || (plan.assignedTechNames ?? []).includes(technicianFilter);
         if (!onPlan) return false;
       }
 
@@ -196,7 +196,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
     contractorFilter,
     technicianFilter,
     dateFilter,
-    initialSnapshot.jobContractorIds,
+    initialSnapshot.jobContractorIds, role, user,
   ]);
 
   const handleAssignCrew = useCallback(

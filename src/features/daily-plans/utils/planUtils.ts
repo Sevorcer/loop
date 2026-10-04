@@ -73,7 +73,7 @@ export function getDayLabel(date: string): string {
 }
 
 export function getJobsForDate(jobs: Job[], date: string): Job[] {
-  return jobs.filter((job) => job.scheduledFor != null && job.scheduledFor === date);
+  return jobs.filter((job) => { if (!job.scheduledFor) return false; const start = job.scheduledFor.slice(0, 10); const end = job.scheduledEndAt ? job.scheduledEndAt.slice(0, 10) : start; return date >= start && date <= end; });
 }
 
 export function getUnassignedJobs(jobs: PlannedJob[]): PlannedJob[] {

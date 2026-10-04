@@ -157,8 +157,8 @@ export function JobFilesPanel({
         `/api/jobs/${jobId}/files/${file.id}`,
         { role, cache: "no-store" },
       );
-      // Open in a new tab; browser handles download for non-previewable types
-      window.open(result.url, "_blank", "noopener,noreferrer");
+      // Use programmatic anchor click to avoid popup blocker
+      const a = document.createElement("a"); a.href = result.url; a.download = result.fileName; a.target = "_blank"; a.rel = "noopener noreferrer"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
     } catch {
       setError("Could not generate download link. Please try again.");
     } finally {
