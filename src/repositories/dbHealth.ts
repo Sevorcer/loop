@@ -80,7 +80,15 @@ function mapResult(row: ResultRow): DbHealthCheckResult {
 // ---------------------------------------------------------------------------
 
 /** Returns the most recent health check runs, newest first. */
-export async function listDbHealthRuns(limit = 14): Promise<DbHealthCheckRun[]> {
+export async function listDbHealthRuns(
+  limit = 14,
+  options?: { page?: number; pageSize?: number },
+): Promise<DbHealthCheckRun[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const client = createSupabaseAdminClient() as any;
 
@@ -90,7 +98,8 @@ export async function listDbHealthRuns(limit = 14): Promise<DbHealthCheckRun[]> 
       "id, run_at, trigger, overall_status, check_count, pass_count, fail_count, duration_ms, ci_run_url, git_sha, created_at",
     )
     .order("run_at", { ascending: false })
-    .limit(limit);
+    .limit(limit)
+    .range(from, to);
 
   if (error) {
     throw new Error(`Failed to list DB health runs: ${error.message}`);

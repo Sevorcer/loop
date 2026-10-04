@@ -66,12 +66,20 @@ export interface GcIssueRequestWriteInput {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function listGcIssueRequests(filter?: {
-  status?: GcIssueStatus;
-  priority?: GcIssuePriority;
-  jobId?: string;
-  propertyId?: string;
-}): Promise<GcIssueRequest[]> {
+export async function listGcIssueRequests(
+  filter?: {
+    status?: GcIssueStatus;
+    priority?: GcIssuePriority;
+    jobId?: string;
+    propertyId?: string;
+  },
+  options?: { page?: number; pageSize?: number },
+): Promise<GcIssueRequest[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -86,6 +94,8 @@ export async function listGcIssueRequests(filter?: {
   if (filter?.priority) query = query.eq("priority", filter.priority);
   if (filter?.jobId) query = query.eq("job_id", filter.jobId);
   if (filter?.propertyId) query = query.eq("property_id", filter.propertyId);
+
+  query = query.range(from, to);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -200,14 +210,23 @@ export async function addAttachment(
   if (error) throw new Error(error.message);
 }
 
-export async function listAttachmentIds(issueRequestId: string): Promise<string[]> {
+export async function listAttachmentIds(
+  issueRequestId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<string[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   const { data, error } = await supabase
     .from("gc_issue_attachments")
     .select("storage_object_id")
     .eq("issue_request_id", issueRequestId)
-    .eq("org_id", orgId);
+    .eq("org_id", orgId)
+    .range(from, to);
 
   if (error) throw new Error(error.message);
 

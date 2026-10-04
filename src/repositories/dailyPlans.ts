@@ -118,13 +118,19 @@ export async function getDailyPlanActivation(date: string) {
   });
 }
 
-export async function listDailyPlanActivations() {
+export async function listDailyPlanActivations(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
       .from("daily_plan_activations")
       .select("id,org_id,date,status,started_at,packets_sent,updated_at")
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as ActivationRow[]).map(mapActivation);
@@ -187,13 +193,19 @@ export async function markDailyPlanPacketsSent(date: string) {
 // Job overrides
 // ---------------------------------------------------------------------------
 
-export async function listDailyPlanJobOverrides() {
+export async function listDailyPlanJobOverrides(options?: { page?: number; pageSize?: number }) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
       .from("daily_plan_job_overrides")
       .select("id,org_id,job_id,readiness_state,updated_at")
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .range(from, to);
 
     if (error) throw new Error(error.message);
     return ((data ?? []) as OverrideRow[]).map(mapOverride);

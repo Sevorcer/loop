@@ -100,10 +100,18 @@ function mapUsage(row: KnowledgeUsageRow): KnowledgeUsage {
 
 // ─── Knowledge items ──────────────────────────────────────────────────────────
 
-export async function listKnowledgeItems(filter?: {
-  status?: KnowledgeStatus;
-  knowledgeType?: KnowledgeType;
-}): Promise<KnowledgeItem[]> {
+export async function listKnowledgeItems(
+  filter?: {
+    status?: KnowledgeStatus;
+    knowledgeType?: KnowledgeType;
+  },
+  options?: { page?: number; pageSize?: number },
+): Promise<KnowledgeItem[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -116,6 +124,8 @@ export async function listKnowledgeItems(filter?: {
 
   if (filter?.status) query = query.eq("status", filter.status);
   if (filter?.knowledgeType) query = query.eq("knowledge_type", filter.knowledgeType);
+
+  query = query.range(from, to);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -145,7 +155,13 @@ export async function getKnowledgeItemById(id: string): Promise<KnowledgeItem | 
 
 export async function listKnowledgeRelationships(
   knowledgeItemId?: string,
+  options?: { page?: number; pageSize?: number },
 ): Promise<KnowledgeRelationship[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -157,6 +173,8 @@ export async function listKnowledgeRelationships(
 
   if (knowledgeItemId) query = query.eq("knowledge_item_id", knowledgeItemId);
 
+  query = query.range(from, to);
+
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
@@ -167,7 +185,13 @@ export async function listKnowledgeRelationships(
 
 export async function listKnowledgeUsage(
   knowledgeItemId?: string,
+  options?: { page?: number; pageSize?: number },
 ): Promise<KnowledgeUsage[]> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { supabase, orgId } = await getRepositoryContext();
 
   let query = supabase
@@ -178,6 +202,8 @@ export async function listKnowledgeUsage(
     .limit(200);
 
   if (knowledgeItemId) query = query.eq("knowledge_item_id", knowledgeItemId);
+
+  query = query.range(from, to);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
