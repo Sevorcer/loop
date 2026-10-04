@@ -218,6 +218,14 @@ const dynamicPageMeta: DynamicRoute[] = [
     },
   },
   {
+        test: (p) => p === `${ROUTES.INSTALLED_SYSTEMS}/new`,
+    meta: {
+      title: "New Installed System",
+      description: "Register a new installed system.",
+      parent: { title: "Installed Systems", href: ROUTES.INSTALLED_SYSTEMS },
+    },
+  },
+  {
     test: (p) => p.startsWith(`${ROUTES.INSTALLED_SYSTEMS}/`),
     meta: {
       title: "Installed System Record",
