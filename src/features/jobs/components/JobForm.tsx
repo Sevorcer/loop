@@ -368,7 +368,6 @@ export function JobForm({
 
   const isCreateMode = mode === "create";
   const FormBadgeIcon = isCreateMode ? ClipboardPlus : FilePenLine;
-  const formTitle = isCreateMode ? "Create Job" : "Edit Job";
   const formDescription = isCreateMode
     ? "Capture a new install, service, maintenance, or inspection job and route it into the execution workflow."
     : "Update job details and keep scheduling, assignment, and execution context accurate.";
@@ -386,7 +385,6 @@ export function JobForm({
             </div>
 
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white">{formTitle}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
                 {formDescription}
               </p>

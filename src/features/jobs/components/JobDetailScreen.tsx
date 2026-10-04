@@ -387,7 +387,7 @@ export function JobDetailScreen({
           <JobNoteComposer notes={job.notes} onSaveNotes={onSaveNotes} />
 
           <p className="text-center text-xs text-slate-500">
-            Uploaded files: {fileCount}
+            Uploaded files:  {fileCount}
           </p>
         </div>
       </div>
