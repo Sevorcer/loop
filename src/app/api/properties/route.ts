@@ -37,7 +37,8 @@ export async function GET(request: Request) {
 
   try {
     const { userId } = guard.ctx;
-    const properties = await listProperties({ userId });
+    const search = new URL(request.url).searchParams.get("search") ?? undefined;
+    const properties = await listProperties({ userId }, { search });
     return NextResponse.json({ properties });
   } catch (error) {
     return mapRouteError(error);

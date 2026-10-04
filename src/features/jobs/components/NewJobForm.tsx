@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,6 +40,33 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);const handleCreateProperty=async(name:string,customerId?:string)=>{const r=await requestJson<{property:Property}>("/api/properties",{method:"POST",body:{name,customer:customerId,type:"Residential",status:"Active"},role});setPropertyOptions((p)=>[...p,r.property]);return r.property;};
   const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
   const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
+
+  // Server-side type-ahead search (debounced 300ms). The initial option lists
+  // only cover the 50 most recent records, so typed queries hit the API.
+  const customerSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const propertySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCustomerServerSearch = (text: string) => {
+    if (customerSearchTimer.current) clearTimeout(customerSearchTimer.current);
+    const query = text.trim();
+    if (!query || !role) return;
+    customerSearchTimer.current = setTimeout(() => {
+      void requestJson<{ customers: Customer[] }>(`/api/customers?search=${encodeURIComponent(query)}`, { role })
+        .then((response) => setCustomerOptions(response.customers ?? []))
+        .catch((error) => console.error("[jobs] customer server search failed", error));
+    }, 300);
+  };
+
+  const handlePropertyServerSearch = (text: string) => {
+    if (propertySearchTimer.current) clearTimeout(propertySearchTimer.current);
+    const query = text.trim();
+    if (!query || !role) return;
+    propertySearchTimer.current = setTimeout(() => {
+      void requestJson<{ properties: Property[] }>(`/api/properties?search=${encodeURIComponent(query)}`, { role })
+        .then((response) => setPropertyOptions(response.properties ?? []))
+        .catch((error) => console.error("[jobs] property server search failed", error));
+    }, 300);
+  };
 
   const [crewTechnicians, setCrewTechnicians] = useState<string[]>([]); const [technicianProfiles, setTechnicianProfiles] = useState<{ id: string; name: string }[]>([]);
 
@@ -163,6 +190,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         propertyOptions={propertyOptions}
         technicianOptions={technicianOptions} technicianProfiles={technicianProfiles}
         onSubmit={handleSubmit} onCreateCustomer={handleCreateCustomer} onCreateProperty={handleCreateProperty}
+        onCustomerSearch={handleCustomerServerSearch} onPropertySearch={handlePropertyServerSearch}
       />
     </div>
   );

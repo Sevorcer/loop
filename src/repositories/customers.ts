@@ -60,7 +60,7 @@ function mapCustomer(row: CustomerRow): Customer {
 }
 
 export async function listCustomers(
-  options?: { page?: number; pageSize?: number },
+  options?: { page?: number; pageSize?: number; search?: string },
 ): Promise<Customer[]> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
@@ -68,12 +68,17 @@ export async function listCustomers(
   const to = from + pageSize - 1;
 
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
+  let query = supabase
     .from("customers")
     .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .order("created_at", { ascending: false });
+
+  if (options?.search) {
+    query = query.ilike("name", `%${options.search}%`);
+  }
+
+  const { data, error } = await query.range(from, to);
 
   if (error) {
     throw new Error(error.message);

@@ -153,6 +153,7 @@ interface JobFormProps {
   propertyOptions?: JobPropertyOption[];
   technicianOptions?: string[]; technicianProfiles?: { id: string; name: string }[];
   onSubmit: (values: JobFormValues) => Promise<void> | void; onCreateCustomer?: (name: string) => Promise<{ id: string; name: string }>; onCreateProperty?: (name: string, customerId?: string) => Promise<{ id: string; name: string }>;
+  onCustomerSearch?: (text: string) => void; onPropertySearch?: (text: string) => void;
 }
 
 export function JobForm({
@@ -162,7 +163,7 @@ export function JobForm({
   customerOptions = [],
   propertyOptions = [],
   technicianOptions = [], technicianProfiles = [], onCreateCustomer, onCreateProperty,
-  onSubmit,
+  onSubmit, onCustomerSearch, onPropertySearch,
 }: JobFormProps) {
   const [form, setForm] = useState<JobFormValues>({
     ...defaultJobFormValues,
@@ -421,7 +422,7 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
-              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); }} required />
+              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); onCustomerSearch?.(text); }} required />
             </div>
 
             <div className="space-y-2">
@@ -429,7 +430,7 @@ export function JobForm({
               {/* F18: native select replaces the datalist combobox. Options stay
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
-              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, propertyName: text, propertyId: null, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: undefined })); }} required />
+              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, propertyName: text, propertyId: null, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: undefined })); onPropertySearch?.(text); }} required />
             </div>
 
             <div className="space-y-2">

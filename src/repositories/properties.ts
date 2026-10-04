@@ -128,7 +128,7 @@ async function getCustomerNameMap(
 
 export async function listProperties(
   contextInput?: SessionRepositoryContextInput,
-  options?: { page?: number; pageSize?: number },
+  options?: { page?: number; pageSize?: number; search?: string },
 ): Promise<Property[]> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
@@ -136,12 +136,17 @@ export async function listProperties(
   const to = from + pageSize - 1;
 
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await supabase
+  let query = supabase
     .from("properties")
     .select(PROPERTY_SELECT)
     .eq("org_id", orgId)
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .order("created_at", { ascending: false });
+
+  if (options?.search) {
+    query = query.ilike("name", `%${options.search}%`);
+  }
+
+  const { data, error } = await query.range(from, to);
 
   if (error) throw new Error(error.message);
 
