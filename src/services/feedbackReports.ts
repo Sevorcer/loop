@@ -35,7 +35,7 @@ export async function listFeedbackReports(filter?: {
   status?: FeedbackStatus;
   severity?: FeedbackSeverity;
   from?: string;
-  to?: string;
+  to?: string; createdByUserId?: string;
 }): Promise<FeedbackReport[]> {
   return listRecords(filter as ListFeedbackReportsFilter);
 }
