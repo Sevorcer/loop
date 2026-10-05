@@ -173,7 +173,7 @@ export function JobForm({
     ...initialValues,
   });
   const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);   <{ type: "success" | "error"; message: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [selection, setSelection] = useState<SmartSelectionState>({}); function toggleAssignee(id: string, checked: boolean) { setForm((current) => { const currentIds = current.assigneeIds ?? []; const nextIds = checked ? Array.from(new Set([...currentIds, id])) : currentIds.filter((value) => value !== id); const names = technicianProfiles.filter((profile) => nextIds.includes(profile.id)).map((profile) => profile.name); return { ...current, assigneeIds: nextIds, assignedTo: names.join(", ") }; }); setError(null); }
 
   const scopedPropertyOptions = useMemo(
