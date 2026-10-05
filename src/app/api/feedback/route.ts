@@ -1,7 +1,7 @@
 /**
  * Feedback Reports API
  *
- * GET  /api/feedback  — list reports (manager/owner only)
+ * GET  /api/feedback  — list reports (manager/owner; techs see own submissions)
  * POST /api/feedback  — submit a feedback report (all operational staff)
  *
  * POST accepts either:
@@ -52,12 +52,16 @@ export async function GET(request: Request) {
   const from = url.searchParams.get("from") ?? undefined;
   const to = url.searchParams.get("to") ?? undefined;
 
+  // Techs may only view their own submissions.
+  const createdByUserId = guard.ctx.role === "tech" ? guard.ctx.userId : undefined;
+
   try {
     const reports = await listFeedbackReports({
       status: status ?? undefined,
       severity: severity ?? undefined,
       from,
       to,
+      createdByUserId,
     });
     return NextResponse.json({ reports });
   } catch (error) {

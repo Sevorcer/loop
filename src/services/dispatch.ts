@@ -26,11 +26,13 @@ export { loadDispatchSnapshot };
 /**
  * Job-level context the dispatch board filters need but the snapshot lacks:
  * the contractors assigned to each job (jobs carry contractor_ids; dispatch
- * plans don't) and the contractor list for the filter dropdown.
+ * plans don't) and the contractor list for the filter dropdown. Also returns
+ * all job IDs so the board can drop dispatch plans orphaned by job deletion.
  */
 export async function loadDispatchJobContext(): Promise<{
   contractors: { id: string; name: string }[];
   jobContractorIds: Record<string, string[]>;
+  jobIds: string[];
 }> {
   const [jobs, contractorList] = await Promise.all([
     listJobs(),
@@ -51,6 +53,7 @@ export async function loadDispatchJobContext(): Promise<{
       name: contractor.companyName,
     })),
     jobContractorIds,
+    jobIds: jobs.map((job) => job.id),
   };
 }
 export async function createPlan(input: DispatchPlanWriteInput) {

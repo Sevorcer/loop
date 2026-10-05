@@ -169,6 +169,8 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
             No contractors available.{" "}
             <Link
               href={`${ROUTES.CONTRACTORS}/new`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-blue-400 hover:underline"
             >
               Add one

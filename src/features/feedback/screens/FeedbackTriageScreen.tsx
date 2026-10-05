@@ -314,7 +314,7 @@ export function FeedbackTriageScreen() {
     <RoutePermissionGuard
       table="feedback_reports"
       action="select"
-      deniedDescription="Only managers and owners can view feedback reports."
+      deniedDescription="You don't have permission to view feedback reports."
     >
       <div className="space-y-6">
         {/* Success flash */}
