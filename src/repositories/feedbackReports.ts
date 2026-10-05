@@ -211,7 +211,7 @@ export async function updateFeedbackReport(
 }
 
 /**
- * F16: bulk status update for triage. Updates all matching rows in the caller's
+ * Deletes a single feedback report by id (org-scoped). */ export async function deleteFeedbackReport(id: string): Promise<void> { const { supabase, orgId } = await getRepositoryContext(); const { error } = await supabase.from("feedback_reports").delete().eq("id", id).eq("org_id", orgId); if (error) { throw new Error(error.message); } } /** F16: bulk status update for triage. Updates all matching rows in the caller's
  * org and returns the updated reports.
  */
 export async function bulkUpdateFeedbackReports(
@@ -237,3 +237,4 @@ export async function bulkUpdateFeedbackReports(
 
   return ((data ?? []) as FeedbackReportRow[]).map(mapRow);
 }
+
