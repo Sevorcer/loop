@@ -411,7 +411,7 @@ export function FeedbackTriageScreen() {   const { role } = useCurrentRole();
         </div>
 
         {/* F16: bulk triage bar */}
-        {selectedIds.size > 0 ? (
+        {selectedIds.size > 0 && role !== "tech" ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
             <p className="text-sm font-medium text-blue-300">
               {selectedIds.size} selected
