@@ -17,7 +17,7 @@ import { RoutePermissionGuard } from "@/components/atlas/RoutePermissionGuard";
 import { StatusBadge } from "@/components/atlas/StatusBadge";
 import { EmptyState } from "@/components/atlas/EmptyState";
 import { LoadingState } from "@/components/atlas/LoadingState";
-import { ROUTE_BUILDERS } from "@/lib/routes"; import { useCurrentRole } from "@/features/auth";
+import { ROUTE_BUILDERS } from "@/lib/routes"; import { useAuth, useCurrentRole } from "@/features/auth";
 import type {
   FeedbackReport,
   FeedbackSeverity,
@@ -79,15 +79,15 @@ function formatDate(iso: string) {
 
 interface TriageDrawerProps {
   report: FeedbackReport;
-  onUpdated: (updated: FeedbackReport) => void;
+  role: string | null; currentUserId: string | null; onUpdated: (updated: FeedbackReport) => void; onDeleted: (id: string) => void;
   onClose: () => void;
 }
 
-function TriageDrawer({ report, onUpdated, onClose }: TriageDrawerProps) {
+function TriageDrawer({ report, role, currentUserId, onUpdated, onDeleted, onClose }: TriageDrawerProps) {
   const [status, setStatus] = useState<FeedbackStatus>(report.status);
   const [triageNotes, setTriageNotes] = useState(report.triageNotes ?? "");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); const [isDeleting, setIsDeleting] = useState(false); const isTech = role === "tech"; const isOwnReport = currentUserId != null && report.createdByUserId === currentUserId;
+  const [error, setError] = useState<string | null>(null); async function handleDelete() { if (!isOwnReport || isDeleting) return; if (!window.confirm("Delete this feedback report? This cannot be undone.")) return; setError(null); setIsDeleting(true); try { const res = await fetch(`/api/feedback/${report.id}`, { method: "DELETE" }); const data = await res.json().catch(() => ({})) as { message?: string }; if (res.ok) { onDeleted(report.id); return; } setError(data.message ?? "Failed to delete feedback report."); } catch { setError("Network error. Please try again."); } finally { setIsDeleting(false); } }
 
   async function handleSave() {
     setError(null); // Validate triage notes are provided
@@ -160,10 +160,10 @@ function TriageDrawer({ report, onUpdated, onClose }: TriageDrawerProps) {
       ) : null}
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={isSubmitting}>
+{isOwnReport ? (<Button type="button" variant="ghost" size="sm" onClick={handleDelete} disabled={isSubmitting || isDeleting} className="text-red-400 hover:text-red-300">{isDeleting ? "Deleting…" : "Delete"}</Button>) : null} <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={isSubmitting}>
+        <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={isSubmitting} className={isTech ? "hidden" : undefined}>
           {isSubmitting ? "Saving…" : "Save"}
         </Button>
       </div>
@@ -173,7 +173,7 @@ function TriageDrawer({ report, onUpdated, onClose }: TriageDrawerProps) {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-export function FeedbackTriageScreen() {   const { role } = useCurrentRole();
+export function FeedbackTriageScreen() {   const { role } = useCurrentRole(); const { user } = useAuth(); const currentUserId = user?.id ?? null;
   const [reports, setReports] = useState<FeedbackReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -304,7 +304,7 @@ export function FeedbackTriageScreen() {   const { role } = useCurrentRole();
     }
   }
 
-  function handleUpdated(updated: FeedbackReport) {
+  function handleDeleted(id: string) { setReports((prev) => prev.filter((r) => r.id !== id)); setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; }); setExpandedId(null); flashSuccess("Feedback report deleted."); } function handleUpdated(updated: FeedbackReport) {
     setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     setExpandedId(null);
     flashSuccess("Status updated successfully.");
@@ -619,7 +619,7 @@ export function FeedbackTriageScreen() {   const { role } = useCurrentRole();
                             </div>
                             <TriageDrawer
                               report={report}
-                              onUpdated={handleUpdated}
+                              role={role} currentUserId={currentUserId} onUpdated={handleUpdated} onDeleted={handleDeleted}
                               onClose={() => setExpandedId(null)}
                             />
                           </td>
