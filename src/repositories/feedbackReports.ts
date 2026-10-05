@@ -35,6 +35,30 @@ interface FeedbackReportRow {
   context_property_id: string | null;
   screenshot_url: string | null;
   status: FeedbackStatus;
+  triage_notes: string | null;
+}
+
+function mapRow(row: FeedbackReportRow): FeedbackReport {
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    createdByUserId: row.created_by_user_id,
+    createdByRole: row.created_by_role,
+    severity: row.severity,
+    intendedAction: row.intended_action,
+    actualResult: row.actual_result,
+    routePath: row.route_path,
+    contextJobId: row.context_job_id,
+    contextCustomerId: row.context_customer_id,
+    contextPropertyId: row.context_property_id,
+    screenshotUrl: row.screenshot_url,
+    status: row.status,
+    triageNotes: row.triage_notes,
+  };
+}
+
 // ─── List filters ─────────────────────────────────────────────────────────────
 
 export interface ListFeedbackReportsFilter {
@@ -94,6 +118,29 @@ export async function listFeedbackReports(
     throw new Error(error.message);
   }
 
+  return (data as FeedbackReportRow[]).map(mapRow);
+}
+
+export async function getFeedbackReportById(
+  id: string,
+): Promise<FeedbackReport | null> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const { data, error } = await supabase
+    .from("feedback_reports")
+    .select("*")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // not found
+    throw new Error(error.message);
+  }
+
+  return mapRow(data as FeedbackReportRow);
+}
+
 // ─── Write ────────────────────────────────────────────────────────────────────
 
 export interface FeedbackReportWriteContext {
@@ -140,6 +187,29 @@ export async function updateFeedbackReport(
   const { supabase, orgId } = await getRepositoryContext();
 
   const patch: Record<string, unknown> = {};
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.triageNotes !== undefined) patch.triage_notes = input.triageNotes;
+
+  const { data, error } = await supabase
+    .from("feedback_reports")
+    .update(patch)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select("*")
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") throw new Error("Feedback report not found.");
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error("Feedback report not found.");
+  }
+
+  return mapRow(data as FeedbackReportRow);
+}
+
 /**
  * Deletes a single feedback report by id (org-scoped).
  * Chains `.select("id")` so a delete that matches 0 rows (e.g. blocked by
@@ -189,74 +259,4 @@ export async function bulkUpdateFeedbackReports(
   }
 
   return ((data ?? []) as FeedbackReportRow[]).map(mapRow);
-}
-
-  if (input.status !== undefined) patch.status = input.status;
-  if (input.triageNotes !== undefined) patch.triage_notes = input.triageNotes;
-
-  const { data, error } = await supabase
-    .from("feedback_reports")
-    .update(patch)
-    .eq("id", id)
-    .eq("org_id", orgId)
-    .select("*")
-    .single();
-
-  if (error) {
-    if (error.code === "PGRST116") throw new Error("Feedback report not found.");
-    throw new Error(error.message);
-  }
-
-  if (!data) {
-    throw new Error("Feedback report not found.");
-  }
-
-  return mapRow(data as FeedbackReportRow);
-}
-
-  return (data as FeedbackReportRow[]).map(mapRow);
-}
-
-export async function getFeedbackReportById(
-  id: string,
-): Promise<FeedbackReport | null> {
-  const { supabase, orgId } = await getRepositoryContext();
-
-  const { data, error } = await supabase
-    .from("feedback_reports")
-    .select("*")
-    .eq("id", id)
-    .eq("org_id", orgId)
-    .single();
-
-  if (error) {
-    if (error.code === "PGRST116") return null; // not found
-    throw new Error(error.message);
-  }
-
-  return mapRow(data as FeedbackReportRow);
-}
-
-  triage_notes: string | null;
-}
-
-function mapRow(row: FeedbackReportRow): FeedbackReport {
-  return {
-    id: row.id,
-    orgId: row.org_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    createdByUserId: row.created_by_user_id,
-    createdByRole: row.created_by_role,
-    severity: row.severity,
-    intendedAction: row.intended_action,
-    actualResult: row.actual_result,
-    routePath: row.route_path,
-    contextJobId: row.context_job_id,
-    contextCustomerId: row.context_customer_id,
-    contextPropertyId: row.context_property_id,
-    screenshotUrl: row.screenshot_url,
-    status: row.status,
-    triageNotes: row.triage_notes,
-  };
 }
