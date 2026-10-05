@@ -13,7 +13,7 @@
 import type { ReactNode } from "react";
 
 import { AuthProvider, RoleProvider } from "@/features/auth";
-import { AdminShell } from "@/features/admin";
+import { AdminShell } from "@/features/admin"; import { AdminRoleGuard } from "./AdminRoleGuard";
 import { getAuthSession } from "@/lib/auth/session";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <AuthProvider initialSession={authSession?.session ?? null}>
       <RoleProvider>
-        <AdminShell>{children}</AdminShell>
+        <AdminRoleGuard><AdminShell>{children}</AdminShell></AdminRoleGuard>
       </RoleProvider>
     </AuthProvider>
   );
