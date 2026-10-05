@@ -17,7 +17,7 @@ import { RoutePermissionGuard } from "@/components/atlas/RoutePermissionGuard";
 import { StatusBadge } from "@/components/atlas/StatusBadge";
 import { EmptyState } from "@/components/atlas/EmptyState";
 import { LoadingState } from "@/components/atlas/LoadingState";
-import { ROUTE_BUILDERS } from "@/lib/routes";
+import { ROUTE_BUILDERS } from "@/lib/routes"; import { useCurrentRole } from "@/features/auth";
 import type {
   FeedbackReport,
   FeedbackSeverity,
@@ -173,7 +173,7 @@ function TriageDrawer({ report, onUpdated, onClose }: TriageDrawerProps) {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-export function FeedbackTriageScreen() {
+export function FeedbackTriageScreen() {   const { role } = useCurrentRole();
   const [reports, setReports] = useState<FeedbackReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
