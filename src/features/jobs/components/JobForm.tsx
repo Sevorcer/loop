@@ -173,7 +173,7 @@ export function JobForm({
     ...initialValues,
   });
   const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);   <{ type: "success" | "error"; message: string } | null>(null);
   const [selection, setSelection] = useState<SmartSelectionState>({}); function toggleAssignee(id: string, checked: boolean) { setForm((current) => { const currentIds = current.assigneeIds ?? []; const nextIds = checked ? Array.from(new Set([...currentIds, id])) : currentIds.filter((value) => value !== id); const names = technicianProfiles.filter((profile) => nextIds.includes(profile.id)).map((profile) => profile.name); return { ...current, assigneeIds: nextIds, assignedTo: names.join(", ") }; }); setError(null); }
 
   const scopedPropertyOptions = useMemo(
@@ -299,7 +299,7 @@ export function JobForm({
   );
 
   const canSubmit = useMemo(() => {
-    const hasRequiredText =
+    if (role === "tech") { return form.location.trim().length > 0 && form.summary.trim().length > 0 && !scheduledWindowError && !arrivalWindowError; } const hasRequiredText =
       form.title.trim().length > 0 &&
       form.customerName.trim().length > 0 &&
       form.propertyName.trim().length > 0 &&
@@ -312,7 +312,7 @@ export function JobForm({
       !Number.isNaN(new Date(form.scheduledStartAt).getTime());
 
     return hasRequiredText && hasValidStart && !scheduledWindowError && !arrivalWindowError;
-  }, [form, scheduledWindowError, arrivalWindowError]);
+  }, [form, scheduledWindowError, arrivalWindowError, role]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
