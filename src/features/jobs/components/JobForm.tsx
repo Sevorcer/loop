@@ -373,9 +373,6 @@ export function JobForm({
   // Techs may only edit work summary, notes, and location — sensitive
   // scheduling/assignment fields are disabled for them.
   const isTech = role === "tech";
-  // Techs may only edit work summary, notes, and location — sensitive
-  // scheduling/assignment fields are disabled for them.
-  const isTech = role === "tech";
   const FormBadgeIcon = isCreateMode ? ClipboardPlus : FilePenLine;
   const formDescription = isCreateMode
     ? "Capture a new install, service, maintenance, or inspection job and route it into the execution workflow."
