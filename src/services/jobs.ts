@@ -37,6 +37,7 @@ import {
 } from "@/repositories/jobs";
 import {
   createDispatchPlan,
+  deleteDispatchPlansByJobId,
   updateDispatchPlanStatusByJobId, listDispatchPlansByJobId,
 } from "@/repositories/dispatch";
 import { getContractorById } from "@/repositories/contractors";
@@ -351,11 +352,11 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     const checklist = await getJobCompletionChecklist(id, context?.role);
     if (!checklist.canComplete) {
       const blockers: string[] = [];
-      if (!checklist.photosUploaded) blockers.push("at least one photo uploaded");
-      if (!checklist.installedSystemsEntered) blockers.push("installed systems entered");
-      if (!checklist.jobNotesCompleted) blockers.push("job notes completed");
-      if (!checklist.requiredQaItemsComplete) blockers.push("required QA items complete");
-      throw new Error(`Completion checklist incomplete: ${blockers.join(", ")}.`);
+      if (!checklist.photosUploaded) blockers.push("missing at least one photo");
+      if (!checklist.installedSystemsEntered) blockers.push("missing installed systems");
+      if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
+      if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
+      throw new Error(`Cannot complete job — ${blockers.join(", ")}.`);
     }
   }
 
@@ -631,6 +632,11 @@ export async function recordJobFileUpload(
 export async function deleteJob(id: string) {
   const existing = await getJobById(id);
   const deleted = await deleteJobRecord(id);
+
+  if (deleted) {
+    // Remove the job's dispatch plans so they don't linger as orphans.
+    await deleteDispatchPlansByJobId(id);
+  }
 
   if (deleted && existing) {
     await syncRelatedCounters(existing);

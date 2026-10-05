@@ -66,6 +66,7 @@ export interface ListFeedbackReportsFilter {
   severity?: FeedbackSeverity;
   from?: string; // ISO date string
   to?: string;   // ISO date string
+  createdByUserId?: string;
 }
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
@@ -103,6 +104,10 @@ export async function listFeedbackReports(
 
   if (filter.to) {
     query = query.lte("created_at", filter.to);
+  }
+
+  if (filter.createdByUserId) {
+    query = query.eq("created_by_user_id", filter.createdByUserId);
   }
 
   query = query.range(from, to);

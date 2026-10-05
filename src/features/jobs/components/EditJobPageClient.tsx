@@ -49,6 +49,7 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
   return (
     <JobForm
       mode="edit"
+      role={role ?? undefined}
       cancelHref={`/jobs/${job.id}`}
       initialValues={{
         estimateId: job.estimateId,

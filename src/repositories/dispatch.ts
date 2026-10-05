@@ -380,6 +380,22 @@ export async function updateDispatchPlanStatusByJobId(jobId: string, status: Dis
   });
 }
 
+/**
+ * Deletes every dispatch plan linked to a job. Called when a job is deleted
+ * so its plans don't linger as orphans on the dispatch board.
+ */
+export async function deleteDispatchPlansByJobId(jobId: string) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { error } = await supabase
+      .from("dispatch_plans")
+      .delete()
+      .eq("org_id", orgId)
+      .eq("job_id", jobId);
+    if (error) throw new Error(error.message);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // CRUD — Crew Assignments
 // ---------------------------------------------------------------------------

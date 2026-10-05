@@ -127,11 +127,17 @@ export function assembleDispatchSnapshot(
   crewAssignments: CrewAssignment[],
   scheduleBlocks: ScheduleBlock[],
   dispatchEvents: DispatchEvent[],
-  crews: Crew[]
+  crews: Crew[],
+  validJobIds?: Set<string>
 ): DispatchSnapshot {
+  // Drop plans orphaned by job deletion: keep only plans whose job still
+  // exists (or plans without a job link).
+  const knownPlans = validJobIds
+    ? plans.filter((plan) => !plan.jobId || validJobIds.has(plan.jobId))
+    : plans;
   // Dedupe: when multiple plans exist for the same job + target date, keep
   // only the most recently updated one.
-  const dedupedPlans = dedupeDispatchPlans(plans);
+  const dedupedPlans = dedupeDispatchPlans(knownPlans);
   const metrics = {
     totalPlans: dedupedPlans.length,
     readyToSchedule: dedupedPlans.filter(

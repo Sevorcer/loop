@@ -80,6 +80,7 @@ interface DateTimePickerProps {
   required?: boolean;
   ariaLabel?: string;
   invalid?: boolean;
+  disabled?: boolean;
 }
 
 const controlClass = (invalid: boolean) =>
@@ -94,6 +95,7 @@ export function DateTimePicker({
   required,
   ariaLabel,
   invalid = false,
+  disabled,
 }: DateTimePickerProps) {
   // Local part state: the user fills the controls one at a time, and each
   // choice must stick while the rest are still empty. Deriving the parts from
@@ -135,6 +137,7 @@ export function DateTimePicker({
         value={parts.date}
         onChange={(e) => handlePartChange("date", e.target.value)}
         required={required}
+        disabled={disabled}
         className={`${controlClass(invalid)} w-full min-w-0 bg-slate-950`}
       />
       <select
@@ -142,6 +145,7 @@ export function DateTimePicker({
         value={parts.hour12}
         onChange={(e) => handlePartChange("hour12", e.target.value)}
         required={required}
+        disabled={disabled}
         className={`${controlClass(invalid)} bg-slate-950`}
       >
         <option value="" disabled>Hr</option>
@@ -156,6 +160,7 @@ export function DateTimePicker({
         value={parts.minute}
         onChange={(e) => handlePartChange("minute", e.target.value)}
         required={required}
+        disabled={disabled}
         className={`${controlClass(invalid)} bg-slate-950`}
       >
         <option value="" disabled>Min</option>
@@ -170,6 +175,7 @@ export function DateTimePicker({
         value={parts.period}
         onChange={(e) => handlePartChange("period", e.target.value)}
         required={required}
+        disabled={disabled}
         className={`${controlClass(invalid)} bg-slate-950 font-medium`}
       >
         <option value="" disabled>—</option>

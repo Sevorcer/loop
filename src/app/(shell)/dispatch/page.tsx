@@ -40,6 +40,7 @@ export default async function DispatchPage() {
           snapshot.scheduleBlocks,
           snapshot.events,
           snapshot.crews,
+          jobContext ? new Set(jobContext.jobIds) : undefined,
         ),
         contractors: jobContext?.contractors ?? [],
         jobContractorIds: jobContext?.jobContractorIds ?? {},

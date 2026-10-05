@@ -23,7 +23,8 @@
  *   Read-only for owner/manager roles; CI writes via service_role (bypasses RLS).
  *
  * Sprint 7 Mini-Epic: Added feedback_reports for in-app feedback capture.
- *   Insert: all operational staff. Select/update: owner/manager. Delete: owner.
+ *   Insert: all operational staff. Select: owner/manager (+ techs for own
+ *   submissions). Update: owner/manager. Delete: owner.
  */
 
 // ---------------------------------------------------------------------------
@@ -225,9 +226,10 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
   },
 
   // ── Sprint 7 Mini-Epic — In-app feedback capture ──────────────────────────
-  // All operational staff may submit feedback. Only manager/owner may triage.
+  // All operational staff may submit feedback. Only manager/owner may triage;
+  // techs may list their own submissions (row-scoped at the API layer).
   feedback_reports: {
-    select: new Set<AppRole>(["owner", "manager"]),
+    select: new Set<AppRole>(["owner", "manager", "tech"]),
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     update: new Set<AppRole>(["owner", "manager"]),
     delete: new Set<AppRole>(["owner"]),

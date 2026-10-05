@@ -15,6 +15,7 @@ interface RecordComboboxProps {
   onCreateNew: (name: string) => void | Promise<void>;
   onQueryChange?: (text: string) => void;
   required?: boolean;
+  disabled?: boolean;
 }
 
 type Row =
@@ -29,6 +30,7 @@ export function RecordCombobox({
   onCreateNew,
   onQueryChange,
   required,
+  disabled,
 }: RecordComboboxProps) {
   const [query, setQuery] = useState(value ?? "");
   const [open, setOpen] = useState(false);
@@ -114,6 +116,7 @@ export function RecordCombobox({
         type="text"
         value={query}
         required={required}
+        disabled={disabled}
         placeholder={`Select ${label.toLowerCase()}`}
         autoComplete="off"
         onChange={(e) => {
@@ -122,11 +125,11 @@ export function RecordCombobox({
           setHighlight(0);
           onQueryChange?.(e.target.value);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => { if (!disabled) setOpen(true); }}
         onKeyDown={onKeyDown}
         className="w-full rounded-full border border-white/10 bg-white/5 px-5 py-3 text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
       />
-      {open && rows.length > 0 && (
+      {open && !disabled && rows.length > 0 && (
         <ul className="absolute z-30 mt-2 max-h-60 w-full overflow-auto rounded-2xl border border-white/10 bg-zinc-900 py-1 shadow-xl">
           {rows.map((row, i) =>
             row.kind === "option" ? (

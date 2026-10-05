@@ -148,6 +148,8 @@ function normalizeValues(values: JobFormValues): JobFormValues {
 interface JobFormProps {
   mode: "create" | "edit";
   cancelHref: string;
+  /** Current user's role. When "tech", sensitive fields are disabled. */
+  role?: string;
   initialValues?: Partial<JobFormValues>;
   customerOptions?: JobCustomerOption[];
   propertyOptions?: JobPropertyOption[];
@@ -159,6 +161,7 @@ interface JobFormProps {
 export function JobForm({
   mode,
   cancelHref,
+  role,
   initialValues,
   customerOptions = [],
   propertyOptions = [],
@@ -367,6 +370,9 @@ export function JobForm({
   }
 
   const isCreateMode = mode === "create";
+  // Techs may only edit work summary, notes, and location — sensitive
+  // scheduling/assignment fields are disabled for them.
+  const isTech = role === "tech";
   const FormBadgeIcon = isCreateMode ? ClipboardPlus : FilePenLine;
   const formDescription = isCreateMode
     ? "Capture a new install, service, maintenance, or inspection job and route it into the execution workflow."
@@ -420,7 +426,7 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
-              <RecordCombobox label="Customer Name" options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); onCustomerSearch?.(text); }} required />
+              <RecordCombobox label="Customer Name" disabled={isTech} options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); onCustomerSearch?.(text); }} required />
             </div>
 
             <div className="space-y-2">
@@ -428,16 +434,17 @@ export function JobForm({
               {/* F18: native select replaces the datalist combobox. Options stay
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
-              <RecordCombobox label="Property" options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, propertyName: text, propertyId: null, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: undefined })); onPropertySearch?.(text); }} required />
+              <RecordCombobox label="Property" disabled={isTech} options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, propertyName: text, propertyId: null, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: undefined })); onPropertySearch?.(text); }} required />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Assigned Technician</label> {technicianProfiles.length > 0 && (<div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">{technicianProfiles.map((profile) => (<label key={profile.id} className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" checked={(form.assigneeIds ?? []).includes(profile.id)} onChange={(e) => toggleAssignee(profile.id, e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-white/[0.03]" />{profile.name}</label>))}</div>)}
+              <label className="text-sm font-medium text-slate-200">Assigned Technician</label> {technicianProfiles.length > 0 && (<div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">{technicianProfiles.map((profile) => (<label key={profile.id} className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" disabled={isTech} checked={(form.assigneeIds ?? []).includes(profile.id)} onChange={(e) => toggleAssignee(profile.id, e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-white/[0.03]" />{profile.name}</label>))}</div>)}
               {technicianProfiles.length === 0 && (<select
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
                 required
+                disabled={isTech}
               >
                 <option value="" disabled>
                   Select technician
@@ -466,6 +473,7 @@ export function JobForm({
               </label>
               <DateTimePicker
                 id="job-scheduled-start"
+                disabled={isTech}
                 ariaLabel="Scheduled start"
                 value={form.scheduledStartAt}
                 onChange={(next) => updateField("scheduledStartAt", next)}
@@ -479,6 +487,7 @@ export function JobForm({
               </label>
               <DateTimePicker
                 id="job-scheduled-end"
+                disabled={isTech}
                 ariaLabel="Scheduled end"
                 value={form.scheduledEndAt}
                 onChange={(next) => updateField("scheduledEndAt", next)}
@@ -532,6 +541,7 @@ export function JobForm({
               <label className="text-sm font-medium text-slate-200">Job Type</label>
               <select
                 value={form.type}
+                disabled={isTech}
                 onChange={(e) => updateField("type", e.target.value as JobType)}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
               >
@@ -547,6 +557,7 @@ export function JobForm({
               <label className="text-sm font-medium text-slate-200">Priority</label>
               <select
                 value={form.priority}
+                disabled={isTech}
                 onChange={(e) => updateField("priority", e.target.value as JobPriority)}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
               >
