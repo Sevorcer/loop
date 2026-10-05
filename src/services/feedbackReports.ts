@@ -22,7 +22,7 @@ import {
 import {
   bulkUpdateFeedbackReports as bulkUpdateRecords,
   createFeedbackReport as createRecord,
-  getFeedbackReportById,
+  deleteFeedbackReport as deleteRecord, getFeedbackReportById as getRecordById,
   listFeedbackReports as listRecords,
   updateFeedbackReport as updateRecord,
   type ListFeedbackReportsFilter,
@@ -71,7 +71,7 @@ export async function updateFeedbackReport(
   return updateRecord(id, input);
 }
 
-/** F16: bulk triage — same validation as the single update, applied to many. */
+/* QA break-things: single-report read for the DELETE route. */ export async function getFeedbackReportById(id: string): Promise<FeedbackReport | null> { return getRecordById(id); } /* QA break-things: delete a report after an existence check. */ export async function deleteFeedbackReport(id: string): Promise<void> { const existing = await getRecordById(id); if (!existing) { throw new Error("Feedback report not found."); } return deleteRecord(id); } /** F16: bulk triage — same validation as the single update, applied to many. */
 export async function bulkUpdateFeedbackReports(
   ids: string[],
   input: UpdateFeedbackReportInput,
