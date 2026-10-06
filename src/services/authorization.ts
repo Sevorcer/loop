@@ -24,7 +24,7 @@
  *
  * Sprint 7 Mini-Epic: Added feedback_reports for in-app feedback capture.
  *   Insert: all operational staff. Select: owner/manager (+ techs for own
- *   submissions). Update: owner/manager. Delete: owner.
+ *   submissions). Update: owner/manager. Delete: owner, or the report creator.
  */
 
 // ---------------------------------------------------------------------------
