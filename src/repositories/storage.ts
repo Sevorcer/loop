@@ -254,9 +254,9 @@ export async function listStorageObjects(
   if (uploaderIds.length > 0) {
     const { data: profiles } = await supabase
       .from("user_profiles")
-      .select("id, role")
+      .select("id, app_role")
       .in("id", uploaderIds);
-    const roleById = new Map((profiles ?? []).map((profile) => [profile.id as string, profile.role as string]));
+    const roleById = new Map((profiles ?? []).map((profile) => [profile.id as string, profile.app_role as string]));
     for (const row of rows) {
       row.uploaderRole = row.uploadedBy ? roleById.get(row.uploadedBy) ?? null : null;
     }

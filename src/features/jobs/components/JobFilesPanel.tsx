@@ -158,7 +158,7 @@ export function JobFilesPanel({
         { role, cache: "no-store" },
       );
       // Use programmatic anchor click to avoid popup blocker
-      const a = document.createElement("a"); a.href = result.url; a.download = result.fileName; a.target = "_blank"; a.rel = "noopener noreferrer"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      const a = document.createElement("a"); a.href = result.url; a.download = result.fileName;  a.rel = "noopener noreferrer"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
     } catch {
       setError("Could not generate download link. Please try again.");
     } finally {
