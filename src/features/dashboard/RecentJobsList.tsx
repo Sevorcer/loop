@@ -31,7 +31,7 @@ export function RecentJobsList() {
 
   if (recent.length === 0) {
     return (
-      <div className="px-6 py-8 text-center text-sm text-slate-500">
+      <div className="text-muted px-6 py-8 text-center text-sm">
         No jobs yet.{" "}
         <Link
           href={`${ROUTES.JOBS}/new`}
@@ -50,18 +50,18 @@ export function RecentJobsList() {
         <Link
           key={job.id}
           href={`${ROUTES.JOBS}/${job.id}`}
-          className="group flex items-center justify-between border-b border-white/5 px-4 py-3 last:border-0 transition-colors hover:bg-white/[0.03] sm:px-6"
+          className="group flex items-center justify-between border-b border-default px-4 py-3 transition-colors last:border-0 hover:bg-surface-elevated sm:px-6"
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] ring-1 ring-white/10">
-              <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-default bg-surface-elevated">
+              <Briefcase className="text-muted h-3.5 w-3.5" />
             </div>
 
             <div className="overflow-hidden">
-              <p className="truncate text-sm font-medium text-slate-200">
+              <p className="text-primary truncate text-sm font-medium">
                 {job.title}
               </p>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
+              <p className="text-muted mt-0.5 truncate text-xs">
                 {job.jobNumber} · {job.propertyName}
               </p>
             </div>
@@ -73,12 +73,12 @@ export function RecentJobsList() {
             >
               {normalizeJobStatus(job.status) ?? job.status}
             </span>
-            <ArrowRight className="h-4 w-4 text-slate-600 transition-colors group-hover:text-slate-400" />
+            <ArrowRight className="text-muted h-4 w-4 transition-colors" />
           </div>
         </Link>
       ))}
 
-      <div className="border-t border-white/10 px-4 py-3 sm:px-6">
+      <div className="border-t border-default px-4 py-3 sm:px-6">
         <Link
           href={ROUTES.JOBS}
           className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300"

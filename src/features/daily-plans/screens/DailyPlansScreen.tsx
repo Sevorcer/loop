@@ -4,16 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, CircleAlert, Sun } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas";
+import { useCurrentRole } from "@/features/auth";
 import { useJobs } from "@/features/jobs/state/JobsProvider";
+import { requestJson } from "@/lib/api/client";
 
 import { CrewStatusPanel } from "../components/CrewStatusPanel";
 import { MorningBriefing } from "../components/MorningBriefing";
 import { NeedsAttentionPanel } from "../components/NeedsAttentionPanel";
 import { ScheduleSection } from "../components/ScheduleSection";
-import { getCrewProfilesForDate } from "../data/morningOperations";
+import { buildFieldCrews, type CrewRecord, type TechnicianRecord } from "../data/fieldCrews";
+import type { CrewProfile } from "../types/dailyPlan";
 import {
   getAllUnscheduledJobs,
-  buildPlannedJob,
   getScheduledTodayJobs,
   getTodayDate,
   getUpcomingJobs,
@@ -21,8 +23,10 @@ import {
 } from "../utils/planUtils";
 
 export function DailyPlansScreen() {
+  const { role } = useCurrentRole();
   const { hydrated, jobs, updateJob } = useJobs();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [crewOptions, setCrewOptions] = useState<CrewProfile[]>([]);
 
   useEffect(() => {
     if (!actionNotice) return;
@@ -36,8 +40,43 @@ export function DailyPlansScreen() {
   const upcomingJobs = useMemo(() => getUpcomingJobs(jobs), [jobs]);
   const unscheduledJobs = useMemo(() => getAllUnscheduledJobs(jobs), [jobs]);
 
-  // Use today's crew roster for all sections — the roster is relatively stable.
-  const crewOptions = useMemo(() => getCrewProfilesForDate(today), [today]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCrews() {
+      const assignedNames = jobs.map((job) => job.assignedTo);
+      if (!role) {
+        if (!cancelled) {
+          setCrewOptions(buildFieldCrews({ crews: [], technicians: [], assignedNames }));
+        }
+        return;
+      }
+
+      try {
+        const roster = await requestJson<{ crews: CrewRecord[]; technicians: TechnicianRecord[] }>(
+          "/api/field-roster",
+          { role, cache: "no-store" },
+        );
+        if (cancelled) return;
+        setCrewOptions(
+          buildFieldCrews({
+            crews: roster.crews ?? [],
+            technicians: roster.technicians ?? [],
+            assignedNames,
+          }),
+        );
+      } catch {
+        if (!cancelled) {
+          setCrewOptions(buildFieldCrews({ crews: [], technicians: [], assignedNames }));
+        }
+      }
+    }
+
+    void loadCrews();
+    return () => {
+      cancelled = true;
+    };
+  }, [jobs, role]);
 
   // ── Morning Briefing KPI metrics ──────────────────────────────────────────
 
@@ -65,29 +104,15 @@ export function DailyPlansScreen() {
     [jobs, today]
   );
 
-  /**
-   * Permit-waiting: today's jobs that require a permit and don't yet have it
-   * approved. Derived via buildPlannedJob which reads the planning mock data.
-   */
-  const waitingPermit = useMemo(() => {
-    return todayJobs.filter((job) => {
-      const planned = buildPlannedJob(job);
-      if (!planned.planning.permitRequired) return false;
-      const permitCheck = planned.planning.readinessChecks.find((c) =>
-        c.label.toLowerCase().includes("permit")
-      );
-      return permitCheck ? !permitCheck.ready : true;
-    }).length;
-  }, [todayJobs]);
-
-  /** Active crews: available, late arrival, or half-day (not vacation/sick/training). */
+  /** Active crews: on the roster and not marked out. */
   const activeCrews = useMemo(
     () =>
       crewOptions.filter(
         (c) =>
           c.availability !== "vacation" &&
           c.availability !== "sick" &&
-          c.availability !== "training"
+          c.availability !== "training" &&
+          c.availability !== "unavailable"
       ).length,
     [crewOptions]
   );
@@ -159,7 +184,7 @@ export function DailyPlansScreen() {
             assigned={assigned}
             unassigned={unassigned}
             atRisk={atRisk}
-            waitingPermit={waitingPermit}
+            waitingPermit={null}
             activeCrews={activeCrews}
           />
 

@@ -30,6 +30,8 @@ export interface PropertyMutationResult {
 export interface CreatePropertyInput {
   name: string;
   customer: string;
+  /** Direct customer foreign key. Used when the form already knows the customer. */
+  customerId?: string | null;
   address: string;
   city: string;
   type: PropertyType;
@@ -58,6 +60,7 @@ function normalizePropertyInput(input: CreatePropertyInput): CreatePropertyInput
     ...input,
     name: input.name.trim(),
     customer: input.customer.trim(),
+    customerId: input.customerId?.trim() || null,
     address: input.address.trim(),
     city: input.city.trim(),
     primarySystem: input.primarySystem.trim(),
