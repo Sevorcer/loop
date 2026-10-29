@@ -26,3 +26,10 @@ BEGIN
   END IF;
 END;
 $$;
+-- DOWN
+-- Reverse the appointment window column. The backfill that wrote 'Morning'
+-- into previously null rows cannot be distinguished from a value someone set,
+-- so a rollback drops the column rather than trying to restore nulls.
+--   ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_appointment_window_check;
+--   ALTER TABLE jobs ALTER COLUMN appointment_window DROP DEFAULT;
+--   ALTER TABLE jobs DROP COLUMN IF EXISTS appointment_window;

@@ -6,3 +6,6 @@
 CREATE UNIQUE INDEX IF NOT EXISTS jobs_job_number_unique
   ON public.jobs (job_number)
   WHERE job_number <> '';
+-- DOWN
+-- Drop the partial unique index. Existing job numbers are left as they are.
+--   DROP INDEX IF EXISTS public.jobs_job_number_unique;

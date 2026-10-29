@@ -30,3 +30,11 @@ BEGIN
       CHECK (type IN ('Install', 'Service', 'Maintenance', 'Inspection', 'Estimate'));
   END IF;
 END $$;
+-- DOWN
+-- Restore the job type check from before Estimate was allowed. This fails
+-- while any job still has type 'Estimate'; change those rows to another
+-- allowed type first. Do not delete the jobs.
+--   ALTER TABLE public.jobs DROP CONSTRAINT IF EXISTS jobs_type_check;
+--   ALTER TABLE public.jobs
+--     ADD CONSTRAINT jobs_type_check
+--     CHECK (type IN ('Install', 'Service', 'Maintenance', 'Inspection'));

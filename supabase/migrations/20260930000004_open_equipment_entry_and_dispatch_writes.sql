@@ -7,3 +7,19 @@ DROP POLICY IF EXISTS "installed_systems: org write" ON public.installed_systems
 CREATE POLICY "installed_systems: org write" ON public.installed_systems FOR ALL USING (org_id = current_org_id()) WITH CHECK (org_id = current_org_id());
 DROP POLICY IF EXISTS "dispatch_plans: org write" ON public.dispatch_plans;
 CREATE POLICY "dispatch_plans: org write" ON public.dispatch_plans FOR ALL USING (org_id = current_org_id()) WITH CHECK (org_id = current_org_id());
+-- DOWN
+-- Restore the narrower write policies from 20260720000001_wave2_domains.sql.
+--   DROP POLICY IF EXISTS "installed_systems: org write" ON public.installed_systems;
+--   CREATE POLICY "installed_systems: org write" ON public.installed_systems
+--     FOR ALL USING (org_id = current_org_id())
+--     WITH CHECK (
+--       org_id = current_org_id()
+--       AND current_app_role() IN ('owner', 'manager')
+--     );
+--   DROP POLICY IF EXISTS "dispatch_plans: org write" ON public.dispatch_plans;
+--   CREATE POLICY "dispatch_plans: org write" ON public.dispatch_plans
+--     FOR ALL USING (org_id = current_org_id())
+--     WITH CHECK (
+--       org_id = current_org_id()
+--       AND current_app_role() IN ('owner', 'manager', 'dispatch')
+--     );

@@ -85,3 +85,13 @@ DROP POLICY IF EXISTS "job_tasks: org all" ON public.job_tasks;
 CREATE POLICY "job_tasks: org all" ON public.job_tasks
   FOR ALL USING (org_id = current_org_id())
   WITH CHECK (org_id = current_org_id());
+-- DOWN
+-- 1. Restore job_tasks policies from 20260930000002_job_tasks.sql and drop
+--    "job_tasks: org all".
+-- 2. Restore the tech job policies from 20260719000001_baseline_core_schema.sql
+--    so they match assigned_user_id only (no job_assignees lookup):
+--      DROP POLICY IF EXISTS "jobs: tech reads own assigned jobs" ON public.jobs;
+--      DROP POLICY IF EXISTS "jobs: tech updates own assigned jobs" ON public.jobs;
+--    then recreate those two policies as they were in the baseline file.
+-- 3. Drop the assignee table. This removes assignee rows only, not jobs or people.
+--      DROP TABLE IF EXISTS public.job_assignees;
