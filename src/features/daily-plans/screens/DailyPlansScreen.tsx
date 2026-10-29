@@ -15,6 +15,7 @@ import { ScheduleSection } from "../components/ScheduleSection";
 import { buildFieldCrews, type CrewRecord, type TechnicianRecord } from "../data/fieldCrews";
 import type { CrewProfile } from "../types/dailyPlan";
 import {
+  countBriefingAtRisk,
   getAllUnscheduledJobs,
   getScheduledTodayJobs,
   getTodayDate,
@@ -90,19 +91,8 @@ export function DailyPlansScreen() {
     [todayJobs]
   );
 
-  /** At-risk: On Hold or overdue (scheduled before today, not completed/cancelled). */
-  const atRisk = useMemo(
-    () =>
-      jobs.filter(
-        (j) =>
-          j.status === "On Hold" ||
-          (j.scheduledFor != null &&
-            j.scheduledFor < today &&
-            j.status !== "Completed" &&
-            j.status !== "Cancelled")
-      ).length,
-    [jobs, today]
-  );
+  /** At-risk among today's jobs only, the same set as the Total tile. */
+  const atRisk = useMemo(() => countBriefingAtRisk(todayJobs), [todayJobs]);
 
   /** Active crews: on the roster and not marked out. */
   const activeCrews = useMemo(

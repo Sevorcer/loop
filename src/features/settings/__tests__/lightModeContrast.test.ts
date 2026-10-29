@@ -12,5 +12,15 @@ describe("light mode contrast tokens", () => {
     expect(lightBlock).toContain("--background: #f1f5f9");
     expect(lightBlock).toContain("--foreground-muted: #334155");
     expect(lightBlock).toContain(".text-white");
+    expect(lightBlock).toContain('[class*="text-blue-100"]');
+    expect(lightBlock).toContain('[class*="text-red-100"]');
+    expect(lightBlock).toContain(".bg-white\\/\\[0\\.02\\]");
+    expect(lightBlock).toContain(".bg-slate-900\\/90");
+  });
+
+  it("does not force white text onto a translucent gradient", () => {
+    expect(lightBlock).not.toContain('[class*="from-"]');
+    expect(lightBlock).toContain('[class*="/80"]');
+    expect(lightBlock).toContain('[class*="/90"]');
   });
 });

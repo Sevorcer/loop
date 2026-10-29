@@ -103,7 +103,7 @@ export function CalendarGrid({
     <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-white">
+        <h2 className="text-base font-semibold text-foreground">
           {MONTH_NAMES[month]} {year}
         </h2>
 
@@ -144,7 +144,7 @@ export function CalendarGrid({
         {JOB_TYPE_LEGEND.map((type) => (
           <span
             key={type}
-            className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400"
+            className="inline-flex items-center gap-1 text-[10px] font-medium text-muted"
           >
             <span
               className={`h-2 w-2 rounded-full ${JOB_TYPE_DOT[type] ?? "bg-slate-400"}`}
@@ -159,7 +159,7 @@ export function CalendarGrid({
         {DAY_LABELS.map((d) => (
           <div
             key={d}
-            className="py-1 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500"
+            className="py-1 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-muted"
           >
             {d}
           </div>
@@ -196,7 +196,7 @@ export function CalendarGrid({
                       : isToday
                         ? "border-blue-500/20 bg-blue-500/[0.06] hover:bg-blue-500/10"
                         : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
-                    isPast && !isSelected && !isToday ? "opacity-50" : "",
+                    isPast && !isSelected && !isToday ? "calendar-past-day opacity-50" : "",
                   ].join(" ")}
                   aria-label={`${date}${jobCount > 0 ? `: ${dayJobs.map((job) => `${job.customerName} – ${job.title}`).join("; ")}` : ""}`}
                   aria-pressed={isSelected}
@@ -206,10 +206,8 @@ export function CalendarGrid({
                     className={[
                       "text-xs font-semibold leading-none",
                       isToday
-                        ? "text-blue-300"
-                        : isSelected
-                          ? "text-white"
-                          : "text-slate-400",
+                        ? "text-accent"
+                        : "text-foreground",
                     ].join(" ")}
                   >
                     {parseInt(date.split("-")[2], 10)}
@@ -226,10 +224,10 @@ export function CalendarGrid({
                         className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${JOB_TYPE_DOT[job.type] ?? "bg-slate-400"}`}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate font-medium text-slate-100">
+                        <span className="block truncate font-medium text-foreground">
                           {job.customerName}
                         </span>
-                        <span className="block truncate text-slate-400">
+                        <span className="block truncate text-muted">
                           {job.title}
                         </span>
                       </span>
@@ -237,7 +235,7 @@ export function CalendarGrid({
                   ))}
 
                   {overflowCount > 0 && (
-                    <span className="mt-1 text-[9px] font-medium text-slate-500">
+                    <span className="mt-1 text-[9px] font-medium text-muted">
                       +{overflowCount} more
                     </span>
                   )}

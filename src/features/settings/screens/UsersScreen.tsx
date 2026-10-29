@@ -142,10 +142,17 @@ export function UsersScreen() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/settings/users");
+      const signal =
+        typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+          ? AbortSignal.timeout(12_000)
+          : undefined;
+      const res = await fetch("/api/settings/users", {
+        cache: "no-store",
+        signal,
+      });
       if (!res.ok) throw new Error("Failed to load users.");
-      const data = (await res.json()) as { users: OrgUser[] };
-      setUsers(data.users);
+      const data = (await res.json()) as { users?: OrgUser[] };
+      setUsers(Array.isArray(data.users) ? data.users : []);
     } catch {
       setError("Could not load team members. Please try again.");
     } finally {
@@ -223,7 +230,11 @@ export function UsersScreen() {
 
         <SectionCard
           title="Team Members"
-          description={`${users.length} member${users.length !== 1 ? "s" : ""}`}
+          description={
+            isLoading
+              ? "Loading team members…"
+              : `${users.length} member${users.length !== 1 ? "s" : ""}`
+          }
         >
           {isLoading ? (
             <LoadingState message="Loading team members…" />

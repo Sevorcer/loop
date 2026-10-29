@@ -460,9 +460,58 @@
   color: #5b21b6;
 }
 
-/* Solid and gradient actions keep white labels. */
+/* Pale tints, including opacity modifiers such as text-red-100/80. */
 [data-color-mode="light"] :is(
-  [class*="from-"],
+  [class*="text-blue-100"],
+  [class*="text-sky-100"],
+  [class*="text-sky-200"],
+  [class*="text-cyan-100"]
+) {
+  color: #1e3a8a;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-red-100"],
+  [class*="text-rose-100"],
+  [class*="text-rose-200"],
+  [class*="text-rose-300"]
+) {
+  color: #991b1b;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-emerald-100"],
+  [class*="text-green-100"],
+  [class*="text-green-200"]
+) {
+  color: #166534;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-amber-100"],
+  [class*="text-yellow-100"],
+  [class*="text-yellow-200"],
+  [class*="text-orange-200"],
+  [class*="text-orange-300"]
+) {
+  color: #9a3412;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-violet-100"],
+  [class*="text-violet-200"],
+  [class*="text-purple-100"],
+  [class*="text-purple-200"],
+  [class*="text-indigo-200"],
+  [class*="text-indigo-300"]
+) {
+  color: #5b21b6;
+}
+
+/* Solid and mostly-opaque actions keep white labels.
+   A translucent wash such as from-red-500/15 does not: white text on that
+   wash disappears in light mode. */
+[data-color-mode="light"] :is(
   [class*="bg-blue-5"],
   [class*="bg-blue-6"],
   [class*="bg-blue-7"],
@@ -472,7 +521,19 @@
   [class*="bg-emerald-5"],
   [class*="bg-emerald-6"],
   [class*="bg-green-6"],
-  [class*="bg-primary"]
+  [class*="bg-primary"],
+  [class*="from-red-6"],
+  [class*="from-red-7"],
+  [class*="from-blue-6"],
+  [class*="from-blue-7"],
+  [class*="from-emerald-6"],
+  [class*="from-green-6"],
+  [class*="from-violet-6"],
+  [class*="from-purple-6"],
+  [class*="from-cyan-6"],
+  [class*="from-slate-9"],
+  [class*="/80"],
+  [class*="/90"]
 ).text-white {
   color: #ffffff;
 }
@@ -484,7 +545,11 @@
   .bg-slate-950\/60,
   .bg-slate-950\/85,
   .bg-slate-950\/95,
-  .bg-slate-900\/80
+  .bg-slate-900\/50,
+  .bg-slate-900\/80,
+  .bg-slate-900\/90,
+  .bg-slate-900\/95,
+  .bg-slate-800\/50
 ) {
   background-color: var(--surface);
   color: var(--foreground);
@@ -498,6 +563,7 @@
 [data-color-mode="light"] :is(
   .bg-white\/5,
   .bg-white\/10,
+  .bg-white\/\[0\.02\],
   .bg-white\/\[0\.03\],
   .bg-white\/\[0\.04\],
   .bg-white\/\[0\.05\],
@@ -520,7 +586,9 @@
 [data-color-mode="light"] :is(
   .border-white\/5,
   .border-white\/10,
+  .border-white\/15,
   .border-white\/20,
+  .border-white\/\[0\.06\],
   .border-slate-700,
   .border-slate-800,
   .border-slate-800\/80
@@ -540,11 +608,20 @@
 }
 
 [data-color-mode="light"] :is(
-  [class*="from-"],
   [class*="bg-blue-6"],
-  [class*="bg-red-6"]
+  [class*="bg-red-6"],
+  [class*="from-red-6"],
+  [class*="from-blue-6"],
+  [class*="/80"],
+  [class*="/90"]
 ).hover\:text-white:hover {
   color: #ffffff;
+}
+
+/* Past calendar days are dimmed on the dark canvas. In light mode that
+   50% opacity drops small job text below a readable contrast, so keep it solid. */
+[data-color-mode="light"] .calendar-past-day {
+  opacity: 1;
 }
 
 /* Compact spacing density */
