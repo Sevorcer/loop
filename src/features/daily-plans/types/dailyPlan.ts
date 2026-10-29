@@ -10,7 +10,8 @@ export type CrewAvailabilityState =
   | "sick"
   | "training"
   | "late arrival"
-  | "half day";
+  | "half day"
+  | "unavailable";
 
 export type AlertSeverity = "info" | "warning" | "critical";
 export type WorkloadStatus = "healthy" | "warning" | "overloaded";
@@ -58,6 +59,8 @@ export interface CrewProfile {
   dailyCapacityHours: number;
   departureTime: string;
   truckChecks: ChecklistItem[];
+  /** True when this row is a technician or assignee, not a crew record with truck details. */
+  rosterOnly?: boolean;
 }
 
 export interface DayOverview {

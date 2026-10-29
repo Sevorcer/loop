@@ -62,7 +62,16 @@ export async function POST(request: Request) {
 
     const { userId } = guard.ctx;
 
-    const payload = {
+    const payload: {
+      name: string;
+      customer: string;
+      customerId?: string;
+      address: string;
+      city: string;
+      type: "Residential" | "Commercial" | "Multi-Family";
+      status: "Active" | "Pending" | "Inactive";
+      primarySystem: string;
+    } = {
       name: String(body.name ?? "").trim(),
       customer: String(body.customer ?? "").trim(),
       address: String(body.address ?? "").trim(),
@@ -71,6 +80,9 @@ export async function POST(request: Request) {
       status: readPropertyStatus(body.status),
       primarySystem: String(body.primarySystem ?? "").trim(),
     };
+    if (typeof body.customerId === "string" && body.customerId.trim()) {
+      payload.customerId = body.customerId.trim();
+    }
 
     const supabase = await createSupabaseServerClient();
 

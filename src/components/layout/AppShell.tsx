@@ -78,7 +78,7 @@ export default function AppShell({ children }: AppShellProps) {
   const layout = computeSidebarLayout({ isPinned, isKeyboardOpen });
 
   return (
-    <div className="flex min-h-dvh bg-slate-950 text-slate-100">
+    <div className="flex min-h-dvh bg-background text-foreground">
 
       {/* ── Desktop sidebar spacer ──────────────────────────────────────────
           Only rendered when pinned. Shifts the main content column to the
@@ -153,7 +153,7 @@ export default function AppShell({ children }: AppShellProps) {
         )}
       </div>
       {/* ── Main content ────────────────────────────────────────────────── */}
-      <div className="relative flex min-h-dvh min-w-0 flex-1 flex-col overflow-x-hidden bg-slate-950">
+      <div className="relative flex min-h-dvh min-w-0 flex-1 flex-col overflow-x-hidden bg-background text-foreground">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute left-[-120px] top-[-120px] h-72 w-72 rounded-full bg-red-600/10 blur-3xl" />
           <div className="absolute right-[-140px] top-[120px] h-80 w-80 rounded-full bg-blue-600/10 blur-3xl" />
@@ -222,7 +222,7 @@ export default function AppShell({ children }: AppShellProps) {
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setIsMobileNavOpen(false)}
         />
       ) : null}

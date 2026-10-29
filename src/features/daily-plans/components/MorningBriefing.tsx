@@ -13,7 +13,7 @@ import { formatPlanDate, getDayLabel } from "../utils/planUtils";
 interface KpiTileProps {
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: number | null;
   highlight?: "warning" | "danger" | "success";
 }
 
@@ -38,7 +38,7 @@ function KpiTile({ icon, label, value, highlight }: KpiTileProps) {
         </div>
       </div>
       <p className={["text-2xl font-bold tabular-nums", valueClass].join(" ")}>
-        {value}
+        {value === null ? "—" : value}
       </p>
     </div>
   );
@@ -50,7 +50,8 @@ interface MorningBriefingProps {
   assigned: number;
   unassigned: number;
   atRisk: number;
-  waitingPermit: number;
+  /** Null when permit status is not stored on jobs. */
+  waitingPermit: number | null;
   activeCrews: number;
 }
 
@@ -109,7 +110,7 @@ export function MorningBriefing({
           icon={<ShieldCheck className="h-3.5 w-3.5 text-violet-300" />}
           label="Permit Waiting"
           value={waitingPermit}
-          highlight={waitingPermit > 0 ? "warning" : undefined}
+          highlight={waitingPermit !== null && waitingPermit > 0 ? "warning" : undefined}
         />
         <KpiTile
           icon={<Users className="h-3.5 w-3.5 text-sky-300" />}

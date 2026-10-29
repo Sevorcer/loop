@@ -289,7 +289,7 @@ export default function Header({
   const showDashboardCrumb = pathname !== ROUTES.DASHBOARD;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl safe-area-header">
+    <header className="safe-area-header sticky top-0 z-30 border-b border-default bg-background text-foreground backdrop-blur-xl">
       {/* ── Mobile top bar (< sm) ── */}
       <div className="flex items-center gap-2 px-3 py-2 sm:hidden">
         <Button
