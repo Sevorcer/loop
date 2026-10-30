@@ -10,6 +10,8 @@ import { requestJson } from "@/lib/api/client";
 import { ALLOWED_FILE_ACCEPT, MAX_JOB_FILE_SIZE_BYTES, validateJobFile, formatFileSize } from "@/lib/fileValidation";
 import { applyFileDownload } from "@/features/jobs/utils/fileDownload";
 
+import { JobPhotoGrid } from "./JobPhotoGrid";
+
 interface JobFileMeta {
   id: string;
   fileName: string;
@@ -18,6 +20,7 @@ interface JobFileMeta {
   uploadedBy: string | null;
   uploaderRole: string | null;
   createdAt: string;
+  previewUrl?: string | null;
 }
 
 export function JobFilesPanel({
@@ -255,6 +258,8 @@ export function JobFilesPanel({
           JPEG, PNG, WebP, HEIC, PDF · max {formatFileSize(MAX_JOB_FILE_SIZE_BYTES)} per file ·
           select multiple files at once
         </p>
+
+        <JobPhotoGrid photos={files} />
 
         {error ? (
           <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">

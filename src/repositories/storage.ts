@@ -176,6 +176,31 @@ export async function getSignedDownloadUrl(
   return signed.signedUrl;
 }
 
+/**
+ * Signs many files in one storage call per bucket chunk.
+ * Used for job photo thumbnails so the phone does not request a URL per photo.
+ */
+export async function signStoragePaths(
+  bucket: string,
+  paths: string[],
+  expiresInSeconds = 600,
+): Promise<Map<string, string>> {
+  const urls = new Map<string, string>();
+  if (paths.length === 0) return urls;
+
+  const { supabase } = await getRepositoryContext();
+  const chunkSize = 40;
+  for (let index = 0; index < paths.length; index += chunkSize) {
+    const chunk = paths.slice(index, index + chunkSize);
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrls(chunk, expiresInSeconds);
+    if (error || !data) continue;
+    for (const item of data) {
+      if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
+    }
+  }
+  return urls;
+}
+
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
 /**
