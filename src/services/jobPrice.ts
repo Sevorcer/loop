@@ -1,7 +1,7 @@
 import "server-only";
 
 import { JOB_PRICE_ACTIVITY_TYPE, jobPriceActivityCopy } from "@/features/jobs/utils/jobPrice";
-import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
+import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { createJobActivity, getJobById } from "@/repositories/jobs";
 import { readJobPrice, writeJobPrice } from "@/repositories/jobPrice";
 import type { AppRole } from "@/services/authorization";
@@ -13,12 +13,12 @@ function denied(): Error {
 
 export async function getVisibleJobPrice(jobId: string): Promise<{ visible: boolean; cents: number | null }> {
   const operator = await getCurrentOperator();
-  if (!canSeeJobRevenue(operator.appRole)) return { visible: false, cents: null };
+  if (!canViewJobPrice(operator.appRole)) return { visible: false, cents: null };
   return { visible: true, cents: await readJobPrice(jobId) };
 }
 
 export async function getJobPriceForRole(role: AppRole, jobId: string): Promise<number | null> {
-  if (!canSeeJobRevenue(role)) throw denied();
+  if (!canViewJobPrice(role)) throw denied();
   const job = await getJobById(jobId);
   if (!job) throw Object.assign(new Error("Job not found."), { status: 404 });
   return readJobPrice(jobId);
@@ -35,7 +35,7 @@ export async function setJobPriceForRole(
   if (!job) throw Object.assign(new Error("Job not found."), { status: 404 });
   const previous = await readJobPrice(jobId);
   if (previous === cents) return cents;
-  await writeJobPrice(jobId, cents, userId);
+  await writeJobPrice(jobId, cents, userId, previous);
   let actorName = "Someone";
   try {
     const operator = await getCurrentOperator();
@@ -43,7 +43,8 @@ export async function setJobPriceForRole(
   } catch {
     actorName = "Someone";
   }
-  const copy = jobPriceActivityCopy({ previousCents: previous, nextCents: cents, actorName });
+  const kind = cents == null ? "cleared" : previous == null ? "set" : "changed";
+  const copy = jobPriceActivityCopy(actorName, kind);
   await createJobActivity({
     jobId,
     actorId: userId ?? undefined,

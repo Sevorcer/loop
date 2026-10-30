@@ -25,11 +25,15 @@ describe("person and team reporting migration", () => {
     expect(withoutComments).not.toMatch(/INSERT\s+INTO/i);
   });
 
-  it("locks job revenue to owner, manager, and office", () => {
-    expect(migration).toContain('current_app_role() IN (\'owner\', \'manager\', \'office\')');
+  it("lets dispatch edit prices and lets a technician read an assigned one", () => {
+    expect(migration).toContain(
+      "current_app_role() IN ('owner', 'manager', 'dispatch', 'office')",
+    );
+    expect(migration).toContain("job_financials: tech reads assigned");
     expect(migration).toContain("ALTER TABLE public.job_financials FORCE ROW LEVEL SECURITY");
-    expect(migration).not.toMatch(/job_financials[\s\S]*'tech'/);
-    expect(verification).toContain("technicians, dispatch, and sales must not be named on job financials");
+    expect(verification).toContain("dispatch can enter a job price, the same as office");
+    expect(verification).toContain("a technician can read the price only on an assigned job");
+    expect(verification).toContain("a technician cannot write a job price");
   });
 
   it("shares calendar groups with office roles and not technicians", () => {

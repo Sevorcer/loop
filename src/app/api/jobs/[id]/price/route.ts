@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { parseDollarsToCents } from "@/lib/money";
 import { requirePermission } from "@/lib/api-auth";
 import { mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
-import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
+import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { getJobPriceForRole, setJobPriceForRole } from "@/services/jobPrice";
 
 interface RouteContext {
@@ -20,7 +20,7 @@ function hidden() {
 export async function GET(request: Request, context: RouteContext) {
   const guard = await requirePermission(request, "job_financials", "select");
   if (!guard.ok) return guard.response;
-  if (!canSeeJobRevenue(guard.ctx.role)) return hidden();
+  if (!canViewJobPrice(guard.ctx.role)) return hidden();
 
   try {
     const { id } = await context.params;

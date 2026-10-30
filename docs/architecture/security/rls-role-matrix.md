@@ -116,12 +116,12 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|
-| SELECT | ✓     | ✓       | —        | —    | ✓      | —     | —      |
-| INSERT | ✓     | ✓       | —        | —    | ✓      | —     | —      |
-| UPDATE | ✓     | ✓       | —        | —    | ✓      | —     | —      |
-| DELETE | ✓     | ✓       | —        | —    | ✓      | —     | —      |
+| SELECT | ✓     | ✓       | ✓        | assigned | ✓      | —     | —      |
+| INSERT | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
+| UPDATE | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
+| DELETE | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
 
-> Job revenue in cents. The table starts empty because LOOP has no invoices or line items. It is a separate table so a technician who can read a job still cannot read the amount.
+> Job price in cents. Owner, manager, dispatch, and office can read and change it for a job in their company. A technician can read it only on a job they are assigned to. Revenue reports stay with owner, manager, dispatch, and office. The job timeline records who changed the price and does not include the amount.
 
 ### job_notes
 

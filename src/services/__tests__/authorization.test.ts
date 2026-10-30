@@ -481,15 +481,20 @@ describe("privilege escalation — denied paths", () => {
     }
   });
 
-  it("lets owner, manager, and office see job revenue and hides it from everyone else", () => {
-    const finance: AppRole[] = ["owner", "manager", "office"];
+  it("lets owner, manager, dispatch, and office see job revenue and hides reports from technicians", () => {
+    const finance: AppRole[] = ["owner", "manager", "dispatch", "office"];
     const actions: TableAction[] = ["select", "insert", "update", "delete"];
     for (const role of finance) {
       expectAllowed(role, "job_financials", actions);
+      expectAllowed(role, "job_financials_history", ["select", "insert"]);
+      expectDenied(role, "job_financials_history", ["update", "delete"]);
     }
-    const blocked: AppRole[] = ["dispatch", "tech", "sales", "portal"];
-    for (const role of blocked) {
+    expectAllowed("tech", "job_financials", ["select"]);
+    expectDenied("tech", "job_financials", ["insert", "update", "delete"]);
+    expectDenied("tech", "job_financials_history", actions);
+    for (const role of ["sales", "portal"] as const) {
       expectDenied(role, "job_financials", actions);
+      expectDenied(role, "job_financials_history", actions);
     }
   });
 

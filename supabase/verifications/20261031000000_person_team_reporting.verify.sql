@@ -56,18 +56,43 @@ DO $$ BEGIN
       AND cmd = 'DELETE'
   ), 'finance staff must be able to delete job revenue';
 
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'job_financials'
+      AND policyname = 'job_financials: finance insert'
+      AND with_check ILIKE '%dispatch%'
+      AND with_check ILIKE '%office%'
+  ), 'dispatch can enter a job price, the same as office';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'job_financials'
+      AND policyname = 'job_financials: tech reads assigned'
+      AND cmd = 'SELECT'
+      AND qual ILIKE '%job_assignees%'
+      AND qual ILIKE '%assigned_user_id%'
+  ), 'a technician can read the price only on an assigned job';
+
   ASSERT NOT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'public' AND tablename = 'job_financials'
+      AND cmd IN ('INSERT', 'UPDATE', 'DELETE')
       AND (
-        coalesce(qual, '') ILIKE '%tech%'
-        OR coalesce(with_check, '') ILIKE '%tech%'
-        OR coalesce(qual, '') ILIKE '%dispatch%'
-        OR coalesce(with_check, '') ILIKE '%dispatch%'
-        OR coalesce(qual, '') ILIKE '%sales%'
-        OR coalesce(with_check, '') ILIKE '%sales%'
+        coalesce(qual, '') ILIKE '%''tech''%'
+        OR coalesce(with_check, '') ILIKE '%''tech''%'
       )
-  ), 'technicians, dispatch, and sales must not be named on job financials';
+  ), 'a technician cannot write a job price';
+
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename IN ('job_financials', 'job_financials_history')
+      AND (
+        coalesce(qual, '') ILIKE '%sales%'
+        OR coalesce(with_check, '') ILIKE '%sales%'
+        OR coalesce(qual, '') ILIKE '%portal%'
+        OR coalesce(with_check, '') ILIKE '%portal%'
+      )
+  ), 'sales and portal must not be named on job prices';
 
   ASSERT NOT has_table_privilege('anon', 'public.job_financials', 'SELECT'),
     'anonymous users must not be able to select job financials';
@@ -135,4 +160,57 @@ DO $$ BEGIN
 
   ASSERT NOT has_table_privilege('anon', 'public.calendar_saved_groups', 'SELECT'),
     'anonymous users must not be able to select calendar groups';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'job_financials_history'
+  ), 'job_financials_history must exist';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = 'job_financials_history'
+      AND c.relrowsecurity AND c.relforcerowsecurity
+  ), 'RLS must be enabled and forced on job_financials_history';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'job_financials_history'
+      AND policyname = 'job_financials_history: finance insert'
+      AND with_check ILIKE '%dispatch%'
+  ), 'dispatch can record a price change, the same as office';
+
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'job_financials_history'
+      AND (
+        coalesce(qual, '') ILIKE '%''tech''%'
+        OR coalesce(with_check, '') ILIKE '%''tech''%'
+      )
+  ), 'technicians must not read price history amounts';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'job_financials'
+      AND policyname = 'job_financials: finance insert'
+      AND with_check ILIKE '%priced_job.org_id%'
+  ), 'a new price must reference a job in the same company';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'calendar_saved_group_members'
+      AND policyname = 'calendar_saved_group_members: office insert'
+      AND with_check ILIKE '%member_profile.org_id%'
+      AND with_check ILIKE '%saved_group.org_id%'
+  ), 'a saved group member must belong to the group company';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'job_financials_same_company'
+  ), 'a price row is rejected when the job is in another company';
+
+  ASSERT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'calendar_group_member_same_company'
+  ), 'a group member is rejected when they are in another company';
 END; $$;

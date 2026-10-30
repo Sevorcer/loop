@@ -35,6 +35,7 @@ export async function writeJobPrice(
   jobId: string,
   cents: number | null,
   userId: string | null,
+  previousCents: number | null,
 ): Promise<void> {
   const { supabase, orgId } = await getRepositoryContext();
   const actor = userId && UUID.test(userId) ? userId : null;
@@ -51,5 +52,16 @@ export async function writeJobPrice(
   if (saved.error) {
     if (unavailable(saved.error)) throw unavailableError();
     throw new Error(saved.error.message);
+  }
+  const history = await supabase.from("job_financials_history").insert({
+    org_id: orgId,
+    job_id: jobId,
+    previous_cents: previousCents,
+    revenue_cents: cents,
+    changed_by: actor,
+  });
+  if (history.error) {
+    if (unavailable(history.error)) throw unavailableError();
+    throw new Error(history.error.message);
   }
 }

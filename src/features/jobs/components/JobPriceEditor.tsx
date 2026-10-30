@@ -13,6 +13,7 @@ interface JobPriceEditorProps {
   jobId: string;
   status: string;
   initialCents: number | null;
+  readOnly?: boolean;
 }
 
 function draftFromCents(cents: number | null): string {
@@ -24,13 +25,27 @@ export function JobPriceFields({
   status,
   initialCents,
   role,
+  readOnly = false,
 }: JobPriceEditorProps & { role: string | null }) {
   const router = useRouter();
   const [cents, setCents] = useState(initialCents);
   const [draft, setDraft] = useState(draftFromCents(initialCents));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const missing = status === "Completed" && cents == null;
+  const missing = !readOnly && status === "Completed" && cents == null;
+
+  if (readOnly) {
+    return (
+      <SurfaceCard>
+        <div className="space-y-2 p-6">
+          <h2 className="text-lg font-semibold text-white">Amount to collect</h2>
+          <p className="text-sm text-slate-300">
+            {cents == null ? "No price entered yet." : formatCentsAsUsd(cents)}
+          </p>
+        </div>
+      </SurfaceCard>
+    );
+  }
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -94,7 +109,15 @@ export function JobPriceFields({
   );
 }
 
-export function JobPriceEditor({ jobId, status, initialCents }: JobPriceEditorProps) {
+export function JobPriceEditor({ jobId, status, initialCents, readOnly = false }: JobPriceEditorProps) {
   const { role } = useCurrentRole();
-  return <JobPriceFields jobId={jobId} status={status} initialCents={initialCents} role={role} />;
+  return (
+    <JobPriceFields
+      jobId={jobId}
+      status={status}
+      initialCents={initialCents}
+      role={role}
+      readOnly={readOnly}
+    />
+  );
 }

@@ -174,7 +174,7 @@ describe("production report", () => {
     expect(csv).toContain("Scheduled hours");
     expect(csv).toContain("Alex Nguyen + Brian Ramirez");
     expect(canSeeJobRevenue("tech")).toBe(false);
-    expect(canSeeJobRevenue("dispatch")).toBe(false);
+    expect(canSeeJobRevenue("dispatch")).toBe(true);
     expect(canSeeJobRevenue("sales")).toBe(false);
     expect(canSeeJobRevenue("office")).toBe(true);
     expect(canSeeJobRevenue("owner")).toBe(true);

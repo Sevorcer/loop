@@ -109,7 +109,7 @@ describe("dispatch role", () => {
   });
 
   it("cannot see restricted management sections", () => {
-    expect(canSee("dispatch", ROUTES.REPORTING)).toBe(false);
+    expect(canSee("dispatch", ROUTES.REPORTING)).toBe(true);
     expect(canSee("dispatch", ROUTES.COMPANY_BRAIN)).toBe(false);
     expect(canSee("dispatch", ROUTES.SETTINGS)).toBe(false);
   });

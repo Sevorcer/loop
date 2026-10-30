@@ -47,7 +47,7 @@ import { JobStatusActions } from "./JobStatusActions";
 import { JobTasksCard } from "./JobTasksCard"; import { JobDayByDay } from "./JobDayByDay";
 import { JobPriceEditor } from "./JobPriceEditor";
 import { JobTimeline } from "./JobTimeline";
-import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
+import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
 import { companyTimeZone } from "@/lib/timezone";
@@ -252,12 +252,13 @@ export function JobDetailScreen({
         </SurfaceCard>
 
         <div className="min-w-0 space-y-6">
-          {priceVisible && canSeeJobRevenue(role) ? (
+          {priceVisible && canViewJobPrice(role) ? (
             <JobPriceEditor
-              key={`${job.id}:${priceCents ?? "none"}`}
+              key={`${job.id}:${priceCents ?? "none"}:${role ?? ""}`}
               jobId={job.id}
               status={job.status}
               initialCents={priceCents}
+              readOnly={!canSeeJobRevenue(role)}
             />
           ) : null}
           <SurfaceCard>
