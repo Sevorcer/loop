@@ -228,6 +228,7 @@ export function JobSignatureCard({
               disabled={!latest.previewUrl}
             >
               {latest.previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={latest.previewUrl}
                   alt={`Signature of ${latest.signerName}`}
@@ -317,6 +318,7 @@ export function JobSignatureCard({
           aria-label={`Signature of ${latest.signerName}`}
           onClick={() => setEnlarged(false)}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={latest.previewUrl}
             alt={`Signature of ${latest.signerName}`}

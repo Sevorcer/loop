@@ -44,7 +44,7 @@ async function capturerName(context: SignatureCaptureContext): Promise<string> {
   } catch {
     // The signature still records the role when the profile lookup fails.
   }
-  return "Team";
+  return context.role === "tech" ? "Technician" : "Office";
 }
 
 export async function listJobSignaturesForJob(

@@ -100,6 +100,7 @@ export function JobCompletionChecklistCard({
               <p className="mt-2 text-xs leading-5 text-slate-300">{signatureCaption}</p>
             ) : null}
             {signaturePreviewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={signaturePreviewUrl}
                 alt="Customer signature"

@@ -39,6 +39,8 @@ export function JobPhotoGrid({ photos }: { photos: JobPhotoPreview[] }) {
               onClick={() => setOpenId(photo.id)}
               aria-label={`View ${photo.fileName}`}
             >
+              {/* Signed storage URLs expire and are not on a fixed image host. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photo.previewUrl ?? undefined}
                 alt=""
@@ -67,6 +69,7 @@ export function JobPhotoGrid({ photos }: { photos: JobPhotoPreview[] }) {
           >
             <X className="h-5 w-5" />
           </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={open.previewUrl}
             alt={open.fileName}
