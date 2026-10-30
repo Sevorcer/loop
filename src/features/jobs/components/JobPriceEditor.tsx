@@ -108,7 +108,7 @@ export function JobPriceFields({
         <button
           type="submit"
           disabled={saving}
-          className="min-h-11 rounded-full border border-white/15 px-4 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="min-h-11 w-full rounded-full border border-white/15 px-4 text-sm text-white hover:bg-white/10 disabled:opacity-50 sm:w-auto"
         >
           {saving ? "Saving…" : "Save price"}
         </button>

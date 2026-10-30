@@ -224,10 +224,28 @@ describe("production report", () => {
     expect(csv).toContain("Scheduled hours");
     expect(csv).toContain("Alex Nguyen + Brian Ramirez");
     expect(canSeeJobRevenue("tech")).toBe(false);
+    expect(canSeeJobRevenue("portal")).toBe(false);
     expect(canSeeJobRevenue("dispatch")).toBe(true);
-    expect(canSeeJobRevenue("sales")).toBe(false);
+    expect(canSeeJobRevenue("sales")).toBe(true);
     expect(canSeeJobRevenue("office")).toBe(true);
     expect(canSeeJobRevenue("owner")).toBe(true);
     expect(canSeeJobRevenue("manager")).toBe(true);
+  });
+
+  it("includes revenue in the CSV for sales and leaves it out for tech and portal", () => {
+    const report = computeProductionReport([shared], completions, range);
+    expect(report.canSeeRevenue).toBe(true);
+    const csv = productionReportToCsv(report);
+    expect(csv).toContain("Revenue");
+    expect(csv).toContain("Average ticket");
+    expect(csv).toContain("$1.00");
+    expect(canSeeJobRevenue("sales")).toBe(true);
+
+    for (const role of ["tech", "portal"] as const) {
+      expect(canSeeJobRevenue(role)).toBe(false);
+      const hidden = productionReportToCsv(redactProductionReport(report));
+      expect(hidden).not.toContain("Revenue");
+      expect(hidden).not.toContain("$");
+    }
   });
 });

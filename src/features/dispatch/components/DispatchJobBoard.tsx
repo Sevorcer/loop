@@ -395,7 +395,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   return (
     <div className="space-y-6">
       {/* ── Filter Bar ── */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span className="flex items-center gap-1.5 text-xs text-slate-500">
           <Filter className="h-3.5 w-3.5" />
           Filter:
@@ -404,7 +404,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+          className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40 sm:min-h-0 sm:w-auto"
           aria-label="Filter by status"
         >
           <option value="all">All statuses</option>
@@ -418,7 +418,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         <select
           value={jobTypeFilter}
           onChange={(e) => setJobTypeFilter(e.target.value)}
-          className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+          className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40 sm:min-h-0 sm:w-auto"
           aria-label="Filter by job type"
         >
           <option value="all">All job types</option>
@@ -433,7 +433,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           <select
             value={contractorFilter}
             onChange={(e) => setContractorFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40 sm:min-h-0 sm:w-auto"
             aria-label="Filter by contractor"
           >
             <option value="all">All contractors</option>
@@ -448,7 +448,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         <select
           value={technicianFilter}
           onChange={(e) => setTechnicianFilter(e.target.value)}
-          className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+          className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40 sm:min-h-0 sm:w-auto"
           aria-label="Filter by technician"
         >
           <option value="all">All technicians</option>
@@ -459,13 +459,13 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           ))}
         </select>
 
-        <div className="flex items-center gap-1.5">
-          <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+        <div className="flex w-full min-w-0 items-center gap-1.5 sm:w-auto">
+          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-500" />
           <input
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40 sm:min-h-0 sm:w-auto"
             aria-label="Filter by target date"
           />
           {dateFilter && (
@@ -522,11 +522,11 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
                 {BOARD_GROUPS[section.key].emptyMessage}
               </div>
             ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-3 lg:grid-cols-2">
                 {section.plans.map((plan) => (
                   <div
                     key={plan.id}
-                    className={updatingIds.has(plan.id) ? "opacity-70 transition-opacity" : undefined}
+                    className={updatingIds.has(plan.id) ? "min-w-0 opacity-70 transition-opacity" : "min-w-0"}
                   >
                     <DispatchBoardCard
                       plan={plan}

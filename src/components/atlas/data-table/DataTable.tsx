@@ -130,9 +130,9 @@ export function DataTable<TData>({
   }
 
   return (
-    <Card>
+    <Card className="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
       <CardContent className="p-0">
-        <div className="space-y-3 p-4 md:hidden">
+        <div className="space-y-3 md:hidden">
           {pageRows.length === 0 ? (
             <div className="text-muted rounded-2xl border border-dashed px-4 py-10 text-center text-sm">
               No records found.

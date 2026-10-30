@@ -264,8 +264,9 @@ describe("sales role", () => {
     expectDenied("sales", "contractors", ["select", "insert", "update", "delete"]);
   });
 
-  it("has no access to job_activity", () => {
-    expectDenied("sales", "job_activity", ["select", "insert", "update", "delete"]);
+  it("can read job activity for reports and cannot change the log", () => {
+    expectAllowed("sales", "job_activity", ["select"]);
+    expectDenied("sales", "job_activity", ["insert", "update", "delete"]);
   });
 
   it("has no access to portal tables", () => {
@@ -481,8 +482,8 @@ describe("privilege escalation — denied paths", () => {
     }
   });
 
-  it("lets owner, manager, dispatch, and office see job revenue and hides reports from technicians", () => {
-    const finance: AppRole[] = ["owner", "manager", "dispatch", "office"];
+  it("lets owner, manager, dispatch, office, and sales see job revenue and hides it from technicians and portal", () => {
+    const finance: AppRole[] = ["owner", "manager", "dispatch", "office", "sales"];
     const actions: TableAction[] = ["select", "insert", "update", "delete"];
     for (const role of finance) {
       expectAllowed(role, "job_financials", actions);
@@ -492,10 +493,8 @@ describe("privilege escalation — denied paths", () => {
     expectAllowed("tech", "job_financials", ["select"]);
     expectDenied("tech", "job_financials", ["insert", "update", "delete"]);
     expectDenied("tech", "job_financials_history", actions);
-    for (const role of ["sales", "portal"] as const) {
-      expectDenied(role, "job_financials", actions);
-      expectDenied(role, "job_financials_history", actions);
-    }
+    expectDenied("portal", "job_financials", actions);
+    expectDenied("portal", "job_financials_history", actions);
   });
 
   it("portal cannot access internal tables even if stacked with other role logic", () => {

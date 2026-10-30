@@ -72,8 +72,8 @@ export function JobsScreen({ initialSearchParams, initialJobs = [] }: JobsScreen
 
       <JobsMetrics initialJobs={initialJobs} />
 
-      <SurfaceCard className="overflow-hidden">
-        <div className="border-b border-white/10 px-4 py-3 sm:px-6 sm:py-5">
+      <SurfaceCard className="overflow-hidden max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <div className="border-b border-white/10 px-0 py-3 max-md:border-0 md:px-6 md:py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-red-500/15 to-blue-500/10 ring-1 ring-white/10 sm:h-11 sm:w-11 sm:rounded-2xl">
               <ClipboardList className="h-4 w-4 text-red-300 sm:h-5 sm:w-5" />
@@ -89,7 +89,7 @@ export function JobsScreen({ initialSearchParams, initialJobs = [] }: JobsScreen
           </div>
         </div>
 
-        <div className="p-4 sm:p-6">
+        <div className="p-0 md:p-6">
           <JobTable initialSearchParams={initialSearchParams} />
         </div>
       </SurfaceCard>

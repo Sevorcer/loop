@@ -64,14 +64,13 @@ describe("job price access", () => {
     expect(isTechDeniedApiPath("/api/reports/production")).toBe(true);
   });
 
-  it("does not give sales or portal a price policy", () => {
+  it("does not give sales or portal a price policy in the applied migration", () => {
     const revenue = between(
       "CREATE TABLE IF NOT EXISTS public.job_financials (",
       "CREATE TABLE IF NOT EXISTS public.job_financials_history",
     );
     expect(revenue).not.toMatch(/'sales'|'portal'/);
-    expect(canSeeJobRevenue("sales")).toBe(false);
-    expect(canViewJobPrice("sales")).toBe(false);
+    expect(canSeeJobRevenue("portal")).toBe(false);
     expect(canViewJobPrice("portal")).toBe(false);
   });
 

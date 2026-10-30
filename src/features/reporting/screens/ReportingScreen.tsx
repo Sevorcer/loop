@@ -44,7 +44,22 @@ function ReportTable({
     return <p className="px-1 py-3 text-sm text-slate-400">{emptyMessage}</p>;
   }
   return (
-    <div className="overflow-x-auto">
+    <div className="min-w-0">
+      <div className="space-y-3 md:hidden">
+        {rows.map((cells, rowIndex) => (
+          <div key={rowIndex} className="min-w-0 rounded-xl border border-white/10 p-3">
+            {cells.map((cell, cellIndex) => (
+              <div key={cellIndex} className="flex min-w-0 items-start justify-between gap-3 py-1">
+                <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  {headers[cellIndex]}
+                </span>
+                <div className="min-w-0 break-words text-right text-sm text-slate-200">{cell}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[560px] text-left text-sm">
         <thead>
           <tr className="border-b border-white/10">
@@ -73,6 +88,7 @@ function ReportTable({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -85,11 +101,11 @@ function MonthPicker({
   onChange: (month: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex max-w-full flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, -1))}
-        className="rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-slate-300 hover:bg-white/[0.08]"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-slate-300 hover:bg-white/[0.08] md:min-h-0 md:min-w-0"
         aria-label="Previous month"
       >
         <ChevronLeft className="h-4 w-4" />
@@ -100,13 +116,13 @@ function MonthPicker({
         onChange={(event) => {
           if (isValidMonth(event.target.value)) onChange(event.target.value);
         }}
-        className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white [color-scheme:dark]"
+        className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white [color-scheme:dark] sm:w-auto md:min-h-0"
         aria-label="Report month"
       />
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, 1))}
-        className="rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-slate-300 hover:bg-white/[0.08]"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-slate-300 hover:bg-white/[0.08] md:min-h-0 md:min-w-0"
         aria-label="Next month"
       >
         <ChevronRight className="h-4 w-4" />

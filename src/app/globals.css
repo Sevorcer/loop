@@ -256,6 +256,13 @@
       padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
   }
+
+  /* Keep the last controls clear of the phone floating actions. */
+  @media (max-width: 639px) {
+    .safe-area-content {
+      padding-bottom: max(9rem, env(safe-area-inset-bottom, 0px));
+    }
+  }
 }
 
 /* ==========================================================================

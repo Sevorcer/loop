@@ -169,7 +169,7 @@ export default function AppShell({ children }: AppShellProps) {
         />
 
         <main className="relative z-10 flex-1">
-          <div className="safe-area-content mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
+          <div className="safe-area-content mx-auto w-full min-w-0 max-w-[1600px] px-4 pt-4 sm:px-6 sm:py-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
             {children}
           </div>
         </main>

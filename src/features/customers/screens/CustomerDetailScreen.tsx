@@ -64,15 +64,15 @@ export function CustomerDetailScreen({
                 <Users className="h-6 w-6 text-muted-foreground" />
               </div>
 
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              <div className="min-w-0">
+                <h1 className="break-words text-2xl font-semibold tracking-tight md:text-3xl">
                   {customer.name}
                 </h1>
 
                 <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
-                    <Mail className="h-4 w-4" />
-                    {customer.email}
+                    <Mail className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 break-all">{customer.email}</span>
                   </span>
 
                   <span className="inline-flex items-center gap-1.5">

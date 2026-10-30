@@ -229,7 +229,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.02]">
+    <div className="md:overflow-hidden md:rounded-[28px] md:border md:border-white/10 md:bg-white/[0.02]">
       <DataTableToolbar
       searchPlaceholder={
         role === "tech"

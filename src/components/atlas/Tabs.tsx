@@ -26,15 +26,16 @@ export function AtlasTabs<T extends string>({
   return (
     <div
       className={cn(
-        "space-y-0",
+        "min-w-0 space-y-0",
         sticky
-          ? "sticky top-0 z-10 -mx-2 border-b bg-background/95 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+          ? "sticky top-0 z-10 border-b bg-background/95 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-2 md:px-2"
           : "",
         className
       )}
     >
-      <div className="overflow-x-auto">
-        <div className="flex min-w-max gap-2">
+      {/* Phones wrap every tab onto the next line. Wider screens keep one row. */}
+      <div className="overflow-x-auto max-md:overflow-visible">
+        <div className="flex min-w-max gap-2 max-md:w-full max-md:min-w-0 max-md:flex-wrap">
           {items.map((item) => (
             <Button
               key={item.key}

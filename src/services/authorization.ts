@@ -141,8 +141,10 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
   },
 
   job_activity: {
-    // tech: own job rows only — RLS enforces the row-scope restriction
-    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    // tech: own job rows only — RLS enforces the row-scope restriction.
+    // sales: company read so production reports can use completion dates.
+    // A sales insert is limited in the database to a price timeline row.
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     // append-only: office records note events; tech may insert for assigned jobs
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
     // no UPDATE or DELETE: log is immutable
@@ -207,18 +209,18 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
   },
 
-  // Dispatch matches office. A technician may read a price only on an
-  // assigned job; row security enforces that. Sales and portal cannot.
+  // Dispatch, office, and sales match. A technician may read a price only on
+  // an assigned job; row security enforces that. Portal cannot.
   job_financials: {
-    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
-    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
-    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
-    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
   },
 
   job_financials_history: {
-    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
-    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
   },
