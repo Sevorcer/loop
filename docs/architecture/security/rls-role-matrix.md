@@ -19,7 +19,7 @@ For the external portal permission model (homeowner, GC, builder, property_manag
 | `dispatch` | Dispatcher                 | Read operational data, update job status   |
 | `tech`     | Field technician           | Read/update **own assigned** jobs only     |
 | `office`   | Office staff               | Create/read customers & properties, read jobs |
-| `sales`    | Sales team                 | Manage customers & properties, read jobs   |
+| `sales`    | Sales team                 | Customers, properties, job prices, and revenue reports |
 | `portal`   | External portal user       | Isolated — no access to any internal table |
 
 **Portal isolation rule:** Users with the `portal` app_role are external stakeholders. They cannot access any internal operational table (`jobs`, `customers`, `properties`, `contractors`, `job_activity`). Access is exclusively through `portal_users` / `portal_memberships` tables.
@@ -72,12 +72,12 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|
-| SELECT | ✓     | ✓       | ✓        | own  | ✓      | —     | —      |
-| INSERT | ✓     | ✓       | ✓        | own  | ✓      | —     | —      |
+| SELECT | ✓     | ✓       | ✓        | own  | ✓      | company | —      |
+| INSERT | ✓     | ✓       | ✓        | own  | ✓      | price   | —      |
 | UPDATE | —     | —       | —        | —    | —      | —     | —      |
 | DELETE | —     | —       | —        | —    | —      | —     | —      |
 
-> **Append-only:** `job_activity` is an immutable audit log. No role may UPDATE or DELETE rows. Office may insert so a note they add is recorded on the timeline. Tech read and insert follow job assignment (`assigned_user_id` or `job_assignees`).
+> **Append-only:** `job_activity` is an immutable audit log. No role may UPDATE or DELETE rows. Office may insert so a note they add is recorded on the timeline. Tech read and insert follow job assignment (`assigned_user_id` or `job_assignees`). Sales may read activity in their company so a production report can use the completion date, and may insert only a `price` row. That row does not include the dollar amount.
 
 ### time_off
 
@@ -116,12 +116,12 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|
-| SELECT | ✓     | ✓       | ✓        | assigned | ✓      | —     | —      |
-| INSERT | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
-| UPDATE | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
-| DELETE | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
+| SELECT | ✓     | ✓       | ✓        | assigned | ✓      | ✓     | —      |
+| INSERT | ✓     | ✓       | ✓        | —        | ✓      | ✓     | —      |
+| UPDATE | ✓     | ✓       | ✓        | —        | ✓      | ✓     | —      |
+| DELETE | ✓     | ✓       | ✓        | —        | ✓      | ✓     | —      |
 
-> Job price in cents. Owner, manager, dispatch, and office can read and change it for a job in their company. A technician can read it only on a job they are assigned to. Revenue reports stay with owner, manager, dispatch, and office. The job timeline records who changed the price and does not include the amount.
+> Job price in cents. Owner, manager, dispatch, office, and sales can read and change it for a job in their company, including the price history. A technician can read it only on a job they are assigned to. Revenue reports, the CSV export, and the reports API stay with owner, manager, dispatch, office, and sales. Technicians and portal users cannot open them. The job timeline records who changed the price and does not include the amount.
 
 ### job_notes
 
