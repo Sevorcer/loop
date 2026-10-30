@@ -23,6 +23,8 @@ const {
   createFeedbackReportMock,
   listFeedbackReportsMock,
   updateFeedbackReportMock,
+  getFeedbackReportByIdMock,
+  deleteFeedbackReportMock,
   logWriteFailureMock,
 } = vi.hoisted(() => ({
   requirePermissionMock: vi.fn(),
@@ -30,6 +32,8 @@ const {
   createFeedbackReportMock: vi.fn(),
   listFeedbackReportsMock: vi.fn(),
   updateFeedbackReportMock: vi.fn(),
+  getFeedbackReportByIdMock: vi.fn(),
+  deleteFeedbackReportMock: vi.fn(),
   logWriteFailureMock: vi.fn(),
 }));
 
@@ -57,6 +61,8 @@ vi.mock("@/services/feedbackReports", () => ({
   createFeedbackReport: createFeedbackReportMock,
   listFeedbackReports: listFeedbackReportsMock,
   updateFeedbackReport: updateFeedbackReportMock,
+  getFeedbackReportById: getFeedbackReportByIdMock,
+  deleteFeedbackReport: deleteFeedbackReportMock,
 }));
 
 vi.mock("@/repositories/storage", () => ({
@@ -282,5 +288,89 @@ describe("PATCH /api/feedback/[id]", () => {
     const body = await res.json() as { report: { status: string; triageNotes: string } };
     expect(body.report.status).toBe("triaged");
     expect(body.report.triageNotes).toBe("Confirmed, low priority.");
+  });
+});
+
+// ─── DELETE /api/feedback/[id] ────────────────────────────────────────────────
+
+describe("DELETE /api/feedback/[id]", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    requirePermissionMock.mockResolvedValueOnce(unauthorizedResult());
+
+    const { DELETE } = await import("../[id]/route");
+    const res = await DELETE(
+      makeRequest("http://localhost/api/feedback/fb-001", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "fb-001" }) },
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("lets the owner delete a report they did not write", async () => {
+    requirePermissionMock.mockResolvedValueOnce({
+      ok: true as const,
+      ctx: { role: "owner", userId: "user-owner" },
+    });
+    getFeedbackReportByIdMock.mockResolvedValueOnce(mockReport);
+    deleteFeedbackReportMock.mockResolvedValueOnce(undefined);
+
+    const { DELETE } = await import("../[id]/route");
+    const res = await DELETE(
+      makeRequest("http://localhost/api/feedback/fb-001", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "fb-001" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(deleteFeedbackReportMock).toHaveBeenCalledWith("fb-001");
+  });
+
+  it("lets a technician delete a report they wrote", async () => {
+    requirePermissionMock.mockResolvedValueOnce(authorizedResult("tech"));
+    getFeedbackReportByIdMock.mockResolvedValueOnce(mockReport);
+    deleteFeedbackReportMock.mockResolvedValueOnce(undefined);
+
+    const { DELETE } = await import("../[id]/route");
+    const res = await DELETE(
+      makeRequest("http://localhost/api/feedback/fb-001", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "fb-001" }) },
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json() as { deleted: boolean; id: string };
+    expect(body).toEqual({ deleted: true, id: "fb-001" });
+  });
+
+  it("returns 403 when a technician deletes someone else's report", async () => {
+    requirePermissionMock.mockResolvedValueOnce({
+      ok: true as const,
+      ctx: { role: "tech", userId: "user-002" },
+    });
+    getFeedbackReportByIdMock.mockResolvedValueOnce(mockReport);
+
+    const { DELETE } = await import("../[id]/route");
+    const res = await DELETE(
+      makeRequest("http://localhost/api/feedback/fb-001", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "fb-001" }) },
+    );
+
+    expect(res.status).toBe(403);
+    expect(deleteFeedbackReportMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the report does not exist", async () => {
+    requirePermissionMock.mockResolvedValueOnce(authorizedResult("owner"));
+    getFeedbackReportByIdMock.mockResolvedValueOnce(null);
+
+    const { DELETE } = await import("../[id]/route");
+    const res = await DELETE(
+      makeRequest("http://localhost/api/feedback/missing", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "missing" }) },
+    );
+
+    expect(res.status).toBe(404);
+    expect(deleteFeedbackReportMock).not.toHaveBeenCalled();
   });
 });

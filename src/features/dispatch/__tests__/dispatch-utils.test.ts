@@ -218,6 +218,28 @@ describe("assembleDispatchSnapshot — metrics derivation", () => {
     expect(snapshot.metrics.inProgress).toBe(0);
   });
 
+  it("keeps every plan when the known-job set is empty", () => {
+    const plans = [makePlan("1", "scheduled"), makePlan("2", "in_progress")];
+    const snapshot = assembleDispatchSnapshot(plans, [], [], [], [], new Set());
+    expect(snapshot.metrics.totalPlans).toBe(2);
+    expect(snapshot.dispatchPlans.map((plan) => plan.id)).toEqual(["1", "2"]);
+  });
+
+  it("drops plans whose job is missing from a non-empty known-job set", () => {
+    const orphan = makePlan("gone", "scheduled");
+    const kept = makePlan("kept", "scheduled");
+    const unlinked = { ...makePlan("open", "scheduled"), jobId: "" };
+    const snapshot = assembleDispatchSnapshot(
+      [orphan, kept, unlinked],
+      [],
+      [],
+      [],
+      [],
+      new Set(["kept"]),
+    );
+    expect(snapshot.dispatchPlans.map((plan) => plan.id)).toEqual(["kept", "open"]);
+  });
+
   it("passes through crewAssignments, scheduleBlocks, events, and crews unchanged", () => {
     const crews: Crew[] = [
       { id: "crew-001", name: "Alpha Team", members: [], active: true },

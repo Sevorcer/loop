@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 import { useContractors } from "@/features/contractors/state/ContractorsProvider";
 
+import { useCurrentRole } from "@/features/auth";
+import { showAddContractorLink } from "../utils/contractorAccess";
 import { useJobs } from "../state/JobsProvider";
 
 interface AssignContractorPanelProps {
@@ -18,7 +20,7 @@ interface AssignContractorPanelProps {
 export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
   const { getJobById, assignContractor, removeContractorAssignment } =
     useJobs();
-  const { contractors } = useContractors();
+  const { contractors } = useContractors();   const { role } = useCurrentRole();
 
   const job = getJobById(jobId);
   const assignedIds = job?.contractorIds ?? [];
@@ -167,14 +169,16 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
         ) : (
           <p className="mt-4 text-xs text-slate-500">
             No contractors available.{" "}
-            <Link
-              href={`${ROUTES.CONTRACTORS}/new`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
-            >
-              Add one
-            </Link>
+            {showAddContractorLink(role) ? (
+              <Link
+                href={`${ROUTES.CONTRACTORS}/new`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:underline"
+              >
+                Add one
+              </Link>
+            ) : null}
             .
           </p>
         )}
