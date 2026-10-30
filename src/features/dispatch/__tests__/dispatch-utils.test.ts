@@ -141,8 +141,8 @@ describe("getDispatchBoardGroup", () => {
     expect(getDispatchBoardGroup("awaiting_crew_availability")).toBe("blocked");
   });
 
-  it("completed → other (removed from board)", () => {
-    expect(getDispatchBoardGroup("completed")).toBe("other");
+  it("completed stays on the board", () => {
+    expect(getDispatchBoardGroup("completed")).toBe("completed");
   });
 });
 

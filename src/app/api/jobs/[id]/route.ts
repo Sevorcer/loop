@@ -115,6 +115,28 @@ export async function PATCH(
     const { id } = await params;
     const action = String(body.action ?? "update");
 
+    if (guard.ctx.role === "tech" && (action === "update" || action === "contractor")) {
+      return NextResponse.json(
+        {
+          error: "forbidden",
+          message: "Technicians cannot edit or reassign jobs.",
+          code: 403,
+        },
+        { status: 403 },
+      );
+    }
+
+    if (guard.ctx.role === "tech" && action === "status" && String(body.status ?? "") === "Cancelled") {
+      return NextResponse.json(
+        {
+          error: "forbidden",
+          message: "Technicians cannot cancel jobs.",
+          code: 403,
+        },
+        { status: 403 },
+      );
+    }
+
     if (!JOB_ACTIONS.has(action)) {
       return NextResponse.json(
         {

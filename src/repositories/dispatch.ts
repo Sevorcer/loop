@@ -343,6 +343,38 @@ export async function createDispatchPlan(input: DispatchPlanWriteInput) {
   });
 }
 
+export async function updateDispatchPlanPlacement(
+  id: string,
+  patch: {
+    targetDate?: string;
+    dispatchStatus?: DispatchStatus;
+    estimatedDurationHours?: number;
+  },
+) {
+  return wrapRepositoryError(async () => {
+    const { supabase, orgId } = await getRepositoryContext();
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (patch.targetDate) update.target_date = patch.targetDate;
+    if (patch.dispatchStatus) update.dispatch_status = patch.dispatchStatus;
+    if (patch.estimatedDurationHours != null) {
+      update.estimated_duration_hours = patch.estimatedDurationHours;
+    }
+    const { data, error } = await supabase
+      .from("dispatch_plans")
+      .update(update)
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .select(
+        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at",
+      )
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error(`Dispatch plan ${id} not found.`);
+    return mapDispatchPlan(data as DispatchPlanRow);
+  });
+}
+
 export async function updateDispatchPlanStatus(id: string, status: DispatchStatus) {
   return wrapRepositoryError(async () => {
     const { supabase, orgId } = await getRepositoryContext();

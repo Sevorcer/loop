@@ -6,6 +6,8 @@
 // No component computes dispatchability or schedule state independently.
 // ============================================================
 
+import { todayInCompanyTimeZone } from "@/lib/timezone";
+
 import type {
   Crew,
   CrewAssignment,
@@ -83,7 +85,7 @@ export function getDispatchEventLabel(type: DispatchEvent["type"]): string {
 
 export function getDispatchBoardGroup(
   status: DispatchStatus
-): "ready" | "scheduled" | "blocked" | "active" | "other" {
+): "ready" | "scheduled" | "blocked" | "active" | "completed" | "other" {
   switch (status) {
     case "ready_to_schedule":
       return "ready";
@@ -97,7 +99,9 @@ export function getDispatchBoardGroup(
     case "awaiting_crew_availability": case "on_hold":
       return "blocked";
     case "completed":
-      default: return "other";
+      return "completed";
+    default:
+      return "other";
   }
 }
 
@@ -229,11 +233,7 @@ export function formatTargetDate(isoDate: string): string {
  * Used to filter schedule blocks and plans for today's view.
  */
 export function getLocalTodayISO(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return todayInCompanyTimeZone();
 }
 
 /**

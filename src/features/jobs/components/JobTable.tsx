@@ -8,7 +8,7 @@ import { DataTable, ErrorState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
 import { useAuth, useCurrentRole } from "@/features/auth";
 import { isOpenStatus, normalizeJobStatus } from "@/lib/jobs/status";
-import { todayLocalISODate } from "@/lib/dates";
+import { todayInCompanyTimeZone } from "@/lib/timezone";
 import { Button } from "@/components/ui/button"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 import { useJobs } from "../state/JobsProvider";
@@ -100,7 +100,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   const filteredJobs = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
     const isTechView = role === "tech";
-    const todayIso = todayLocalISODate();
+    const todayIso = todayInCompanyTimeZone();
     const scopedTechnicianNames = new Set<string>();
     const fullName = user?.user_metadata?.full_name;
     if (typeof fullName === "string" && fullName.trim()) {
@@ -112,17 +112,16 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
 
     return jobs.filter((job) => {
       if (isTechView) {
-        const scheduledDate = job.scheduledFor?.slice(0, 10) ?? null;
-        const normalizedTechStatus = normalizeJobStatus(job.status) ?? job.status; const isInProgress = normalizedTechStatus === "In Progress"; const isScheduledOrInProgress = normalizedTechStatus === "Scheduled" || normalizedTechStatus === "In Progress"; const isDueOrOverdue = scheduledDate !== null && scheduledDate <= todayIso; const isTodaysJob = isInProgress || (isScheduledOrInProgress && isDueOrOverdue);
-        if (!isTodaysJob) {
+        const assigned = job.assignedTo.trim().toLowerCase();
+        const assignedNames = assigned.split(",").map((part) => part.trim()).filter(Boolean);
+        const assigneeIds = new Set((job.assignees ?? []).map((assignee) => assignee.id));
+        const matchesAssigneeId = Boolean(user?.id && assigneeIds.has(user.id));
+        const matchesName =
+          scopedTechnicianNames.size === 0 ||
+          assignedNames.some((name) => scopedTechnicianNames.has(name)) ||
+          scopedTechnicianNames.has(assigned);
+        if (!matchesAssigneeId && !matchesName) {
           return false;
-        }
-
-        if (scopedTechnicianNames.size > 0) {
-          const assigned = job.assignedTo.trim().toLowerCase(); const assignedNames = assigned.split(",").map((part) => part.trim()).filter(Boolean); const isAssignedToTech = assignedNames.some((name) => scopedTechnicianNames.has(name)) || scopedTechnicianNames.has(assigned);
-          if (!isAssignedToTech) {
-            return false;
-          }
         }
       }
 
@@ -221,7 +220,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
       <DataTableToolbar
       searchPlaceholder={
         role === "tech"
-          ? "Search my jobs for today..."
+          ? "Search my jobs..."
           : "Search jobs, customers, properties, or technicians..."
       }
         searchValue={searchValue}

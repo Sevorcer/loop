@@ -130,6 +130,8 @@ export interface DispatchPlan {
    * ISO 8601 timestamptz. Replaces the old appointmentWindow Morning/Afternoon labels.
    */
   scheduledStartAt?: string | null;
+  /** ISO 8601 timestamptz — committed end, when the job has one. */
+  scheduledEndAt?: string | null;
 
   /**
    * @deprecated Use scheduledStartAt. Kept for one release window.

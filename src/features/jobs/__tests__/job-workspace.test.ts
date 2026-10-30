@@ -113,9 +113,10 @@ describe("canTransitionStatus", () => {
     }
   });
 
-  it("Cancelled is a terminal state — no outbound transitions", () => {
-    const targets: JobStatus[] = ["Scheduled", "In Progress", "On Hold", "Completed"];
-    for (const target of targets) {
+  it("Cancelled can reopen to Scheduled and nowhere else", () => {
+    expect(canTransitionStatus("Cancelled", "Scheduled")).toBe(true);
+    const blocked: JobStatus[] = ["In Progress", "On Hold", "Completed"];
+    for (const target of blocked) {
       expect(canTransitionStatus("Cancelled", target)).toBe(false);
     }
   });
@@ -158,8 +159,8 @@ describe("getValidNextStatuses", () => {
     expect(getValidNextStatuses("Completed")).toEqual([]);
   });
 
-  it("Cancelled returns empty list (terminal)", () => {
-    expect(getValidNextStatuses("Cancelled")).toEqual([]);
+  it("Cancelled can return to the schedule", () => {
+    expect(getValidNextStatuses("Cancelled")).toEqual(["Scheduled"]);
   });
 });
 

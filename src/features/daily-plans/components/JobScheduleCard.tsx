@@ -89,6 +89,7 @@ export function JobScheduleCard({
   );
 
   const assignSelectId = `assign-${job.id}`;
+  const isClosed = job.status === "Completed" || job.status === "Cancelled";
 
   function handleConfirmDate() {
     if (dateValue) {
@@ -164,8 +165,8 @@ export function JobScheduleCard({
 
       {/* Quick actions */}
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        {/* Reschedule / Schedule */}
-        {picking ? (
+        {/* Reschedule / Schedule — completed work stays on the plan without a move control. */}
+        {isClosed ? null : picking ? (
           <div className="flex items-center gap-2">
             <input
               type="date"

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -62,7 +64,7 @@ function buildUserProfileNotFoundError(
   });
 }
 
-export async function getRepositoryContext(
+async function loadRepositoryContext(
   input?: SessionRepositoryContextInput,
 ): Promise<RepositoryContext> {
   if (
@@ -129,4 +131,19 @@ export async function getRepositoryContext(
   }
 
   throw new Error("SUPABASE_SESSION_REQUIRED");
+}
+
+/**
+ * One auth lookup and profile read per request. Status changes used to call
+ * this again for every follow-up query, and each call waited on Supabase Auth.
+ */
+const loadCachedSessionContext = cache(() => loadRepositoryContext());
+
+export async function getRepositoryContext(
+  input?: SessionRepositoryContextInput,
+): Promise<RepositoryContext> {
+  if (input?.supabase || input?.userId) {
+    return loadRepositoryContext(input);
+  }
+  return loadCachedSessionContext();
 }

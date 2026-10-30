@@ -59,11 +59,16 @@ export async function PATCH(
           return mapRepositoryError(result.error);
         }
 
-        await emitDispatchEvent(
-          id,
-          "crew_assigned",
-          `${crewName} assigned to plan.`,
-        );
+        try {
+          await emitDispatchEvent(
+            id,
+            "crew_assigned",
+            `${crewName} assigned to plan.`,
+          );
+        } catch {
+          // The assignment is already saved. A log-row failure must not
+          // make the board revert the crew the dispatcher just set.
+        }
 
         return NextResponse.json({ assignment: result.data });
       }
@@ -93,13 +98,17 @@ export async function PATCH(
           return mapRepositoryError(result.blockResult.error);
         }
 
-        await emitDispatchEvent(
-          id,
-          isReschedule ? "job_rescheduled" : "job_scheduled",
-          isReschedule
-            ? `Plan rescheduled to ${String(body.scheduledDate ?? "")}.`
-            : `Plan scheduled for ${String(body.scheduledDate ?? "")}.`,
-        );
+        try {
+          await emitDispatchEvent(
+            id,
+            isReschedule ? "job_rescheduled" : "job_scheduled",
+            isReschedule
+              ? `Plan rescheduled to ${String(body.scheduledDate ?? "")}.`
+              : `Plan scheduled for ${String(body.scheduledDate ?? "")}.`,
+          );
+        } catch {
+          // Schedule rows are already saved. Keep the board change.
+        }
 
         return NextResponse.json({ block: result.blockResult.data });
       }

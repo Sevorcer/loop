@@ -16,8 +16,9 @@ import type { User } from "@supabase/supabase-js";
 
 import { AuthProvider, RoleProvider } from "@/features/auth";
 import { AdminShell } from "@/features/admin";
+import { redirectTechFromOfficePath } from "@/lib/auth/requireRouteRole";
+import { ADMIN_BASE, ROUTES } from "@/lib/routes";
 import { getAuthSession } from "@/lib/auth/session";
-import { ROUTES } from "@/lib/routes";
 import { canAccessAdminArea, resolveAdminAreaRole, type AppRole } from "@/services/authorization";
 import { getCurrentOperator } from "@/services/currentOperator";
 
@@ -55,6 +56,7 @@ function resolveMetadataRole(user: User | null | undefined): AppRole | null {
 }
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
+  await redirectTechFromOfficePath(ADMIN_BASE);
   const authSession = await getAuthSession();
 
   // Skip the lookup when there is no session (build without Supabase env,

@@ -15,6 +15,7 @@ import Link from "next/link";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTE_BUILDERS } from "@/lib/routes"; import { useCurrentRole } from "@/features/auth";
 import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
+import { hoursBetweenIso } from "@/lib/timezone";
 import { todayLocalISODate } from "@/lib/dates";
 
 import type { Crew, DispatchPlan } from "../types/dispatch";
@@ -114,12 +115,15 @@ export function DispatchBoardCard({
 
   const canSchedule =
     (plan.dispatchStatus === "ready_to_schedule" ||
-      plan.dispatchStatus === "scheduled") &&
-    !!crewName &&
+      plan.dispatchStatus === "scheduled" ||
+      plan.dispatchStatus === "on_hold") &&
     !!onSchedulePlan;
+  const windowHours = hoursBetweenIso(plan.scheduledStartAt, plan.scheduledEndAt);
+  const durationHours = windowHours ?? plan.estimatedDurationHours;
+  const isCompleted = plan.dispatchStatus === "completed";
 
   return (
-    <SurfaceCard className="group transition-all duration-200 hover:border-white/20">
+    <SurfaceCard className={isCompleted ? "opacity-70" : "group transition-all duration-200 hover:border-white/20"}>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -162,7 +166,7 @@ export function DispatchBoardCard({
               {formatTargetDate(plan.targetDate)}
             </p>
             <p className="text-xs text-slate-500">
-              {plan.estimatedDurationHours}h estimated
+              {durationHours}h{windowHours == null ? " estimated" : ""}
             </p>
           </div>
         </div>

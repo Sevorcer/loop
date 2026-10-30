@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
+import { useCurrentRole } from "@/features/auth";
 import { useContractors } from "@/features/contractors/state/ContractorsProvider";
 import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
 import { useInstalledSystems } from "@/features/installed-systems/state/InstalledSystemsProvider";
@@ -34,7 +35,7 @@ import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTasksCard } from "./JobTasksCard"; import { JobDayByDay } from "./JobDayByDay";
 import { JobTimeline } from "./JobTimeline";
-import { formatJobAppointmentDisplay } from "../utils/schedulingTime";
+import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
 
 function formatDate(value: string | null | undefined) {
@@ -42,7 +43,7 @@ function formatDate(value: string | null | undefined) {
   return formatDateOnly(value);
 }
 
-function formatJobDateRange(startValue: string | null | undefined, endValue: string | null | undefined): string | null { if (!startValue || !endValue) { return null; } const start = new Date(startValue); const end = new Date(endValue); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { return null; } const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); const yearFmt = new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "UTC" }); return monthDay.format(start) + " – " + monthDay.format(end) + ", " + yearFmt.format(end); } function getStatusVariant(status: JobStatus) {
+function getStatusVariant(status: JobStatus) {
   if (status === "Completed") return "success" as const;
   if (status === "Scheduled") return "info" as const;
   if (status === "In Progress") return "warning" as const;
@@ -71,6 +72,8 @@ export function JobDetailScreen({
   onSaveNotes,
   onUpdateQaChecklist,
 }: JobDetailScreenProps) {
+  const { role } = useCurrentRole();
+  const isTech = role === "tech";
   const { getInstalledSystemsForJob } = useInstalledSystems();
   const { contractors } = useContractors();
   const [fileCount, setFileCount] = useState(0);
@@ -78,7 +81,7 @@ export function JobDetailScreen({
   const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
   // F20: prefer the real scheduled time over the legacy appointment-hour
   // field, which always falls back to 9 AM for jobs created by the new form.
-  const appointmentDisplay = formatJobAppointmentDisplay(job); const assignedTechNames = job.assignees && job.assignees.length > 0 ? job.assignees.map((assignee) => assignee.name).join(", ") : job.assignedTo || "No technician assigned"; const scheduleRangeLabel = formatJobDateRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
+  const appointmentDisplay = formatJobAppointmentDisplay(job); const assignedTechNames = job.assignees && job.assignees.length > 0 ? job.assignees.map((assignee) => assignee.name).join(", ") : job.assignedTo || "No technician assigned"; const scheduleRangeLabel = formatCompanyScheduleRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
   // F15: "Assigned To" (internal technician) and "Assigned Contractors"
   // (external subs) are stored separately and could silently disagree on this
   // screen. Render them side by side so both facts are always visible together.
@@ -113,17 +116,19 @@ export function JobDetailScreen({
           Back to Jobs
         </Button>
 
-        <PermissionGuard table="jobs" action="update">
-          <Button
-            variant="secondary"
-            className="min-h-[44px]"
-            onClick={() => {
-              window.location.href = `/jobs/${job.id}/edit`;
-            }}
-          >
-            Edit Job
-          </Button>
-        </PermissionGuard>
+        {isTech ? null : (
+          <PermissionGuard table="jobs" action="update">
+            <Button
+              variant="secondary"
+              className="min-h-[44px]"
+              onClick={() => {
+                window.location.href = `/jobs/${job.id}/edit`;
+              }}
+            >
+              Edit Job
+            </Button>
+          </PermissionGuard>
+        )}
       </div>
 
       <SurfaceCard className="overflow-hidden">
@@ -281,7 +286,7 @@ export function JobDetailScreen({
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       Customer
                     </p>
-                    {job.customerId ? (
+                    {job.customerId && !isTech ? (
                       <Link
                         href={ROUTE_BUILDERS.CUSTOMER_DETAIL(job.customerId)}
                         className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
@@ -374,7 +379,7 @@ export function JobDetailScreen({
 
           <JobTasksCard jobId={job.id} jobType={job.type} />
 
-          <AssignContractorPanel jobId={job.id} />
+          {isTech ? null : <AssignContractorPanel jobId={job.id} />}
 
           <JobInstalledSystemsPanel
               jobId={job.id}

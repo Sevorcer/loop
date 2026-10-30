@@ -11,6 +11,7 @@ import type {
   WorkloadStatus,
 } from "../types/dailyPlan";
 import type { Job } from "@/features/jobs/types/job";
+import { scheduledCompanyDate } from "@/features/jobs/utils/schedulingTime";
 
 export function formatStartTime(isoString: string): string {
   return new Date(isoString).toLocaleTimeString("en-US", {
@@ -74,7 +75,7 @@ export function getDayLabel(date: string): string {
 }
 
 export function getJobsForDate(jobs: Job[], date: string): Job[] {
-  return jobs.filter((job) => { if (!job.scheduledFor) return false; const start = job.scheduledFor.slice(0, 10); const end = job.scheduledEndAt ? job.scheduledEndAt.slice(0, 10) : start; return date >= start && date <= end; });
+  return jobs.filter((job) => { if (!job.scheduledFor) return false; const start = job.scheduledFor.slice(0, 10); const end = scheduledCompanyDate(job.scheduledEndAt) ?? start; return date >= start && date <= end; });
 }
 
 export function getUnassignedJobs(jobs: PlannedJob[]): PlannedJob[] {

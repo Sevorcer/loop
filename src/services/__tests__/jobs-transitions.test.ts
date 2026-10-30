@@ -113,13 +113,16 @@ describe("updateJobStatus — invalid transition guard", () => {
     expect(updateJobMock).not.toHaveBeenCalled();
   });
 
-  it("throws when transitioning from a terminal state (Cancelled → Scheduled)", async () => {
+  it("Cancelled → Scheduled reopens the job", async () => {
+    const updated = makeJob({ status: "Scheduled" });
     getJobByIdMock.mockResolvedValue(makeJob({ status: "Cancelled" }));
+    updateJobMock.mockResolvedValue(updated);
+    createJobActivityMock.mockResolvedValue({ id: "act-1" });
+    updateDispatchPlanStatusByJobIdMock.mockResolvedValue({ ok: true, data: [] });
 
-    await expect(updateJobStatus("job-001", "Scheduled")).rejects.toThrow(
-      /Invalid transition.*Cancelled.*Scheduled/i,
-    );
-    expect(updateJobMock).not.toHaveBeenCalled();
+    const result = await updateJobStatus("job-001", "Scheduled");
+    expect(result).toEqual(updated);
+    expect(updateJobMock).toHaveBeenCalledWith("job-001", { status: "Scheduled" });
   });
 
   it("throws when skipping a required step (Scheduled → Completed)", async () => {
@@ -160,7 +163,9 @@ describe("updateJobStatus — valid transitions", () => {
     createJobActivityMock.mockResolvedValue({ id: "act-1" });
     listActivityByJobIdMock.mockResolvedValue([]);
     updateDispatchPlanStatusByJobIdMock.mockResolvedValue({ ok: true, data: [] });
-    listFilesMock.mockResolvedValue([{ id: "file-1", mimeType: "image/jpeg" }]);
+    listFilesMock.mockResolvedValue([
+      { id: "file-1", mimeType: "image/jpeg", uploaderRole: "tech" },
+    ]);
     getInstalledSystemsSnapshotMock.mockResolvedValue({
       installedSystems: [{ jobId: "job-001", linkedWorkflowIds: [] }],
       technicalProfiles: [],
@@ -203,6 +208,15 @@ describe("updateJobStatus — valid transitions", () => {
         description: expect.stringContaining("In Progress"),
       }),
     );
+  });
+
+  it("rejects cancellation from a technician before writing", async () => {
+    getJobByIdMock.mockResolvedValue(makeJob({ status: "Scheduled" }));
+
+    await expect(
+      updateJobStatus("job-001", "Cancelled", { role: "tech" }),
+    ).rejects.toThrow(/cannot cancel/i);
+    expect(updateJobMock).not.toHaveBeenCalled();
   });
 
   it("In Progress → Completed succeeds", async () => {

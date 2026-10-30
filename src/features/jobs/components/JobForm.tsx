@@ -90,6 +90,9 @@ export type SchedulingFormFields = Pick<
 /** Convert a stored Job's scheduling fields into JobFormValues scheduling fields. */
 export function jobToFormScheduling(job: {
   scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
+  arrivalWindowStartAt?: string | null;
+  arrivalWindowEndAt?: string | null;
   scheduledFor?: string | null;
   appointmentHour?: number | null;
 }): SchedulingFormFields {
@@ -98,9 +101,9 @@ export function jobToFormScheduling(job: {
     deriveScheduledStartAt(job.scheduledFor ?? null, (job.appointmentHour ?? DEFAULT_JOB_APPOINTMENT_HOUR) as JobAppointmentHour);
   return {
     scheduledStartAt: toDatetimeLocalValue(primary),
-    scheduledEndAt: "",
-    arrivalWindowStartAt: "",
-    arrivalWindowEndAt: "",
+    scheduledEndAt: toDatetimeLocalValue(job.scheduledEndAt),
+    arrivalWindowStartAt: toDatetimeLocalValue(job.arrivalWindowStartAt),
+    arrivalWindowEndAt: toDatetimeLocalValue(job.arrivalWindowEndAt),
   };
 }
 

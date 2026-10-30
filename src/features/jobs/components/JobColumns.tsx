@@ -5,7 +5,7 @@ import { ArrowUpDown, Briefcase, Wrench } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
-import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
+import { formatCompanyScheduleRange, formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
 
 import type { Job } from "../types/job";
 
@@ -53,7 +53,11 @@ function getTypeIcon(type: Job["type"]) {
   return <Briefcase className="h-4 w-4 text-red-300" />;
 }
 
-function formatListDateRange(job: Job): string | null { const startValue = job.scheduledStartAt ?? job.scheduledFor; if (!startValue || !job.scheduledEndAt) { return null; } const start = new Date(startValue); const end = new Date(job.scheduledEndAt); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { return null; } const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); const yearFmt = new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "UTC" }); return monthDay.format(start) + " – " + monthDay.format(end) + ", " + yearFmt.format(end); } export const jobColumns: ColumnDef<Job>[] = [
+function formatListDateRange(job: Job): string | null {
+  return formatCompanyScheduleRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
+}
+
+export const jobColumns: ColumnDef<Job>[] = [
   {
     accessorKey: "jobNumber",
     meta: {

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
+import { useCurrentRole } from "@/features/auth";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 
@@ -51,10 +52,13 @@ export function JobStatusActions({
   const [success, setSuccess] = useState<string | null>(null); const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const helperText = getJobStatusIntent(status);
 
+  const { role } = useCurrentRole();
   const validNextStatuses = getValidNextStatuses(status);
-  const availableActions = STATUS_BUTTON_CONFIG.filter(({ status: s }) =>
-    validNextStatuses.includes(s),
-  );
+  const availableActions = STATUS_BUTTON_CONFIG.filter(({ status: next }) => {
+    if (!validNextStatuses.includes(next)) return false;
+    if (role === "tech" && next === "Cancelled") return false;
+    return true;
+  });
 
   function requestChange(nextStatus: JobStatus) { if (nextStatus === "Cancelled") { setCancelConfirmOpen(true); return; } void handleChange(nextStatus); } async function confirmCancel() { setCancelConfirmOpen(false); await handleChange("Cancelled"); }   async function handleChange(nextStatus: JobStatus) {
     try {
