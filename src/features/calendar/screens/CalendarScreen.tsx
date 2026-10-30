@@ -56,6 +56,15 @@ const calendarPeopleListeners = new Set<() => void>();
 let rememberedPeople: string[] | null = null;
 let rememberedGroups: CalendarQuickGroup[] | null = null;
 
+// useSyncExternalStore compares snapshots with Object.is. Parsing storage on
+// every read returned a new array and retriggered render forever (React #185).
+const EMPTY_PEOPLE: string[] = [];
+const EMPTY_GROUPS: CalendarQuickGroup[] = [];
+let cachedPeopleRaw: string | null | undefined;
+let cachedPeople: string[] = EMPTY_PEOPLE;
+let cachedGroupsRaw: string | null | undefined;
+let cachedGroups: CalendarQuickGroup[] = EMPTY_GROUPS;
+
 function subscribeCalendarPeople(listener: () => void) {
   calendarPeopleListeners.add(listener);
   return () => {
@@ -70,29 +79,41 @@ function emitCalendarPeople() {
 type StoredPeople = string[] | typeof CALENDAR_PEOPLE_PENDING;
 type StoredGroups = CalendarQuickGroup[] | typeof CALENDAR_PEOPLE_PENDING;
 
-function readStoredPeople(): StoredPeople {
+export function readStoredPeople(): StoredPeople {
   if (rememberedPeople) return rememberedPeople;
   try {
-    return parseStoredPersonIds(window.localStorage.getItem(CALENDAR_PEOPLE_STORAGE_KEY));
+    const raw = window.localStorage.getItem(CALENDAR_PEOPLE_STORAGE_KEY);
+    if (raw !== cachedPeopleRaw) {
+      cachedPeopleRaw = raw;
+      const parsed = parseStoredPersonIds(raw);
+      cachedPeople = parsed.length ? parsed : EMPTY_PEOPLE;
+    }
+    return cachedPeople;
   } catch {
-    return [];
+    return EMPTY_PEOPLE;
   }
 }
 
-function readStoredGroups(): StoredGroups {
+export function readStoredGroups(): StoredGroups {
   if (rememberedGroups) return rememberedGroups;
   try {
-    return parseStoredQuickGroups(window.localStorage.getItem(CALENDAR_PEOPLE_GROUPS_KEY));
+    const raw = window.localStorage.getItem(CALENDAR_PEOPLE_GROUPS_KEY);
+    if (raw !== cachedGroupsRaw) {
+      cachedGroupsRaw = raw;
+      const parsed = parseStoredQuickGroups(raw);
+      cachedGroups = parsed.length ? parsed : EMPTY_GROUPS;
+    }
+    return cachedGroups;
   } catch {
-    return [];
+    return EMPTY_GROUPS;
   }
 }
 
-function readPeopleServer(): StoredPeople {
+export function readPeopleServer(): StoredPeople {
   return CALENDAR_PEOPLE_PENDING;
 }
 
-function readGroupsServer(): StoredGroups {
+export function readGroupsServer(): StoredGroups {
   return CALENDAR_PEOPLE_PENDING;
 }
 
@@ -121,11 +142,11 @@ function readInitialCalendarView(): CalendarViewMode {
   return resolveCalendarView({ urlView, storedView });
 }
 
-function readCalendarViewSnapshot(): CalendarViewMode {
+export function readCalendarViewSnapshot(): CalendarViewMode {
   return rememberedCalendarView ?? readInitialCalendarView();
 }
 
-function readCalendarViewServer(): typeof CALENDAR_VIEW_PENDING {
+export function readCalendarViewServer(): typeof CALENDAR_VIEW_PENDING {
   return CALENDAR_VIEW_PENDING;
 }
 
