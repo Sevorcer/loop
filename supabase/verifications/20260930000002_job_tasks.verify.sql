@@ -21,7 +21,7 @@ DO $$ BEGIN
   ASSERT EXISTS (
     SELECT 1 FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public' AND c.relname = 'job_tasks' AND c.rowsecurity = true
+    WHERE n.nspname = 'public' AND c.relname = 'job_tasks' AND c.relrowsecurity = true
   ), 'RLS must be enabled on job_tasks';
 END; $$;
 
