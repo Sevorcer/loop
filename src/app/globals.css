@@ -643,3 +643,49 @@
     bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* Calendar print: keep every card, use dark ink, and preserve the type colors. */
+@media print {
+  .calendar-board,
+  .calendar-board * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .calendar-board {
+    overflow: visible !important;
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  .calendar-board .text-foreground,
+  .calendar-board .text-accent {
+    color: #111827 !important;
+  }
+
+  .calendar-board .text-muted {
+    color: #374151 !important;
+  }
+
+  .calendar-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+.calendar-time-off {
+  background-color: color-mix(in srgb, var(--foreground-muted) 18%, var(--surface));
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 5px,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 5px,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 10px
+  );
+  border-color: color-mix(in srgb, var(--foreground-muted) 55%, var(--border));
+}
+
+.calendar-task {
+  background: color-mix(in srgb, var(--surface-elevated) 72%, #020617);
+  border-color: color-mix(in srgb, var(--foreground-muted) 50%, var(--border));
+}

@@ -1,46 +1,103 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { CalendarRange, ListFilter } from "lucide-react";
-
-import { PageHeader } from "@/components/atlas";
-import { useJobs } from "@/features/jobs/state/JobsProvider";
-
-import { CalendarGrid } from "../components/CalendarGrid";
-import type { Job } from "@/features/jobs/types/job";
-import { StatusBadge } from "@/components/atlas";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ArrowRight, UserCircle2 } from "lucide-react";
-import {
-  formatDateShort,
-  getDayLabel,
-  getJobsForDate,
-  getTodayDate,
-} from "@/features/daily-plans/utils/planUtils";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowRight, CalendarRange, ListFilter, UserCircle2 } from "lucide-react";
 
-// ─── Day panel ────────────────────────────────────────────────────────────────
+import { PageHeader, StatusBadge } from "@/components/atlas";
+import { useCurrentRole } from "@/features/auth";
+import { useJobs } from "@/features/jobs/state/JobsProvider";
+import type { Job } from "@/features/jobs/types/job";
+import { ApiRequestError, requestJson } from "@/lib/api/client";
+import { todayInCompanyTimeZone } from "@/lib/timezone";
+import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
+
+import { CalendarEntryDialog, type CalendarEditor } from "../components/CalendarEntryDialog";
+import { CalendarGrid } from "../components/CalendarGrid";
+import {
+  canManageCalendarEntries,
+  type CalendarPerson,
+  type CalendarTaskEntry,
+  type TimeOffEntry,
+} from "../types/calendarEntries";
+import { groupCalendarBoard } from "../utils/calendarEntries";
+import {
+  CALENDAR_VIEW_STORAGE_KEY,
+  calendarJobHeading,
+  calendarJobSubtitle,
+  calendarTechLabel,
+  formatCalendarTimeRange,
+  formatLongDate,
+  formatMonthTitle,
+  formatWeekRangeLabel,
+  isCalendarJobUnassigned,
+  isJobScheduled,
+  relativeDayLabel,
+  resolveCalendarView,
+  shiftDate,
+  weekDates,
+  type CalendarViewMode,
+} from "../utils/calendarSchedule";
+
+const CALENDAR_VIEW_PENDING = "pending" as const;
+
+const calendarViewListeners = new Set<() => void>();
+let rememberedCalendarView: CalendarViewMode | null = null;
+
+function subscribeCalendarView(listener: () => void) {
+  calendarViewListeners.add(listener);
+  return () => {
+    calendarViewListeners.delete(listener);
+  };
+}
+
+function emitCalendarView() {
+  for (const listener of calendarViewListeners) listener();
+}
+
+function readInitialCalendarView(): CalendarViewMode {
+  const urlView = new URLSearchParams(window.location.search).get("view");
+  let storedView: string | null = null;
+  try {
+    storedView = window.localStorage.getItem(CALENDAR_VIEW_STORAGE_KEY);
+  } catch {
+    storedView = null;
+  }
+  return resolveCalendarView({ urlView, storedView });
+}
+
+function readCalendarViewSnapshot(): CalendarViewMode {
+  return rememberedCalendarView ?? readInitialCalendarView();
+}
+
+function readCalendarViewServer(): typeof CALENDAR_VIEW_PENDING {
+  return CALENDAR_VIEW_PENDING;
+}
 
 function DayPanel({
   selectedDate,
+  today,
   jobs,
 }: {
   selectedDate: string;
+  today: string;
   jobs: Job[];
 }) {
-  const label = getDayLabel(selectedDate);
-  const dateDisplay = formatDateShort(selectedDate);
-
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5">
+    <div
+      id="calendar-day-panel"
+      className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 print:hidden"
+    >
       <div className="mb-4 flex items-center justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-            {label}
+            {relativeDayLabel(selectedDate, today)}
           </p>
-          <p className="text-sm font-semibold text-foreground">{dateDisplay}</p>
+          <p className="text-sm font-semibold text-foreground">{formatLongDate(selectedDate)}</p>
         </div>
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">
-          {jobs.length} job{jobs.length !== 1 ? "s" : ""}
+          {jobs.length} job{jobs.length === 1 ? "" : "s"}
         </span>
       </div>
 
@@ -51,175 +108,322 @@ function DayPanel({
         </div>
       ) : (
         <ul className="space-y-3">
-          {jobs.map((job) => (
-            <li
-              key={job.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[11px] text-slate-500">{job.jobNumber}</p>
-                  <p className="mt-0.5 truncate text-sm font-medium text-foreground">
-                    {job.title}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted">
-                    {job.customerName} · {job.propertyName}
-                  </p>
+          {jobs.map((job) => {
+            const heading = calendarJobHeading(job);
+            const subtitle = calendarJobSubtitle(job);
+            return (
+              <li
+                key={job.id}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-slate-500">{job.jobNumber}</p>
+                    <p className="mt-0.5 text-[11px] text-muted">
+                      {formatCalendarTimeRange(job, selectedDate)}
+                    </p>
+                    <p className="mt-0.5 whitespace-normal break-words text-sm font-medium text-foreground">
+                      {heading}
+                    </p>
+                    {subtitle ? (
+                      <p className="mt-0.5 whitespace-normal break-words text-xs text-muted">
+                        {subtitle}
+                      </p>
+                    ) : null}
+                    <p className="mt-0.5 whitespace-normal break-words text-xs text-muted">
+                      {calendarTechLabel(job)}
+                    </p>
+                  </div>
+                  <Link
+                    href={ROUTE_BUILDERS.JOB_DETAIL(job.id)}
+                    aria-label={`Open ${job.jobNumber}`}
+                    className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
+                  >
+                    Open
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
                 </div>
-                <Link
-                  href={`/jobs/${job.id}`}
-                  aria-label={`Open ${job.jobNumber}`}
-                  className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
-                >
-                  Open
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
 
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <StatusBadge
-                  variant={
-                    job.status === "Completed"
-                      ? "success"
-                      : job.status === "Scheduled"
-                        ? "info"
-                        : job.status === "In Progress"
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <StatusBadge
+                    variant={
+                      job.status === "Completed"
+                        ? "success"
+                        : job.status === "Scheduled"
+                          ? "info"
+                          : job.status === "In Progress"
+                            ? "warning"
+                            : "neutral"
+                    }
+                  >
+                    {job.status}
+                  </StatusBadge>
+                  <StatusBadge
+                    variant={
+                      job.priority === "High"
+                        ? "danger"
+                        : job.priority === "Medium"
                           ? "warning"
                           : "neutral"
-                  }
-                >
-                  {job.status}
-                </StatusBadge>
-                <StatusBadge
-                  variant={
-                    job.priority === "High"
-                      ? "danger"
-                      : job.priority === "Medium"
-                        ? "warning"
-                        : "neutral"
-                  }
-                >
-                  {job.priority}
-                </StatusBadge>
-
-                {job.assignedTo.trim() ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300">
-                    <UserCircle2 className="h-3 w-3 text-slate-400" />
-                    {job.assignedTo}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] text-yellow-300">
-                    <UserCircle2 className="h-3 w-3" />
-                    Unassigned
-                  </span>
-                )}
-              </div>
-            </li>
-          ))}
+                    }
+                  >
+                    {job.priority}
+                  </StatusBadge>
+                  {isCalendarJobUnassigned(job) ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] text-yellow-300">
+                      <UserCircle2 className="h-3 w-3" />
+                      Unassigned
+                    </span>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export function CalendarScreen() {
+  // Technicians only receive their own jobs. The jobs API uses the signed-in
+  // session, and row security limits a tech to assigned work. This screen
+  // does not widen that list.
   const { hydrated, jobs } = useJobs();
+  const { role } = useCurrentRole();
+  const router = useRouter();
+  const pathname = usePathname();
+  const office = canManageCalendarEntries(role);
+  const [timeOff, setTimeOff] = useState<TimeOffEntry[]>([]);
+  const [tasks, setTasks] = useState<CalendarTaskEntry[]>([]);
+  const [team, setTeam] = useState<CalendarPerson[]>([]);
+  const [editor, setEditor] = useState<CalendarEditor | null>(null);
+  const [entriesNote, setEntriesNote] = useState<string | null>(null);
 
-  const today = getTodayDate();
-  const todayDate = new Date(today + "T00:00:00");
-
-  const [year, setYear] = useState(todayDate.getFullYear());
-  const [month, setMonth] = useState(todayDate.getMonth()); // 0-indexed
+  const today = todayInCompanyTimeZone();
+  const [year, setYear] = useState(() => Number(today.slice(0, 4)));
+  const [month, setMonth] = useState(() => Number(today.slice(5, 7)) - 1);
   const [selectedDate, setSelectedDate] = useState(today);
+  const viewSnapshot = useSyncExternalStore(
+    subscribeCalendarView,
+    readCalendarViewSnapshot,
+    readCalendarViewServer,
+  );
+  const viewReady = viewSnapshot !== CALENDAR_VIEW_PENDING;
+  const view: CalendarViewMode = viewReady ? viewSnapshot : "month";
 
-  // Only plot jobs with a scheduled_for date — unscheduled stay in Daily Plans.
-  const scheduledJobs = useMemo(
-    () => jobs.filter((job) => job.scheduledFor != null),
-    [jobs]
+  const itemsByDate = useMemo(
+    () => groupCalendarBoard({ jobs, timeOff, tasks }),
+    [jobs, tasks, timeOff],
+  );
+  const visibleWeek = useMemo(() => weekDates(selectedDate), [selectedDate]);
+  const dayItems = itemsByDate[selectedDate] ?? [];
+  const dayJobs = dayItems.flatMap((item) => (item.kind === "job" && item.job ? [item.job] : []));
+
+  const reloadEntries = useCallback(async () => {
+    if (!role) return;
+    try {
+      const data = await requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>(
+        "/api/calendar",
+        { role, cache: "no-store" },
+      );
+      setTimeOff(data.timeOff);
+      setTasks(data.tasks);
+      setEntriesNote(null);
+    } catch (error) {
+      if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+        setTimeOff([]);
+        setTasks([]);
+        return;
+      }
+      setEntriesNote("Time off and tasks could not be loaded. Scheduled jobs are still shown.");
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    void requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>("/api/calendar", {
+      role,
+      cache: "no-store",
+    })
+      .then((data) => {
+        if (cancelled) return;
+        setTimeOff(data.timeOff);
+        setTasks(data.tasks);
+        setEntriesNote(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+          setTimeOff([]);
+          setTasks([]);
+          return;
+        }
+        setEntriesNote("Time off and tasks could not be loaded. Scheduled jobs are still shown.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
+  useEffect(() => {
+    if (!office) return;
+    let cancelled = false;
+    void requestJson<{ team: CalendarPerson[] }>("/api/calendar/team", { role, cache: "no-store" })
+      .then((data) => {
+        if (!cancelled) setTeam(data.team);
+      })
+      .catch(() => {
+        if (!cancelled) setTeam([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [office, role]);
+  const title =
+    view === "week"
+      ? formatWeekRangeLabel(visibleWeek[0], visibleWeek[6])
+      : formatMonthTitle(year, month);
+
+  const visibleHasToday =
+    view === "week"
+      ? visibleWeek.includes(today)
+      : today.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`);
+  const showToday = !visibleHasToday || selectedDate !== today;
+  const hasUnscheduled = jobs.some((job) => !isJobScheduled(job));
+
+  const focusDate = useCallback((date: string) => {
+    setSelectedDate(date);
+    const [y, m] = date.split("-").map(Number);
+    setYear(y);
+    setMonth(m - 1);
+  }, []);
+
+  const handleViewChange = useCallback(
+    (next: CalendarViewMode) => {
+      rememberedCalendarView = next;
+      try {
+        window.localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, next);
+      } catch {
+        // Private browsing can block storage. The address bar still remembers.
+      }
+      const params = new URLSearchParams(window.location.search);
+      params.set("view", next);
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      emitCalendarView();
+      if (next === "week") {
+        const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+        if (!selectedDate.startsWith(monthPrefix)) {
+          focusDate(today.startsWith(monthPrefix) ? today : `${monthPrefix}-01`);
+        }
+      }
+      if (next === "month") {
+        const [y, m] = selectedDate.split("-").map(Number);
+        setYear(y);
+        setMonth(m - 1);
+      }
+    },
+    [focusDate, month, pathname, router, selectedDate, today, year],
   );
 
-  const dayJobs = useMemo(
-    () => getJobsForDate(jobs, selectedDate),
-    [jobs, selectedDate]
-  );
-
-  const handlePrevMonth = useCallback(() => {
-    setMonth((m) => {
-      if (m === 0) {
-        setYear((y) => y - 1);
+  const handlePrev = useCallback(() => {
+    if (view === "week") {
+      focusDate(shiftDate(selectedDate, -7));
+      return;
+    }
+    setMonth((current) => {
+      if (current === 0) {
+        setYear((value) => value - 1);
         return 11;
       }
-      return m - 1;
+      return current - 1;
     });
-  }, []);
+  }, [focusDate, selectedDate, view]);
 
-  const handleNextMonth = useCallback(() => {
-    setMonth((m) => {
-      if (m === 11) {
-        setYear((y) => y + 1);
+  const handleNext = useCallback(() => {
+    if (view === "week") {
+      focusDate(shiftDate(selectedDate, 7));
+      return;
+    }
+    setMonth((current) => {
+      if (current === 11) {
+        setYear((value) => value + 1);
         return 0;
       }
-      return m + 1;
+      return current + 1;
     });
-  }, []);
+  }, [focusDate, selectedDate, view]);
 
   const handleToday = useCallback(() => {
-    const d = new Date(getTodayDate() + "T00:00:00");
-    setYear(d.getFullYear());
-    setMonth(d.getMonth());
-    setSelectedDate(getTodayDate());
-  }, []);
-
-  const handleSelectDate = useCallback((date: string) => {
-    setSelectedDate(date);
-  }, []);
+    focusDate(todayInCompanyTimeZone());
+  }, [focusDate]);
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Calendar"
-        description="See scheduled jobs by date. Unscheduled jobs are managed in Daily Plans."
-      />
+      <div className="print:hidden">
+        <PageHeader
+          title="Calendar"
+          description="Every scheduled job, time off, and task is listed on its day. Switch between month and week."
+        />
+      </div>
 
-      {!hydrated ? (
+      {!hydrated || !viewReady ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
           Loading calendar…
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-          {/* Calendar grid */}
+        <div className="space-y-4">
           <CalendarGrid
+            view={view}
             month={month}
             year={year}
-            scheduledJobs={scheduledJobs}
+            weekDates={visibleWeek}
+            title={title}
+            itemsByDate={itemsByDate}
             selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            onPrevMonth={handlePrevMonth}
-            onNextMonth={handleNextMonth}
+            today={today}
+            showToday={showToday}
+            onSelectDate={setSelectedDate}
+            onViewChange={handleViewChange}
+            onPrev={handlePrev}
+            onNext={handleNext}
             onToday={handleToday}
+            onAdd={office ? () => setEditor({ mode: "choose", date: selectedDate }) : undefined}
+            onOpenTimeOff={(entry) => setEditor({ mode: "time_off", date: selectedDate, entry })}
+            onOpenTask={(entry) => setEditor({ mode: "task", date: selectedDate, entry })}
           />
-
-          {/* Day panel */}
-          <DayPanel selectedDate={selectedDate} jobs={dayJobs} />
+          {entriesNote ? <p className="text-sm text-muted">{entriesNote}</p> : null}
+          <DayPanel selectedDate={selectedDate} today={today} jobs={dayJobs} />
+          {editor ? (
+            <CalendarEntryDialog
+              editor={editor}
+              role={role}
+              team={team}
+              onClose={() => setEditor(null)}
+              onPickKind={(kind, date) => setEditor({ mode: kind, date })}
+              onSaved={() => {
+                setEditor(null);
+                void reloadEntries();
+              }}
+            />
+          ) : null}
         </div>
       )}
 
-      {/* Unscheduled jobs reminder */}
-      {hydrated && jobs.some((j) => j.scheduledFor == null) && (
-        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+      {hydrated && hasUnscheduled ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 print:hidden">
           <CalendarRange className="h-4 w-4 shrink-0 text-slate-500" />
           <p className="text-xs text-slate-400">
-            Jobs without a scheduled date are not plotted on the calendar. Manage
-            them from{" "}
-            <Link href="/daily-plans" className="text-blue-400 hover:underline">
+            Jobs without a scheduled date are not plotted on the calendar. Manage them from{" "}
+            <Link href={ROUTES.DAILY_PLANS} className="text-blue-400 hover:underline">
               Daily Plans → Unscheduled
             </Link>
             .
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

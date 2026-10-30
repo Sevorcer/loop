@@ -51,6 +51,8 @@ export type CoreTable =
   | "job_notes"
   | "job_signatures"
   | "job_callbacks"
+  | "time_off"
+  | "calendar_tasks"
   | "portal_users"
   | "portal_memberships"
   // Sprint 27 — platform service tables
@@ -168,6 +170,23 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
+  },
+
+  time_off: {
+    // tech: own rows only — RLS enforces the row-scope restriction
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  calendar_tasks: {
+    // tech: assigned or everyone — RLS enforces the row-scope restriction.
+    // Tech update is limited to marking done by a database trigger.
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
   },
 
   portal_users: {
