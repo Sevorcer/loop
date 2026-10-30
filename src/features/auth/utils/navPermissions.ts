@@ -45,7 +45,7 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
 
   // Field
   [ROUTES.JOBS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
-  [ROUTES.PROPERTIES]: ["owner", "manager", "dispatch", "office", "sales"],
+  [ROUTES.PROPERTIES]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
   [ROUTES.CONTRACTORS]: ["owner", "manager", "dispatch"],
   [ROUTES.CUSTOMERS]: ["owner", "manager", "dispatch", "office", "sales"],
   [ROUTES.INSTALLED_SYSTEMS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],

@@ -3,6 +3,8 @@
 import { AlertTriangle, CalendarClock, ClipboardList, Wrench } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import type { Job } from "../types/job";
+import { summarizeJobBoard } from "../utils/jobBoardStats";
 import { useJobs } from "../state/JobsProvider";
 
 function MetricCard({
@@ -37,13 +39,16 @@ function MetricCard({
   );
 }
 
-export function JobsMetrics() {
-  const { jobs } = useJobs();
-
-  const totalJobs = jobs.length;
-  const inProgressJobs = jobs.filter((job) => job.status === "In Progress").length;
-  const scheduledJobs = jobs.filter((job) => job.status === "Scheduled").length;
-  const highPriorityJobs = jobs.filter((job) => job.priority === "High").length;
+export function JobsMetrics({ initialJobs = [] }: { initialJobs?: Job[] }) {
+  const { jobs, hydrated } = useJobs();
+  // The server list is the count until the client store has loaded. A failed
+  // client refresh used to replace that list with [] and show Total Jobs 0.
+  const source = !hydrated ? initialJobs : jobs.length > 0 ? jobs : initialJobs;
+  const stats = summarizeJobBoard(source);
+  const totalJobs = stats.total;
+  const inProgressJobs = stats.inProgress;
+  const scheduledJobs = stats.scheduled;
+  const highPriorityJobs = stats.highPriority;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

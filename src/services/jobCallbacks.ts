@@ -44,15 +44,18 @@ export async function getJobCallbackContext(jobId: string): Promise<JobCallbackC
     const asReturnVisit = rows.find((row) => row.job_id === jobId) ?? null;
     const children = rows.filter((row) => row.original_job_id === jobId);
 
-    const original = asReturnVisit ? await visibleJobLink(asReturnVisit.original_job_id) : null;
-    const returnVisits = (
-      await Promise.all(
+    const [original, linkedVisits] = await Promise.all([
+      asReturnVisit ? visibleJobLink(asReturnVisit.original_job_id) : Promise.resolve(null),
+      Promise.all(
         children.map(async (row) => {
           const link = await visibleJobLink(row.job_id);
           return link ? { ...link, reason: row.reason } : null;
         }),
-      )
-    ).filter((link): link is JobCallbackLink & { reason: string } => link !== null);
+      ),
+    ]);
+    const returnVisits = linkedVisits.filter(
+      (link): link is JobCallbackLink & { reason: string } => link !== null,
+    );
 
     return {
       original,

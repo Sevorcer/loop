@@ -11,7 +11,8 @@ import {
 } from "@/lib/observability/auth";
 import { resolveSafeNextPath } from "@/lib/auth/safeNextPath";
 import { ROUTES } from "@/lib/routes";
-import { isAuthClientConfigured, signInWithPassword } from "@/services/authClient"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { isAuthClientConfigured, signInWithPassword } from "@/services/authClient";
+import { signedInUserIsTech } from "@/services/profileDirectory";
 import { Button } from "@/components/ui/button";
 
 function getEmailDomain(value: string): string {
@@ -92,19 +93,7 @@ export function SignInScreen() {
       let next = safeNext ?? ROUTES.DASHBOARD;
       if (!safeNext) {
         try {
-          const supabase = getSupabaseBrowserClient();
-          const { data: authData } = await supabase.auth.getUser();
-          const userId = authData.user?.id;
-          if (userId) {
-            const { data: profileRow } = await supabase
-              .from("user_profiles")
-              .select("app_role")
-              .eq("id", userId)
-              .maybeSingle();
-            if ((profileRow as { app_role?: string | null } | null)?.app_role === "tech") {
-              next = ROUTES.JOBS;
-            }
-          }
+          if (await signedInUserIsTech()) next = ROUTES.JOBS;
         } catch {
           /* Fall through to the default destination on any lookup failure. */
         }

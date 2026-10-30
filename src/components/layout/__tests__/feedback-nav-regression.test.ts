@@ -1,9 +1,6 @@
 /**
- * Regression tests: Feedback nav item removal from primary sidebar (PR1).
- *
- * Guards that Feedback does NOT appear as a primary nav item (moved to Settings/
- * admin area and accessible via the floating FAB). The /ops/feedback route and
- * page remain intact for direct access.
+ * Feedback Reports lives in INSIGHTS for office staff. It is not duplicated
+ * in other groups. The /ops/feedback route stays the direct destination.
  */
 import { describe, it, expect } from "vitest";
 
@@ -19,14 +16,14 @@ function getFeedbackHrefsInNav() {
 
 // ─── Feedback is NOT present in the primary sidebar (PR1 IA hardening) ────────
 
-describe("Feedback nav item — PR1 removal from primary nav", () => {
-  it("Feedback is not present in any SHELL_NAV_GROUPS item (floating FAB is the entry point)", () => {
-    expect(getFeedbackHrefsInNav()).toHaveLength(0);
+describe("Feedback Reports in the sidebar", () => {
+  it("appears once, as the INSIGHTS Feedback Reports link", () => {
+    expect(getFeedbackHrefsInNav()).toEqual([ROUTES.OPS_FEEDBACK]);
   });
 
-  it("no group is labelled INSIGHTS with a Feedback item", () => {
+  it("is the Feedback item inside INSIGHTS", () => {
     const insightsGroup = SHELL_NAV_GROUPS.find((g) => g.label === "INSIGHTS");
     const feedbackItem = insightsGroup?.items.find((i) => i.href === ROUTES.OPS_FEEDBACK);
-    expect(feedbackItem).toBeUndefined();
+    expect(feedbackItem?.name).toBe("Feedback Reports");
   });
 });

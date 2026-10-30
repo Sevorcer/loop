@@ -9,11 +9,7 @@ import { Button } from "@/components/ui/button";
 
 import type { CrewProfile } from "../types/dailyPlan";
 import type { Job } from "@/features/jobs/types/job";
-import {
-  formatDateShort,
-  getDayLabel,
-  getTodayDate,
-} from "../utils/planUtils";
+import { getDayLabel, getTodayDate } from "../utils/planUtils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

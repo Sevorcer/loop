@@ -70,17 +70,25 @@ describe("FIELD group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Jobs, Customers in that order", () => {
+  it("contains the field records in sidebar order", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.JOBS,
+      ROUTES.PROPERTIES,
       ROUTES.CUSTOMERS,
+      ROUTES.CONTRACTORS,
+      ROUTES.INSTALLED_SYSTEMS,
+      ROUTES.VEHICLE_ALERTS,
     ]);
   });
 
-  it("item names match spec", () => {
+  it("item names match the field records", () => {
     expect(group.items.map((i) => i.name)).toEqual([
       "Jobs",
+      "Properties",
       "Customers",
+      "Contractors",
+      "Installed Systems",
+      "Vehicle Alerts",
     ]);
   });
 });
@@ -111,9 +119,10 @@ describe("INSIGHTS group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains only Reporting (Feedback removed from primary nav, PR1)", () => {
+  it("contains Reporting and Feedback Reports", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.REPORTING,
+      ROUTES.OPS_FEEDBACK,
     ]);
   });
 });
