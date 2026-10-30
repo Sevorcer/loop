@@ -21,24 +21,27 @@ import type { CanonicalJobStatus } from "@/lib/jobs/status";
 export type NormalizedJobStatus = CanonicalJobStatus;
 
 // ------------------------------------------------------------------
-// Crew Workload
-// Aggregated from job.assigned_to (text field) until FK-linked
-// crew records are available (deferred to Sprint 8).
+// Workload
+// Open jobs counted per person, and again for the people on a job
+// together. Identity comes from job assignees, then the assigned_to label.
 // ------------------------------------------------------------------
 
-export interface CrewWorkloadEntry {
-  /** The raw assigned_to value as it appears in job records. */
-  technicianName: string;
-  /** Total active (non-Completed, non-Cancelled) jobs assigned. */
+export interface WorkloadEntry {
+  key: string;
+  label: string;
+  /** Total active (non-Completed, non-Cancelled) jobs. */
   assignedCount: number;
   /** Jobs with status = 'In Progress'. */
   inProgressCount: number;
   /**
    * At-risk jobs: late (scheduled_for < today) OR on-hold.
-   * Crews with atRiskCount > 0 should be visually flagged.
+   * Rows with atRiskCount > 0 should be visually flagged.
    */
   atRiskCount: number;
 }
+
+/** @deprecated Use WorkloadEntry. Kept so older imports still compile. */
+export type CrewWorkloadEntry = WorkloadEntry;
 
 // ------------------------------------------------------------------
 // KPI Values
@@ -48,7 +51,7 @@ export interface CrewWorkloadEntry {
 export interface CommandCenterKPIs {
   /** Jobs scheduled for today (status ≠ Cancelled). */
   jobsToday: number;
-  /** Distinct technicians with an In-Progress job. */
+  /** Distinct people with an In-Progress job. */
   crewsDispatched: number;
   /** Open inspection-type jobs (type=Inspection, status≠Completed/Cancelled). */
   waitingOnInspection: number;
@@ -118,6 +121,7 @@ export interface CommandCenterSnapshot {
 
   // --- Derived aggregations ---
   kpis: CommandCenterKPIs;
-  crewWorkload: CrewWorkloadEntry[];
+  personWorkload: WorkloadEntry[];
+  teamWorkload: WorkloadEntry[];
   problemJobs: ProblemJob[];
 }

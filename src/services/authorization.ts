@@ -53,6 +53,9 @@ export type CoreTable =
   | "job_callbacks"
   | "time_off"
   | "calendar_tasks"
+  | "calendar_saved_groups"
+  | "calendar_saved_group_members"
+  | "job_financials"
   | "portal_users"
   | "portal_memberships"
   // Sprint 27 — platform service tables
@@ -187,6 +190,28 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
     update: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
     delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  calendar_saved_groups: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  calendar_saved_group_members: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  // Revenue is not on the job row. Technicians, dispatch, and sales cannot read it.
+  job_financials: {
+    select: new Set<AppRole>(["owner", "manager", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
   },
 
   portal_users: {

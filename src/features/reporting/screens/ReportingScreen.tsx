@@ -10,6 +10,7 @@ import {
   PageHeader,
   SectionCard,
 } from "@/components/atlas";
+import { ProductionReportSection } from "../components/ProductionReportSection";
 import { useOperationalReports } from "../state/useOperationalReports";
 import {
   currentMonthKey,
@@ -278,10 +279,12 @@ export function ReportingScreen() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
           title="Reports"
-          description="Installs, pipeline, tech scorecards, and callback tracking — computed from job data."
+          description="Production by person and by the team that finished each job, plus installs, pipeline, scorecards, and callbacks."
         />
         <MonthPicker month={month} onChange={setMonth} />
       </div>
+
+      <ProductionReportSection />
 
       {loading ? (
         <LoadingState message="Loading reports..." />

@@ -466,6 +466,33 @@ describe("privilege escalation — denied paths", () => {
     }
   });
 
+  it("lets the office share calendar groups and keeps technicians out", () => {
+    const editors: AppRole[] = ["owner", "manager", "dispatch", "office"];
+    const actions: TableAction[] = ["select", "insert", "update", "delete"];
+    for (const role of editors) {
+      expectAllowed(role, "calendar_saved_groups", actions);
+      expectAllowed(role, "calendar_saved_group_members", ["select", "insert", "delete"]);
+      expectDenied(role, "calendar_saved_group_members", ["update"]);
+    }
+    const blocked: AppRole[] = ["tech", "sales", "portal"];
+    for (const role of blocked) {
+      expectDenied(role, "calendar_saved_groups", actions);
+      expectDenied(role, "calendar_saved_group_members", actions);
+    }
+  });
+
+  it("lets owner, manager, and office see job revenue and hides it from everyone else", () => {
+    const finance: AppRole[] = ["owner", "manager", "office"];
+    const actions: TableAction[] = ["select", "insert", "update", "delete"];
+    for (const role of finance) {
+      expectAllowed(role, "job_financials", actions);
+    }
+    const blocked: AppRole[] = ["dispatch", "tech", "sales", "portal"];
+    for (const role of blocked) {
+      expectDenied(role, "job_financials", actions);
+    }
+  });
+
   it("portal cannot access internal tables even if stacked with other role logic", () => {
     // This test verifies the portal isolation rule is structurally enforced in
     // the permission matrix and is not bypassable by combining role checks.

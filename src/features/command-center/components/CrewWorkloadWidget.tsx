@@ -1,10 +1,15 @@
+"use client";
+
+import { useState } from "react";
 import { Users } from "lucide-react";
 
 import { SectionCard, EmptyState } from "@/components/atlas";
-import type { CrewWorkloadEntry } from "../types/commandCenter";
+import type { WorkloadEntry } from "../types/commandCenter";
 
 interface CrewWorkloadWidgetProps {
-  crewWorkload: CrewWorkloadEntry[];
+  personWorkload: WorkloadEntry[];
+  teamWorkload: WorkloadEntry[];
+  initialMode?: "people" | "teams";
 }
 
 function AtRiskIndicator({ count }: { count: number }) {
@@ -17,24 +22,37 @@ function AtRiskIndicator({ count }: { count: number }) {
 }
 
 /**
- * CrewWorkloadWidget — aggregated crew load table.
- *
- * Columns: Technician | Assigned | In Progress | At Risk
- * At-risk = jobs that are late OR on hold.
- *
- * Crew identity is derived from job.assigned_to (text field) until
- * FK-linked crew records are available (Sprint 8 deferred).
+ * Workload for open jobs. People is the default. Teams groups everyone
+ * assigned to the same job.
  */
-export function CrewWorkloadWidget({ crewWorkload }: CrewWorkloadWidgetProps) {
+export function CrewWorkloadWidget({
+  personWorkload,
+  teamWorkload,
+  initialMode = "people",
+}: CrewWorkloadWidgetProps) {
+  const [mode, setMode] = useState<"people" | "teams">(initialMode);
+  const rows = mode === "people" ? personWorkload : teamWorkload;
+  const noun = mode === "people" ? "Person" : "Team";
+
   return (
     <SectionCard
-      title="Crew Workload"
-      description="Active jobs per technician. At-risk includes late and on-hold jobs."
+      title="Workload"
+      description="Open jobs by person. Teams shows the people assigned to a job together. At-risk includes late and on-hold jobs."
+      actions={
+        <div className="flex gap-2" role="group" aria-label="Workload grouping">
+          <ModeButton pressed={mode === "people"} onClick={() => setMode("people")}>
+            People
+          </ModeButton>
+          <ModeButton pressed={mode === "teams"} onClick={() => setMode("teams")}>
+            Teams
+          </ModeButton>
+        </div>
+      }
     >
-      {crewWorkload.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState
-          title="No crew data"
-          description="No technicians have assigned jobs at this time."
+          title={mode === "people" ? "No one is assigned" : "No teams"}
+          description="Open jobs with people assigned will show up here."
           icon={<Users className="h-5 w-5 text-muted-foreground" />}
           className="border-0 shadow-none"
         />
@@ -44,7 +62,7 @@ export function CrewWorkloadWidget({ crewWorkload }: CrewWorkloadWidgetProps) {
             <thead>
               <tr className="border-b border-default">
                 <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-                  Technician
+                  {noun}
                 </th>
                 <th className="py-2 px-3 text-right text-xs font-semibold uppercase tracking-[0.14em] text-muted">
                   Assigned
@@ -58,26 +76,16 @@ export function CrewWorkloadWidget({ crewWorkload }: CrewWorkloadWidgetProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-default">
-              {crewWorkload.map((entry) => (
+              {rows.map((entry) => (
                 <tr
-                  key={entry.technicianName}
-                  className={
-                    entry.atRiskCount > 0
-                      ? "bg-danger/5"
-                      : "hover:bg-surface-elevated"
-                  }
+                  key={entry.key}
+                  className={entry.atRiskCount > 0 ? "bg-danger/5" : "hover:bg-surface-elevated"}
                 >
-                  <td className="py-2.5 pr-4 font-medium text-primary">
-                    {entry.technicianName}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-muted">
-                    {entry.assignedCount}
-                  </td>
+                  <td className="py-2.5 pr-4 font-medium text-primary">{entry.label}</td>
+                  <td className="py-2.5 px-3 text-right text-muted">{entry.assignedCount}</td>
                   <td className="py-2.5 px-3 text-right">
                     {entry.inProgressCount > 0 ? (
-                      <span className="font-medium text-warning">
-                        {entry.inProgressCount}
-                      </span>
+                      <span className="font-medium text-warning">{entry.inProgressCount}</span>
                     ) : (
                       <span className="text-muted">—</span>
                     )}
@@ -92,5 +100,28 @@ export function CrewWorkloadWidget({ crewWorkload }: CrewWorkloadWidgetProps) {
         </div>
       )}
     </SectionCard>
+  );
+}
+
+function ModeButton({
+  pressed,
+  onClick,
+  children,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={`min-h-10 rounded-full border px-3 text-sm ${
+        pressed ? "border-default bg-surface-elevated text-foreground" : "border-default text-muted"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

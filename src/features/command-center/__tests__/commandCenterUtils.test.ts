@@ -9,6 +9,8 @@ import {
   isOnHold,
   buildProblemJobs,
   aggregateCrewWorkload,
+  aggregatePersonWorkload,
+  aggregateTeamWorkload,
   computeKPIs,
   KPI_DEFINITIONS,
   formatAvgHours,
@@ -229,8 +231,8 @@ describe("aggregateCrewWorkload", () => {
       makeJob({ id: "j3", assignedTo: "Bob", status: "Scheduled" }),
     ];
     const result = aggregateCrewWorkload(jobs, today);
-    const alice = result.find((e) => e.technicianName === "Alice")!;
-    const bob = result.find((e) => e.technicianName === "Bob")!;
+    const alice = result.find((entry) => entry.label === "Alice")!;
+    const bob = result.find((entry) => entry.label === "Bob")!;
 
     expect(alice.assignedCount).toBe(2);
     expect(alice.inProgressCount).toBe(1);
@@ -257,7 +259,7 @@ describe("aggregateCrewWorkload", () => {
       makeJob({ id: "j2", assignedTo: "Risky", status: "On Hold" }),
     ];
     const result = aggregateCrewWorkload(jobs, today);
-    expect(result[0].technicianName).toBe("Risky");
+    expect(result[0].label).toBe("Risky");
   });
 
   it("sort is deterministic when risk and load are tied", () => {
@@ -266,7 +268,38 @@ describe("aggregateCrewWorkload", () => {
       makeJob({ id: "j2", assignedTo: "Amy", status: "Scheduled" }),
     ];
     const result = aggregateCrewWorkload(jobs, today);
-    expect(result.map((entry) => entry.technicianName)).toEqual(["Amy", "Zed"]);
+    expect(result.map((entry) => entry.label)).toEqual(["Amy", "Zed"]);
+  });
+
+  it("counts a shared job for each person and once for the team", () => {
+    const jobs = [
+      makeJob({
+        id: "shared",
+        assignedTo: "Alex Nguyen + Brian Ramirez",
+        status: "In Progress",
+        assignees: [
+          { id: "alex", name: "Alex Nguyen" },
+          { id: "brian", name: "Brian Ramirez" },
+        ],
+      }),
+      makeJob({
+        id: "solo",
+        assignedTo: "Brian Ramirez",
+        status: "Scheduled",
+        assignees: [{ id: "brian", name: "Brian Ramirez" }],
+      }),
+    ];
+    const people = aggregatePersonWorkload(jobs, today);
+    expect(people.find((entry) => entry.label === "Brian Ramirez")?.assignedCount).toBe(2);
+    expect(people.find((entry) => entry.label === "Alex Nguyen")?.inProgressCount).toBe(1);
+    const teams = aggregateTeamWorkload(jobs, today);
+    expect(teams.map((entry) => entry.label)).toEqual(["Alex Nguyen + Brian Ramirez", "Brian Ramirez"]);
+    expect(aggregateCrewWorkload(jobs, today)).toEqual(people);
+  });
+
+  it("does not count the same job twice when it appears in two queues", () => {
+    const job = makeJob({ id: "once", assignedTo: "Alex Nguyen", status: "Scheduled" });
+    expect(aggregatePersonWorkload([job, job], today)[0]?.assignedCount).toBe(1);
   });
 });
 
@@ -292,7 +325,7 @@ describe("computeKPIs", () => {
     expect(kpis.jobsToday).toBe(2);
   });
 
-  it("counts crewsDispatched as distinct non-empty assigned_to in inProgress", () => {
+  it("counts people working as distinct people on in-progress jobs", () => {
     const snapshot = {
       today,
       scheduledToday: [],
@@ -311,6 +344,31 @@ describe("computeKPIs", () => {
     };
     const kpis = computeKPIs(snapshot);
     expect(kpis.crewsDispatched).toBe(2);
+  });
+
+  it("counts both people when one in-progress job lists them together", () => {
+    const snapshot = {
+      today,
+      scheduledToday: [],
+      inProgress: [
+        makeJob({
+          id: "j1",
+          assignedTo: "Alex Nguyen + Brian Ramirez",
+          assignees: [
+            { id: "alex", name: "Alex Nguyen" },
+            { id: "brian", name: "Brian Ramirez" },
+          ],
+        }),
+      ],
+      onHold: [],
+      inspections: [],
+      callbacks: [],
+      unassigned: [],
+      late: [],
+      completedToday: [],
+      dispatchPlans: [],
+    };
+    expect(computeKPIs(snapshot).crewsDispatched).toBe(2);
   });
 
   it("computes waitingOnPermit from blocking permit constraints", () => {

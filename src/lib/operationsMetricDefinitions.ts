@@ -43,8 +43,8 @@ export const COMMAND_CENTER_KPI_DEFINITIONS: Record<CommandCenterKPIKey, KPIView
     href: ACTIONABLE_VIEWS.scheduledToday,
   },
   crewsDispatched: {
-    label: "Crews Dispatched",
-    description: "Distinct technicians currently in progress",
+    label: "People Working",
+    description: "Distinct people with a job in progress",
     href: ACTIONABLE_VIEWS.inProgress,
   },
   waitingOnInspection: {

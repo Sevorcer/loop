@@ -57,6 +57,7 @@ const TECH_DENIED_API_PREFIXES = [
   "/api/customers",
   "/api/schedule-blocks",
   "/api/crews",
+  "/api/reports",
 ] as const;
 
 export function isTechDeniedApiPath(pathname: string): boolean {
