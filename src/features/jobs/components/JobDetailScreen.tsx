@@ -27,6 +27,7 @@ import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type { JobNote } from "../types/jobNote";
 import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCompletionChecklist";
+import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import { AssignContractorPanel } from "./AssignContractorPanel";
 import { JobNotesHistory } from "./JobNotesHistory";
@@ -82,7 +83,14 @@ export function JobDetailScreen({
   const { contractors } = useContractors();
   const [fileCount, setFileCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
-  const orderedActivity = useMemo(() => sortJobActivity(activity), [activity]);
+  const noteHistory = useMemo(
+    () => displayJobNotes(notes, job.notes),
+    [notes, job.notes],
+  );
+  const orderedActivity = useMemo(
+    () => sortJobActivity(activityWithJobNotes(activity, noteHistory)),
+    [activity, noteHistory],
+  );
   // F20: prefer the real scheduled time over the legacy appointment-hour
   // field, which always falls back to 9 AM for jobs created by the new form.
   const appointmentDisplay = formatJobAppointmentDisplay(job); const assignedTechNames = job.assignees && job.assignees.length > 0 ? job.assignees.map((assignee) => assignee.name).join(", ") : job.assignedTo || "No technician assigned"; const scheduleRangeLabel = formatCompanyScheduleRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);

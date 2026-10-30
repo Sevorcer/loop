@@ -109,7 +109,7 @@ export function JobTimeline({ activity }: { activity: JobActivity[] }) {
                       <h3 className="text-sm font-semibold text-white">
                         {item.title}
                       </h3>
-                      <p className="mt-1 break-words text-sm leading-6 text-slate-400">
+                      <p className="mt-1 whitespace-pre-line break-words text-sm leading-6 text-slate-400">
                         {item.type === "qa"
                           ? formatQaDescription(item.description)
                           : sanitizeActorText(item.description)}

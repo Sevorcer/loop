@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type { JobActivity } from "@/features/jobs/types/jobActivity";
+import type { JobNote } from "@/features/jobs/types/jobNote";
 import {
   EARLIER_NOTE_AUTHOR,
   JOB_NOTE_ACTIVITY_TITLE,
   JOB_NOTE_SAVED_TOAST,
+  activityWithJobNotes,
+  displayJobNotes,
   formatJobNoteTimestamp,
   jobNoteRoleLabel,
   legacyNoteFallback,
@@ -55,6 +59,92 @@ describe("job note history", () => {
     );
     expect(legacyNoteFallback(["Office: gate code is 1234."], "Office: gate code is 1234.")).toBe(
       null,
+    );
+  });
+
+  it("keeps the migrated column note in the history and labels it as earlier", () => {
+    const notes: JobNote[] = [
+      {
+        id: "imported",
+        jobId: "job-1018",
+        body: "Retest note 10/30",
+        authorId: "tech-1",
+        authorName: "QA Test Tech",
+        authorRole: "tech",
+        createdAt: "2026-10-30T16:14:37.884Z",
+      },
+      {
+        id: "owner",
+        jobId: "job-1018",
+        body: "Office retest note 10/30",
+        authorId: "owner-1",
+        authorName: "Collin",
+        authorRole: "owner",
+        createdAt: "2026-10-30T18:01:56.999Z",
+      },
+    ];
+
+    const shown = displayJobNotes(notes, "Retest note 10/30");
+    expect(shown.map((note) => note.body)).toEqual([
+      "Office retest note 10/30",
+      "Retest note 10/30",
+    ]);
+    expect(shown.find((note) => note.id === "imported")?.imported).toBe(true);
+    expect(shown.find((note) => note.id === "owner")?.imported).toBe(false);
+  });
+
+  it("replaces a placeholder timeline event with the imported note text", () => {
+    const activity: JobActivity[] = [
+      {
+        id: "old",
+        jobId: "job-1018",
+        type: "note",
+        title: "Notes updated",
+        description: "Job notes updated.",
+        timestamp: "2026-10-30T16:14:37.884Z",
+      },
+      {
+        id: "new",
+        jobId: "job-1018",
+        type: "note",
+        title: "Note added",
+        description: "Collin · Owner\nOffice retest note 10/30",
+        timestamp: "2026-10-30T18:01:57.353Z",
+      },
+    ];
+    const notes = displayJobNotes(
+      [
+        {
+          id: "imported",
+          jobId: "job-1018",
+          body: "Retest note 10/30",
+          authorId: null,
+          authorName: "QA Test Tech",
+          authorRole: "tech",
+          createdAt: "2026-10-30T16:14:37.884Z",
+        },
+        {
+          id: "owner",
+          jobId: "job-1018",
+          body: "Office retest note 10/30",
+          authorId: "owner-1",
+          authorName: "Collin",
+          authorRole: "owner",
+          createdAt: "2026-10-30T18:01:56.999Z",
+        },
+      ],
+      "Retest note 10/30",
+    );
+
+    const timeline = activityWithJobNotes(activity, notes);
+    expect(timeline).toHaveLength(2);
+    expect(timeline.find((item) => item.id === "old")).toMatchObject({
+      title: "Earlier note",
+      description: "Retest note 10/30",
+      timestamp: "2026-10-30T16:14:37.884Z",
+    });
+    expect(timeline.find((item) => item.id === "new")?.description).toContain(
+      "Office retest note 10/30",
     );
   });
 
