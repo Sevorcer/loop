@@ -9,8 +9,7 @@ import { RoutePermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
-import type { Customer } from "@/features/customers/types/customer";
-import type { Property } from "@/features/properties/types/property";
+import { useCustomerPropertyOptions } from "@/features/jobs/hooks/useCustomerPropertyOptions";
 import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/routes";
 
@@ -36,51 +35,26 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
-  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);const handleCreateCustomer=async(name:string)=>{const r=await requestJson<{customer:Customer}>("/api/customers",{method:"POST",body:{name},role});setCustomerOptions((p)=>[...p,r.customer]);return r.customer;};
-  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
-  const handleCreateProperty = async (name: string, customerId?: string) => {
-    const customerName = customerOptions.find((customer) => customer.id === customerId)?.name ?? "";
-    const r = await requestJson<{ property: Property }>("/api/properties", {
-      method: "POST",
-      body: {
-        name,
-        customer: customerName,
-        customerId: customerId ?? null,
-        type: "Residential",
-        status: "Active",
-      },
-      role,
-    });
-    setPropertyOptions((current) => [...current, r.property]);
-    return r.property;
-  };
-  const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
-  const [smartLoadError, setSmartLoadError] = useState<string | null>(null);
+  const {
+    customerOptions,
+    propertyOptions,
+    ready: hasLoadedOptions,
+    error: smartLoadError,
+    loadPropertiesForCustomer,
+    searchCustomers,
+    createCustomer,
+    createProperty,
+  } = useCustomerPropertyOptions(role);
 
-  // Server-side type-ahead search (debounced 300ms). The initial option lists
-  // only cover the 50 most recent records, so typed queries hit the API.
-  const customerSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const propertySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleCustomerServerSearch = (text: string) => {
-    if (customerSearchTimer.current) clearTimeout(customerSearchTimer.current);
-    const query = text.trim();
-    if (!query || !role) return;
-    customerSearchTimer.current = setTimeout(() => {
-      void requestJson<{ customers: Customer[] }>(`/api/customers?search=${encodeURIComponent(query)}`, { role })
-        .then((response) => setCustomerOptions(response.customers ?? []))
-        .catch((error) => console.error("[jobs] customer server search failed", error));
-    }, 300);
-  };
-
-  const handlePropertyServerSearch = (text: string) => {
+  const handlePropertyServerSearch = (text: string, customerId?: string) => {
     if (propertySearchTimer.current) clearTimeout(propertySearchTimer.current);
     const query = text.trim();
-    if (!query || !role) return;
+    if (!query || !role || !customerId) return;
     propertySearchTimer.current = setTimeout(() => {
-      void requestJson<{ properties: Property[] }>(`/api/properties?search=${encodeURIComponent(query)}`, { role })
-        .then((response) => setPropertyOptions(response.properties ?? []))
-        .catch((error) => console.error("[jobs] property server search failed", error));
+      void loadPropertiesForCustomer(customerId, query).catch((error) => {
+        console.error("[jobs] property server search failed", error);
+      });
     }, 300);
   };
 
@@ -97,33 +71,19 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   );
 
   useEffect(() => {
-    if (!role) {
-      return;
-    }
-    void Promise.all([
-      requestJson<{ customers: Customer[] }>("/api/customers", { role }),
-      requestJson<{ properties: Property[] }>("/api/properties", { role }),
-      requestJson<{ crews: Crew[] }>("/api/crews", { role }),
-    ])
-      .then(([customerResponse, propertyResponse, crewsResponse]) => {
-        setCustomerOptions(customerResponse.customers);
-        setPropertyOptions(propertyResponse.properties);
+    if (!role) return;
+    void requestJson<{ crews: Crew[] }>("/api/crews", { role })
+      .then((crewsResponse) => {
         setCrewTechnicians(
           (crewsResponse.crews ?? []).flatMap((crew) => [
             crew.leadInstaller,
             ...crew.members.map((member) => member.name),
           ]),
         );
-        setSmartLoadError(null);
-        setHasLoadedOptions(true);
       })
       .catch((error) => {
-        console.error("[jobs] failed to load smart creation options", error);
-        setCustomerOptions([]);
-        setPropertyOptions([]);
+        console.error("[jobs] failed to load crews", error);
         setCrewTechnicians([]);
-        setSmartLoadError("Customer and property pickers are temporarily unavailable. Reload the page and try again before saving.");
-        setHasLoadedOptions(true);
       });
   }, [role]); useEffect(() => { if (!role) { return; } let cancelled = false; void (async () => { try { const supabase = getSupabaseBrowserClient(); const { data, error } = await supabase.from("user_profiles").select("id, full_name, email").eq("app_role", "tech"); if (!cancelled && !error) { setTechnicianProfiles(((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map((profile) => ({ id: profile.id, name: (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member" })).sort((a, b) => a.name.localeCompare(b.name))); } } catch { if (!cancelled) { setTechnicianProfiles([]); } } })(); return () => { cancelled = true; }; }, [role]);
 
@@ -136,10 +96,14 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
       propertyOptions,
       initialContext,
     );
-    if (Object.keys(initialized.formPatch).length === 0) {
+    if (Object.keys(initialized.formPatch).length === 0 && !initialized.state.customerId) {
       return undefined;
     }
-    return initialized.formPatch;
+    return {
+      ...initialized.formPatch,
+      customerId: initialized.state.customerId ?? null,
+      propertyId: initialized.state.propertyId ?? null,
+    };
   }, [customerOptions, initialContext, propertyOptions]);
 
   async function handleSubmit(values: JobFormValues) {
@@ -205,8 +169,18 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         customerOptions={customerOptions}
         propertyOptions={propertyOptions}
         technicianOptions={technicianOptions} technicianProfiles={technicianProfiles}
-        onSubmit={handleSubmit} onCreateCustomer={handleCreateCustomer} onCreateProperty={handleCreateProperty}
-        onCustomerSearch={handleCustomerServerSearch} onPropertySearch={handlePropertyServerSearch}
+        onSubmit={handleSubmit}
+        onCreateCustomer={createCustomer}
+        onCreateProperty={async (input) => {
+          const customerName = customerOptions.find((customer) => customer.id === input.customerId)?.name ?? "";
+          const property = await createProperty({ ...input, customerName });
+          return property;
+        }}
+        onCustomerSearch={searchCustomers}
+        onPropertySearch={handlePropertyServerSearch}
+        onCustomerSelected={(customerId) => {
+          void loadPropertiesForCustomer(customerId);
+        }}
       />
     </div>
   );
