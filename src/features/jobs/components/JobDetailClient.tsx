@@ -20,9 +20,18 @@ interface JobDetailClientProps {
   activity: JobActivity[];
   notes: JobNote[];
   callbackContext: JobCallbackContext;
+  priceVisible?: boolean;
+  priceCents?: number | null;
 }
 
-export function JobDetailClient({ job, activity, notes, callbackContext }: JobDetailClientProps) {
+export function JobDetailClient({
+  job,
+  activity,
+  notes,
+  callbackContext,
+  priceVisible = false,
+  priceCents = null,
+}: JobDetailClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const [optimisticStatus, setOptimisticStatus] = useState<JobStatus | null>(null);
@@ -90,6 +99,8 @@ export function JobDetailClient({ job, activity, notes, callbackContext }: JobDe
       onUpdateStatus={handleUpdateStatus}
       onAddNote={handleAddNote}
       onUpdateQaChecklist={handleUpdateQaChecklist}
+      priceVisible={priceVisible}
+      priceCents={priceCents}
     />
   );
 }

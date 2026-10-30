@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { redirectTechFromOfficePath } from "@/lib/auth/requireRouteRole";
 import { EditJobPageClient } from "@/features/jobs/components/EditJobPageClient";
+import { getVisibleJobPrice } from "@/services/jobPrice";
 import { getJob } from "@/services/jobs";
 
 export default async function EditJobPage({
@@ -12,11 +13,11 @@ export default async function EditJobPage({
   const { id } = await params;
   await redirectTechFromOfficePath(`/jobs/${id}/edit`);
 
-  const job = await getJob(id);
+  const [job, price] = await Promise.all([getJob(id), getVisibleJobPrice(id)]);
 
   if (!job) {
     notFound();
   }
 
-  return <EditJobPageClient job={job} />;
+  return <EditJobPageClient job={job} priceVisible={price.visible} priceCents={price.cents} />;
 }

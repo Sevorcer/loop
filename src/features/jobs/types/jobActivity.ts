@@ -9,7 +9,8 @@ export type JobActivityType =
   | "qa"
   | "file"
   | "signature"
-  | "callback";
+  | "callback"
+  | "price";
 
 export interface JobActivity {
   id: string;

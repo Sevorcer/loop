@@ -20,6 +20,9 @@ import {
   resolveInitialSmartSelection,
 } from "@/features/jobs/utils/smartJobCreation";
 
+import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
+import { parseDollarsToCents } from "@/lib/money";
+
 import { JobForm, type JobFormValues } from "./JobForm";
 import { useJobs } from "../state/JobsProvider";
 import type { SmartSelectionState } from "../utils/smartJobCreation";
@@ -35,6 +38,8 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
+  const [priceDraft, setPriceDraft] = useState("");
+  const [priceNote, setPriceNote] = useState<string | null>(null);
   const [createdFromEstimate, setCreatedFromEstimate] = useState(false);
   const {
     customerOptions,
@@ -122,7 +127,23 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   }, [customerOptions, initialContext, propertyOptions]);
 
   async function handleSubmit(values: JobFormValues) {
+    const parsed = canSeeJobRevenue(role) ? parseDollarsToCents(priceDraft) : { ok: true as const, cents: null };
+    if (!parsed.ok) {
+      throw new Error(parsed.message);
+    }
     const job = await createJob(values);
+    if (canSeeJobRevenue(role) && parsed.cents != null) {
+      try {
+        await requestJson(`/api/jobs/${job.id}/price`, {
+          method: "PUT",
+          role,
+          body: { amount: priceDraft },
+        });
+        setPriceNote(null);
+      } catch (error) {
+        setPriceNote(error instanceof Error ? error.message : "The job was created, but the price was not saved.");
+      }
+    }
     setSubmittedJobId(job.id);
     setCreatedFromEstimate(Boolean(job.estimateId && job.equipmentBundleId));
   }
@@ -148,6 +169,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
                 profile instead of being re-entered later.
               </p>
             ) : null}
+            {priceNote ? <p className="mt-3 text-sm text-amber-200">{priceNote}</p> : null}
           </div>
 
           <div className="flex justify-center gap-3">
@@ -176,6 +198,22 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
     <div className="space-y-4">
       {smartLoadError ? (
         <SurfaceCard className="p-4 text-sm text-amber-200">{smartLoadError}</SurfaceCard>
+      ) : null}
+      {canSeeJobRevenue(role) ? (
+        <SurfaceCard className="mx-auto max-w-3xl">
+          <label className="block space-y-2 p-6 text-sm text-slate-300" htmlFor="new-job-price">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Job price</span>
+            <input
+              id="new-job-price"
+              inputMode="decimal"
+              value={priceDraft}
+              onChange={(event) => setPriceDraft(event.target.value)}
+              placeholder="0.00"
+              className="block min-h-11 w-full rounded-xl border border-white/10 bg-transparent px-3 text-sm text-white"
+            />
+            <span className="block text-xs text-slate-500">Optional. Dollars and cents. You can change it later on the job.</span>
+          </label>
+        </SurfaceCard>
       ) : null}
       <JobForm
         mode="create"

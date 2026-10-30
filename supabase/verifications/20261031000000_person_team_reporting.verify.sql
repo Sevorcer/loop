@@ -8,9 +8,9 @@ DO $$ BEGIN
   ASSERT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'job_financials'
-      AND column_name IN ('org_id', 'job_id', 'revenue_cents')
-    HAVING count(*) = 3
-  ), 'job_financials must store the org, the job, and revenue in cents';
+      AND column_name IN ('org_id', 'job_id', 'revenue_cents', 'updated_by')
+    HAVING count(*) = 4
+  ), 'job_financials must store the org, the job, revenue in cents, and who last changed it';
 
   ASSERT EXISTS (
     SELECT 1 FROM pg_constraint

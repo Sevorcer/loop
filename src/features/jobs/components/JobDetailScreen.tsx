@@ -45,7 +45,9 @@ import { JobMobileActionBar } from "./JobMobileActionBar";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
 import { JobTasksCard } from "./JobTasksCard"; import { JobDayByDay } from "./JobDayByDay";
+import { JobPriceEditor } from "./JobPriceEditor";
 import { JobTimeline } from "./JobTimeline";
+import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
 import { companyTimeZone } from "@/lib/timezone";
@@ -77,6 +79,8 @@ interface JobDetailScreenProps {
   onUpdateStatus: (status: JobStatus) => Promise<void>;
   onAddNote: (note: string) => Promise<void>;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
+  priceVisible?: boolean;
+  priceCents?: number | null;
 }
 
 export function JobDetailScreen({
@@ -87,6 +91,8 @@ export function JobDetailScreen({
   onUpdateStatus,
   onAddNote,
   onUpdateQaChecklist,
+  priceVisible = false,
+  priceCents = null,
 }: JobDetailScreenProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
@@ -246,6 +252,14 @@ export function JobDetailScreen({
         </SurfaceCard>
 
         <div className="min-w-0 space-y-6">
+          {priceVisible && canSeeJobRevenue(role) ? (
+            <JobPriceEditor
+              key={`${job.id}:${priceCents ?? "none"}`}
+              jobId={job.id}
+              status={job.status}
+              initialCents={priceCents}
+            />
+          ) : null}
           <SurfaceCard>
             <div className="p-6">
               <h2 className="text-lg font-semibold text-white">Operational Context</h2>

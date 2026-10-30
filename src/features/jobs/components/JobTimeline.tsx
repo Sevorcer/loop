@@ -5,6 +5,7 @@ import {
   FileImage,
   FilePenLine,
   FileText,
+  DollarSign,
   PenLine,
   RotateCcw,
   User,
@@ -74,6 +75,8 @@ function getActivityIcon(type: JobActivity["type"]) {
       return <PenLine className="h-4 w-4 text-emerald-300" />;
     case "callback":
       return <RotateCcw className="h-4 w-4 text-amber-300" />;
+    case "price":
+      return <DollarSign className="h-4 w-4 text-emerald-300" />;
     default:
       return <ClipboardList className="h-4 w-4 text-red-300" />;
   }

@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  DollarSign,
   FileText,
   Paperclip,
   PenLine,
@@ -31,6 +32,7 @@ const ACTIVITY_ICONS: Record<JobActivityType, LucideIcon> = {
   file: FileText,
   signature: PenLine,
   callback: RotateCcw,
+  price: DollarSign,
 };
 
 function formatRelativeTime(iso: string): string {

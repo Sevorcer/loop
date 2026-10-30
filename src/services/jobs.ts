@@ -58,6 +58,8 @@ import { syncCustomerCounters } from "@/services/customers";
 import { resolvePropertyIdByName, syncPropertyCounters } from "@/services/properties";
 import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
 import { getCurrentOperator } from "@/services/currentOperator";
+import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
+import { redactJobPriceActivity } from "@/features/jobs/utils/jobPrice";
 import { listFiles } from "@/services/storage";
 import { insertJobNote, listJobNotes } from "@/repositories/jobNotes";
 
@@ -261,9 +263,22 @@ async function listWorkspaceJobs(): Promise<Job[]> {
   return jobs;
 }
 
+async function viewerCanSeePrice(): Promise<boolean> {
+  try {
+    const operator = await getCurrentOperator();
+    return canSeeJobRevenue(operator.appRole);
+  } catch {
+    return false;
+  }
+}
+
 export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
-  const [jobs, activity] = await Promise.all([listWorkspaceJobs(), listAllJobActivity()]);
-  return { jobs, activity };
+  const [jobs, activity, canSeePrice] = await Promise.all([
+    listWorkspaceJobs(),
+    listAllJobActivity(),
+    viewerCanSeePrice(),
+  ]);
+  return { jobs, activity: redactJobPriceActivity(activity, canSeePrice) };
 }
 
 export async function listJobsForCustomer(customerId: string): Promise<Job[]> {
@@ -283,7 +298,11 @@ export async function getJob(id: string): Promise<Job | null> {
 }
 
 export async function listJobActivity(jobId: string): Promise<JobActivity[]> {
-  return listActivityByJobId(jobId);
+  const [activity, canSeePrice] = await Promise.all([
+    listActivityByJobId(jobId),
+    viewerCanSeePrice(),
+  ]);
+  return redactJobPriceActivity(activity, canSeePrice);
 }
 
 export async function createJobActivity(

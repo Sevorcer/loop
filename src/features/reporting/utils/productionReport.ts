@@ -11,6 +11,7 @@
  * amount, so adding people counts a shared job more than once.
  */
 
+import { formatCentsAsUsd } from "@/lib/money";
 import { formatTeamLabel, splitTeamNames } from "@/lib/teamLabel";
 
 export const SCHEDULED_HOURS_LABEL = "Scheduled hours";
@@ -19,7 +20,7 @@ export const SCHEDULED_HOURS_NOTE =
   "Scheduled hours are the job's scheduled start and finish. When those times are missing, the dispatch estimate is used. Clock-in and time entries are not stored.";
 
 export const REVENUE_SPLIT_NOTE =
-  "Team revenue is the full job amount, counted once. A person's equal share splits that amount evenly, and leftover cents go to names in alphabetical order. Full job revenue on a person repeats the whole amount, so adding people counts a shared job more than once. Average ticket divides the amount by the jobs that have one recorded. For a person, average ticket uses the equal share.";
+  "Team revenue is the full job amount, counted once. A person's equal share splits that amount evenly, and leftover cents go to names in alphabetical order. Full job revenue on a person repeats the whole amount, so adding people counts a shared job more than once. Average ticket divides the amount by the jobs that have one recorded. For a person, average ticket uses the equal share. Enter the price on the job. Until then, revenue shows as not recorded.";
 
 export interface ProductionPerson {
   id: string | null;
@@ -443,8 +444,7 @@ export function redactProductionReport(report: ProductionReport): ProductionRepo
 }
 
 export function formatRevenueCents(cents: number | null): string {
-  if (cents == null) return "Not recorded";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+  return formatCentsAsUsd(cents);
 }
 
 export function formatScheduledHours(hours: number | null): string {

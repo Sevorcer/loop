@@ -1,9 +1,12 @@
 -- Person and team reporting, plus shared calendar groups.
 --
--- LOOP has no invoices, line items, or job totals. job_financials is an empty
--- place to store a job's revenue in cents when that data exists. It does not
--- copy or invent amounts. Only the owner, a manager, and office staff can
--- read or write it. Technicians, dispatch, and sales are not granted a policy.
+-- LOOP has no invoices or line items. job_financials stores the price the
+-- office enters on the job, in cents. It does not copy or invent amounts.
+-- Only the owner, a manager, and office staff can read or write it.
+-- Dispatch, sales, and field technicians are not granted a policy.
+-- updated_by records the last person to change the price. The job timeline
+-- records who changed it and when. The dollar amount in that timeline row is
+-- removed before it is shown to anyone who cannot read this table.
 --
 -- Saved calendar groups are the person filters the office shares. The
 -- browser still remembers which people one user has selected. Technicians
@@ -25,6 +28,7 @@ CREATE TABLE IF NOT EXISTS public.job_financials (
   org_id         uuid NOT NULL REFERENCES public.organizations(id),
   job_id         uuid NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
   revenue_cents  bigint CHECK (revenue_cents IS NULL OR revenue_cents >= 0),
+  updated_by     uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT job_financials_job_uidx UNIQUE (job_id)
