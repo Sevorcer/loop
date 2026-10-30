@@ -25,9 +25,11 @@ import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
+import type { JobNote } from "../types/jobNote";
 import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCompletionChecklist";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import { AssignContractorPanel } from "./AssignContractorPanel";
+import { JobNotesHistory } from "./JobNotesHistory";
 import { JobCompletionChecklistCard } from "./JobCompletionChecklistCard";
 import { JobFilesPanel } from "./JobFilesPanel";
 import { JobMobileActionBar } from "./JobMobileActionBar";
@@ -60,16 +62,18 @@ function getPriorityVariant(priority: Job["priority"]) {
 interface JobDetailScreenProps {
   job: Job;
   activity: JobActivity[];
+  notes: JobNote[];
   onUpdateStatus: (status: JobStatus) => Promise<void>;
-  onSaveNotes: (notes: string) => Promise<void>;
+  onAddNote: (note: string) => Promise<void>;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
 }
 
 export function JobDetailScreen({
   job,
   activity,
+  notes,
   onUpdateStatus,
-  onSaveNotes,
+  onAddNote,
   onUpdateQaChecklist,
 }: JobDetailScreenProps) {
   const { role } = useCurrentRole();
@@ -98,7 +102,8 @@ export function JobDetailScreen({
   const qaChecklist = useMemo(() => parseLatestQaChecklist(activity), [activity]);
   const installedSystemsEntered =
     getInstalledSystemsForJob(job.id, job.propertyId ?? undefined).length > 0;
-  const jobNotesCompleted = job.notes.trim().length > 0;
+  const jobNotesCompleted =
+    notes.some((note) => note.body.trim().length > 0) || job.notes.trim().length > 0;
 
   return (
     // F14: bottom padding keeps page content clear of the sticky mobile
@@ -185,9 +190,8 @@ export function JobDetailScreen({
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="text-sm font-semibold text-white">Notes</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                {job.notes || "No notes have been captured for this job yet."}
-              </p>
+              <p className="mt-1 text-xs text-slate-500">Newest first.</p>
+              <JobNotesHistory notes={notes} legacyNotes={job.notes} />
             </div>
           </div>
         </SurfaceCard>
@@ -389,7 +393,9 @@ export function JobDetailScreen({
               propertyName={job.propertyName}
             />
 
-          <JobNoteComposer notes={job.notes} onSaveNotes={onSaveNotes} />
+          <PermissionGuard table="job_notes" action="insert">
+            <JobNoteComposer onAddNote={onAddNote} />
+          </PermissionGuard>
 
           <p className="text-center text-xs text-slate-500">
             Uploaded files:  {fileCount}

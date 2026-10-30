@@ -381,6 +381,11 @@ describe("PATCH /api/jobs/[id] action=note — contract", () => {
       "Check breaker panel.",
       expect.objectContaining({ actorId: "user-1", role: "owner" }),
     );
+    expect(requirePermissionMock).toHaveBeenCalledWith(
+      expect.any(Request),
+      "job_notes",
+      "insert",
+    );
   });
 });
 

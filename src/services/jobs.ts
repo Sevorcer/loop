@@ -19,8 +19,15 @@ import {
 } from "@/features/jobs/utils/appointmentWindow";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import { formatDateOnly } from "@/lib/dates"; import { actorDisplayName } from "@/lib/actors";
-import { addCalendarDays, companyCalendarDate, todayInCompanyTimeZone } from "@/lib/timezone";
+import { companyCalendarDate, todayInCompanyTimeZone } from "@/lib/timezone";
+import { chooseDispatchPlanToKeep } from "@/features/dispatch/utils/dispatchPlanIdentity";
 import { dispatchStatusForJob, scheduledWindowClock, scheduledWindowHours } from "@/features/dispatch/utils/jobSchedule";
+import {
+  EARLIER_NOTE_AUTHOR,
+  JOB_NOTE_ACTIVITY_TITLE,
+  jobNoteRoleLabel,
+  noteBodiesToAppend,
+} from "@/features/jobs/utils/jobNotes";
 import {
   getMaxJobNumberSuffix,
   createJob as createJobRecord,
@@ -40,6 +47,7 @@ import {
 import {
   createDispatchPlan,
   deleteDispatchPlansByJobId,
+  deleteDispatchPlansForJobExcept,
   updateDispatchPlanStatusByJobId, listDispatchPlansByJobId,
   updateDispatchPlanPlacement,
   upsertScheduleBlock,
@@ -48,7 +56,9 @@ import { getContractorById } from "@/repositories/contractors";
 import { syncCustomerCounters } from "@/services/customers";
 import { resolvePropertyIdByName, syncPropertyCounters } from "@/services/properties";
 import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
+import { getCurrentOperator } from "@/services/currentOperator";
 import { listFiles } from "@/services/storage";
+import { insertJobNote, listJobNotes } from "@/repositories/jobNotes";
 
 const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_STATUSES = new Set<JobStatus>([
@@ -170,65 +180,62 @@ function createJobNumber(suffix: number) {
 
 async function ensureDispatchPlanForJob(job: Job): Promise<void> {
   try {
-    const startDate = job.scheduledStartAt ? toIsoDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined;
-    if (!startDate) return;
-    const endDate = job.scheduledEndAt ? toIsoDateOnly(job.scheduledEndAt) : startDate;
-    const lastDate = endDate && endDate >= startDate ? endDate : startDate;
+    const targetDate = job.scheduledStartAt ? toIsoDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined;
+    if (!targetDate) return;
     const hours = scheduledWindowHours(job.scheduledStartAt, job.scheduledEndAt, 4);
     const status = dispatchStatusForJob(job.status, true);
     const clock = scheduledWindowClock(job.scheduledStartAt, job.scheduledEndAt);
     const existingPlansResult = await listDispatchPlansByJobId(job.id);
     const existingPlans = existingPlansResult.ok ? existingPlansResult.data : [];
-    const planByDate = new Map(existingPlans.map((plan) => [plan.targetDate, plan]));
-    let cursor = startDate;
-    while (cursor <= lastDate) {
-      const existing = planByDate.get(cursor);
-      let planId = existing?.id;
-      if (existing) {
-        await updateDispatchPlanPlacement(existing.id, {
-          targetDate: cursor,
-          dispatchStatus: status,
-          estimatedDurationHours: hours,
-        });
-      } else {
-        const created = await createDispatchPlan({
-          jobId: job.id,
-          jobNumber: job.jobNumber,
-          customerName: job.customerName,
-          propertyName: job.propertyName,
-          jobType: job.type,
-          dispatchStatus: status,
-          dispatchability: {
-            isDispatchable: status === "scheduled",
-            materialReadiness: { state: "not_satisfied", reason: "" },
-            technicalReadiness: { state: "not_satisfied", reason: "" },
-            customerReadiness: { state: "not_satisfied", reason: "" },
-            crewReadiness: { state: job.assignedTo ? "satisfied" : "not_satisfied", reason: "" },
-          },
-          targetDate: cursor,
-          estimatedDurationHours: hours,
-          priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal",
-          constraints: [],
-        });
-        if (created.ok) planId = created.data.id;
-      }
+    // One plan per job. A date range used to insert a plan per day, and those
+    // copies were all drawn on the company day.
+    const keeper = chooseDispatchPlanToKeep(existingPlans, targetDate);
+    let planId = keeper?.id;
+    if (keeper) {
+      await updateDispatchPlanPlacement(keeper.id, {
+        targetDate,
+        dispatchStatus: status,
+        estimatedDurationHours: hours,
+      });
+      const removed = await deleteDispatchPlansForJobExcept(job.id, keeper.id);
+      if (!removed.ok) throw new Error(removed.error.message);
+    } else {
+      const created = await createDispatchPlan({
+        jobId: job.id,
+        jobNumber: job.jobNumber,
+        customerName: job.customerName,
+        propertyName: job.propertyName,
+        jobType: job.type,
+        dispatchStatus: status,
+        dispatchability: {
+          isDispatchable: status === "scheduled",
+          materialReadiness: { state: "not_satisfied", reason: "" },
+          technicalReadiness: { state: "not_satisfied", reason: "" },
+          customerReadiness: { state: "not_satisfied", reason: "" },
+          crewReadiness: { state: job.assignedTo ? "satisfied" : "not_satisfied", reason: "" },
+        },
+        targetDate,
+        estimatedDurationHours: hours,
+        priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal",
+        constraints: [],
+      });
+      if (created.ok) planId = created.data.id;
+    }
 
-      if (planId && status !== "ready_to_schedule" && status !== "cancelled") {
-        await upsertScheduleBlock({
-          dispatchPlanId: planId,
-          jobId: job.id,
-          crewName: job.assignedTo || "Unassigned",
-          scheduledDate: cursor,
-          scheduledStartTime: clock.start,
-          scheduledEndTime: clock.end,
-          estimatedDurationHours: hours,
-          jobType: job.type,
-          customerName: job.customerName,
-          propertyName: job.propertyName,
-          dispatchStatus: status === "completed" ? "completed" : "scheduled",
-        });
-      }
-      cursor = addCalendarDays(cursor, 1);
+    if (planId && status !== "ready_to_schedule" && status !== "cancelled") {
+      await upsertScheduleBlock({
+        dispatchPlanId: planId,
+        jobId: job.id,
+        crewName: job.assignedTo || "Unassigned",
+        scheduledDate: targetDate,
+        scheduledStartTime: clock.start,
+        scheduledEndTime: clock.end,
+        estimatedDurationHours: hours,
+        jobType: job.type,
+        customerName: job.customerName,
+        propertyName: job.propertyName,
+        dispatchStatus: status === "completed" ? "completed" : "scheduled",
+      });
     }
   } catch {
     return;
@@ -324,11 +331,17 @@ export async function createJob(
 
   await syncRelatedCounters(createdJob, contextInput);
 
-  // Dispatch plan creation is handled by ensureDispatchPlanForJob below, which
-  // creates one plan per date in the job's range and skips dates that already
-  // have a plan. (An inline createDispatchPlan call used to live here and
-  // produced duplicate plans for the same job + target date.)
+  // One dispatch plan per job. Extra plans for the same job are removed.
   await ensureDispatchPlanForJob(createdJob);
+  if (createdJob.notes.trim()) {
+    try {
+      await appendJobNote(createdJob.id, createdJob.notes, {
+        actorId: contextInput?.userId,
+      });
+    } catch {
+      // jobs.notes still holds the text if the history table is not ready yet.
+    }
+  }
   return createdJob;
 }
 
@@ -340,6 +353,11 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   }
 
   const normalized = normalizeJobInput(input) as UpdateJobInput;
+  const incomingNotes = normalized.notes.trim();
+  const previousNotes = existing.notes.trim();
+  if (!incomingNotes) {
+    normalized.notes = existing.notes;
+  }
   // Keep the previous persisted values available so missing update fields
   // (including appointmentHour for legacy callers) can be validated safely.
   const previousJob = toJob(existing);
@@ -347,6 +365,9 @@ export async function updateJob(id: string, input: UpdateJobInput) {
     normalized.appointmentHour ?? previousJob.appointmentHour ?? DEFAULT_JOB_APPOINTMENT_HOUR;
   normalized.appointmentHour = appointmentHour;
   validateJobInput(normalized);
+  if (incomingNotes && incomingNotes !== previousNotes) {
+    await appendJobNote(id, incomingNotes);
+  }
   const [customerId, propertyId] = await Promise.all([
     resolveCustomerIdByName(normalized.customerName),
     resolvePropertyIdByName(normalized.propertyName),
@@ -481,35 +502,94 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
   return updatedJob;
 }
 
-export async function addJobNote(id: string, note: string, context?: JobMutationContext) {
-  const trimmedNote = note.trim();
+async function noteAuthor(context?: JobMutationContext): Promise<{ name: string; role: string }> {
+  let name = "Team";
+  let role = context?.role ?? "";
+  try {
+    const operator = await getCurrentOperator();
+    if (operator.name.trim()) name = operator.name.trim();
+    if (!role && operator.appRole) role = operator.appRole;
+  } catch {
+    // The note still saves when the profile lookup is unavailable.
+  }
+  if (context?.role) role = context.role;
+  return { name, role };
+}
 
+/**
+ * Append a note. Does not replace jobs.notes. When history is empty, the
+ * current column text is stored first so an office note is not lost.
+ */
+export async function appendJobNote(id: string, note: string, context?: JobMutationContext) {
+  const trimmedNote = note.trim();
   if (!trimmedNote) {
     throw new Error("Note is required.");
   }
 
   const existing = await getJobById(id);
-
   if (!existing) {
     return null;
   }
 
-  const nextNotes = existing.notes ? `${existing.notes}\n\n${trimmedNote}` : trimmedNote;
-  const updatedJob = await updateJobRecord(id, { notes: nextNotes });
-
-  if (!updatedJob) {
-    return null;
+  const history = await listJobNotes(id);
+  const bodies = noteBodiesToAppend({
+    existingColumn: existing.notes,
+    historyCount: history.length,
+    incoming: trimmedNote,
+  });
+  const author = await noteAuthor(context);
+  const newest = bodies[bodies.length - 1] ?? trimmedNote;
+  // Technicians can insert only as themselves. Copying the previous column
+  // into history is left to the migration (and to office/owner edits) so a
+  // tech save does not fail row-level security or claim the old note.
+  const preserved = bodies.length > 1 ? bodies[0] : null;
+  if (preserved && context?.role !== "tech") {
+    await insertJobNote({
+      jobId: id,
+      body: preserved,
+      authorId: null,
+      authorName: EARLIER_NOTE_AUTHOR,
+      authorRole: "",
+    });
   }
 
+  await insertJobNote({
+    jobId: id,
+    body: newest,
+    authorId: context?.actorId ?? null,
+    authorName: author.name,
+    authorRole: author.role,
+  });
+
+  const roleLabel = jobNoteRoleLabel(author.role);
+  const byline = [author.name, roleLabel].filter(Boolean).join(" · ");
   await createJobActivityRecord({
     jobId: id,
     actorId: context?.actorId,
     type: "note",
-    title: "Note added",
-    description: trimmedNote,
+    title: JOB_NOTE_ACTIVITY_TITLE,
+    description: byline ? `${byline}\n${newest}` : newest,
   });
 
-  return updatedJob;
+  return existing;
+}
+
+function isMissingJobNotesTable(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /job_notes/i.test(message) && /does not exist|schema cache|could not find/i.test(message);
+}
+
+export async function listJobNotesForJob(jobId: string) {
+  try {
+    return await listJobNotes(jobId);
+  } catch (error) {
+    if (isMissingJobNotesTable(error)) return [];
+    throw error;
+  }
+}
+
+export async function addJobNote(id: string, note: string, context?: JobMutationContext) {
+  return appendJobNote(id, note, context);
 }
 
 /** F19: persist a contractor assignment to jobs.contractor_ids + timeline event. */
@@ -596,30 +676,8 @@ export async function removeContractorAssignment(
   return updatedJob;
 }
 
-export async function setJobNotes(id: string, notes: string, context?: JobMutationContext) {  const trimmedNotes = notes.trim();
-  if (!trimmedNotes) {
-    throw new Error("Notes are required.");
-  }
-
-  const existing = await getJobById(id);
-  if (!existing) {
-    return null;
-  }
-
-  const updatedJob = await updateJobRecord(id, { notes: trimmedNotes });
-  if (!updatedJob) {
-    return null;
-  }
-
-  await createJobActivityRecord({
-    jobId: id,
-    actorId: context?.actorId,
-    type: "note",
-    title: "Notes updated",
-    description: "Job notes updated.",
-  });
-
-  return updatedJob;
+export async function setJobNotes(id: string, notes: string, context?: JobMutationContext) {
+  return appendJobNote(id, notes, context);
 }
 
 export async function updateRequiredQaChecklist(
@@ -671,7 +729,8 @@ export async function getJobCompletionChecklist(
   const installedSystemsEntered = snapshot.installedSystems.some(
     (system) => system.jobId === jobId || system.linkedWorkflowIds.includes(jobId),
   );
-  const jobNotesCompleted = job.notes.trim().length > 0;
+  const noteHistory = await listJobNotesForJob(jobId);
+  const jobNotesCompleted = noteHistory.length > 0 || job.notes.trim().length > 0;
   const requiredQaItemsComplete = isRequiredQaChecklistComplete(qaChecklist);
 
   return {

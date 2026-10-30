@@ -5,15 +5,14 @@ import { FileText, Save } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { JOB_NOTE_SAVED_TOAST } from "@/features/jobs/utils/jobNotes";
 
 export function JobNoteComposer({
-  notes,
-  onSaveNotes,
+  onAddNote,
 }: {
-  notes: string;
-  onSaveNotes: (notes: string) => Promise<void> | void;
+  onAddNote: (note: string) => Promise<void> | void;
 }) {
-  const [note, setNote] = useState(notes);
+  const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -22,7 +21,8 @@ export function JobNoteComposer({
     const value = note.trim();
 
     if (!value) {
-      setError("Notes are required before saving.");
+      setError("Write a note before saving.");
+      setSuccess(null);
       return;
     }
 
@@ -30,10 +30,11 @@ export function JobNoteComposer({
       setError(null);
       setSuccess(null);
       setIsSaving(true);
-      await onSaveNotes(value);
-      setSuccess("Notes saved.");
+      await onAddNote(value);
+      setNote("");
+      setSuccess(JOB_NOTE_SAVED_TOAST);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save notes.");
+      setError(saveError instanceof Error ? saveError.message : "Failed to save the note.");
     } finally {
       setIsSaving(false);
     }
@@ -50,8 +51,7 @@ export function JobNoteComposer({
           <div>
             <h2 className="text-lg font-semibold text-white">Add Note</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Capture field updates, customer communication, or internal
-              execution notes.
+              Adds a new note. Earlier notes stay on the job.
             </p>
           </div>
         </div>
@@ -59,10 +59,9 @@ export function JobNoteComposer({
         <div className="mt-5 space-y-4">
           <textarea
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(event) => setNote(event.target.value)}
             rows={4}
-            placeholder="Capture job notes, field updates, and closeout details..."
-            // F14: text-base on phones prevents iOS auto-zoom on focus.
+            placeholder="Add a field update, customer note, or closeout detail..."
             className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-base text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40 md:text-sm"
           />
 
@@ -78,7 +77,6 @@ export function JobNoteComposer({
             </p>
           ) : null}
 
-          {/* F14: full-width thumb target on phones. */}
           <div className="md:flex md:justify-end">
             <Button
               onClick={() => void handleSubmit()}
@@ -86,7 +84,7 @@ export function JobNoteComposer({
               disabled={isSaving}
             >
               <Save className="h-4 w-4" />
-              {isSaving ? "Saving..." : "Save Notes"}
+              {isSaving ? "Saving..." : "Add note"}
             </Button>
           </div>
         </div>

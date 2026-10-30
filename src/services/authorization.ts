@@ -48,6 +48,7 @@ export type CoreTable =
   | "contractors"
   | "jobs"
   | "job_activity"
+  | "job_notes"
   | "portal_users"
   | "portal_memberships"
   // Sprint 27 — platform service tables
@@ -134,9 +135,18 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
   job_activity: {
     // tech: own job rows only — RLS enforces the row-scope restriction
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
-    // append-only: tech may insert for own jobs
-    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech"]),
+    // append-only: office records note events; tech may insert for assigned jobs
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
     // no UPDATE or DELETE: log is immutable
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+
+  job_notes: {
+    // tech: assigned jobs only — RLS enforces the row-scope restriction
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    // append-only history
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
   },

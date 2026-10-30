@@ -7,6 +7,8 @@ import type {
   DispatchSnapshot,
   ScheduleBlock,
 } from "../types/dispatch";
+import { chooseDispatchPlanToKeep } from "./dispatchPlanIdentity";
+import { dispatchMetricsForPlans } from "./dispatchUtils";
 import { dispatchStatusForJob, scheduledWindowClock, scheduledWindowHours } from "./jobSchedule";
 
 export interface DispatchJobSchedule {
@@ -32,10 +34,44 @@ function showsOnCrewDay(status: DispatchPlan["dispatchStatus"]): boolean {
 }
 
 /**
+ * Several plans can exist for one job. Keep one — the plan already on the
+ * job's company day when there is one — so the board and crew schedule draw
+ * a single card for that job on that day.
+ */
+export function collapseDispatchPlansToOnePerJob(
+  plans: DispatchPlan[],
+  jobsById: Map<string, DispatchJobSchedule>,
+): DispatchPlan[] {
+  const unlinked: DispatchPlan[] = [];
+  const grouped = new Map<string, DispatchPlan[]>();
+
+  for (const plan of plans) {
+    if (!plan.jobId) {
+      unlinked.push(plan);
+      continue;
+    }
+    const group = grouped.get(plan.jobId) ?? [];
+    group.push(plan);
+    grouped.set(plan.jobId, group);
+  }
+
+  const kept: DispatchPlan[] = [];
+  for (const [jobId, group] of grouped) {
+    const companyDate = jobCompanyDate(jobsById.get(jobId) ?? { id: jobId, status: "Scheduled" });
+    const chosen = chooseDispatchPlanToKeep(group, companyDate);
+    if (chosen) kept.push(chosen);
+  }
+
+  return [...unlinked, ...kept];
+}
+
+/**
  * Make the dispatch board follow the job. Plans created as "ready_to_schedule"
  * with a hardcoded 4h estimate are rewritten in memory from the job's real
  * window, company-timezone day, and status. Schedule blocks are aligned to
  * that day so a 2:00–5:00 PM Pacific job does not also appear the next day.
+ * One plan is kept per job before that rewrite, so extra plans are not drawn
+ * on top of each other.
  */
 export function alignDispatchSnapshotWithJobs(
   snapshot: DispatchSnapshot,
@@ -47,7 +83,8 @@ export function alignDispatchSnapshotWithJobs(
     assignmentByPlan.set(assignment.dispatchPlanId, assignment);
   }
 
-  const plans = snapshot.dispatchPlans.map((plan) => {
+  const sourcePlans = collapseDispatchPlansToOnePerJob(snapshot.dispatchPlans, jobsById);
+  const plans = sourcePlans.map((plan) => {
     const job = plan.jobId ? jobsById.get(plan.jobId) : undefined;
     if (!job) return plan;
     const companyDate = jobCompanyDate(job);
@@ -109,6 +146,7 @@ export function alignDispatchSnapshotWithJobs(
     ...snapshot,
     dispatchPlans: plans,
     scheduleBlocks,
+    metrics: dispatchMetricsForPlans(plans),
   };
 }
 

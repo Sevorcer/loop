@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { JobDetailClient } from "@/features/jobs/components/JobDetailClient";
-import { getJob, listJobActivity } from "@/services/jobs";
+import { getJob, listJobActivity, listJobNotesForJob } from "@/services/jobs";
 
 export default async function JobDetailPage({
   params,
@@ -10,11 +10,15 @@ export default async function JobDetailPage({
 }) {
   const { id } = await params;
 
-  const [job, activity] = await Promise.all([getJob(id), listJobActivity(id)]);
+  const [job, activity, notes] = await Promise.all([
+    getJob(id),
+    listJobActivity(id),
+    listJobNotesForJob(id),
+  ]);
 
   if (!job) {
     notFound();
   }
 
-  return <JobDetailClient job={job} activity={activity} />;
+  return <JobDetailClient job={job} activity={activity} notes={notes} />;
 }

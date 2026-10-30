@@ -204,8 +204,14 @@ describe("office role", () => {
     expectAllowed("office", "jobs", ["select", "insert"]);
   });
 
-  it("can read job_activity", () => {
-    expectAllowed("office", "job_activity", ["select"]);
+  it("can read job_activity and record note events", () => {
+    expectAllowed("office", "job_activity", ["select", "insert"]);
+    expectDenied("office", "job_activity", ["update", "delete"]);
+  });
+
+  it("can read and add job notes, and cannot edit or delete them", () => {
+    expectAllowed("office", "job_notes", ["select", "insert"]);
+    expectDenied("office", "job_notes", ["update", "delete"]);
   });
 
   it("cannot update or delete jobs", () => {
@@ -279,6 +285,7 @@ describe("portal role — isolation from internal tables", () => {
     "contractors",
     "jobs",
     "job_activity",
+    "job_notes",
   ];
   const allActions: TableAction[] = ["select", "insert", "update", "delete"];
 
@@ -321,6 +328,7 @@ describe("privilege escalation — denied paths", () => {
       "contractors",
       "jobs",
       "job_activity",
+      "job_notes",
     ];
     for (const table of tables) {
       expect(
@@ -334,7 +342,7 @@ describe("privilege escalation — denied paths", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
       "property_documents", "property_photos",
-      "job_activity", "portal_users", "portal_memberships",
+      "job_activity", "job_notes", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
       expect(
@@ -348,7 +356,7 @@ describe("privilege escalation — denied paths", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
       "property_documents", "property_photos",
-      "job_activity", "portal_users", "portal_memberships",
+      "job_activity", "job_notes", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
       expect(
@@ -362,7 +370,7 @@ describe("privilege escalation — denied paths", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
       "property_documents", "property_photos",
-      "job_activity", "portal_users", "portal_memberships",
+      "job_activity", "job_notes", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
       expect(
@@ -376,7 +384,7 @@ describe("privilege escalation — denied paths", () => {
     const tables: CoreTable[] = [
       "customers", "properties", "contractors", "jobs",
       "property_documents", "property_photos",
-      "job_activity", "portal_users", "portal_memberships",
+      "job_activity", "job_notes", "portal_users", "portal_memberships",
     ];
     for (const table of tables) {
       expect(
@@ -404,6 +412,23 @@ describe("privilege escalation — denied paths", () => {
         `${role} must not be able to delete job_activity`
       ).toBe(false);
     }
+  });
+
+  it("lets office and field staff add job notes, and keeps the history append-only", () => {
+    const writers: AppRole[] = ["owner", "manager", "dispatch", "tech", "office"];
+    for (const role of writers) {
+      expect(hasPermission(role, "job_notes", "select")).toBe(true);
+      expect(hasPermission(role, "job_notes", "insert")).toBe(true);
+    }
+    expect(hasPermission("sales", "job_notes", "select")).toBe(true);
+    expect(hasPermission("sales", "job_notes", "insert")).toBe(false);
+    const roles: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"];
+    for (const role of roles) {
+      expect(hasPermission(role, "job_notes", "update")).toBe(false);
+      expect(hasPermission(role, "job_notes", "delete")).toBe(false);
+    }
+    expect(hasPermission("portal", "job_notes", "select")).toBe(false);
+    expect(hasPermission("portal", "job_notes", "insert")).toBe(false);
   });
 
   it("portal cannot access internal tables even if stacked with other role logic", () => {
