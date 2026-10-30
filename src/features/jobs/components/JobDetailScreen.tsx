@@ -141,9 +141,9 @@ export function JobDetailScreen({
     notes.some((note) => note.body.trim().length > 0) || job.notes.trim().length > 0;
 
   return (
-    // F14: bottom padding keeps page content clear of the sticky mobile
-    // action bar (md+ only shows the bar on small screens).
-    <div className="space-y-6 pb-28 md:pb-0">
+    // Bar content is about 4.75rem, plus the home-indicator inset.
+    // Pad past both so the last block can scroll clear of Mark Complete.
+    <div className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0">
       <div className="flex items-center justify-between gap-4">
         <Button
           variant="ghost"

@@ -183,7 +183,7 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Floating Actions Stack — vertical column, bottom-right corner.
           Lifts above any sticky mobile action bar via the body flag. */}
       <div
-        className="floating-actions-stack fixed bottom-6 right-6 z-40 flex flex-col-reverse items-end gap-3 print:hidden lg:bottom-8 lg:right-8"
+        className="floating-actions-stack fixed bottom-6 right-6 z-40 flex w-12 flex-col-reverse items-end gap-3 print:hidden lg:bottom-8 lg:right-8"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Report Feedback */}
@@ -233,8 +233,9 @@ export default function AppShell({ children }: AppShellProps) {
       <div
         className={[
           "safe-area-drawer fixed inset-y-0 left-0 z-[70] w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 print:hidden lg:hidden",
-          isMobileNavOpen ? "translate-x-0" : "-translate-x-full",
+          isMobileNavOpen ? "translate-x-0" : "pointer-events-none -translate-x-full",
         ].join(" ")}
+        inert={isMobileNavOpen ? undefined : true}
       >
         <Sidebar
           id="mobile-navigation"

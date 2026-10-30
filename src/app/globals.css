@@ -257,10 +257,17 @@
     }
   }
 
-  /* Keep the last controls clear of the phone floating actions. */
+  /* Keep the last controls clear of the phone floating actions.
+     The stack sits 1.5rem up, then two 3rem buttons and a 0.75rem gap,
+     and its own safe-area padding. Add that inset instead of taking the
+     max, or the buttons still cover the last field on a notched phone. */
   @media (max-width: 639px) {
     .safe-area-content {
-      padding-bottom: max(9rem, env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(12rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    html {
+      scroll-padding-bottom: calc(12rem + env(safe-area-inset-bottom, 0px));
     }
   }
 }
@@ -648,6 +655,10 @@
 @media (max-width: 767px) {
   body[data-mobile-action-bar="1"] .floating-actions-stack {
     bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  body[data-mobile-action-bar="1"] {
+    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

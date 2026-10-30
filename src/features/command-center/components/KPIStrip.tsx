@@ -58,14 +58,14 @@ export function KPIStrip({ kpis }: KPIStripProps) {
             key={def.key}
             href={def.href}
             className={[
-              "group flex flex-col justify-between gap-1 bg-surface px-4 py-4 transition-colors hover:bg-surface-elevated",
+              "group flex min-w-0 flex-col justify-between gap-1 bg-surface px-4 py-4 transition-colors hover:bg-surface-elevated",
               isFirst ? "rounded-tl-xl rounded-bl-xl" : "",
               isLast ? "rounded-tr-xl rounded-br-xl" : "",
             ]
               .join(" ")
               .trim()}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted max-lg:break-words">
               {def.label}
               {def.helpText ? (
                 <span

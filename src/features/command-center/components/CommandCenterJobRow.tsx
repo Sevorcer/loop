@@ -35,7 +35,7 @@ export function CommandCenterJobRow({ job, badges }: CommandCenterJobRowProps) {
   return (
     <Link
       href={ROUTE_BUILDERS.JOB_DETAIL(job.id)}
-      className="group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-elevated"
+      className="group flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-elevated sm:flex-nowrap"
     >
       {/* Priority indicator */}
       <span
@@ -51,8 +51,9 @@ export function CommandCenterJobRow({ job, badges }: CommandCenterJobRowProps) {
         {job.jobNumber}
       </span>
 
-      {/* Title + customer */}
-      <div className="min-w-0 flex-1">
+      {/* Title + customer. On a phone the title takes the row so the
+          status chip wraps below the card edge instead of being clipped. */}
+      <div className="min-w-0 flex-1 basis-full sm:basis-auto">
         <p className="truncate text-sm font-medium text-primary group-hover:text-white">
           {job.title}
         </p>
@@ -60,8 +61,10 @@ export function CommandCenterJobRow({ job, badges }: CommandCenterJobRowProps) {
       </div>
 
       {/* Status + extra badges */}
-      <div className="flex shrink-0 items-center gap-1.5">
-        <StatusBadge variant={statusVariant}>{job.status}</StatusBadge>
+      <div className="flex max-w-full flex-wrap items-center gap-1.5">
+        <StatusBadge variant={statusVariant} className="max-w-full whitespace-normal">
+          {job.status}
+        </StatusBadge>
         {badges}
       </div>
 

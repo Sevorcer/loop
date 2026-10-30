@@ -8,6 +8,7 @@ import { DataTable, ErrorState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
 import { useAuth, useCurrentRole } from "@/features/auth";
 import { isOpenStatus, normalizeJobStatus } from "@/lib/jobs/status";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { lookupProfileName } from "@/services/profileDirectory";
@@ -309,7 +310,8 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
       <DataTable
         columns={jobColumns}
         data={filteredJobs}
-        onRowClick={(job) => router.push(`/jobs/${job.id}`)}
+        getRowHref={(job) => ROUTE_BUILDERS.JOB_DETAIL(job.id)}
+        onRowClick={(job) => router.push(ROUTE_BUILDERS.JOB_DETAIL(job.id))}
       />
     </div>
   );

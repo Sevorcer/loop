@@ -116,6 +116,7 @@ export function CalendarGrid({
               </button>
             ))}
           </div>
+          <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
           {showToday ? (
             <Button
               variant="ghost"
@@ -131,7 +132,7 @@ export function CalendarGrid({
             size="icon"
             onClick={onPrev}
             aria-label={`Previous ${periodLabel}`}
-            className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white max-md:h-11 max-md:w-11"
+            className="h-8 w-8 shrink-0 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white max-md:h-11 max-md:w-11"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -140,10 +141,11 @@ export function CalendarGrid({
             size="icon"
             onClick={onNext}
             aria-label={`Next ${periodLabel}`}
-            className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white max-md:h-11 max-md:w-11"
+            className="h-8 w-8 shrink-0 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white max-md:h-11 max-md:w-11"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
+          </div>
         </div>
       </div>
 

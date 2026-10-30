@@ -122,8 +122,8 @@ export function ProductionReportSection() {
           </button>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="space-y-1 text-xs text-muted">
+        <div className="flex min-w-0 flex-wrap items-end gap-3">
+          <label className="min-w-0 flex-1 space-y-1 text-xs text-muted sm:flex-none">
             From
             <input
               type="date"
@@ -132,10 +132,10 @@ export function ProductionReportSection() {
                 setPreset("custom");
                 if (event.target.value) setFrom(event.target.value);
               }}
-              className="block min-h-10 rounded-xl border border-default bg-transparent px-3 text-sm text-foreground"
+              className="block min-h-10 w-full min-w-0 max-w-full rounded-xl border border-default bg-transparent px-3 text-sm text-foreground sm:w-auto"
             />
           </label>
-          <label className="space-y-1 text-xs text-muted">
+          <label className="min-w-0 flex-1 space-y-1 text-xs text-muted sm:flex-none">
             To
             <input
               type="date"
@@ -144,7 +144,7 @@ export function ProductionReportSection() {
                 setPreset("custom");
                 if (event.target.value) setTo(event.target.value);
               }}
-              className="block min-h-10 rounded-xl border border-default bg-transparent px-3 text-sm text-foreground"
+              className="block min-h-10 w-full min-w-0 max-w-full rounded-xl border border-default bg-transparent px-3 text-sm text-foreground sm:w-auto"
             />
           </label>
         </div>
@@ -176,7 +176,7 @@ export function ProductionReportView({
 }) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
         <KPICard title="Jobs" value={report.totals.jobs} />
         {showRevenue ? (
           <KPICard title="Revenue" value={formatRevenueCents(report.totals.revenueCents)} />
