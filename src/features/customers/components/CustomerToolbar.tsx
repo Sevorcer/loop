@@ -47,7 +47,7 @@ export function CustomerToolbar({
         <select
           value={statusFilter}
           onChange={(event) => onStatusChange(event.target.value)}
-          className="h-11 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+          className="h-11 w-full min-w-0 max-w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary sm:w-auto"
         >
           {statusOptions.map((status) => (
             <option key={status} value={status}>
@@ -59,7 +59,7 @@ export function CustomerToolbar({
         <select
           value={cityFilter}
           onChange={(event) => onCityChange(event.target.value)}
-          className="h-11 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary"
+          className="h-11 w-full min-w-0 max-w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary sm:w-auto"
         >
           <option value="all">All cities</option>
 

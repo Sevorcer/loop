@@ -128,8 +128,14 @@ export function DateTimePicker({
 
   const label = ariaLabel ?? "Date and time";
 
+  const timeClass = `${controlClass(invalid)} min-h-11 w-full min-w-0 max-w-full bg-slate-950 sm:min-h-0 sm:w-auto`;
+
   return (
-    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2" role="group" aria-label={label}>
+    <div
+      className="flex min-w-0 flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center"
+      role="group"
+      aria-label={label}
+    >
       <input
         id={id}
         type="date"
@@ -138,50 +144,52 @@ export function DateTimePicker({
         onChange={(e) => handlePartChange("date", e.target.value)}
         required={required}
         disabled={disabled}
-        className={`${controlClass(invalid)} w-full min-w-0 bg-slate-950`}
+        className={`${controlClass(invalid)} min-h-11 w-full min-w-0 max-w-full bg-slate-950 sm:min-h-0`}
       />
-      <select
-        aria-label={`${label} — hour`}
-        value={parts.hour12}
-        onChange={(e) => handlePartChange("hour12", e.target.value)}
-        required={required}
-        disabled={disabled}
-        className={`${controlClass(invalid)} bg-slate-950`}
-      >
-        <option value="" disabled>Hr</option>
-        {HOUR_OPTIONS.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label={`${label} — minute`}
-        value={parts.minute}
-        onChange={(e) => handlePartChange("minute", e.target.value)}
-        required={required}
-        disabled={disabled}
-        className={`${controlClass(invalid)} bg-slate-950`}
-      >
-        <option value="" disabled>Min</option>
-        {minuteOptions.map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label={`${label} — AM or PM`}
-        value={parts.period}
-        onChange={(e) => handlePartChange("period", e.target.value)}
-        required={required}
-        disabled={disabled}
-        className={`${controlClass(invalid)} bg-slate-950 font-medium`}
-      >
-        <option value="" disabled>—</option>
-        <option value="AM">AM</option>
-        <option value="PM">PM</option>
-      </select>
+      <div className="grid min-w-0 grid-cols-3 gap-2 sm:contents">
+        <select
+          aria-label={`${label} — hour`}
+          value={parts.hour12}
+          onChange={(e) => handlePartChange("hour12", e.target.value)}
+          required={required}
+          disabled={disabled}
+          className={timeClass}
+        >
+          <option value="" disabled>Hr</option>
+          {HOUR_OPTIONS.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={`${label} — minute`}
+          value={parts.minute}
+          onChange={(e) => handlePartChange("minute", e.target.value)}
+          required={required}
+          disabled={disabled}
+          className={timeClass}
+        >
+          <option value="" disabled>Min</option>
+          {minuteOptions.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={`${label} — AM or PM`}
+          value={parts.period}
+          onChange={(e) => handlePartChange("period", e.target.value)}
+          required={required}
+          disabled={disabled}
+          className={`${timeClass} font-medium`}
+        >
+          <option value="" disabled>—</option>
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
     </div>
   );
 }

@@ -47,7 +47,7 @@ function ActionMenu({
         type="button"
         aria-label="User actions"
         onClick={() => setOpen((o) => !o)}
-        className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 md:min-h-0 md:min-w-0"
       >
         <MoreHorizontal size={16} />
       </button>
@@ -64,7 +64,7 @@ function ActionMenu({
             <button
               type="button"
               onClick={() => { setOpen(false); onEdit(); }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5"
+              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 md:min-h-0"
             >
               <Pencil size={13} className="text-slate-500" />
               Edit
@@ -72,7 +72,7 @@ function ActionMenu({
             <button
               type="button"
               onClick={() => { setOpen(false); onResetPassword(); }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5"
+              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 md:min-h-0"
             >
               <Mail size={13} className="text-slate-500" />
               Send Password Reset
@@ -82,7 +82,7 @@ function ActionMenu({
               type="button"
               onClick={() => { setOpen(false); onToggleStatus(); }}
               className={[
-                "flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-white/5",
+                "flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-white/5 md:min-h-0",
                 user.status === "active" ? "text-amber-400" : "text-emerald-400",
               ].join(" ")}
             >
@@ -264,7 +264,45 @@ export function UsersScreen() {
               }
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="space-y-3 md:hidden">
+              {users.map((user) => (
+                <div
+                  key={user.id}
+                  className="min-w-0 rounded-2xl border border-slate-800 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium text-slate-200">
+                        {user.fullName ?? <span className="text-slate-500">No name</span>}
+                      </p>
+                      <p className="break-all text-xs text-slate-500">{user.email || "—"}</p>
+                    </div>
+                    <ActionMenu
+                      user={user}
+                      onEdit={() => setEditingUser(user)}
+                      onToggleStatus={() => handleToggleStatus(user)}
+                      onResetPassword={() => handleResetPassword(user)}
+                    />
+                  </div>
+                  <dl className="mt-3 space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">Role</dt>
+                      <dd className="text-slate-300">{ROLE_LABELS[user.role]}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">Status</dt>
+                      <dd><UserStatusBadge status={user.status} /></dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">Last login</dt>
+                      <dd className="text-slate-500">{formatLastLogin(user.lastSignInAt)}</dd>
+                    </div>
+                  </dl>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[600px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-800">
@@ -334,6 +372,7 @@ export function UsersScreen() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </SectionCard>
       </div>

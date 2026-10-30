@@ -42,7 +42,7 @@ function RoleTab({
       type="button"
       onClick={onClick}
       className={[
-        "whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+        "min-h-11 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors md:min-h-0",
         isSelected
           ? "bg-blue-600 text-white"
           : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
@@ -126,7 +126,7 @@ export function RolesScreen() {
         description={`Detailed access rights for the ${ROLE_LABELS[selectedRole].toLowerCase()} role.`}
       >
         {/* Role tabs for quick switching within the detail card */}
-        <div className="mb-5 flex gap-1 overflow-x-auto pb-1">
+        <div className="mb-5 flex flex-wrap gap-1 pb-1">
           {OPERATIONAL_ROLES.map((role) => (
             <RoleTab
               key={role}
@@ -138,8 +138,8 @@ export function RolesScreen() {
         </div>
 
         {/* Permission matrix */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] table-fixed text-sm">
+        <div className="min-w-0">
+          <table className="w-full table-fixed text-sm md:min-w-[480px]">
             <thead>
               <tr className="border-b border-slate-800">
                 <th className="w-[46%] py-2 text-left text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">
@@ -158,7 +158,7 @@ export function RolesScreen() {
             <tbody>
               {rows.map(({ table, tableLabel, permissions }) => (
                 <tr key={table} className="border-b border-slate-800/50 last:border-0">
-                  <td className="py-2.5 text-[13px] font-medium text-slate-300">
+                  <td className="break-words py-2.5 text-[13px] font-medium text-slate-300">
                     {tableLabel}
                   </td>
                   {ALL_ACTIONS.map((action) => (

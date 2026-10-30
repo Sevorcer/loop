@@ -169,7 +169,7 @@ function DayPanel({
   return (
     <div
       id="calendar-day-panel"
-      className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 print:hidden"
+      className="hidden rounded-3xl border border-white/10 bg-white/[0.02] p-5 md:block print:hidden"
     >
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="min-w-0">
@@ -622,7 +622,7 @@ export function CalendarScreen() {
   }, [focusDate]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="print:hidden">
         <PageHeader
           title="Calendar"

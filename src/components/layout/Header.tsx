@@ -299,7 +299,7 @@ export default function Header({
           aria-expanded={isMobileNavOpen}
           aria-controls="mobile-navigation"
           onClick={onMenuToggle}
-          className="h-9 w-9 shrink-0 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+          className="h-11 w-11 shrink-0 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
         >
           <Menu size={17} />
         </Button>
@@ -308,7 +308,7 @@ export default function Header({
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <Link
               href={pageMeta.parent?.href ?? ROUTES.DASHBOARD}
-              className="flex shrink-0 items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-xs text-slate-500 transition-colors hover:text-slate-300"
               aria-label={pageMeta.parent ? `Back to ${pageMeta.parent.title}` : "Back to Dashboard"}
             >
               <ArrowLeft className="h-3 w-3" />
@@ -331,7 +331,7 @@ export default function Header({
             size="icon"
             aria-label="Open command bar (Cmd/Ctrl+K)"
             onClick={onOpenCommandBar}
-            className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+            className="h-11 w-11 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
           >
             <Search size={16} />
           </Button>
@@ -340,7 +340,7 @@ export default function Header({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+              className="h-11 w-11 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
             >
               <Bell size={16} />
             </Button>
@@ -350,7 +350,7 @@ export default function Header({
             <Button
               variant="secondary"
               size="icon"
-              className="h-9 w-9"
+              className="h-11 w-11"
             >
               <User size={16} />
             </Button>

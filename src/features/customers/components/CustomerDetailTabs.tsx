@@ -222,20 +222,20 @@ export function CustomerDetailTabs({
 
       <Card>
         <CardContent className="space-y-4 p-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-medium">Property Lens</p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <PermissionGuard table="properties" action="insert">
-                <Link href={addPropertyHref}>
-                  <Button variant="outline" size="sm" className="min-h-[44px] gap-2">
+                <Link href={addPropertyHref} className="sm:w-auto">
+                  <Button variant="outline" size="sm" className="min-h-[44px] w-full gap-2 sm:w-auto">
                     <Building2 className="h-4 w-4" />
                     Add Property
                   </Button>
                 </Link>
               </PermissionGuard>
               <PermissionGuard table="jobs" action="insert">
-                <Link href={openJobHref}>
-                  <Button size="sm" className="min-h-[44px] gap-2">
+                <Link href={openJobHref} className="sm:w-auto">
+                  <Button size="sm" className="min-h-[44px] w-full gap-2 sm:w-auto">
                     <CalendarClock className="h-4 w-4" />
                     Create Job
                   </Button>

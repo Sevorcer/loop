@@ -57,8 +57,8 @@ export function CrewWorkloadWidget({
           className="border-0 shadow-none"
         />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="min-w-0">
+          <table className="w-full table-fixed text-sm md:table-auto">
             <thead>
               <tr className="border-b border-default">
                 <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-muted">
@@ -81,7 +81,7 @@ export function CrewWorkloadWidget({
                   key={entry.key}
                   className={entry.atRiskCount > 0 ? "bg-danger/5" : "hover:bg-surface-elevated"}
                 >
-                  <td className="py-2.5 pr-4 font-medium text-primary">{entry.label}</td>
+                  <td className="break-words py-2.5 pr-4 font-medium text-primary">{entry.label}</td>
                   <td className="py-2.5 px-3 text-right text-muted">{entry.assignedCount}</td>
                   <td className="py-2.5 px-3 text-right">
                     {entry.inProgressCount > 0 ? (
@@ -117,7 +117,7 @@ function ModeButton({
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`min-h-10 rounded-full border px-3 text-sm ${
+      className={`min-h-11 rounded-full border px-3 text-sm md:min-h-10 ${
         pressed ? "border-default bg-surface-elevated text-foreground" : "border-default text-muted"
       }`}
     >
