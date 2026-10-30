@@ -1,14 +1,17 @@
+import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { JobNote } from "@/features/jobs/types/jobNote";
 import { displayJobNotes, jobNoteByline } from "@/features/jobs/utils/jobNotes";
 
 export function JobNotesHistory({
   notes,
   legacyNotes,
+  activity,
 }: {
   notes?: JobNote[] | null;
   legacyNotes?: string;
+  activity?: JobActivity[] | null;
 }) {
-  const history = displayJobNotes(notes, legacyNotes ?? "");
+  const history = displayJobNotes(notes, legacyNotes ?? "", activity);
 
   if (history.length === 0) {
     return (

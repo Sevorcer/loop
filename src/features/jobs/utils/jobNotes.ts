@@ -39,7 +39,7 @@ export function sortJobNotesNewestFirst<T extends { createdAt: string; id: strin
   notes: T[],
 ): T[] {
   return [...notes].sort((left, right) => {
-    const delta = new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    const delta = parseInstant(right.createdAt) - parseInstant(left.createdAt);
     if (delta !== 0 && !Number.isNaN(delta)) return delta;
     return right.id.localeCompare(left.id);
   });
@@ -74,28 +74,121 @@ export interface DisplayJobNote extends JobNote {
 }
 
 const PLACEHOLDER_NOTE_DESCRIPTIONS = new Set(["Job notes updated.", "Notes updated."]);
+const LEGACY_PLACEHOLDER_TITLE = "Notes updated";
+/** Old saves within this window of a copied note are the same edit. */
+const LEGACY_NOTE_MATCH_WINDOW_MS = 5000;
+
+/**
+ * Timeline copy when a legacy "Notes updated" event has no surviving note.
+ * The text was overwritten before history existed and cannot be recovered.
+ */
+export const LEGACY_NOTE_UNSAVED_TEXT = "Notes edited (earlier text not saved)";
+
+/**
+ * Parse a timestamptz from Postgres or PostgREST.
+ * Values with more than 3 fractional digits, or a short "+00" offset, are
+ * invalid in some engines. Normalize those before giving up.
+ */
+function parseInstant(value: string): number {
+  if (!value) return Number.NaN;
+  const direct = new Date(value).getTime();
+  if (!Number.isNaN(direct)) return direct;
+  const normalized = value
+    .trim()
+    .replace(/^(\d{4}-\d{2}-\d{2})[ T]/, "$1T")
+    .replace(/(\.\d{3})\d+/, "$1")
+    .replace(/([+-]\d{2})(\d{2})$/, "$1:$2")
+    .replace(/\+00$/, "Z");
+  return new Date(normalized).getTime();
+}
+
+function sameJob(leftId: string, rightId: string): boolean {
+  if (!leftId || !rightId) return true;
+  return leftId === rightId;
+}
+
+function isLegacyPlaceholder(item: JobActivity): boolean {
+  if (item.type !== "note") return false;
+  const description = item.description.trim();
+  return (
+    item.title.trim() === LEGACY_PLACEHOLDER_TITLE ||
+    PLACEHOLDER_NOTE_DESCRIPTIONS.has(description)
+  );
+}
+
+/**
+ * The backfill copied jobs.notes and set created_at to the latest note
+ * activity's timestamp (exact match, not "a few seconds later"). New saves
+ * insert the note first and write activity just after, so they do not line
+ * up with a "Notes updated" placeholder.
+ */
+function legacyPlaceholderMatches(activity: JobActivity[] | null | undefined, notes: JobNote[]): Map<string, JobNote> {
+  const pairs: { activityId: string; note: JobNote; delta: number }[] = [];
+  for (const item of activity ?? []) {
+    if (!isLegacyPlaceholder(item)) continue;
+    const itemTime = parseInstant(item.timestamp);
+    if (Number.isNaN(itemTime)) continue;
+    for (const note of notes) {
+      if (!note.body.trim() || !sameJob(note.jobId, item.jobId)) continue;
+      const noteTime = parseInstant(note.createdAt);
+      if (Number.isNaN(noteTime)) continue;
+      const delta = Math.abs(itemTime - noteTime);
+      if (delta < LEGACY_NOTE_MATCH_WINDOW_MS) {
+        pairs.push({ activityId: item.id, note, delta });
+      }
+    }
+  }
+
+  pairs.sort((left, right) => left.delta - right.delta || left.note.id.localeCompare(right.note.id));
+  const usedActivity = new Set<string>();
+  const usedNotes = new Set<string>();
+  const matches = new Map<string, JobNote>();
+  for (const pair of pairs) {
+    if (usedActivity.has(pair.activityId) || usedNotes.has(pair.note.id)) continue;
+    usedActivity.add(pair.activityId);
+    usedNotes.add(pair.note.id);
+    matches.set(pair.activityId, pair.note);
+  }
+  return matches;
+}
+
+function compareOldest(left: { createdAt: string; id: string }, right: { createdAt: string; id: string }): number {
+  const delta = parseInstant(left.createdAt) - parseInstant(right.createdAt);
+  if (delta !== 0 && !Number.isNaN(delta)) return delta;
+  return left.id.localeCompare(right.id);
+}
 
 /**
  * History for the job page, newest first.
- * The row copied from jobs.notes is the oldest entry whose text still matches
- * that column. It stays in the list and is marked imported so the card can
- * label it as an earlier note instead of dropping it.
+ * A row is an earlier note when the migration named it "Earlier note", or
+ * when its time matches a legacy "Notes updated" placeholder. Matching the
+ * current jobs.notes text is only a fallback: a later edit can overwrite
+ * that column, and the migration stored the last editor's real name.
  * If the column text is not in history yet, it is added as an earlier note.
  */
-export function displayJobNotes(notes: JobNote[] | null | undefined, column: string): DisplayJobNote[] {
+export function displayJobNotes(
+  notes: JobNote[] | null | undefined,
+  column: string,
+  activity?: JobActivity[] | null,
+): DisplayJobNote[] {
   const rows = notes ?? [];
   const columnText = column.trim();
-  const oldestMatch = [...rows]
-    .filter((note) => columnText && note.body.trim() === columnText)
-    .sort((left, right) => {
-      const delta = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-      if (delta !== 0 && !Number.isNaN(delta)) return delta;
-      return left.id.localeCompare(right.id);
-    })[0];
+  const timedIds = new Set(
+    [...legacyPlaceholderMatches(activity, rows).values()].map((note) => note.id),
+  );
+  const hasLegacyPlaceholder = (activity ?? []).some(isLegacyPlaceholder);
+  const columnFallback =
+    activity == null || (timedIds.size === 0 && hasLegacyPlaceholder);
+  const oldestColumnMatch = columnFallback
+    ? [...rows].filter((note) => columnText && note.body.trim() === columnText).sort(compareOldest)[0]
+    : undefined;
 
   const history = sortJobNotesNewestFirst(rows).map((note) => ({
     ...note,
-    imported: oldestMatch?.id === note.id,
+    imported:
+      note.authorName.trim() === EARLIER_NOTE_AUTHOR ||
+      timedIds.has(note.id) ||
+      oldestColumnMatch?.id === note.id,
   }));
 
   if (columnText && !history.some((note) => note.body.trim() === columnText)) {
@@ -126,50 +219,47 @@ export function jobNoteByline(note: DisplayJobNote): string {
 function activityAlreadyShowsNote(activity: JobActivity[], body: string): boolean {
   const text = body.trim();
   if (!text) return false;
-  return activity.some(
-    (item) =>
-      item.type === "note" &&
-      !PLACEHOLDER_NOTE_DESCRIPTIONS.has(item.description.trim()) &&
-      item.description.includes(text),
-  );
+  return activity.some((item) => {
+    if (item.type !== "note" || isLegacyPlaceholder(item)) return false;
+    return item.description.split("\n").some((line) => line.trim() === text);
+  });
 }
 
 /**
- * Put imported notes on the activity timeline. Older saves only stored
- * "Job notes updated." with no text. When a history row lines up with one of
- * those placeholders, the placeholder keeps its time and gains the note text.
- * Notes already written as "Note added" are left as they are.
+ * Fill legacy "Notes updated" timeline rows from note history.
+ * A placeholder whose time matches a job_notes row keeps that time and shows
+ * the note text. A placeholder with no row shows that the earlier text was
+ * not saved. "Note added" events already contain their text and stay as they are.
  */
 export function activityWithJobNotes(activity: JobActivity[], notes: DisplayJobNote[]): JobActivity[] {
   const next = activity.map((item) => ({ ...item }));
+  const matches = legacyPlaceholderMatches(next, notes);
+  const usedNoteIds = new Set([...matches.values()].map((note) => note.id));
+  const placeholderIds = new Set(next.filter(isLegacyPlaceholder).map((item) => item.id));
 
-  for (const note of [...notes].reverse()) {
-    if (activityAlreadyShowsNote(next, note.body)) continue;
-
-    const noteTime = note.createdAt ? new Date(note.createdAt).getTime() : Number.NaN;
-    const placeholder = next.find((item) => {
-      if (item.type !== "note" || !PLACEHOLDER_NOTE_DESCRIPTIONS.has(item.description.trim())) {
-        return false;
-      }
-      if (Number.isNaN(noteTime)) return false;
-      return Math.abs(new Date(item.timestamp).getTime() - noteTime) < 5000;
-    });
-
-    const title = note.imported ? "Earlier note" : JOB_NOTE_ACTIVITY_TITLE;
-    const description = note.body.trim();
-    if (!description) continue;
-
-    if (placeholder) {
-      placeholder.title = title;
-      placeholder.description = description;
+  for (const item of next) {
+    if (!placeholderIds.has(item.id)) continue;
+    const match = matches.get(item.id);
+    const description = match?.body.trim() ?? "";
+    if (match && description) {
+      const display = notes.find((note) => note.id === match.id);
+      item.title = display?.imported ? "Earlier note" : JOB_NOTE_ACTIVITY_TITLE;
+      item.description = description;
       continue;
     }
+    item.title = "Notes edited";
+    item.description = LEGACY_NOTE_UNSAVED_TEXT;
+  }
 
+  for (const note of [...notes].reverse()) {
+    if (usedNoteIds.has(note.id) || activityAlreadyShowsNote(next, note.body)) continue;
+    const description = note.body.trim();
+    if (!description) continue;
     next.push({
       id: `note-history-${note.id}`,
       jobId: note.jobId,
       type: "note",
-      title,
+      title: note.imported ? "Earlier note" : JOB_NOTE_ACTIVITY_TITLE,
       description,
       timestamp: note.createdAt || new Date(0).toISOString(),
     });
@@ -179,8 +269,8 @@ export function activityWithJobNotes(activity: JobActivity[], notes: DisplayJobN
 }
 
 export function formatJobNoteTimestamp(iso: string): string {
-  const date = new Date(iso);
-  if (!iso || Number.isNaN(date.getTime())) return "";
+  const time = parseInstant(iso);
+  if (!iso || Number.isNaN(time)) return "";
   return new Intl.DateTimeFormat("en-US", {
     timeZone: companyTimeZone(),
     month: "short",
@@ -188,5 +278,5 @@ export function formatJobNoteTimestamp(iso: string): string {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(date);
+  }).format(time);
 }

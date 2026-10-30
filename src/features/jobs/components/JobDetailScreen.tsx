@@ -84,8 +84,8 @@ export function JobDetailScreen({
   const [fileCount, setFileCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
   const noteHistory = useMemo(
-    () => displayJobNotes(notes, job.notes),
-    [notes, job.notes],
+    () => displayJobNotes(notes, job.notes, activity),
+    [notes, job.notes, activity],
   );
   const orderedActivity = useMemo(
     () => sortJobActivity(activityWithJobNotes(activity, noteHistory)),
@@ -199,7 +199,7 @@ export function JobDetailScreen({
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="text-sm font-semibold text-white">Notes</h3>
               <p className="mt-1 text-xs text-slate-500">Newest first.</p>
-              <JobNotesHistory notes={notes} legacyNotes={job.notes} />
+              <JobNotesHistory notes={notes} legacyNotes={job.notes} activity={activity} />
             </div>
           </div>
         </SurfaceCard>
