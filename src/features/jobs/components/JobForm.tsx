@@ -28,7 +28,10 @@ import {
   deriveScheduledForDate,
 } from "@/features/jobs/utils/schedulingTime";
 import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
-import { canSubmitJobForm } from "@/features/jobs/utils/jobFormSubmit";
+import {
+  formatMissingJobFields,
+  missingJobFormFields,
+} from "@/features/jobs/utils/jobFormSubmit";
 
 import type { JobAppointmentHour, JobPriority, JobType } from "../types/job"; import { RecordCombobox } from "./RecordCombobox";
 
@@ -302,20 +305,22 @@ export function JobForm({
     [parsedArrivalStart, parsedArrivalEnd],
   );
 
-  const canSubmit = useMemo(
+  const missingFields = useMemo(
     () =>
-      canSubmitJobForm(role, form, {
+      missingJobFormFields(role, form, {
         scheduledWindowError,
         arrivalWindowError,
       }),
     [form, scheduledWindowError, arrivalWindowError, role],
   );
+  const missingMessage = formatMissingJobFields(missingFields);
+  const canSubmit = missingFields.length === 0;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!canSubmit) {
-      setError("Complete all required fields before saving this job.");
+      setError(missingMessage ?? "Add the missing information before saving this job.");
       return;
     }
 
@@ -402,7 +407,7 @@ export function JobForm({
         </div>
       </SurfaceCard>
 
-      <form onSubmit={handleSubmit}>
+      <form noValidate onSubmit={handleSubmit}>
         <SurfaceCard>
           <div className="grid gap-6 p-6 lg:grid-cols-2">
             <div className="space-y-2">
@@ -412,7 +417,7 @@ export function JobForm({
                 onChange={(e) => updateField("title", e.target.value)}
                 placeholder="Emergency condenser repair"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                required
+                aria-required="true"
               />
             </div>
 
@@ -440,7 +445,7 @@ export function JobForm({
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
-                required
+                aria-required="true"
                 disabled={isTech}
               >
                 <option value="" disabled>
@@ -474,7 +479,6 @@ export function JobForm({
                 ariaLabel="Scheduled start"
                 value={form.scheduledStartAt}
                 onChange={(next) => updateField("scheduledStartAt", next)}
-                required
               />
             </div>
 
@@ -530,7 +534,7 @@ export function JobForm({
                 onChange={(e) => updateField("location", e.target.value)}
                 placeholder="1450 Northside Blvd, Suite 100"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                required
+                aria-required="true"
               />
             </div>
 
@@ -599,7 +603,7 @@ export function JobForm({
                 rows={4}
                 placeholder="Describe the requested install, service issue, maintenance scope, or inspection objective."
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                required
+                aria-required="true"
               />
             </div>
 
@@ -616,7 +620,13 @@ export function JobForm({
           </div>
 
           <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            {error ? <p className="text-sm text-red-300">{error}</p> : <div />}
+            {error ? (
+              <p className="text-sm text-red-300" role="alert">
+                {error}
+              </p>
+            ) : (
+              <div />
+            )}
             <div className="flex items-center justify-end gap-3">
               <Link href={cancelHref}>
                 <Button
@@ -628,7 +638,7 @@ export function JobForm({
                 </Button>
               </Link>
 
-              <Button type="submit" className="gap-2" disabled={!canSubmit || isSaving}>
+              <Button type="submit" className="gap-2" disabled={isSaving}>
                 <FormBadgeIcon className="h-4 w-4" />
                 {isSaving ? "Saving..." : submitLabel}
               </Button>

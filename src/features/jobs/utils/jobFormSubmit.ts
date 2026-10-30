@@ -14,6 +14,60 @@ export interface JobFormSubmitFields {
   scheduledStartAt: string;
 }
 
+export function missingJobFormFields(
+  role: string | null | undefined,
+  form: JobFormSubmitFields,
+  windows: {
+    scheduledWindowError: string | null;
+    arrivalWindowError: string | null;
+  },
+): string[] {
+  const missing: string[] = [];
+
+  if (role !== "tech") {
+    if (form.title.trim().length === 0) missing.push("Job title");
+    if (form.customerName.trim().length === 0) missing.push("Customer");
+    if (form.propertyName.trim().length === 0) missing.push("Property");
+    if (form.assignedTo.trim().length === 0) missing.push("Assigned technician");
+    if (
+      form.scheduledStartAt.length === 0 ||
+      Number.isNaN(new Date(form.scheduledStartAt).getTime())
+    ) {
+      missing.push("Scheduled start");
+    }
+  }
+
+  if (form.location.trim().length === 0) missing.push("Location");
+  if (form.summary.trim().length === 0) missing.push("Work summary");
+  if (windows.scheduledWindowError) missing.push(windows.scheduledWindowError);
+  if (windows.arrivalWindowError) missing.push(windows.arrivalWindowError);
+
+  return missing;
+}
+
+export function formatMissingJobFields(fields: string[]): string | null {
+  if (fields.length === 0) return null;
+  return `Add the missing information: ${fields.join(", ")}.`;
+}
+
+export function missingPersistedJobFields(input: {
+  title: string;
+  customerName: string;
+  propertyName: string;
+  assignedTo: string;
+  location: string;
+  summary: string;
+}): string[] {
+  const missing: string[] = [];
+  if (!input.title.trim()) missing.push("Job title");
+  if (!input.customerName.trim()) missing.push("Customer");
+  if (!input.propertyName.trim()) missing.push("Property");
+  if (!input.assignedTo.trim()) missing.push("Assigned technician");
+  if (!input.location.trim()) missing.push("Location");
+  if (!input.summary.trim()) missing.push("Work summary");
+  return missing;
+}
+
 export function canSubmitJobForm(
   role: string | null | undefined,
   form: JobFormSubmitFields,
@@ -22,25 +76,5 @@ export function canSubmitJobForm(
     arrivalWindowError: string | null;
   },
 ): boolean {
-  if (windows.scheduledWindowError || windows.arrivalWindowError) {
-    return false;
-  }
-
-  if (role === "tech") {
-    return form.location.trim().length > 0 && form.summary.trim().length > 0;
-  }
-
-  const hasRequiredText =
-    form.title.trim().length > 0 &&
-    form.customerName.trim().length > 0 &&
-    form.propertyName.trim().length > 0 &&
-    form.assignedTo.trim().length > 0 &&
-    form.location.trim().length > 0 &&
-    form.summary.trim().length > 0;
-
-  const hasValidStart =
-    form.scheduledStartAt.length > 0 &&
-    !Number.isNaN(new Date(form.scheduledStartAt).getTime());
-
-  return hasRequiredText && hasValidStart;
+  return missingJobFormFields(role, form, windows).length === 0;
 }

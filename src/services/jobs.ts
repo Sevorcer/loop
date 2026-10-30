@@ -4,6 +4,7 @@ import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
 import type { AppRole } from "@/services/authorization";
+import { formatMissingJobFields, missingPersistedJobFields } from "@/features/jobs/utils/jobFormSubmit";
 import { canTransitionStatus } from "@/features/jobs/utils/jobWorkspace";
 import {
   isRequiredQaChecklistComplete,
@@ -112,12 +113,9 @@ function isValidDateString(value: string | null | undefined): boolean {
 }
 
 function validateJobInput(input: CreateJobInput | UpdateJobInput) {
-  if (!input.title) throw new Error("Job title is required.");
-  if (!input.customerName) throw new Error("Customer name is required.");
-  if (!input.propertyName) throw new Error("Property name is required.");
-  if (!input.assignedTo) throw new Error("Assigned technician is required.");
-  if (!input.location) throw new Error("Location is required.");
-  if (!input.summary) throw new Error("Work summary is required.");
+  const missing = missingPersistedJobFields(input);
+  const missingMessage = formatMissingJobFields(missing);
+  if (missingMessage) throw new Error(missingMessage);
   if (!JOB_TYPES.has(input.type)) throw new Error("Invalid job type.");
   if (!JOB_PRIORITIES.has(input.priority)) throw new Error("Invalid job priority.");
 

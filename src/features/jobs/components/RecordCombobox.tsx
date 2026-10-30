@@ -115,7 +115,7 @@ export function RecordCombobox({
       <input
         type="text"
         value={query}
-        required={required}
+        aria-required={required || undefined}
         disabled={disabled}
         placeholder={`Select ${label.toLowerCase()}`}
         autoComplete="off"
