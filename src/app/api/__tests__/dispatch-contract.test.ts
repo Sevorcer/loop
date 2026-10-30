@@ -27,7 +27,7 @@ const {
   schedulePlanMock,
   emitDispatchEventMock,
   updateDispatchPlanStatusMock,
-  listJobsWithActivityMock,
+  listJobsForDispatchServiceMock,
 } = vi.hoisted(() => ({
   requirePermissionMock: vi.fn(),
   readJsonObjectMock: vi.fn(),
@@ -37,7 +37,7 @@ const {
   schedulePlanMock: vi.fn(),
   emitDispatchEventMock: vi.fn(),
   updateDispatchPlanStatusMock: vi.fn(),
-  listJobsWithActivityMock: vi.fn(),
+  listJobsForDispatchServiceMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api-auth", async () => {
@@ -74,7 +74,7 @@ vi.mock("@/repositories/dispatch", () => ({
 }));
 
 vi.mock("@/services/jobs", () => ({
-  listJobsWithActivity: listJobsWithActivityMock,
+  listJobsForDispatchService: listJobsForDispatchServiceMock,
 }));
 
 import { GET as getDispatchBoard } from "@/app/api/dispatch/route";
@@ -140,10 +140,7 @@ describe("GET /api/dispatch — contract", () => {
 
   it("returns 200 with jobs array for an authorized request", async () => {
     requirePermissionMock.mockResolvedValue(authorizedCtx());
-    listJobsWithActivityMock.mockResolvedValue({
-      jobs: [{ id: "j-1" }],
-      activity: [],
-    });
+    listJobsForDispatchServiceMock.mockResolvedValue([{ id: "j-1" }]);
     const res = await getDispatchBoard(new Request("http://localhost/api/dispatch"));
     expect(res.status).toBe(200);
     const body = await res.json() as { jobs: unknown[] };

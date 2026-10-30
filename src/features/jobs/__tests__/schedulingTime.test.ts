@@ -59,22 +59,13 @@ describe("parseDatetimeLocalInput", () => {
     expect(parseDatetimeLocalInput("")).toBeNull();
   });
 
-  it("returns an offset-aware ISO instant matching the wall-clock time", () => {
-    const result = parseDatetimeLocalInput("2026-07-29T09:00");
-    expect(result).not.toBeNull();
-    // The instant must equal the wall-clock time interpreted in local time —
-    // this is timezone-independent: the stored instant is the same moment.
-    expect(new Date(result as string).getTime()).toBe(
-      new Date("2026-07-29T09:00:00").getTime(),
-    );
+  it("stores datetime-local wall time in the company timezone", () => {
+    // 9:00 AM Pacific on Jul 29 2026 is 16:00 UTC (PDT, UTC-7).
+    expect(parseDatetimeLocalInput("2026-07-29T09:00")).toBe("2026-07-29T16:00:00.000Z");
   });
 
-  it("returns an offset-aware ISO instant when already HH:mm:ss", () => {
-    const result = parseDatetimeLocalInput("2026-07-29T09:00:00");
-    expect(result).not.toBeNull();
-    expect(new Date(result as string).getTime()).toBe(
-      new Date("2026-07-29T09:00:00").getTime(),
-    );
+  it("stores HH:mm:ss wall time in the company timezone", () => {
+    expect(parseDatetimeLocalInput("2026-07-29T09:00:00")).toBe("2026-07-29T16:00:00.000Z");
   });
 
   it("returns null for obviously invalid input", () => {

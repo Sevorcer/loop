@@ -14,6 +14,7 @@ import {
 
 import { useAuth, useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
+import { pushToast } from "@/components/ui/toast";
 
 import type { CrewAssignment, DispatchPlan, DispatchSnapshot } from "../types/dispatch";
 import { buildDispatchQueueSections, getAssignedCrewLabelForPlan } from "../utils/dispatchWorkspace";
@@ -31,14 +32,19 @@ const BOARD_GROUPS = {
     emptyMessage: "No dispatch plans are currently scheduled.",
   },
   blocked: {
-    emptyMessage: "No plans are blocked right now.", }, other: { emptyMessage: "No cancelled plans.",
+    emptyMessage: "No plans are blocked right now.",
+  },
+  completed: {
+    emptyMessage: "No completed jobs for this view.",
+  },
+  other: { emptyMessage: "No cancelled plans.",
   },
 } as const;
 
 function BoardGroupIcon({
   groupKey,
 }: {
-  groupKey: "active" | "ready" | "scheduled" | "blocked" | "other";
+  groupKey: "active" | "ready" | "scheduled" | "blocked" | "completed" | "other";
 }) {
   switch (groupKey) {
     case "active":
@@ -48,7 +54,10 @@ function BoardGroupIcon({
     case "scheduled":
       return <CalendarDays className="h-4 w-4 text-blue-400" />;
     case "blocked":
-      return <XCircle className="h-4 w-4 text-amber-400" />; case "other": return <XCircle className="h-4 w-4 text-slate-400" />;
+      return <XCircle className="h-4 w-4 text-amber-400" />;
+    case "completed":
+      return <CheckCircle2 className="h-4 w-4 text-slate-400" />;
+    case "other": return <XCircle className="h-4 w-4 text-slate-400" />;
   }
 }
 
@@ -78,15 +87,24 @@ function updatePlan(
 export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   const { role } = useCurrentRole(); const { user } = useAuth();
   const router = useRouter();
-  const [plans, setPlans] = useState<DispatchPlan[]>(initialSnapshot.dispatchPlans);
   const [crews] = useState(initialSnapshot.crews);
-  const [assignments, setAssignments] = useState<CrewAssignment[]>(
-    initialSnapshot.crewAssignments,
-  );
+  const snapshotStamp = initialSnapshot.dispatchPlans
+    .map((plan) => `${plan.id}:${plan.targetDate}:${plan.dispatchStatus}:${plan.updatedAt}`)
+    .join("|");
+  const [overrideStamp, setOverrideStamp] = useState(snapshotStamp);
+  const [planOverrides, setPlanOverrides] = useState<Record<string, DispatchPlan>>({});
+  const [assignmentOverride, setAssignmentOverride] = useState<CrewAssignment[] | null>(null);
+  if (overrideStamp !== snapshotStamp) {
+    setOverrideStamp(snapshotStamp);
+    setPlanOverrides({});
+    setAssignmentOverride(null);
+  }
+  const plans = initialSnapshot.dispatchPlans.map((plan) => planOverrides[plan.id] ?? plan);
+  const assignments = assignmentOverride ?? initialSnapshot.crewAssignments;
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
 
   // ── Filters ──────────────────────────────────────────────────────
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "ready" | "scheduled" | "blocked">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "ready" | "scheduled" | "blocked" | "completed">("all");
   const [crewFilter, setCrewFilter] = useState<string>("all");
   const [jobTypeFilter, setJobTypeFilter] = useState<string>("all");
   const [contractorFilter, setContractorFilter] = useState<string>("all");
@@ -157,6 +175,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
             "awaiting_customer_confirmation",
             "awaiting_crew_availability",
           ],
+          completed: ["completed"],
         };
         if (!groupMap[statusFilter]?.includes(plan.dispatchStatus)) return false;
       }
@@ -228,7 +247,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         reassignmentHistory: [],
       };
 
-      setAssignments((current) => updateAssignment(current, nextAssignment));
+      setAssignmentOverride(updateAssignment(assignments, nextAssignment));
       setUpdatingIds((prev) => new Set(prev).add(planId));
 
       try {
@@ -246,8 +265,12 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           },
         });
         router.refresh();
-      } catch {
-        setAssignments(previousAssignments);
+      } catch (error) {
+        setAssignmentOverride(previousAssignments);
+        pushToast(
+          error instanceof Error ? error.message : "Couldn't save the crew assignment.",
+          "error",
+        );
       } finally {
         setUpdatingIds((prev) => {
           const next = new Set(prev);
@@ -268,18 +291,24 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         (assignment) => assignment.dispatchPlanId === planId,
       );
 
-      if (!plan || !crewAssignment) {
+      if (!plan) {
         return;
       }
 
-      const isReschedule = plan.dispatchStatus === "scheduled";
+      const isReschedule = plan.dispatchStatus === "scheduled" || plan.dispatchStatus === "completed";
+      const crewName =
+        crewAssignment?.crewName ||
+        (plan.assignedTechNames ?? []).filter(Boolean).join(", ") ||
+        "Unassigned";
       const previousPlans = plans;
-      setPlans((current) =>
-        updatePlan(current, planId, (item) => ({
-          ...item,
-          dispatchStatus: "scheduled",
-          targetDate: date,
-        })),
+      setPlanOverrides(
+        Object.fromEntries(
+          updatePlan(plans, planId, (item) => ({
+            ...item,
+            dispatchStatus: "scheduled",
+            targetDate: date,
+          })).map((item) => [item.id, item]),
+        ),
       );
       setUpdatingIds((prev) => new Set(prev).add(planId));
 
@@ -291,8 +320,8 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
             action: isReschedule ? "reschedule" : "schedule",
             dispatchPlanId: planId,
             jobId: plan.jobId || undefined,
-            crewAssignmentId: crewAssignment.id,
-            crewName: crewAssignment.crewName,
+            crewAssignmentId: crewAssignment?.id,
+            crewName,
             scheduledDate: date,
             scheduledStartTime: "07:00",
             scheduledEndTime: "16:00",
@@ -303,8 +332,12 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           },
         });
         router.refresh();
-      } catch {
-        setPlans(previousPlans);
+      } catch (error) {
+        setPlanOverrides(Object.fromEntries(previousPlans.map((item) => [item.id, item])));
+        pushToast(
+          error instanceof Error ? error.message : "Couldn't save the schedule change.",
+          "error",
+        );
       } finally {
         setUpdatingIds((prev) => {
           const next = new Set(prev);
@@ -345,6 +378,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           <option value="ready">Ready to Schedule</option>
           <option value="scheduled">Scheduled</option>
           <option value="blocked">Blocked</option>
+          <option value="completed">Completed</option>
         </select>
 
         {crewNames.length > 0 && (

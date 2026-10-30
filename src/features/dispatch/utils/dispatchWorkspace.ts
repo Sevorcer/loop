@@ -6,7 +6,7 @@ import type {
 } from "../types/dispatch";
 import { getDispatchBoardGroup } from "./dispatchUtils";
 
-type DispatchQueueKey = "active" | "ready" | "scheduled" | "blocked";
+type DispatchQueueKey = "active" | "ready" | "scheduled" | "blocked" | "completed";
 
 export interface DispatchQueueSection {
   key: DispatchQueueKey;
@@ -20,6 +20,7 @@ const DISPATCH_QUEUE_ORDER: DispatchQueueKey[] = [
   "ready",
   "scheduled",
   "blocked",
+  "completed",
 ];
 
 const PRIORITY_RANK: Record<DispatchPlan["priority"], number> = {
@@ -52,6 +53,11 @@ const DISPATCH_QUEUE_META: Record<
     key: "blocked",
     label: "Blocked",
     description: "Work waiting on readiness, customer, crew, or materials.",
+  },
+  completed: {
+    key: "completed",
+    label: "Completed",
+    description: "Work finished today that should stay visible on the board.",
   },
 };
 
@@ -123,7 +129,18 @@ export function sortDispatchEvents(events: DispatchEvent[]): DispatchEvent[] {
   });
 }
 
-export function getAssignedCrewLabelForPlan(plan: DispatchPlan, assignments: CrewAssignment[]): string | undefined { const names = (plan.assignedTechNames ?? []).map((n) => n.trim()).filter((n) => n.length > 0); if (names.length > 0) return names.join(", "); return getCrewNameForPlan(assignments, plan.id); } export function getCrewNameForPlan(
+export function getAssignedCrewLabelForPlan(plan: DispatchPlan, assignments: CrewAssignment[]): string | undefined {
+  const crew = getCrewNameForPlan(assignments, plan.id);
+  const names = (plan.assignedTechNames ?? []).map((name) => name.trim()).filter((name) => name.length > 0);
+  if (crew && names.length > 0 && !names.includes(crew)) {
+    return `${crew} · ${names.join(", ")}`;
+  }
+  if (crew) return crew;
+  if (names.length > 0) return names.join(", ");
+  return undefined;
+}
+
+export function getCrewNameForPlan(
   assignments: CrewAssignment[],
   dispatchPlanId: string,
 ): string | undefined {

@@ -1,7 +1,12 @@
 import "server-only";
 
 import { listContractors } from "@/repositories/contractors";
-import { listJobs } from "@/repositories/jobs";
+import { getJobById, listJobs, updateJob } from "@/repositories/jobs";
+import {
+  companyTimeOfDay,
+  shiftIsoToCompanyDate,
+} from "@/lib/timezone";
+import { scheduledWindowClock, scheduledWindowHours } from "@/features/dispatch/utils/jobSchedule";
 
 import type {
   AssignmentStatus,
@@ -15,7 +20,8 @@ import {
   loadDispatchSnapshot,
   upsertCrewAssignment,
   upsertScheduleBlock,
-  updateDispatchPlanStatus,
+  updateDispatchPlanPlacement,
+  getDispatchPlanById,
   type CrewAssignmentWriteInput,
   type DispatchPlanWriteInput,
   type ScheduleBlockWriteInput,
@@ -33,6 +39,7 @@ export async function loadDispatchJobContext(): Promise<{
   contractors: { id: string; name: string }[];
   jobContractorIds: Record<string, string[]>;
   jobIds: string[];
+  jobs: Awaited<ReturnType<typeof listJobs>>;
 }> {
   const [jobs, contractorList] = await Promise.all([
     listJobs(),
@@ -54,6 +61,7 @@ export async function loadDispatchJobContext(): Promise<{
     })),
     jobContractorIds,
     jobIds: jobs.map((job) => job.id),
+    jobs,
   };
 }
 export async function createPlan(input: DispatchPlanWriteInput) {
@@ -86,9 +94,55 @@ export async function schedulePlan(
   input: ScheduleBlockWriteInput,
   planId: string
 ) {
+  const planResult = await getDispatchPlanById(planId);
+  const plan = planResult.ok ? planResult.data : null;
+  const jobId = input.jobId || plan?.jobId;
+  const job = jobId ? await getJobById(jobId) : null;
+
+  let scheduledStartTime = input.scheduledStartTime;
+  let scheduledEndTime = input.scheduledEndTime;
+  let estimatedDurationHours = input.estimatedDurationHours;
+
+  if (job) {
+    const shiftedStart = job.scheduledStartAt
+      ? shiftIsoToCompanyDate(job.scheduledStartAt, input.scheduledDate)
+      : null;
+    const shiftedEnd = job.scheduledEndAt
+      ? shiftIsoToCompanyDate(job.scheduledEndAt, input.scheduledDate)
+      : null;
+    const clock = scheduledWindowClock(
+      shiftedStart ?? job.scheduledStartAt,
+      shiftedEnd ?? job.scheduledEndAt,
+    );
+    if (job.scheduledStartAt) scheduledStartTime = companyTimeOfDay(shiftedStart ?? job.scheduledStartAt) ?? clock.start;
+    if (job.scheduledEndAt) scheduledEndTime = companyTimeOfDay(shiftedEnd ?? job.scheduledEndAt) ?? clock.end;
+    estimatedDurationHours = scheduledWindowHours(
+      shiftedStart ?? job.scheduledStartAt,
+      shiftedEnd ?? job.scheduledEndAt,
+      input.estimatedDurationHours || plan?.estimatedDurationHours || 4,
+    );
+
+    await updateJob(job.id, {
+      scheduledFor: input.scheduledDate,
+      ...(shiftedStart ? { scheduledStartAt: shiftedStart } : {}),
+      ...(shiftedEnd ? { scheduledEndAt: shiftedEnd } : {}),
+    });
+  }
+
   const [blockResult, statusResult] = await Promise.all([
-    upsertScheduleBlock(input),
-    updateDispatchPlanStatus(planId, "scheduled"),
+    upsertScheduleBlock({
+      ...input,
+      jobId: jobId || undefined,
+      scheduledStartTime,
+      scheduledEndTime,
+      estimatedDurationHours,
+      dispatchStatus: "scheduled",
+    }),
+    updateDispatchPlanPlacement(planId, {
+      targetDate: input.scheduledDate,
+      dispatchStatus: "scheduled",
+      estimatedDurationHours,
+    }),
   ]);
   return { blockResult, statusResult };
 }

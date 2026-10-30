@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { pushToast } from "@/components/ui/toast";
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
@@ -18,37 +20,69 @@ interface JobDetailClientProps {
 export function JobDetailClient({ job, activity }: JobDetailClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
+  const [optimisticStatus, setOptimisticStatus] = useState<JobStatus | null>(null);
+  const [optimisticNotes, setOptimisticNotes] = useState<string | null>(null);
+  const liveJob: Job = {
+    ...job,
+    status: optimisticStatus && optimisticStatus !== job.status ? optimisticStatus : job.status,
+    notes: optimisticNotes && optimisticNotes !== job.notes ? optimisticNotes : job.notes,
+  };
 
   async function handleUpdateStatus(status: JobStatus) {
-    await requestJson(`/api/jobs/${job.id}`, {
-      method: "PATCH",
-      role,
-      body: { action: "status", status },
-    });
-    router.refresh();
+    setOptimisticStatus(status);
+    try {
+      await requestJson(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        role,
+        body: { action: "status", status },
+      });
+      pushToast(`Job moved to ${status}.`, "success");
+      router.refresh();
+    } catch (error) {
+      setOptimisticStatus(null);
+      pushToast(
+        error instanceof Error ? error.message : "Couldn't update the job status.",
+        "error",
+      );
+      throw error;
+    }
   }
 
   async function handleSaveNotes(notes: string) {
-    await requestJson(`/api/jobs/${job.id}`, {
-      method: "PATCH",
-      role,
-      body: { action: "notes", notes },
-    });
-    router.refresh();
+    setOptimisticNotes(notes);
+    try {
+      await requestJson(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        role,
+        body: { action: "notes", notes },
+      });
+      pushToast("Notes saved.", "success");
+      router.refresh();
+    } catch (error) {
+      setOptimisticNotes(null);
+      pushToast(error instanceof Error ? error.message : "Couldn't save notes.", "error");
+      throw error;
+    }
   }
 
   async function handleUpdateQaChecklist(checklist: RequiredQaChecklist) {
-    await requestJson(`/api/jobs/${job.id}`, {
-      method: "PATCH",
-      role,
-      body: { action: "qa", checklist },
-    });
-    router.refresh();
+    try {
+      await requestJson(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        role,
+        body: { action: "qa", checklist },
+      });
+      pushToast("Checklist saved.", "success");
+      router.refresh();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Couldn't save the checklist.", "error");
+      throw error;
+    }
   }
 
   return (
     <JobDetailScreen
-      job={job}
+      job={liveJob}
       activity={activity}
       onUpdateStatus={handleUpdateStatus}
       onSaveNotes={handleSaveNotes}

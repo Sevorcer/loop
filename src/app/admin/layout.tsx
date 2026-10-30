@@ -14,9 +14,12 @@ import type { ReactNode } from "react";
 
 import { AuthProvider, RoleProvider } from "@/features/auth";
 import { AdminShell } from "@/features/admin";
+import { redirectTechFromOfficePath } from "@/lib/auth/requireRouteRole";
+import { ADMIN_BASE } from "@/lib/routes";
 import { getAuthSession } from "@/lib/auth/session";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
+  await redirectTechFromOfficePath(ADMIN_BASE);
   const authSession = await getAuthSession();
 
   return (

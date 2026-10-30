@@ -215,18 +215,19 @@ interface ScheduleBlockRowProps {
 
 function ScheduleBlockRow({ block, isConflicting }: ScheduleBlockRowProps) {
   const isActive = block.dispatchStatus === "in_progress";
+  const isCompleted = block.dispatchStatus === "completed";
 
   return (
     <div
       className={`flex items-start gap-4 px-4 py-3 transition-colors hover:bg-white/[0.02] ${
         isConflicting ? "bg-amber-500/5" : ""
-      }`}
+      } ${isCompleted ? "opacity-60" : ""}`}
     >
       {/* Status indicator */}
       <div className="mt-0.5 flex-shrink-0">
         <span
           className={`inline-flex h-2 w-2 rounded-full ${
-            isActive ? "bg-violet-400" : "bg-blue-400"
+            isCompleted ? "bg-slate-500" : isActive ? "bg-violet-400" : "bg-blue-400"
           }`}
         />
       </div>
@@ -262,8 +263,9 @@ function ScheduleBlockRow({ block, isConflicting }: ScheduleBlockRowProps) {
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-sm font-medium text-white">
+        <p className={`mt-0.5 text-sm font-medium ${isCompleted ? "text-slate-400" : "text-white"}`}>
           {block.customerName}
+          {isCompleted ? <span className="ml-2 text-xs font-normal uppercase tracking-wide text-slate-500">Completed</span> : null}
         </p>
         <p className="flex items-center gap-1 text-xs text-slate-500">
           <MapPin className="h-3 w-3" />

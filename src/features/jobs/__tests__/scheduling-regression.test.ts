@@ -55,6 +55,16 @@ describe("jobToFormScheduling — PR3C job", () => {
     // Should map the PR3C timestamp to a datetime-local format
     expect(result.scheduledStartAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   });
+
+  it("preloads scheduled end into the datetime-local field", () => {
+    const result = jobToFormScheduling({
+      scheduledStartAt: "2026-10-30T21:00:00.000Z",
+      scheduledEndAt: "2026-10-31T00:00:00.000Z",
+      scheduledFor: "2026-10-30",
+    });
+    expect(result.scheduledStartAt).toBe("2026-10-30T14:00");
+    expect(result.scheduledEndAt).toBe("2026-10-30T17:00");
+  });
 });
 
 // ─── mapJob / deriveScheduledStartAt (regression for old data) ───────────────

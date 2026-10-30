@@ -7,9 +7,19 @@
  * Design rules:
  *  - All ISO timestamp strings are expected to be valid ISO 8601.
  *  - "datetime-local" strings (from <input type="datetime-local">) use the
- *    format "YYYY-MM-DDTHH:mm" — no timezone offset.
- *  - Display uses the browser's local timezone via toLocaleString.
+ *    format "YYYY-MM-DDTHH:mm" — no timezone offset. They are interpreted in
+ *    the company timezone (America/Los_Angeles by default), not the browser
+ *    zone and not UTC.
+ *  - Display and day grouping use that same company timezone.
  */
+
+import { formatDateOnly } from "@/lib/dates";
+import {
+  companyCalendarDate,
+  companyTimeZone,
+  utcIsoToCompanyDateTimeLocal,
+  zonedWallTimeToUtcIso,
+} from "@/lib/timezone";
 
 import type { Job, JobAppointmentHour } from "../types/job";
 import {
@@ -22,8 +32,7 @@ import {
 
 /**
  * Formats a stored ISO 8601 timestamp (or date-only string) for human display.
- * Uses the browser's local timezone when running in the browser; falls back to
- * UTC when running server-side (e.g. in tests).
+ * Uses the company timezone so server render and the browser agree.
  *
  * Returns an empty string if the value is null/undefined/empty.
  */
@@ -51,6 +60,7 @@ export function formatScheduledTime(
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: companyTimeZone(),
   });
 }
 
@@ -104,6 +114,7 @@ export function formatScheduledShort(
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: companyTimeZone(),
   });
 }
 
@@ -126,14 +137,29 @@ export function parseDatetimeLocalInput(
     ? `${trimmed}:00`
     : trimmed;
 
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) return null;
+  // An offset or Z means the caller already has an instant. Keep it.
+  if (/[zZ]$/.test(trimmed) || /[+-]\d{2}:\d{2}$/.test(trimmed)) {
+    const instant = new Date(trimmed);
+    if (Number.isNaN(instant.getTime())) return null;
+    return instant.toISOString();
+  }
 
-  // Interpret the wall-clock time in the browser's local timezone and return an
-  // offset-aware ISO string, so timestamptz columns store the correct instant.
-  // (Previously the naive string was returned as-is and Postgres read it as UTC,
-  // shifting every appointment by the local UTC offset.)
-  return date.toISOString();
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(normalized);
+  if (!match) {
+    const fallback = new Date(normalized);
+    if (Number.isNaN(fallback.getTime())) return null;
+    return fallback.toISOString();
+  }
+
+  // Wall-clock time is the company day, not the browser zone and not UTC.
+  return zonedWallTimeToUtcIso({
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6] ?? 0),
+  });
 }
 
 /**
@@ -174,17 +200,31 @@ export function toDatetimeLocalValue(
   isoValue: string | null | undefined,
 ): string {
   if (!isoValue) return "";
-  const date = new Date(isoValue);
-  if (Number.isNaN(date.getTime())) return "";
+  return utcIsoToCompanyDateTimeLocal(isoValue);
+}
 
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${date.getFullYear()}-` +
-    `${pad(date.getMonth() + 1)}-` +
-    `${pad(date.getDate())}T` +
-    `${pad(date.getHours())}:` +
-    `${pad(date.getMinutes())}`
-  );
+/** Company-timezone calendar date for grouping a job onto a single day. */
+export function scheduledCompanyDate(value: string | null | undefined): string | null {
+  return companyCalendarDate(value);
+}
+
+/**
+ * Human label for a scheduled window. A 2:00–5:00 PM Pacific job stays on one
+ * day instead of spanning midnight UTC into the next calendar date.
+ */
+export function formatCompanyScheduleRange(
+  startValue: string | null | undefined,
+  endValue: string | null | undefined,
+): string | null {
+  const startDay = companyCalendarDate(startValue);
+  const endDay = companyCalendarDate(endValue);
+  if (!startDay || !endDay) return null;
+  const startLabel = formatDateOnly(startDay);
+  if (!startLabel) return null;
+  if (startDay === endDay) return startLabel;
+  const endLabel = formatDateOnly(endDay);
+  if (!endLabel) return startLabel;
+  return `${startLabel} – ${endLabel}`;
 }
 
 // ─── Legacy conversion ────────────────────────────────────────────────────────

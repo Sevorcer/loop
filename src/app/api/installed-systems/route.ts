@@ -15,6 +15,7 @@ import {
   createInstalledSystem,
   getInstalledSystemsSnapshot,
 } from "@/services/installedSystems";
+import { getJob } from "@/services/jobs";
 
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "installed_systems", "select");
@@ -54,6 +55,39 @@ export async function POST(request: Request) {
         { error: "VALIDATION", message: "manufacturer is required.", code: 400 },
         { status: 400 },
       );
+    }
+
+    if (guard.ctx.role === "tech") {
+      const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
+      const job = jobId ? await getJob(jobId) : null;
+      if (jobId && !job) {
+        return NextResponse.json(
+          { error: "forbidden", message: "That job is not assigned to you.", code: 403 },
+          { status: 403 },
+        );
+      }
+      const propertyId = typeof body.propertyId === "string" ? body.propertyId.trim() : "";
+      const propertyName = typeof body.propertyName === "string" ? body.propertyName.trim() : "";
+      if (job && propertyId && job.propertyId && propertyId !== job.propertyId) {
+        return NextResponse.json(
+          {
+            error: "forbidden",
+            message: "Installed systems on a job must use that job's property.",
+            code: 403,
+          },
+          { status: 403 },
+        );
+      }
+      if (job && propertyName && job.propertyName && propertyName !== job.propertyName) {
+        return NextResponse.json(
+          {
+            error: "forbidden",
+            message: "Installed systems on a job must use that job's property.",
+            code: 403,
+          },
+          { status: 403 },
+        );
+      }
     }
 
     const modelNumber = typeof body.modelNumber === "string" ? body.modelNumber.trim() : "";

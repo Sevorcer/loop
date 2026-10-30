@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import type { Job } from "@/features/jobs/types/job";
+import { scheduledCompanyDate } from "@/features/jobs/utils/schedulingTime";
 import {
   getCalendarMonthGrid,
   getTodayDate,
@@ -76,7 +77,7 @@ export function CalendarGrid({
 
   for (const job of scheduledJobs) {
     // Guard: scheduledFor must be non-null (caller should filter, but be safe)
-    if (!job.scheduledFor) continue; const jobDates = [job.scheduledFor]; const endDate = job.scheduledEndAt ? job.scheduledEndAt.slice(0, 10) : null; if (endDate && endDate > job.scheduledFor) { let cursor = job.scheduledFor; while (cursor < endDate) { const d = new Date(cursor + "T00:00:00.000Z"); d.setUTCDate(d.getUTCDate() + 1); cursor = d.toISOString().slice(0, 10); jobDates.push(cursor); } }
+    if (!job.scheduledFor) continue; const jobDates = [job.scheduledFor]; const endDate = scheduledCompanyDate(job.scheduledEndAt); if (endDate && endDate > job.scheduledFor) { let cursor = job.scheduledFor; while (cursor < endDate) { const d = new Date(cursor + "T00:00:00.000Z"); d.setUTCDate(d.getUTCDate() + 1); cursor = d.toISOString().slice(0, 10); jobDates.push(cursor); } }
 
     if (!jobsByDate[job.scheduledFor]) {
       jobsByDate[job.scheduledFor] = [];

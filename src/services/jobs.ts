@@ -19,6 +19,8 @@ import {
 } from "@/features/jobs/utils/appointmentWindow";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import { formatDateOnly } from "@/lib/dates"; import { actorDisplayName } from "@/lib/actors";
+import { addCalendarDays, companyCalendarDate, todayInCompanyTimeZone } from "@/lib/timezone";
+import { dispatchStatusForJob, scheduledWindowClock, scheduledWindowHours } from "@/features/dispatch/utils/jobSchedule";
 import {
   getMaxJobNumberSuffix,
   createJob as createJobRecord,
@@ -39,6 +41,8 @@ import {
   createDispatchPlan,
   deleteDispatchPlansByJobId,
   updateDispatchPlanStatusByJobId, listDispatchPlansByJobId,
+  updateDispatchPlanPlacement,
+  upsertScheduleBlock,
 } from "@/repositories/dispatch";
 import { getContractorById } from "@/repositories/contractors";
 import { syncCustomerCounters } from "@/services/customers";
@@ -68,10 +72,7 @@ interface JobMutationContext {
  * matching against existing plan targetDate values.
  */
 function toIsoDateOnly(value: string | null | undefined): string | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return date.toISOString().slice(0, 10);
+  return companyCalendarDate(value) ?? undefined;
 }
 
 function normalizeJobInput(input: CreateJobInput | UpdateJobInput): CreateJobInput | UpdateJobInput {
@@ -167,7 +168,72 @@ function createJobNumber(suffix: number) {
   return `JOB-${Math.max(suffix, 1001)}`;
 }
 
-async function ensureDispatchPlanForJob(job: Job): Promise<void> { try { const startDate = job.scheduledStartAt ? toIsoDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined; if (!startDate) { return; } const endDate = job.scheduledEndAt ? toIsoDateOnly(job.scheduledEndAt) : startDate; const existingPlansResult = await listDispatchPlansByJobId(job.id); const existingPlans = existingPlansResult.ok ? existingPlansResult.data : []; const plannedDates = new Set(existingPlans.map((plan) => plan.targetDate)); const cursor = new Date(startDate + "T00:00:00Z"); const last = new Date(endDate + "T00:00:00Z"); while (cursor <= last) { const dateKey = cursor.toISOString().slice(0, 10); if (!plannedDates.has(dateKey)) { await createDispatchPlan({ jobId: job.id, jobNumber: job.jobNumber, customerName: job.customerName, propertyName: job.propertyName, jobType: job.type, dispatchStatus: "ready_to_schedule", dispatchability: { isDispatchable: false, materialReadiness: { state: "not_satisfied", reason: "" }, technicalReadiness: { state: "not_satisfied", reason: "" }, customerReadiness: { state: "not_satisfied", reason: "" }, crewReadiness: { state: "not_satisfied", reason: "" } }, targetDate: dateKey, estimatedDurationHours: 4, priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal", constraints: [] }); plannedDates.add(dateKey); } cursor.setUTCDate(cursor.getUTCDate() + 1); } } catch { return; } }
+async function ensureDispatchPlanForJob(job: Job): Promise<void> {
+  try {
+    const startDate = job.scheduledStartAt ? toIsoDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined;
+    if (!startDate) return;
+    const endDate = job.scheduledEndAt ? toIsoDateOnly(job.scheduledEndAt) : startDate;
+    const lastDate = endDate && endDate >= startDate ? endDate : startDate;
+    const hours = scheduledWindowHours(job.scheduledStartAt, job.scheduledEndAt, 4);
+    const status = dispatchStatusForJob(job.status, true);
+    const clock = scheduledWindowClock(job.scheduledStartAt, job.scheduledEndAt);
+    const existingPlansResult = await listDispatchPlansByJobId(job.id);
+    const existingPlans = existingPlansResult.ok ? existingPlansResult.data : [];
+    const planByDate = new Map(existingPlans.map((plan) => [plan.targetDate, plan]));
+    let cursor = startDate;
+    while (cursor <= lastDate) {
+      const existing = planByDate.get(cursor);
+      let planId = existing?.id;
+      if (existing) {
+        await updateDispatchPlanPlacement(existing.id, {
+          targetDate: cursor,
+          dispatchStatus: status,
+          estimatedDurationHours: hours,
+        });
+      } else {
+        const created = await createDispatchPlan({
+          jobId: job.id,
+          jobNumber: job.jobNumber,
+          customerName: job.customerName,
+          propertyName: job.propertyName,
+          jobType: job.type,
+          dispatchStatus: status,
+          dispatchability: {
+            isDispatchable: status === "scheduled",
+            materialReadiness: { state: "not_satisfied", reason: "" },
+            technicalReadiness: { state: "not_satisfied", reason: "" },
+            customerReadiness: { state: "not_satisfied", reason: "" },
+            crewReadiness: { state: job.assignedTo ? "satisfied" : "not_satisfied", reason: "" },
+          },
+          targetDate: cursor,
+          estimatedDurationHours: hours,
+          priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal",
+          constraints: [],
+        });
+        if (created.ok) planId = created.data.id;
+      }
+
+      if (planId && status !== "ready_to_schedule" && status !== "cancelled") {
+        await upsertScheduleBlock({
+          dispatchPlanId: planId,
+          jobId: job.id,
+          crewName: job.assignedTo || "Unassigned",
+          scheduledDate: cursor,
+          scheduledStartTime: clock.start,
+          scheduledEndTime: clock.end,
+          estimatedDurationHours: hours,
+          jobType: job.type,
+          customerName: job.customerName,
+          propertyName: job.propertyName,
+          dispatchStatus: status === "completed" ? "completed" : "scheduled",
+        });
+      }
+      cursor = addCalendarDays(cursor, 1);
+    }
+  } catch {
+    return;
+  }
+}
   export async function listJobsForDispatchService() {
   return listJobsForDispatch();
 }
@@ -342,7 +408,19 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     return null;
   }
 
-  if (existing.status === status) { const dispatchStatus = existing.status === "In Progress" ? "in_progress" : existing.status === "Completed" ? "completed" : null; if (dispatchStatus) { const dispatchResult = await updateDispatchPlanStatusByJobId(existing.id, dispatchStatus, new Intl.DateTimeFormat("en-CA",{timeZone:"America/Los_Angeles",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())); if (!dispatchResult.ok) throw new Error(dispatchResult.error.message); } return existing; } if (!canTransitionStatus(existing.status, status)) {
+  if (context?.role === "tech" && status === "Cancelled") {
+    throw new Error("Technicians cannot cancel jobs.");
+  }
+
+  if (existing.status === status) {
+    const dispatchStatus = existing.status === "In Progress" ? "in_progress" : existing.status === "Completed" ? "completed" : null;
+    if (dispatchStatus) {
+      const dispatchResult = await updateDispatchPlanStatusByJobId(existing.id, dispatchStatus, todayInCompanyTimeZone());
+      if (!dispatchResult.ok) throw new Error(dispatchResult.error.message);
+    }
+    return existing;
+  }
+  if (!canTransitionStatus(existing.status, status)) {
     throw new Error(
       `Invalid transition: job cannot move from '${existing.status}' to '${status}'.`,
     );
@@ -366,29 +444,39 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     return null;
   }
 
-  await createJobActivityRecord({
-    jobId: id,
-    actorId: context?.actorId,
-    type: "status",
-    title:
-      status === "In Progress"
-        ? "Job started"
-        : status === "Completed"
-          ? "Job completed"
-          : "Status updated",
-    description: `Status changed from ${existing.status} to ${status}${context?.actorId ? ` by ${actorDisplayName(context.actorId) ?? "a team member"}` : ""}.`,
-  });
+  const sideEffects: Array<Promise<unknown>> = [
+    createJobActivityRecord({
+      jobId: id,
+      actorId: context?.actorId,
+      type: "status",
+      title:
+        status === "In Progress"
+          ? "Job started"
+          : status === "Completed"
+            ? "Job completed"
+            : "Status updated",
+      description: `Status changed from ${existing.status} to ${status}${context?.actorId ? ` by ${actorDisplayName(context.actorId) ?? "a team member"}` : ""}.`,
+    }),
+  ];
 
   if (existing.status !== updatedJob.status) {
-    await syncRelatedCounters(updatedJob);
-    if (updatedJob.status === "In Progress" || updatedJob.status === "Completed") {
-      const dispatchStatus = updatedJob.status === "In Progress" ? "in_progress" : "completed";
-      const dispatchResult = await updateDispatchPlanStatusByJobId(updatedJob.id, dispatchStatus, new Intl.DateTimeFormat("en-CA",{timeZone:"America/Los_Angeles",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
-      if (!dispatchResult.ok) {
-        throw new Error(dispatchResult.error.message);
-      }
+    sideEffects.push(syncRelatedCounters(updatedJob));
+    if (updatedJob.status === "In Progress" || updatedJob.status === "Completed" || updatedJob.status === "On Hold") {
+      const dispatchStatus =
+        updatedJob.status === "In Progress"
+          ? "in_progress"
+          : updatedJob.status === "Completed"
+            ? "completed"
+            : "on_hold";
+      sideEffects.push(
+        updateDispatchPlanStatusByJobId(updatedJob.id, dispatchStatus, todayInCompanyTimeZone()).then((dispatchResult) => {
+          if (!dispatchResult.ok) throw new Error(dispatchResult.error.message);
+        }),
+      );
     }
   }
+
+  await Promise.all(sideEffects);
 
   return updatedJob;
 }

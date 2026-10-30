@@ -97,6 +97,14 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
   }, [role]);
 
   const isEdit = Boolean(system);
+  const lockJobProperty = role === "tech" && Boolean(context?.propertyName || context?.propertyId);
+  const visibleProperties = lockJobProperty
+    ? propertyOptions.filter(
+        (property) =>
+          (context?.propertyId && property.id === context.propertyId) ||
+          (context?.propertyName && property.name === context.propertyName),
+      )
+    : propertyOptions;
   const cancelHref = isEdit
     ? ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system!.id)
     : context?.jobId ? ROUTE_BUILDERS.JOB_DETAIL(context.jobId) : ROUTES.INSTALLED_SYSTEMS;
@@ -347,7 +355,8 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
               <select
                 value={form.customerName}
                 onChange={(e) => updateField("customerName", e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+                disabled={lockJobProperty}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40 disabled:opacity-70"
                 required
               >
                 <option value="">Select a customer…</option>
@@ -374,17 +383,18 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
               <select
                 value={form.propertyName}
                 onChange={(e) => updateField("propertyName", e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+                disabled={lockJobProperty}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40 disabled:opacity-70"
                 required
               >
                 <option value="">Select a property…</option>
-                {propertyOptions.map((property) => (
+                {visibleProperties.map((property) => (
                   <option key={property.id} value={property.name}>
                     {property.name}
                   </option>
                 ))}
                 {form.propertyName &&
-                !propertyOptions.some((property) => property.name === form.propertyName) ? (
+                !visibleProperties.some((property) => property.name === form.propertyName) ? (
                   <option value={form.propertyName}>{form.propertyName}</option>
                 ) : null}
               </select>

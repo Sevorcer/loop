@@ -1,7 +1,10 @@
 export const dynamic = "force-dynamic";
 
+import { redirectTechFromOfficePath } from "@/lib/auth/requireRouteRole";
+import { ROUTES } from "@/lib/routes";
 import { DispatchScreen } from "@/features/dispatch";
 import type { DispatchSnapshot } from "@/features/dispatch/types/dispatch";
+import { alignDispatchSnapshotWithJobs } from "@/features/dispatch/utils/alignDispatchWithJobs";
 import { assembleDispatchSnapshot } from "@/features/dispatch/utils/dispatchUtils";
 import {
   loadDispatchJobContext,
@@ -27,12 +30,13 @@ const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
 };
 
 export default async function DispatchPage() {
+  await redirectTechFromOfficePath(ROUTES.DISPATCH);
   const [snapshot, jobContext] = await Promise.all([
     loadDispatchSnapshot().catch(() => null),
     loadDispatchJobContext().catch(() => null),
   ]);
 
-  const dispatchSnapshot: DispatchSnapshot = snapshot
+  const assembled: DispatchSnapshot = snapshot
     ? {
         ...assembleDispatchSnapshot(
           snapshot.plans,
@@ -46,6 +50,10 @@ export default async function DispatchPage() {
         jobContractorIds: jobContext?.jobContractorIds ?? {},
       }
     : EMPTY_DISPATCH_SNAPSHOT;
+
+  const dispatchSnapshot = jobContext
+    ? alignDispatchSnapshotWithJobs(assembled, jobContext.jobs)
+    : assembled;
 
   return <DispatchScreen snapshot={dispatchSnapshot} />;
 }

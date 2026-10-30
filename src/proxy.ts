@@ -32,6 +32,8 @@ import {
   isShellRoute,
   isTokenAuthenticatedApiRoute,
 } from "@/lib/auth/routeAccess";
+import { isTechDeniedApiPath, isTechDeniedPath } from "@/lib/auth/shellAccess";
+import { ROUTES } from "@/lib/routes";
 import {
   applyTraceHeaders,
   getRequestTraceContext,
@@ -158,6 +160,26 @@ export async function proxy(request: NextRequest) {
     });
   }
 
+  if (
+    isAuthenticated &&
+    resolved.user?.id &&
+    (isTechDeniedPath(pathname) || isTechDeniedApiPath(pathname))
+  ) {
+    const role = await lookupAppRole(supabase, resolved.user.id);
+    if (role === "tech") {
+      const denied = isTechDeniedApiPath(pathname)
+        ? NextResponse.json(
+            { error: "forbidden", message: "Technicians cannot use this office endpoint." },
+            { status: 403 },
+          )
+        : NextResponse.redirect(new URL(ROUTES.JOBS, request.url));
+      for (const cookie of response.cookies.getAll()) {
+        denied.cookies.set(cookie);
+      }
+      return applyTraceHeaders(denied, trace);
+    }
+  }
+
   // ── Shell routes ──────────────────────────────────────────────────────────
   if (isShellRoute(pathname)) {
     if (!isAuthenticated) {
@@ -200,6 +222,23 @@ export async function proxy(request: NextRequest) {
   }
 
   return applyTraceHeaders(response, trace);
+}
+
+async function lookupAppRole(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("app_role")
+      .eq("id", userId)
+      .maybeSingle();
+    const role = (data as { app_role?: string | null } | null)?.app_role;
+    return typeof role === "string" ? role : null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

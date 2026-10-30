@@ -7,6 +7,7 @@ import { UniversalCommandBar } from "@/features/command-bar";
 import { FeedbackButton } from "@/features/feedback";
 import { useAppearancePreferences } from "@/features/settings/hooks/useAppearancePreferences";
 import { Button } from "@/components/ui/button";
+import { ToastViewport } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { computeSidebarLayout, readSidebarPinned, writeSidebarPinned } from "./sidebarState";
 
@@ -79,6 +80,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
+      <ToastViewport />
 
       {/* ── Desktop sidebar spacer ──────────────────────────────────────────
           Only rendered when pinned. Shifts the main content column to the

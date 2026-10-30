@@ -34,11 +34,11 @@ export function JobsScreen({ initialSearchParams }: JobsScreenProps) {
 
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
-                {isTech ? "My Jobs Today" : "Jobs"}
+                {isTech ? "My Jobs" : "Jobs"}
               </h2>
               <p className="mt-1 hidden max-w-2xl text-sm leading-6 text-slate-400 sm:block">
                 {isTech
-                  ? "Start assigned work, capture field updates, and complete jobs from your mobile workflow."
+                  ? "Your assigned work, including jobs you have already completed."
                   : "Track installs, service work, inspections, and maintenance jobs across the full execution lifecycle."}
               </p>
             </div>
