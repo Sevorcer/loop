@@ -125,6 +125,10 @@ export function mapRouteError(error: unknown) {
     return createApiErrorResponse("NOT_FOUND", message, 404);
   }
 
+  if (status === 409) {
+    return createApiErrorResponse("CONFLICT", message, 409);
+  }
+
   if (
     lowerMessage.includes("permission") ||
     lowerMessage.includes("forbidden") ||

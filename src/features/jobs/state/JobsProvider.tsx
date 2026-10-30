@@ -117,7 +117,10 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: input,
       });
 
-      await refreshJobs();
+      setJobs((current) => [
+        response.job,
+        ...current.filter((job) => job.id !== response.job.id),
+      ]);
       return response.job;
     }
 

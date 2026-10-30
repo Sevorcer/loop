@@ -60,7 +60,7 @@ describe("tech job edit Save", () => {
     expect(canSubmitJobForm("owner", officeForm, clearWindows)).toBe(true);
     expect(
       canSubmitJobForm("owner", { ...officeForm, assignedTo: "" }, clearWindows),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       canSubmitJobForm("owner", { ...officeForm, scheduledStartAt: "" }, clearWindows),
     ).toBe(false);
@@ -87,13 +87,12 @@ describe("create job missing fields", () => {
       "Job title",
       "Customer",
       "Property",
-      "Assigned technician",
       "Scheduled start",
       "Location",
       "Work summary",
     ]);
     expect(formatMissingJobFields(fields)).toBe(
-      "Add the missing information: Job title, Customer, Property, Assigned technician, Scheduled start, Location, Work summary.",
+      "Add the missing information: Job title, Customer, Property, Scheduled start, Location, Work summary.",
     );
   });
 
@@ -118,6 +117,16 @@ describe("create job missing fields", () => {
         summary: "",
       }),
     ).toEqual(["Job title", "Property", "Work summary"]);
+    expect(
+      missingPersistedJobFields({
+        title: "Replace condenser",
+        customerName: "Ada",
+        propertyName: "12 Market St",
+        assignedTo: "",
+        location: "Roof",
+        summary: "Unit is down",
+      }),
+    ).toEqual([]);
   });
 });
 
