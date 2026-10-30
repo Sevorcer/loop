@@ -50,6 +50,7 @@ export type CoreTable =
   | "job_activity"
   | "job_notes"
   | "job_signatures"
+  | "job_callbacks"
   | "portal_users"
   | "portal_memberships"
   // Sprint 27 — platform service tables
@@ -157,6 +158,14 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     insert: new Set<AppRole>(["owner", "manager", "tech", "office"]),
     // append-only captures
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+
+  job_callbacks: {
+    // tech: assigned jobs only — RLS enforces the row-scope restriction
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
   },

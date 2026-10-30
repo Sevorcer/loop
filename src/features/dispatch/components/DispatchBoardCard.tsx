@@ -14,6 +14,8 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTE_BUILDERS } from "@/lib/routes"; import { useCurrentRole } from "@/features/auth";
+import { JobTypeLabel } from "@/features/jobs/components/JobTypeLabel";
+import { isCallbackJob } from "@/features/jobs/utils/callbackJob";
 import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
 import { hoursBetweenIso } from "@/lib/timezone";
 import { todayLocalISODate } from "@/lib/dates";
@@ -137,9 +139,13 @@ export function DispatchBoardCard({
                 <StatusIcon variant={variant} />
                 {getDispatchStatusLabel(plan.dispatchStatus)}
               </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-500">
-                {plan.jobType}
-              </span>
+              {isCallbackJob(plan.jobType) ? (
+                <JobTypeLabel type={plan.jobType} />
+              ) : (
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-500">
+                  {plan.jobType}
+                </span>
+              )}
               {plan.scheduledStartAt && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-400">
                   <Clock className="h-3 w-3 text-blue-400" />

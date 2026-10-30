@@ -449,6 +449,23 @@ describe("privilege escalation — denied paths", () => {
     expect(hasPermission("portal", "job_signatures", "select")).toBe(false);
   });
 
+  it("lets office and dispatch create a callback link, and keeps technicians from creating one", () => {
+    const writers: AppRole[] = ["owner", "manager", "dispatch", "office"];
+    for (const role of writers) {
+      expect(hasPermission(role, "job_callbacks", "select")).toBe(true);
+      expect(hasPermission(role, "job_callbacks", "insert")).toBe(true);
+    }
+    expect(hasPermission("tech", "job_callbacks", "select")).toBe(true);
+    expect(hasPermission("tech", "job_callbacks", "insert")).toBe(false);
+    expect(hasPermission("sales", "job_callbacks", "insert")).toBe(false);
+    expect(hasPermission("dispatch", "jobs", "insert")).toBe(false);
+    const roles: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"];
+    for (const role of roles) {
+      expect(hasPermission(role, "job_callbacks", "update")).toBe(false);
+      expect(hasPermission(role, "job_callbacks", "delete")).toBe(false);
+    }
+  });
+
   it("portal cannot access internal tables even if stacked with other role logic", () => {
     // This test verifies the portal isolation rule is structurally enforced in
     // the permission matrix and is not bypassable by combining role checks.

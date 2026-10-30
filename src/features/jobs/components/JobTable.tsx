@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"; import { getSupabaseBrowserClie
 
 import { useJobs } from "../state/JobsProvider";
 import type { JobPriority, JobStatus, JobType } from "../types/job";
+import { jobTypeFilterLabel } from "@/features/jobs/utils/callbackJob";
+
 import { jobColumns } from "./JobColumns";
 
 const statusOptions: Array<JobStatus | "All"> = [
@@ -251,7 +253,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
             >
               {typeOptions.map((option) => (
                 <option key={option} value={option}>
-                  Type: {option}
+                  Type: {option === "All" ? option : jobTypeFilterLabel(option)}
                 </option>
               ))}
             </select>

@@ -101,6 +101,17 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 > **Append-only:** each capture stores the signer name, the teammate who captured it, and the time. The image is in the private `job-signatures` bucket. Techs read and insert only on jobs assigned to them (`assigned_user_id` or `job_assignees`). Storage policies follow the same job visibility, so a technician cannot download another crew's signature file.
 
+### job_callbacks
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓       | ✓        | own  | ✓      | ✓     | —      |
+| INSERT | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+| UPDATE | —     | —       | —        | —    | —      | —     | —      |
+| DELETE | —     | —       | —        | —    | —      | —     | —      |
+
+> **Return visits:** office and dispatch create a Callback job from a completed job. The link stores the reason and points both ways. Techs can read a link when they are assigned to either job. Dispatch still cannot create an ordinary job. A jobs INSERT policy allows dispatch to insert a row only when `type` is `Callback`. `POST /api/jobs` remains denied for dispatch.
+
 ### portal_users
 
 | Action | owner | manager | dispatch | tech | office | sales | portal (own row) |
@@ -131,7 +142,7 @@ The following are always blocked regardless of role or policy evaluation:
 | `anon` / unauthenticated requests | No ALLOW policy matches; RLS deny-by-default blocks all access |
 | Cross-org row access | Every policy gates on `org_id = current_org_id()`; cross-org data is structurally impossible |
 | `job_activity` UPDATE / DELETE | Log is append-only; no policy grants these operations |
-| `dispatch` INSERT on jobs | Dispatchers schedule/update work, not create it |
+| `dispatch` INSERT on ordinary jobs | Dispatchers schedule and update work. They may insert a job only when it is a Callback return visit |
 | `tech` INSERT on jobs | Technicians execute work, not create it |
 | `sales` INSERT/UPDATE on jobs | Sales own pre-sales data (customers, properties), not job execution |
 
@@ -158,7 +169,7 @@ The automated tests in `src/services/__tests__/authorization.test.ts` cover:
 
 1. `portal` cannot access any internal operational table (all actions denied)
 2. `tech` cannot access another tech's assigned jobs
-3. `dispatch` cannot INSERT or DELETE jobs
+3. `dispatch` cannot INSERT an ordinary job or DELETE jobs. Callback return visits are the exception, and only through `job_callbacks`
 4. `sales` cannot access contractors
 5. `office` cannot access contractors
 6. No role except `owner` can DELETE customers, properties, contractors, or jobs

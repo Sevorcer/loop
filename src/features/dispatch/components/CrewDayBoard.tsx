@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { JobTypeLabel } from "@/features/jobs/components/JobTypeLabel";
+import { isCallbackJob } from "@/features/jobs/utils/callbackJob";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { DispatchSnapshot, ScheduleBlock } from "../types/dispatch";
@@ -245,7 +247,11 @@ function ScheduleBlockRow({ block, isConflicting }: ScheduleBlockRowProps) {
       {/* Job info */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono text-slate-500">{block.jobType}</span>
+          {isCallbackJob(block.jobType) ? (
+            <JobTypeLabel type={block.jobType} />
+          ) : (
+            <span className="text-xs font-mono text-slate-500">{block.jobType}</span>
+          )}
           {block.appointmentWindow && (
             <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs text-slate-400">
               {block.appointmentWindow === "Morning" ? (

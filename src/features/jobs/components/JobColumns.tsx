@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 import { formatCompanyScheduleRange, formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
 
+import { JobTypeLabel } from "./JobTypeLabel";
 import type { Job } from "../types/job";
 
 function SortableHeader({
@@ -87,7 +88,7 @@ export const jobColumns: ColumnDef<Job>[] = [
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10">
           {getTypeIcon(row.original.type)}
         </div>
-        <span className="text-sm text-slate-200">{row.original.type}</span>
+        <JobTypeLabel type={row.original.type} />
       </div>
     ),
   },

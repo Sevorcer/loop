@@ -6,6 +6,7 @@ import {
   FilePenLine,
   FileText,
   PenLine,
+  RotateCcw,
   User,
   Wrench,
 } from "lucide-react";
@@ -71,6 +72,8 @@ function getActivityIcon(type: JobActivity["type"]) {
       return <FileImage className="h-4 w-4 text-blue-300" />;
     case "signature":
       return <PenLine className="h-4 w-4 text-emerald-300" />;
+    case "callback":
+      return <RotateCcw className="h-4 w-4 text-amber-300" />;
     default:
       return <ClipboardList className="h-4 w-4 text-red-300" />;
   }

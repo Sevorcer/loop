@@ -289,10 +289,17 @@ export async function createJob(
   // Next number = highest JOB-<n> in use + 1. Never derive this from the
   // job count: deleting a job drops the count and reuses a live number.
   const nextIndex = (await getMaxJobNumberSuffix(contextInput)) + 1;
-  const [customerId, propertyId] = await Promise.all([
-    resolveCustomerIdByName(normalized.customerName, contextInput),
-    resolvePropertyIdByName(normalized.propertyName, contextInput),
-  ]); if (!customerId && normalized.customerName.trim()) throw new Error("Customer not found: " + normalized.customerName.trim() + ". Use '+ Create new'."); if (!propertyId && normalized.propertyName.trim()) throw new Error("Property not found: " + normalized.propertyName.trim() + ". Use '+ Create new'."); const createdJob = await createJobRecord(
+  const [resolvedCustomerId, resolvedPropertyId] = await Promise.all([
+    normalized.customerId
+      ? Promise.resolve(normalized.customerId)
+      : resolveCustomerIdByName(normalized.customerName, contextInput),
+    normalized.propertyId
+      ? Promise.resolve(normalized.propertyId)
+      : resolvePropertyIdByName(normalized.propertyName, contextInput),
+  ]);
+  const customerId = resolvedCustomerId;
+  const propertyId = resolvedPropertyId;
+  if (!customerId && normalized.customerName.trim()) throw new Error("Customer not found: " + normalized.customerName.trim() + ". Use '+ Create new'."); if (!propertyId && normalized.propertyName.trim()) throw new Error("Property not found: " + normalized.propertyName.trim() + ". Use '+ Create new'."); const createdJob = await createJobRecord(
     createJobNumber(nextIndex),
     {
       ...normalized,
