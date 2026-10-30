@@ -16,6 +16,7 @@ import {
   getSignedDownloadUrl,
   getStorageObjectById,
   listStorageObjects,
+  signStoragePaths,
   uploadFile as uploadFileRecord,
 } from "@/repositories/storage";
 import type { StorageObjectMeta, UploadInput } from "@/repositories/storage";
@@ -124,6 +125,29 @@ export async function listFiles(
 ): Promise<StorageObjectMeta[]> {
   assertCanUpload(role);
   return listStorageObjects(filter);
+}
+
+export async function withPhotoPreviewUrls<
+  T extends { bucket: string; storagePath: string; mimeType: string },
+>(files: T[]): Promise<Array<T & { previewUrl: string | null }>> {
+  const signed = new Map<string, string>();
+  const pathsByBucket = new Map<string, string[]>();
+  for (const file of files) {
+    if (!file.mimeType.toLowerCase().startsWith("image/")) continue;
+    const paths = pathsByBucket.get(file.bucket) ?? [];
+    paths.push(file.storagePath);
+    pathsByBucket.set(file.bucket, paths);
+  }
+
+  for (const [bucket, paths] of pathsByBucket) {
+    const urls = await signStoragePaths(bucket, paths, 600);
+    for (const [path, url] of urls) signed.set(`${bucket}:${path}`, url);
+  }
+
+  return files.map((file) => ({
+    ...file,
+    previewUrl: signed.get(`${file.bucket}:${file.storagePath}`) ?? null,
+  }));
 }
 
 export async function getFileMetadata(

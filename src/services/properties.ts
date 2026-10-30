@@ -103,8 +103,9 @@ export async function listProperties(
 export async function listPropertiesForCustomer(
   customerId: string,
   contextInput?: SessionRepositoryContextInput,
+  options?: { page?: number; pageSize?: number },
 ): Promise<Property[]> {
-  return listPropertiesByCustomerId(customerId, contextInput);
+  return listPropertiesByCustomerId(customerId, contextInput, options);
 }
 
 export async function getProperty(

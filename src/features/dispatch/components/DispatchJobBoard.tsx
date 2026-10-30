@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useAuth, useCurrentRole } from "@/features/auth";
+import { jobTypeFilterLabel } from "@/features/jobs/utils/callbackJob";
 import { requestJson } from "@/lib/api/client";
 import { pushToast } from "@/components/ui/toast";
 
@@ -406,7 +407,7 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           <option value="all">All job types</option>
           {jobTypeOptions.map((jobType) => (
             <option key={jobType} value={jobType}>
-              {jobType}
+              {jobTypeFilterLabel(jobType)}
             </option>
           ))}
         </select>

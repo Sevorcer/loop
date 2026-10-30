@@ -6,7 +6,7 @@ import { createApiErrorResponse, mapRouteError } from "@/lib/api/routeErrors";
 import { validateJobFile } from "@/lib/fileValidation";
 import { logWriteFailure } from "@/lib/observability/writes";
 import { listJobFiles, recordJobFileUpload } from "@/services/jobs";
-import { uploadStorageFile } from "@/services/storage";
+import { uploadStorageFile, withPhotoPreviewUrls } from "@/services/storage";
 
 const JOB_FILES_BUCKET = "job-files";
 
@@ -33,7 +33,14 @@ export async function GET(
   try {
     const { id } = await params;
     const files = await listJobFiles(id, guard.ctx.role);
-    return NextResponse.json({ files });
+    try {
+      const withPreviews = await withPhotoPreviewUrls(files);
+      return NextResponse.json({ files: withPreviews });
+    } catch {
+      return NextResponse.json({
+        files: files.map((file) => ({ ...file, previewUrl: null })),
+      });
+    }
   } catch (error) {
     return mapRouteError(error);
   }

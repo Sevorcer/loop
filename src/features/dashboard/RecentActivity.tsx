@@ -7,8 +7,10 @@ import {
   ClipboardCheck,
   FileText,
   Paperclip,
+  PenLine,
   Pencil,
   PlusCircle,
+  RotateCcw,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -27,6 +29,8 @@ const ACTIVITY_ICONS: Record<JobActivityType, LucideIcon> = {
   note: Paperclip,
   qa: ClipboardCheck,
   file: FileText,
+  signature: PenLine,
+  callback: RotateCcw,
 };
 
 function formatRelativeTime(iso: string): string {

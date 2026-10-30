@@ -28,12 +28,16 @@ export function JobCompletionChecklistCard({
   photosUploaded,
   installedSystemsEntered,
   jobNotesCompleted,
+  signatureCaption,
+  signaturePreviewUrl,
   initialChecklist,
   onSaveChecklist,
 }: {
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
   jobNotesCompleted: boolean;
+  signatureCaption?: string | null;
+  signaturePreviewUrl?: string | null;
   initialChecklist: RequiredQaChecklist;
   onSaveChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
 }) {
@@ -81,11 +85,28 @@ export function JobCompletionChecklistCard({
           <ChecklistRow label="Photos uploaded" complete={photosUploaded} />
           <ChecklistRow label="Installed systems entered" complete={installedSystemsEntered} />
           <ChecklistRow label="Job notes completed" complete={jobNotesCompleted} />
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-            <span className="text-sm text-slate-200">Customer signature</span>
-            <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
-              Optional
-            </span>
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-slate-200">Customer signature</span>
+              {signatureCaption ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              ) : (
+                <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
+                  Optional
+                </span>
+              )}
+            </div>
+            {signatureCaption ? (
+              <p className="mt-2 text-xs leading-5 text-slate-300">{signatureCaption}</p>
+            ) : null}
+            {signaturePreviewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={signaturePreviewUrl}
+                alt="Customer signature"
+                className="mt-2 h-16 w-full rounded-lg bg-white object-contain"
+              />
+            ) : null}
           </div>
         </div>
 

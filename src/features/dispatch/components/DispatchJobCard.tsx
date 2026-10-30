@@ -15,6 +15,7 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { JobTypeLabel } from "@/features/jobs/components/JobTypeLabel";
 import type { Job, JobStatus } from "@/features/jobs/types/job";
 
 interface DispatchJobCardProps {
@@ -106,9 +107,7 @@ export function DispatchJobCard({
                 <StatusIcon status={job.status} />
                 {job.status}
               </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-500">
-                {job.type}
-              </span>
+              <JobTypeLabel type={job.type} />
               <span
                 className={`rounded-full border px-2 py-0.5 text-xs font-medium ${priorityVariant[job.priority]}`}
               >

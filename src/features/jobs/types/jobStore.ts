@@ -5,9 +5,12 @@ export interface CreateJobInput {
   estimateId?: string;
   equipmentBundleId?: string;
   title: string;
+  customerId?: string | null;
   customerName: string;
+  propertyId?: string | null;
   propertyName: string;
   assignedTo: string; assigneeIds?: string[];
+  contractorIds?: string[];
   // Real clock-time scheduling (PR3C)
   scheduledStartAt?: string | null;
   scheduledEndAt?: string | null;

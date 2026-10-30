@@ -8,7 +8,8 @@ import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/ro
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
-import { createProperty, listProperties } from "@/services/properties";
+import { propertiesMatchingQuery } from "@/features/jobs/utils/propertyPicker";
+import { createProperty, listProperties, listPropertiesForCustomer } from "@/services/properties";
 
 const PROPERTY_TYPES = new Set(["Residential", "Commercial", "Multi-Family"]);
 const PROPERTY_STATUSES = new Set(["Active", "Pending", "Inactive"]);
@@ -37,7 +38,14 @@ export async function GET(request: Request) {
 
   try {
     const { userId } = guard.ctx;
-    const search = new URL(request.url).searchParams.get("search") ?? undefined;
+    const params = new URL(request.url).searchParams;
+    const search = params.get("search") ?? undefined;
+    const customerId = params.get("customerId") ?? undefined;
+    if (customerId) {
+      const owned = await listPropertiesForCustomer(customerId, { userId }, { pageSize: 200 });
+      const properties = search ? propertiesMatchingQuery(owned, search) : owned;
+      return NextResponse.json({ properties });
+    }
     const properties = await listProperties({ userId }, { search });
     return NextResponse.json({ properties });
   } catch (error) {

@@ -7,7 +7,9 @@ export type JobActivityType =
   | "status"
   | "note"
   | "qa"
-  | "file";
+  | "file"
+  | "signature"
+  | "callback";
 
 export interface JobActivity {
   id: string;

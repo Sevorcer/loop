@@ -3,6 +3,8 @@
 import { Clock, MapPin, Users } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { JobTypeLabel } from "@/features/jobs/components/JobTypeLabel";
+import { isCallbackJob } from "@/features/jobs/utils/callbackJob";
 
 import type { ScheduleBlock } from "../types/dispatch";
 import {
@@ -32,9 +34,11 @@ export function CrewScheduleCard({ block }: CrewScheduleCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-slate-500">
-                {block.jobType}
-              </span>
+              {isCallbackJob(block.jobType) ? (
+                <JobTypeLabel type={block.jobType} />
+              ) : (
+                <span className="text-xs font-mono text-slate-500">{block.jobType}</span>
+              )}
               <span
                 className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
                   isActive

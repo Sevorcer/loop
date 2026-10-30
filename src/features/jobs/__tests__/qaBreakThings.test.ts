@@ -4,7 +4,13 @@ import { readFileSync } from "node:fs";
 import { showAddContractorLink } from "@/features/jobs/utils/contractorAccess";
 import { editJobIdentityValues } from "@/features/jobs/utils/editJobInitialValues";
 import { applyFileDownload } from "@/features/jobs/utils/fileDownload";
-import { canSubmitJobForm, type JobFormSubmitFields } from "@/features/jobs/utils/jobFormSubmit";
+import {
+  canSubmitJobForm,
+  formatMissingJobFields,
+  missingJobFormFields,
+  missingPersistedJobFields,
+  type JobFormSubmitFields,
+} from "@/features/jobs/utils/jobFormSubmit";
 
 const officeForm: JobFormSubmitFields = {
   title: "Replace condenser",
@@ -58,6 +64,60 @@ describe("tech job edit Save", () => {
     expect(
       canSubmitJobForm("owner", { ...officeForm, scheduledStartAt: "" }, clearWindows),
     ).toBe(false);
+  });
+});
+
+describe("create job missing fields", () => {
+  it("names every blank office field in one message", () => {
+    const fields = missingJobFormFields(
+      "office",
+      {
+        title: "",
+        customerName: " ",
+        propertyName: "",
+        assignedTo: "",
+        location: "",
+        summary: "",
+        scheduledStartAt: "",
+      },
+      clearWindows,
+    );
+
+    expect(fields).toEqual([
+      "Job title",
+      "Customer",
+      "Property",
+      "Assigned technician",
+      "Scheduled start",
+      "Location",
+      "Work summary",
+    ]);
+    expect(formatMissingJobFields(fields)).toBe(
+      "Add the missing information: Job title, Customer, Property, Assigned technician, Scheduled start, Location, Work summary.",
+    );
+  });
+
+  it("only names location and summary for a technician", () => {
+    expect(
+      missingJobFormFields(
+        "tech",
+        { ...officeForm, location: "", summary: " " },
+        clearWindows,
+      ),
+    ).toEqual(["Location", "Work summary"]);
+  });
+
+  it("lists the same blanks for a saved job record", () => {
+    expect(
+      missingPersistedJobFields({
+        title: "",
+        customerName: "Ada",
+        propertyName: "",
+        assignedTo: "Antonio",
+        location: "Roof",
+        summary: "",
+      }),
+    ).toEqual(["Job title", "Property", "Work summary"]);
   });
 });
 

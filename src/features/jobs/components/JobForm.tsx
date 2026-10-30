@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClipboardPlus, FilePenLine } from "lucide-react";
 import Link from "next/link";
 
@@ -14,11 +14,15 @@ import {
 import {
   applyCustomerAutocomplete,
   applyPropertyAutocomplete,
-  getScopedProperties,
   type JobCustomerOption,
   type JobPropertyOption,
   type SmartSelectionState,
 } from "@/features/jobs/utils/smartJobCreation";
+import {
+  propertiesForCustomer,
+  propertyOptionDetail,
+  type PropertyDraft,
+} from "@/features/jobs/utils/propertyPicker";
 import {
   parseDatetimeLocalInput,
   toDatetimeLocalValue,
@@ -28,7 +32,10 @@ import {
   deriveScheduledForDate,
 } from "@/features/jobs/utils/schedulingTime";
 import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
-import { canSubmitJobForm } from "@/features/jobs/utils/jobFormSubmit";
+import {
+  formatMissingJobFields,
+  missingJobFormFields,
+} from "@/features/jobs/utils/jobFormSubmit";
 
 import type { JobAppointmentHour, JobPriority, JobType } from "../types/job"; import { RecordCombobox } from "./RecordCombobox";
 
@@ -158,8 +165,9 @@ interface JobFormProps {
   customerOptions?: JobCustomerOption[];
   propertyOptions?: JobPropertyOption[];
   technicianOptions?: string[]; technicianProfiles?: { id: string; name: string }[];
-  onSubmit: (values: JobFormValues) => Promise<void> | void; onCreateCustomer?: (name: string) => Promise<{ id: string; name: string }>; onCreateProperty?: (name: string, customerId?: string) => Promise<{ id: string; name: string }>;
-  onCustomerSearch?: (text: string) => void; onPropertySearch?: (text: string) => void;
+  onSubmit: (values: JobFormValues) => Promise<void> | void; onCreateCustomer?: (name: string) => Promise<{ id: string; name: string }>; onCreateProperty?: (input: PropertyDraft & { customerId?: string }) => Promise<{ id: string; name: string }>;
+  onCustomerSearch?: (text: string) => void; onPropertySearch?: (text: string, customerId?: string) => void;
+  onCustomerSelected?: (customerId: string) => void;
 }
 
 export function JobForm({
@@ -170,7 +178,7 @@ export function JobForm({
   customerOptions = [],
   propertyOptions = [],
   technicianOptions = [], technicianProfiles = [], onCreateCustomer, onCreateProperty,
-  onSubmit, onCustomerSearch, onPropertySearch,
+  onSubmit, onCustomerSearch, onPropertySearch, onCustomerSelected,
 }: JobFormProps) {
   const [form, setForm] = useState<JobFormValues>({
     ...defaultJobFormValues,
@@ -178,12 +186,28 @@ export function JobForm({
   });
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [selection, setSelection] = useState<SmartSelectionState>({}); function toggleAssignee(id: string, checked: boolean) { setForm((current) => { const currentIds = current.assigneeIds ?? []; const nextIds = checked ? Array.from(new Set([...currentIds, id])) : currentIds.filter((value) => value !== id); const names = technicianProfiles.filter((profile) => nextIds.includes(profile.id)).map((profile) => profile.name); return { ...current, assigneeIds: nextIds, assignedTo: names.join(", ") }; }); setError(null); }
+  const [selection, setSelection] = useState<SmartSelectionState>({
+    customerId: initialValues?.customerId ?? undefined,
+    propertyId: initialValues?.propertyId ?? undefined,
+  }); function toggleAssignee(id: string, checked: boolean) { setForm((current) => { const currentIds = current.assigneeIds ?? []; const nextIds = checked ? Array.from(new Set([...currentIds, id])) : currentIds.filter((value) => value !== id); const names = technicianProfiles.filter((profile) => nextIds.includes(profile.id)).map((profile) => profile.name); return { ...current, assigneeIds: nextIds, assignedTo: names.join(", ") }; }); setError(null); }
 
   const scopedPropertyOptions = useMemo(
-    () => getScopedProperties(propertyOptions, selection.customerId),
+    () => propertiesForCustomer(propertyOptions, selection.customerId),
     [propertyOptions, selection.customerId],
   );
+  const propertyRecords = useMemo(
+    () =>
+      scopedPropertyOptions.map((property) => ({
+        id: property.id,
+        name: property.name,
+        detail: propertyOptionDetail(property),
+      })),
+    [scopedPropertyOptions],
+  );
+
+  useEffect(() => {
+    if (selection.customerId) onCustomerSelected?.(selection.customerId);
+  }, [onCustomerSelected, selection.customerId]);
 
   function updateField<K extends keyof JobFormValues>(
     key: K,
@@ -302,20 +326,22 @@ export function JobForm({
     [parsedArrivalStart, parsedArrivalEnd],
   );
 
-  const canSubmit = useMemo(
+  const missingFields = useMemo(
     () =>
-      canSubmitJobForm(role, form, {
+      missingJobFormFields(role, form, {
         scheduledWindowError,
         arrivalWindowError,
       }),
     [form, scheduledWindowError, arrivalWindowError, role],
   );
+  const missingMessage = formatMissingJobFields(missingFields);
+  const canSubmit = missingFields.length === 0;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!canSubmit) {
-      setError("Complete all required fields before saving this job.");
+      setError(missingMessage ?? "Add the missing information before saving this job.");
       return;
     }
 
@@ -340,20 +366,18 @@ export function JobForm({
         const created = await onCreateCustomer(name);
         return created.id;
       };
-      const resolvePropertyId = async (custId: string | null): Promise<string | null> => {
+      const resolvePropertyId = async (): Promise<string | null> => {
         if (normalized.propertyId) return normalized.propertyId;
         const name = normalized.propertyName;
         if (!name) return null;
-        const match = propertyOptions.find(
-          (o) => o.name.toLowerCase() === name.toLowerCase(),
+        const match = scopedPropertyOptions.find(
+          (option) => option.name.toLowerCase() === name.toLowerCase(),
         );
         if (match) return match.id;
-        if (!onCreateProperty) throw new Error("Property creation is not available on this form.");
-        const created = await onCreateProperty(name, custId ?? undefined);
-        return created.id;
+        throw new Error("Choose a property for this customer, or add a new one with its address.");
       };
       const customerId = await resolveCustomerId();
-      const propertyId = await resolvePropertyId(customerId);
+      const propertyId = await resolvePropertyId();
       await onSubmit({ ...normalized, customerId, propertyId, createNewCustomer: false, createNewProperty: false });
     } catch (nextError) {
       setError(
@@ -402,7 +426,7 @@ export function JobForm({
         </div>
       </SurfaceCard>
 
-      <form onSubmit={handleSubmit}>
+      <form noValidate onSubmit={handleSubmit}>
         <SurfaceCard>
           <div className="grid gap-6 p-6 lg:grid-cols-2">
             <div className="space-y-2">
@@ -412,7 +436,7 @@ export function JobForm({
                 onChange={(e) => updateField("title", e.target.value)}
                 placeholder="Emergency condenser repair"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                required
+                aria-required="true"
               />
             </div>
 
@@ -431,7 +455,78 @@ export function JobForm({
               {/* F18: native select replaces the datalist combobox. Options stay
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
-              <RecordCombobox label="Property" disabled={isTech} options={scopedPropertyOptions} value={form.propertyName} onSelect={(name, id) => { setForm((p) => ({ ...p, propertyName: name, propertyId: id, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: id ?? undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, propertyName: name, propertyId: null, createNewProperty: true })); setSelection((p) => ({ ...p, propertyId: undefined })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, propertyName: text, propertyId: null, createNewProperty: false })); setSelection((p) => ({ ...p, propertyId: undefined })); onPropertySearch?.(text); }} required />
+              <RecordCombobox
+                label="Property"
+                disabled={isTech || form.customerName.trim().length === 0}
+                options={propertyRecords}
+                value={form.propertyName}
+                createWithAddress
+                placeholder={
+                  form.customerName.trim()
+                    ? "Search by name or address"
+                    : "Choose a customer first"
+                }
+                onSelect={(name, id) => {
+                  const property = scopedPropertyOptions.find((item) => item.id === id);
+                  const detail = property ? propertyOptionDetail(property) : "";
+                  setForm((current) => ({
+                    ...current,
+                    propertyName: name,
+                    propertyId: id,
+                    createNewProperty: false,
+                    location: detail || current.location,
+                  }));
+                  setSelection((current) => ({ ...current, propertyId: id ?? undefined }));
+                }}
+                onCreateNew={() => undefined}
+                onCreateAddress={async (draft) => {
+                  if (!onCreateProperty) {
+                    throw new Error("Property creation is not available on this form.");
+                  }
+                  let customerId = selection.customerId ?? form.customerId ?? undefined;
+                  if (!customerId && form.customerName.trim() && onCreateCustomer) {
+                    const createdCustomer = await onCreateCustomer(form.customerName.trim());
+                    customerId = createdCustomer.id;
+                    setForm((current) => ({
+                      ...current,
+                      customerName: createdCustomer.name,
+                      customerId: createdCustomer.id,
+                      createNewCustomer: false,
+                    }));
+                    setSelection((current) => ({ ...current, customerId: createdCustomer.id }));
+                  }
+                  const created = await onCreateProperty({ ...draft, customerId });
+                  const detail = propertyOptionDetail({ address: draft.address, city: draft.city });
+                  setForm((current) => ({
+                    ...current,
+                    customerId: customerId ?? current.customerId,
+                    propertyName: created.name,
+                    propertyId: created.id,
+                    createNewProperty: false,
+                    location: detail || current.location,
+                  }));
+                  setSelection((current) => ({
+                    customerId: customerId ?? current.customerId,
+                    propertyId: created.id,
+                  }));
+                }}
+                onQueryChange={(text) => {
+                  setForm((current) => ({
+                    ...current,
+                    propertyName: text,
+                    propertyId: null,
+                    createNewProperty: false,
+                  }));
+                  setSelection((current) => ({ ...current, propertyId: undefined }));
+                  onPropertySearch?.(text, selection.customerId);
+                }}
+                required
+              />
+              {form.customerName.trim().length === 0 ? (
+                <p className="text-xs text-slate-500">Choose a customer to see their properties.</p>
+              ) : scopedPropertyOptions.length === 0 ? (
+                <p className="text-xs text-slate-500">No properties yet. Add one with its address.</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -440,7 +535,7 @@ export function JobForm({
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
-                required
+                aria-required="true"
                 disabled={isTech}
               >
                 <option value="" disabled>
@@ -474,7 +569,6 @@ export function JobForm({
                 ariaLabel="Scheduled start"
                 value={form.scheduledStartAt}
                 onChange={(next) => updateField("scheduledStartAt", next)}
-                required
               />
             </div>
 
@@ -530,7 +624,7 @@ export function JobForm({
                 onChange={(e) => updateField("location", e.target.value)}
                 placeholder="1450 Northside Blvd, Suite 100"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                required
+                aria-required="true"
               />
             </div>
 
@@ -599,7 +693,7 @@ export function JobForm({
                 rows={4}
                 placeholder="Describe the requested install, service issue, maintenance scope, or inspection objective."
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                required
+                aria-required="true"
               />
             </div>
 
@@ -616,7 +710,13 @@ export function JobForm({
           </div>
 
           <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            {error ? <p className="text-sm text-red-300">{error}</p> : <div />}
+            {error ? (
+              <p className="text-sm text-red-300" role="alert">
+                {error}
+              </p>
+            ) : (
+              <div />
+            )}
             <div className="flex items-center justify-end gap-3">
               <Link href={cancelHref}>
                 <Button
@@ -628,7 +728,7 @@ export function JobForm({
                 </Button>
               </Link>
 
-              <Button type="submit" className="gap-2" disabled={!canSubmit || isSaving}>
+              <Button type="submit" className="gap-2" disabled={isSaving}>
                 <FormBadgeIcon className="h-4 w-4" />
                 {isSaving ? "Saving..." : submitLabel}
               </Button>

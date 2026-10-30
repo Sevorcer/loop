@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { RoutePermissionGuard } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
+import { useCustomerPropertyOptions } from "@/features/jobs/hooks/useCustomerPropertyOptions";
 import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { Customer } from "@/features/customers/types/customer";
-import type { Property } from "@/features/properties/types/property";
 
 import { editJobIdentityValues } from "../utils/editJobInitialValues";
 import type { Job } from "../types/job";
@@ -23,27 +22,16 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
 
-  // F18: the edit form shares JobForm's customer/property pickers, so it
-  // needs the same option lists the create form loads.
-  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
-  const [propertyOptions, setPropertyOptions] = useState<Property[]>([]); const [technicianProfiles, setTechnicianProfiles] = useState<{ id: string; name: string }[]>([]);
-
-  useEffect(() => {
-    if (!role) {
-      return;
-    }
-    void Promise.all([
-      requestJson<{ customers: Customer[] }>("/api/customers", { role }),
-      requestJson<{ properties: Property[] }>("/api/properties", { role }),
-    ])
-      .then(([customerResponse, propertyResponse]) => {
-        setCustomerOptions(customerResponse.customers ?? []);
-        setPropertyOptions(propertyResponse.properties ?? []);
-      })
-      .catch((error) => {
-        console.error("[jobs] failed to load edit-job picker options", error);
-      });
-  }, [role]);
+  const {
+    customerOptions,
+    propertyOptions,
+    loadPropertiesForCustomer,
+    searchCustomers,
+    createCustomer,
+    createProperty,
+  } = useCustomerPropertyOptions(role);
+  const [technicianProfiles, setTechnicianProfiles] = useState<{ id: string; name: string }[]>([]);
+  const propertySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { if (!role) { return; } let cancelled = false; void (async () => { try { const supabase = getSupabaseBrowserClient(); const { data, error } = await supabase.from("user_profiles").select("id, full_name, email").eq("app_role", "tech"); if (!cancelled && !error) { setTechnicianProfiles(((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map((profile) => ({ id: profile.id, name: (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member" })).sort((a, b) => a.name.localeCompare(b.name))); } } catch { if (!cancelled) { setTechnicianProfiles([]); } } })(); return () => { cancelled = true; }; }, [role]); const schedulingValues = jobToFormScheduling(job);
 
@@ -58,6 +46,23 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
       }}
       customerOptions={customerOptions}
       propertyOptions={propertyOptions} technicianProfiles={technicianProfiles}
+      onCreateCustomer={createCustomer}
+      onCreateProperty={async (input) => {
+        const customerName = customerOptions.find((customer) => customer.id === input.customerId)?.name ?? job.customerName;
+        return createProperty({ ...input, customerName });
+      }}
+      onCustomerSearch={searchCustomers}
+      onPropertySearch={(text, customerId) => {
+        if (propertySearchTimer.current) clearTimeout(propertySearchTimer.current);
+        const query = text.trim();
+        if (!customerId || !query) return;
+        propertySearchTimer.current = setTimeout(() => {
+          void loadPropertiesForCustomer(customerId, query);
+        }, 300);
+      }}
+      onCustomerSelected={(customerId) => {
+        void loadPropertiesForCustomer(customerId);
+      }}
       onSubmit={async (values) => {
         await requestJson(`/api/jobs/${job.id}`, {
           method: "PATCH",

@@ -23,16 +23,22 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 
+import type { JobCallbackContext } from "../types/jobCallback";
+import { EMPTY_JOB_CALLBACK_CONTEXT } from "../types/jobCallback";
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type { JobNote } from "../types/jobNote";
+import type { JobSignature } from "../types/jobSignature";
 import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCompletionChecklist";
+import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import { AssignContractorPanel } from "./AssignContractorPanel";
 import { JobNotesHistory } from "./JobNotesHistory";
 import { JobCompletionChecklistCard } from "./JobCompletionChecklistCard";
 import { JobFilesPanel } from "./JobFilesPanel";
+import { CreateCallbackPanel } from "./CreateCallbackPanel";
+import { JobSignatureCard } from "./JobSignatureCard";
 import { JobMobileActionBar } from "./JobMobileActionBar";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
@@ -40,6 +46,7 @@ import { JobTasksCard } from "./JobTasksCard"; import { JobDayByDay } from "./Jo
 import { JobTimeline } from "./JobTimeline";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
+import { companyTimeZone } from "@/lib/timezone";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Unscheduled";
@@ -64,6 +71,7 @@ interface JobDetailScreenProps {
   job: Job;
   activity: JobActivity[];
   notes: JobNote[];
+  callbackContext?: JobCallbackContext;
   onUpdateStatus: (status: JobStatus) => Promise<void>;
   onAddNote: (note: string) => Promise<void>;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
@@ -73,6 +81,7 @@ export function JobDetailScreen({
   job,
   activity,
   notes,
+  callbackContext = EMPTY_JOB_CALLBACK_CONTEXT,
   onUpdateStatus,
   onAddNote,
   onUpdateQaChecklist,
@@ -83,6 +92,7 @@ export function JobDetailScreen({
   const { contractors } = useContractors();
   const [fileCount, setFileCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
+  const [latestSignature, setLatestSignature] = useState<JobSignature | null>(null);
   const noteHistory = useMemo(
     () => displayJobNotes(notes, job.notes, activity),
     [notes, job.notes, activity],
@@ -172,7 +182,27 @@ export function JobDetailScreen({
                 {job.priority} Priority
               </StatusBadge>
               <StatusBadge variant="neutral">{job.type}</StatusBadge>
+              {callbackContext.original ? (
+                <Link
+                  href={ROUTE_BUILDERS.JOB_DETAIL(callbackContext.original.id)}
+                  className="inline-flex min-h-[44px] items-center text-sm text-amber-200 hover:underline"
+                >
+                  Callback for {callbackContext.original.jobNumber}
+                </Link>
+              ) : null}
+              {callbackContext.returnVisits.map((visit) => (
+                <Link
+                  key={visit.id}
+                  href={ROUTE_BUILDERS.JOB_DETAIL(visit.id)}
+                  className="inline-flex min-h-[44px] items-center text-sm text-amber-200 hover:underline"
+                >
+                  Return visit {visit.jobNumber}
+                </Link>
+              ))}
             </div>
+            {callbackContext.reason ? (
+              <p className="text-sm text-slate-300">Callback reason: {callbackContext.reason}</p>
+            ) : null}
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -368,6 +398,12 @@ export function JobDetailScreen({
             />
           </PermissionGuard>
 
+          <CreateCallbackPanel
+            jobId={job.id}
+            status={job.status}
+            callbackContext={callbackContext}
+          />
+
           <JobFilesPanel
             jobId={job.id}
             onFilesChanged={(files) => {
@@ -381,10 +417,23 @@ export function JobDetailScreen({
             }}
           />
 
+          <JobSignatureCard jobId={job.id} onLatestChange={setLatestSignature} />
+
           <JobCompletionChecklistCard
             photosUploaded={photoCount > 0}
             installedSystemsEntered={installedSystemsEntered}
             jobNotesCompleted={jobNotesCompleted}
+            signatureCaption={
+              latestSignature
+                ? formatSignatureCaption({
+                    signerName: latestSignature.signerName,
+                    capturedByName: latestSignature.capturedByName,
+                    capturedAt: latestSignature.capturedAt,
+                    timeZone: companyTimeZone(),
+                  })
+                : null
+            }
+            signaturePreviewUrl={latestSignature?.previewUrl ?? null}
             initialChecklist={qaChecklist}
             onSaveChecklist={onUpdateQaChecklist}
           />

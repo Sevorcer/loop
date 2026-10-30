@@ -9,6 +9,7 @@ import { requestJson } from "@/lib/api/client";
 
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
+import type { JobCallbackContext } from "../types/jobCallback";
 import type { JobNote } from "../types/jobNote";
 import type { RequiredQaChecklist } from "../utils/jobCompletionChecklist";
 import { JOB_NOTE_SAVED_TOAST } from "../utils/jobNotes";
@@ -18,9 +19,10 @@ interface JobDetailClientProps {
   job: Job;
   activity: JobActivity[];
   notes: JobNote[];
+  callbackContext: JobCallbackContext;
 }
 
-export function JobDetailClient({ job, activity, notes }: JobDetailClientProps) {
+export function JobDetailClient({ job, activity, notes, callbackContext }: JobDetailClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const [optimisticStatus, setOptimisticStatus] = useState<JobStatus | null>(null);
@@ -84,6 +86,7 @@ export function JobDetailClient({ job, activity, notes }: JobDetailClientProps) 
       job={liveJob}
       activity={activity}
       notes={notes}
+      callbackContext={callbackContext}
       onUpdateStatus={handleUpdateStatus}
       onAddNote={handleAddNote}
       onUpdateQaChecklist={handleUpdateQaChecklist}

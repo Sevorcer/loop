@@ -374,8 +374,11 @@ export async function listJobActivity(
   return ((data ?? []) as JobActivityRow[]).map(mapActivity);
 }
 
-export async function getJobById(id: string): Promise<Job | null> {
-  const { supabase, orgId } = await getRepositoryContext();
+export async function getJobById(
+  id: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<Job | null> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
 
   const result = await supabase
     .from("jobs")
@@ -494,6 +497,7 @@ export async function createJob(
     summary: input.summary,
     location: input.location,
     notes: input.notes,
+    contractor_ids: input.contractorIds ?? [],
   };
 
   const writeResult = await supabase
