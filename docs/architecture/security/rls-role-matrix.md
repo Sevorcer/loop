@@ -90,6 +90,17 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 > **Append-only:** each note is its own row (author, role, timestamp). Techs insert only on jobs assigned to them. The legacy `jobs.notes` column is kept; new notes are not written by replacing it.
 
+### job_signatures
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓       | ✓        | own  | ✓      | ✓     | —      |
+| INSERT | ✓     | ✓       | —        | own  | ✓      | —     | —      |
+| UPDATE | —     | —       | —        | —    | —      | —     | —      |
+| DELETE | —     | —       | —        | —    | —      | —     | —      |
+
+> **Append-only:** each capture stores the signer name, the teammate who captured it, and the time. The image is in the private `job-signatures` bucket. Techs read and insert only on jobs assigned to them (`assigned_user_id` or `job_assignees`). Storage policies follow the same job visibility, so a technician cannot download another crew's signature file.
+
 ### portal_users
 
 | Action | owner | manager | dispatch | tech | office | sales | portal (own row) |

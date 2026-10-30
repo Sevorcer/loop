@@ -26,13 +26,16 @@ import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type { JobNote } from "../types/jobNote";
+import type { JobSignature } from "../types/jobSignature";
 import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCompletionChecklist";
+import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import { AssignContractorPanel } from "./AssignContractorPanel";
 import { JobNotesHistory } from "./JobNotesHistory";
 import { JobCompletionChecklistCard } from "./JobCompletionChecklistCard";
 import { JobFilesPanel } from "./JobFilesPanel";
+import { JobSignatureCard } from "./JobSignatureCard";
 import { JobMobileActionBar } from "./JobMobileActionBar";
 import { JobNoteComposer } from "./JobNoteComposer";
 import { JobStatusActions } from "./JobStatusActions";
@@ -40,6 +43,7 @@ import { JobTasksCard } from "./JobTasksCard"; import { JobDayByDay } from "./Jo
 import { JobTimeline } from "./JobTimeline";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
+import { companyTimeZone } from "@/lib/timezone";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Unscheduled";
@@ -83,6 +87,7 @@ export function JobDetailScreen({
   const { contractors } = useContractors();
   const [fileCount, setFileCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
+  const [latestSignature, setLatestSignature] = useState<JobSignature | null>(null);
   const noteHistory = useMemo(
     () => displayJobNotes(notes, job.notes, activity),
     [notes, job.notes, activity],
@@ -381,10 +386,23 @@ export function JobDetailScreen({
             }}
           />
 
+          <JobSignatureCard jobId={job.id} onLatestChange={setLatestSignature} />
+
           <JobCompletionChecklistCard
             photosUploaded={photoCount > 0}
             installedSystemsEntered={installedSystemsEntered}
             jobNotesCompleted={jobNotesCompleted}
+            signatureCaption={
+              latestSignature
+                ? formatSignatureCaption({
+                    signerName: latestSignature.signerName,
+                    capturedByName: latestSignature.capturedByName,
+                    capturedAt: latestSignature.capturedAt,
+                    timeZone: companyTimeZone(),
+                  })
+                : null
+            }
+            signaturePreviewUrl={latestSignature?.previewUrl ?? null}
             initialChecklist={qaChecklist}
             onSaveChecklist={onUpdateQaChecklist}
           />

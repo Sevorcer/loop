@@ -5,6 +5,7 @@ import {
   FileImage,
   FilePenLine,
   FileText,
+  PenLine,
   User,
   Wrench,
 } from "lucide-react";
@@ -68,6 +69,8 @@ function getActivityIcon(type: JobActivity["type"]) {
       return <FileCheck2 className="h-4 w-4 text-emerald-300" />;
     case "file":
       return <FileImage className="h-4 w-4 text-blue-300" />;
+    case "signature":
+      return <PenLine className="h-4 w-4 text-emerald-300" />;
     default:
       return <ClipboardList className="h-4 w-4 text-red-300" />;
   }

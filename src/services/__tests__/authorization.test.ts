@@ -431,6 +431,24 @@ describe("privilege escalation — denied paths", () => {
     expect(hasPermission("portal", "job_notes", "insert")).toBe(false);
   });
 
+  it("lets a technician or the office capture a signature, and keeps it append-only", () => {
+    const writers: AppRole[] = ["owner", "manager", "tech", "office"];
+    for (const role of writers) {
+      expect(hasPermission(role, "job_signatures", "select")).toBe(true);
+      expect(hasPermission(role, "job_signatures", "insert")).toBe(true);
+    }
+    expect(hasPermission("dispatch", "job_signatures", "select")).toBe(true);
+    expect(hasPermission("dispatch", "job_signatures", "insert")).toBe(false);
+    expect(hasPermission("sales", "job_signatures", "select")).toBe(true);
+    expect(hasPermission("sales", "job_signatures", "insert")).toBe(false);
+    const roles: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"];
+    for (const role of roles) {
+      expect(hasPermission(role, "job_signatures", "update")).toBe(false);
+      expect(hasPermission(role, "job_signatures", "delete")).toBe(false);
+    }
+    expect(hasPermission("portal", "job_signatures", "select")).toBe(false);
+  });
+
   it("portal cannot access internal tables even if stacked with other role logic", () => {
     // This test verifies the portal isolation rule is structurally enforced in
     // the permission matrix and is not bypassable by combining role checks.
