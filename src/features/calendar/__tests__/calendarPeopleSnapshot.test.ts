@@ -1,0 +1,231 @@
+// @vitest-environment happy-dom
+import {
+  act,
+  createElement,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  CALENDAR_PEOPLE_GROUPS_KEY,
+  CALENDAR_PEOPLE_STORAGE_KEY,
+} from "../utils/calendarPeopleFilter";
+import { CALENDAR_VIEW_STORAGE_KEY } from "../utils/calendarSchedule";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/calendar",
+  useRouter: () => ({ replace: () => {}, push: () => {} }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("next/link", async () => {
+  const { createElement: create } = await import("react");
+  return {
+    default: ({ children, href }: { children?: ReactNode; href?: string }) =>
+      create("a", { href: typeof href === "string" ? href : "#" }, children),
+  };
+});
+
+vi.mock("@/features/auth", () => ({
+  useCurrentRole: () => ({ role: "owner", setDevRole: () => {} }),
+}));
+
+vi.mock("@/features/jobs/state/JobsProvider", () => ({
+  useJobs: () => ({ hydrated: true, jobs: [] }),
+}));
+
+vi.mock("@/lib/api/client", () => ({
+  ApiRequestError: class ApiRequestError extends Error {
+    status: number;
+
+    constructor(message: string, status: number) {
+      super(message);
+      this.name = "ApiRequestError";
+      this.status = status;
+    }
+  },
+  requestJson: () => Promise.resolve({ timeOff: [], tasks: [], team: [] }),
+}));
+
+import {
+  CalendarScreen,
+  readCalendarViewServer,
+  readCalendarViewSnapshot,
+  readGroupsServer,
+  readPeopleServer,
+  readStoredGroups,
+  readStoredPeople,
+} from "../screens/CalendarScreen";
+
+const roots: Root[] = [];
+
+function subscribeStore() {
+  return () => {};
+}
+
+function PeopleStoreProbe() {
+  const people = useSyncExternalStore(subscribeStore, readStoredPeople, readPeopleServer);
+  const groups = useSyncExternalStore(subscribeStore, readStoredGroups, readGroupsServer);
+  const peopleLabel = people === "pending" ? "pending" : people.join(",");
+  const groupsLabel = groups === "pending" ? "pending" : String(groups.length);
+  return createElement("p", null, `${peopleLabel}|${groupsLabel}`);
+}
+
+async function render(node: ReactElement) {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () => {
+    root.render(node);
+  });
+  return container;
+}
+
+afterEach(() => {
+  while (roots.length > 0) {
+    const root = roots.pop();
+    act(() => {
+      root?.unmount();
+    });
+  }
+  document.body.innerHTML = "";
+  localStorage.removeItem(CALENDAR_PEOPLE_STORAGE_KEY);
+  localStorage.removeItem(CALENDAR_PEOPLE_GROUPS_KEY);
+  localStorage.removeItem(CALENDAR_VIEW_STORAGE_KEY);
+});
+
+describe("calendar snapshot readers", () => {
+  it("returns the same people array while localStorage is unchanged", () => {
+    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(["brian", "sean", "brian"]));
+
+    const first = readStoredPeople();
+    const second = readStoredPeople();
+
+    expect(second).toBe(first);
+    expect(first).toEqual(["brian", "sean"]);
+  });
+
+  it("returns the same groups array while localStorage is unchanged", () => {
+    localStorage.setItem(
+      CALENDAR_PEOPLE_GROUPS_KEY,
+      JSON.stringify([{ id: "g1", name: "Install crew", personIds: ["brian", "sean"] }]),
+    );
+
+    const first = readStoredGroups();
+    const second = readStoredGroups();
+
+    expect(second).toBe(first);
+    expect(first).toEqual([{ id: "g1", name: "Install crew", personIds: ["brian", "sean"] }]);
+  });
+
+  it("reuses one empty array when nothing valid is saved", () => {
+    const missingPeople = readStoredPeople();
+    const missingPeopleAgain = readStoredPeople();
+    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, "nope");
+    const invalidPeople = readStoredPeople();
+
+    expect(missingPeopleAgain).toBe(missingPeople);
+    expect(invalidPeople).toBe(missingPeople);
+    expect(missingPeople).toEqual([]);
+
+    const missingGroups = readStoredGroups();
+    const missingGroupsAgain = readStoredGroups();
+    localStorage.setItem(CALENDAR_PEOPLE_GROUPS_KEY, "nope");
+    const invalidGroups = readStoredGroups();
+
+    expect(missingGroupsAgain).toBe(missingGroups);
+    expect(invalidGroups).toBe(missingGroups);
+    expect(missingGroups).toEqual([]);
+  });
+
+  it("returns a new array only after the stored text changes", () => {
+    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(["brian"]));
+    const brian = readStoredPeople();
+    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(["sean"]));
+    const sean = readStoredPeople();
+
+    expect(sean).not.toBe(brian);
+    expect(readStoredPeople()).toBe(sean);
+    expect(sean).toEqual(["sean"]);
+  });
+
+  it("returns the empty constant when storage throws", () => {
+    const original = window.localStorage;
+    let reads = 0;
+    const blocked = {
+      getItem() {
+        reads += 1;
+        throw new Error("storage blocked");
+      },
+      setItem() {},
+      removeItem() {},
+      clear() {},
+    };
+    Object.defineProperty(window, "localStorage", { configurable: true, value: blocked });
+    try {
+      const people = readStoredPeople();
+      const groups = readStoredGroups();
+      expect(readStoredPeople()).toBe(people);
+      expect(readStoredGroups()).toBe(groups);
+      expect(people).toEqual([]);
+      expect(groups).toEqual([]);
+      expect(reads).toBe(4);
+    } finally {
+      Object.defineProperty(window, "localStorage", { configurable: true, value: original });
+    }
+  });
+
+  it("keeps server snapshots and the view snapshot stable", () => {
+    localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, "week");
+    window.history.replaceState(null, "", "/calendar?view=week");
+
+    expect(readPeopleServer()).toBe(readPeopleServer());
+    expect(readGroupsServer()).toBe(readGroupsServer());
+    expect(readCalendarViewServer()).toBe(readCalendarViewServer());
+    expect(readCalendarViewSnapshot()).toBe("week");
+    expect(readCalendarViewSnapshot()).toBe(readCalendarViewSnapshot());
+  });
+});
+
+describe("calendar screen store render", () => {
+  it("mounts the people store with empty and saved filters", async () => {
+    localStorage.removeItem(CALENDAR_PEOPLE_STORAGE_KEY);
+    localStorage.removeItem(CALENDAR_PEOPLE_GROUPS_KEY);
+    const empty = await render(createElement(PeopleStoreProbe));
+    expect(empty.textContent).toBe("|0");
+
+    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(["brian", "sean"]));
+    localStorage.setItem(
+      CALENDAR_PEOPLE_GROUPS_KEY,
+      JSON.stringify([{ id: "g1", name: "Install crew", personIds: ["brian"] }]),
+    );
+    const saved = await render(createElement(PeopleStoreProbe));
+    expect(saved.textContent).toBe("brian,sean|1");
+  });
+
+  it("mounts the calendar with empty storage", async () => {
+    localStorage.removeItem(CALENDAR_PEOPLE_STORAGE_KEY);
+    localStorage.removeItem(CALENDAR_PEOPLE_GROUPS_KEY);
+
+    const container = await render(createElement(CalendarScreen));
+
+    expect(container.textContent).toContain("Calendar");
+  });
+
+  it("mounts the calendar with a saved person filter", async () => {
+    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(["brian", "sean"]));
+    localStorage.setItem(
+      CALENDAR_PEOPLE_GROUPS_KEY,
+      JSON.stringify([{ id: "g1", name: "Install crew", personIds: ["brian", "sean"] }]),
+    );
+
+    const container = await render(createElement(CalendarScreen));
+
+    expect(container.textContent).toContain("Calendar");
+    expect(container.textContent).toContain("Install crew");
+  });
+});
