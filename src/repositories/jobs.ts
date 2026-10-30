@@ -496,7 +496,13 @@ export async function createJob(
 ): Promise<Job> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
 
-  const assignedUserId = input.assigneeIds && input.assigneeIds.length > 0 ? input.assigneeIds[0] : await resolveAssignedUserId(supabase, orgId, input.assignedTo); const insertPayload: Record<string, unknown> = { assigned_user_id: assignedUserId,
+  const assigneeIds = input.assigneeIds?.filter((id) => id.trim().length > 0);
+  const assignedUserId = assigneeIds && assigneeIds.length > 0
+    ? assigneeIds[0]
+    : input.assignedTo.trim()
+      ? await resolveAssignedUserId(supabase, orgId, input.assignedTo)
+      : null;
+  const insertPayload: Record<string, unknown> = { assigned_user_id: assignedUserId,
     org_id: orgId,
     job_number: jobNumber,
     estimate_id: input.estimateId ?? null,
@@ -566,7 +572,19 @@ export async function createJob(
     throw new Error(error.message);
   }
 
-  const createdJob = mapJob(data as JobRow); await writeJobAssignees(supabase, orgId, createdJob.id, input.assigneeIds ?? (assignedUserId ? [assignedUserId] : [])); await attachAssignees(supabase, orgId, [createdJob]); return createdJob;
+  const createdJob = mapJob(data as JobRow);
+  const ids = assigneeIds && assigneeIds.length > 0 ? assigneeIds : assignedUserId ? [assignedUserId] : [];
+  await writeJobAssignees(supabase, orgId, createdJob.id, ids);
+  if (ids.length > 0) {
+    const names = createdJob.assignedTo.split(/\s*(?:\+|,)\s*/).map((name) => name.trim()).filter(Boolean);
+    createdJob.assignees = ids.map((id, index) => ({
+      id,
+      name: names[index] ?? "Team member",
+    }));
+  } else {
+    createdJob.assignees = [];
+  }
+  return createdJob;
 }
 
 export async function updateJob(

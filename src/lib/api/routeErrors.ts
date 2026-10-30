@@ -125,6 +125,10 @@ export function mapRouteError(error: unknown) {
     return createApiErrorResponse("NOT_FOUND", message, 404);
   }
 
+  if (status === 409) {
+    return createApiErrorResponse("CONFLICT", message, 409);
+  }
+
   if (status === 503) {
     return createApiErrorResponse(code ?? "SERVICE_UNAVAILABLE", message, 503);
   }

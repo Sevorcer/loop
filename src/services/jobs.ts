@@ -178,14 +178,17 @@ function createJobNumber(suffix: number) {
   return `JOB-${Math.max(suffix, 1001)}`;
 }
 
-async function ensureDispatchPlanForJob(job: Job): Promise<void> {
+async function ensureDispatchPlanForJob(
+  job: Job,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<void> {
   try {
     const targetDate = job.scheduledStartAt ? toIsoDateOnly(job.scheduledStartAt) : job.scheduledFor ?? undefined;
     if (!targetDate) return;
     const hours = scheduledWindowHours(job.scheduledStartAt, job.scheduledEndAt, 4);
     const status = dispatchStatusForJob(job.status, true);
     const clock = scheduledWindowClock(job.scheduledStartAt, job.scheduledEndAt);
-    const existingPlansResult = await listDispatchPlansByJobId(job.id);
+    const existingPlansResult = await listDispatchPlansByJobId(job.id, undefined, contextInput);
     const existingPlans = existingPlansResult.ok ? existingPlansResult.data : [];
     // One plan per job. A date range used to insert a plan per day, and those
     // copies were all drawn on the company day.
@@ -196,8 +199,8 @@ async function ensureDispatchPlanForJob(job: Job): Promise<void> {
         targetDate,
         dispatchStatus: status,
         estimatedDurationHours: hours,
-      });
-      const removed = await deleteDispatchPlansForJobExcept(job.id, keeper.id);
+      }, contextInput);
+      const removed = await deleteDispatchPlansForJobExcept(job.id, keeper.id, contextInput);
       if (!removed.ok) throw new Error(removed.error.message);
     } else {
       const created = await createDispatchPlan({
@@ -218,7 +221,7 @@ async function ensureDispatchPlanForJob(job: Job): Promise<void> {
         estimatedDurationHours: hours,
         priority: job.priority === "High" ? "high" : job.priority === "Low" ? "low" : "normal",
         constraints: [],
-      });
+      }, contextInput);
       if (created.ok) planId = created.data.id;
     }
 
@@ -235,7 +238,7 @@ async function ensureDispatchPlanForJob(job: Job): Promise<void> {
         customerName: job.customerName,
         propertyName: job.propertyName,
         dispatchStatus: status === "completed" ? "completed" : "scheduled",
-      });
+      }, contextInput);
     }
   } catch {
     return;
@@ -347,18 +350,12 @@ export async function createJob(
     contextInput,
   );
 
-  await Promise.all([
+  const followUps: Array<Promise<unknown>> = [
     createJobActivityRecord({
       jobId: createdJob.id,
       type: "created",
       title: "Job created",
       description: `New ${createdJob.type.toLowerCase()} job created from the job form.`,
-    }, contextInput),
-    createJobActivityRecord({
-      jobId: createdJob.id,
-      type: "assigned",
-      title: "Technician assigned",
-      description: `${createdJob.assignedTo} assigned to this job.`,
     }, contextInput),
     createJobActivityRecord({
       jobId: createdJob.id,
@@ -370,22 +367,28 @@ export async function createJob(
           ? `Job scheduled for ${formatDateOnly(createdJob.scheduledFor)}.`
           : "Job created without a scheduled date.",
     }, contextInput),
-  ]);
-
-  // Counters and the dispatch card do not depend on each other.
-  await Promise.all([
-    syncRelatedCounters(createdJob, contextInput),
-    ensureDispatchPlanForJob(createdJob),
-  ]);
-  if (createdJob.notes.trim()) {
-    try {
-      await appendJobNote(createdJob.id, createdJob.notes, {
-        actorId: contextInput?.userId,
-      });
-    } catch {
-      // jobs.notes still holds the text if the history table is not ready yet.
-    }
+    ensureDispatchPlanForJob(createdJob, contextInput),
+  ];
+  if (createdJob.assignedTo.trim()) {
+    followUps.push(createJobActivityRecord({
+      jobId: createdJob.id,
+      type: "assigned",
+      title: "Technician assigned",
+      description: `${createdJob.assignedTo} assigned to this job.`,
+    }, contextInput));
   }
+  if (customerId) followUps.push(syncCustomerCounters(customerId));
+  if (propertyId) followUps.push(syncPropertyCounters(propertyId, contextInput));
+  if (createdJob.notes.trim()) {
+    followUps.push(insertJobNote({
+      jobId: createdJob.id,
+      body: createdJob.notes.trim(),
+      authorId: contextInput?.userId ?? null,
+      authorName: "Office",
+      authorRole: "",
+    }, contextInput).catch(() => undefined));
+  }
+  await Promise.all(followUps);
   return createdJob;
 }
 

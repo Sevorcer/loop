@@ -14,7 +14,7 @@ import type {
 } from "@/features/dispatch/types/dispatch";
 
 import { wrapRepositoryError } from "./shared";
-import { getRepositoryContext } from "./supabaseContext";
+import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
 // ---------------------------------------------------------------------------
 // Row shapes
@@ -258,14 +258,18 @@ export async function listDispatchPlans(options?: { page?: number; pageSize?: nu
   });
 }
 
-export async function listDispatchPlansByJobId(jobId: string, options?: { page?: number; pageSize?: number }) {
+export async function listDispatchPlansByJobId(
+  jobId: string,
+  options?: { page?: number; pageSize?: number },
+  contextInput?: SessionRepositoryContextInput,
+) {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
   return wrapRepositoryError(async () => {
-    const { supabase, orgId } = await getRepositoryContext();
+    const { supabase, orgId } = await getRepositoryContext(contextInput);
     const { data, error } = await supabase
       .from("dispatch_plans")
       .select(
@@ -313,9 +317,12 @@ export interface DispatchPlanWriteInput {
   constraints: DispatchPlan["constraints"];
 }
 
-export async function createDispatchPlan(input: DispatchPlanWriteInput) {
+export async function createDispatchPlan(
+  input: DispatchPlanWriteInput,
+  contextInput?: SessionRepositoryContextInput,
+) {
   return wrapRepositoryError(async () => {
-    const { supabase, orgId } = await getRepositoryContext();
+    const { supabase, orgId } = await getRepositoryContext(contextInput);
     const { data, error } = await supabase
       .from("dispatch_plans")
       .insert({
@@ -350,9 +357,10 @@ export async function updateDispatchPlanPlacement(
     dispatchStatus?: DispatchStatus;
     estimatedDurationHours?: number;
   },
+  contextInput?: SessionRepositoryContextInput,
 ) {
   return wrapRepositoryError(async () => {
-    const { supabase, orgId } = await getRepositoryContext();
+    const { supabase, orgId } = await getRepositoryContext(contextInput);
     const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (patch.targetDate) update.target_date = patch.targetDate;
     if (patch.dispatchStatus) update.dispatch_status = patch.dispatchStatus;
@@ -420,9 +428,13 @@ export async function updateDispatchPlanStatusByJobId(jobId: string, status: Dis
  * Drops every plan for a job except the one the board should keep.
  * Child schedule blocks, crew assignments, and events cascade with the plan.
  */
-export async function deleteDispatchPlansForJobExcept(jobId: string, keepPlanId: string) {
+export async function deleteDispatchPlansForJobExcept(
+  jobId: string,
+  keepPlanId: string,
+  contextInput?: SessionRepositoryContextInput,
+) {
   return wrapRepositoryError(async () => {
-    const { supabase, orgId } = await getRepositoryContext();
+    const { supabase, orgId } = await getRepositoryContext(contextInput);
     const { error } = await supabase
       .from("dispatch_plans")
       .delete()
@@ -585,9 +597,12 @@ export interface ScheduleBlockWriteInput {
   dispatchStatus: DispatchStatus;
 }
 
-export async function upsertScheduleBlock(input: ScheduleBlockWriteInput) {
+export async function upsertScheduleBlock(
+  input: ScheduleBlockWriteInput,
+  contextInput?: SessionRepositoryContextInput,
+) {
   return wrapRepositoryError(async () => {
-    const { supabase, orgId } = await getRepositoryContext();
+    const { supabase, orgId } = await getRepositoryContext(contextInput);
 
     // Remove any existing block for this plan before inserting new one
     await supabase

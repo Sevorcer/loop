@@ -3,6 +3,7 @@ import "server-only";
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 import type { CustomerJobItem, CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import {
+  countCustomerReferences,
   countOpenJobsForCustomer,
   countPropertiesForCustomer,
   createCustomer as createCustomerRecord,
@@ -11,6 +12,7 @@ import {
   listCustomers as listCustomerRecords,
   updateCustomer as updateCustomerRecord,
 } from "@/repositories/customers";
+import { customerDeleteBlockedMessage } from "@/features/customers/utils/customerDelete";
 import { listPropertiesByCustomerId } from "@/repositories/properties";
 import { listJobsByCustomerId } from "@/repositories/jobs";
 
@@ -122,6 +124,13 @@ export async function syncCustomerCounters(customerId: string) {
 }
 
 export async function deleteCustomer(id: string) {
+  const links = await countCustomerReferences(id);
+  const blocked = customerDeleteBlockedMessage(links.jobs, links.properties);
+  if (blocked) {
+    const error = new Error(blocked);
+    (error as { status?: number }).status = 409;
+    throw error;
+  }
   return deleteCustomerRecord(id);
 }
 
