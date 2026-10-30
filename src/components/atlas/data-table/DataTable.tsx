@@ -57,6 +57,8 @@ export function DataTable<TData>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const humanizedLabelCacheRef = useRef(new Map<string, string>());
 
+  // TanStack Table returns functions the React compiler cannot memoize.
+  // eslint-disable-next-line react-hooks/incompatible-library -- useReactTable is the supported table API
   const table = useReactTable({
     data,
     columns,

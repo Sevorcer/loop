@@ -14,8 +14,6 @@ import {
   getEstimateEquipmentBundle,
 } from "@/features/installed-systems/utils/installedSystemsUtils";
 import {
-  applyCustomerAutocomplete,
-  applyPropertyAutocomplete,
   type JobCustomerOption,
   type JobPropertyOption,
   type SmartSelectionState,
@@ -28,7 +26,6 @@ import {
 import {
   parseDatetimeLocalInput,
   toDatetimeLocalValue,
-  isValidTimeWindow,
   getTimeWindowError,
   deriveScheduledStartAt,
   deriveScheduledForDate,
@@ -219,48 +216,6 @@ export function JobForm({
       ...current,
       ...(key === "type" ? clearEstimateFieldsIfNeeded(value as JobType) : {}),
       [key]: value,
-    }));
-    setError(null);
-  }
-
-  function handleCustomerInput(value: string) {
-    const selected = applyCustomerAutocomplete(customerOptions, value);
-    const nextCustomerId = selected.state.customerId;
-    const shouldRetainProperty = Boolean(
-      nextCustomerId &&
-        selection.propertyId &&
-        propertyOptions.some(
-          (property) =>
-            property.id === selection.propertyId && property.customerId === nextCustomerId,
-        ),
-    );
-
-    setSelection((current) => {
-      return {
-        customerId: nextCustomerId,
-        propertyId: shouldRetainProperty ? current.propertyId : undefined,
-      };
-    });
-
-    setForm((current) => ({
-      ...current,
-      customerName: selected.formPatch.customerName ?? value,
-      propertyName: shouldRetainProperty ? current.propertyName : "",
-    }));
-    setError(null);
-  }
-
-  function handlePropertyInput(value: string) {
-    const selected = applyPropertyAutocomplete(scopedPropertyOptions, value);
-    setSelection({
-      customerId: selected.state.customerId ?? selection.customerId,
-      propertyId: selected.state.propertyId,
-    });
-    setForm((current) => ({
-      ...current,
-      propertyName: selected.formPatch.propertyName ?? value,
-      customerName: selected.formPatch.customerName ?? current.customerName,
-      location: selected.formPatch.location || current.location,
     }));
     setError(null);
   }

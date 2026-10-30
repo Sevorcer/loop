@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Briefcase,
@@ -87,6 +88,7 @@ export function JobDetailScreen({
   onAddNote,
   onUpdateQaChecklist,
 }: JobDetailScreenProps) {
+  const router = useRouter();
   const { role } = useCurrentRole();
   const isTech = role === "tech";
   const { getInstalledSystemsForJob } = useInstalledSystems();
@@ -141,7 +143,7 @@ export function JobDetailScreen({
           variant="ghost"
           className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
           onClick={() => {
-            window.location.href = "/jobs";
+            router.push("/jobs");
           }}
         >
           <ArrowLeft className="h-4 w-4" />
@@ -154,7 +156,7 @@ export function JobDetailScreen({
               variant="secondary"
               className="min-h-[44px]"
               onClick={() => {
-                window.location.href = `/jobs/${job.id}/edit`;
+                router.push(`/jobs/${job.id}/edit`);
               }}
             >
               Edit Job

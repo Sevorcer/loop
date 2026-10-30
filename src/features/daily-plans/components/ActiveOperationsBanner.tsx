@@ -1,7 +1,5 @@
-import { Activity, Clock, Zap } from "lucide-react";
-import Link from "next/link";
+import { Activity, Clock } from "lucide-react";
 
-import { ROUTES } from "@/lib/routes";
 import { formatStartTime } from "../utils/planUtils";
 
 interface ActiveOperationsBannerProps {

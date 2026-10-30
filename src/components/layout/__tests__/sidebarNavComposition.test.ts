@@ -79,9 +79,12 @@ describe("composeSidebarNav", () => {
       "FIELD",
     ]);
     expect(groups[0]?.items[0]?.href).toBe(ROUTES.DASHBOARD);
-    // Customers is not in the tech role permission list, so FIELD shows only Jobs.
+    // Customers, contractors, and vehicle alerts stay off the tech sidebar.
+    // Jobs, properties, and installed systems are the field records a tech can open.
     expect(groups[1]?.items.map((item) => item.href)).toEqual([
       ROUTES.JOBS,
+      ROUTES.PROPERTIES,
+      ROUTES.INSTALLED_SYSTEMS,
     ]);
   });
 

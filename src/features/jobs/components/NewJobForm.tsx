@@ -10,7 +10,8 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import { useCustomerPropertyOptions } from "@/features/jobs/hooks/useCustomerPropertyOptions";
-import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { requestJson } from "@/lib/api/client";
+import { listFieldTechnicians } from "@/services/profileDirectory";
 import { ROUTES } from "@/lib/routes";
 
 import type { Crew } from "@/features/dispatch/types/dispatch";
@@ -85,7 +86,21 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         console.error("[jobs] failed to load crews", error);
         setCrewTechnicians([]);
       });
-  }, [role]); useEffect(() => { if (!role) { return; } let cancelled = false; void (async () => { try { const supabase = getSupabaseBrowserClient(); const { data, error } = await supabase.from("user_profiles").select("id, full_name, email").eq("app_role", "tech"); if (!cancelled && !error) { setTechnicianProfiles(((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map((profile) => ({ id: profile.id, name: (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member" })).sort((a, b) => a.name.localeCompare(b.name))); } } catch { if (!cancelled) { setTechnicianProfiles([]); } } })(); return () => { cancelled = true; }; }, [role]);
+  }, [role]);
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    void listFieldTechnicians()
+      .then((profiles) => {
+        if (!cancelled) setTechnicianProfiles(profiles);
+      })
+      .catch(() => {
+        if (!cancelled) setTechnicianProfiles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   const prefilledValues = useMemo(() => {
     if (!initialContext) {

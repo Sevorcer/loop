@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { RoutePermissionGuard } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
 import { useCustomerPropertyOptions } from "@/features/jobs/hooks/useCustomerPropertyOptions";
-import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { requestJson } from "@/lib/api/client";
+import { listFieldTechnicians } from "@/services/profileDirectory";
 
 import { editJobIdentityValues } from "../utils/editJobInitialValues";
 import type { Job } from "../types/job";
@@ -33,7 +34,21 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
   const [technicianProfiles, setTechnicianProfiles] = useState<{ id: string; name: string }[]>([]);
   const propertySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { if (!role) { return; } let cancelled = false; void (async () => { try { const supabase = getSupabaseBrowserClient(); const { data, error } = await supabase.from("user_profiles").select("id, full_name, email").eq("app_role", "tech"); if (!cancelled && !error) { setTechnicianProfiles(((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map((profile) => ({ id: profile.id, name: (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member" })).sort((a, b) => a.name.localeCompare(b.name))); } } catch { if (!cancelled) { setTechnicianProfiles([]); } } })(); return () => { cancelled = true; }; }, [role]); const schedulingValues = jobToFormScheduling(job);
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    void listFieldTechnicians()
+      .then((profiles) => {
+        if (!cancelled) setTechnicianProfiles(profiles);
+      })
+      .catch(() => {
+        if (!cancelled) setTechnicianProfiles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+  const schedulingValues = jobToFormScheduling(job);
 
   return (
     <JobForm

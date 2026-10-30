@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, CalendarDays, CheckCircle2, Clock, Printer, Rocket, ShieldAlert, Zap } from "lucide-react";
-import Link from "next/link";
+import { Activity, CalendarDays, CheckCircle2, Clock, Printer, Rocket, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ROUTES } from "@/lib/routes";
 
 import type { DailyPlanStatus, MorningAlert, MorningDashboardMetrics } from "../types/dailyPlan";
 import { formatPlanDate, formatStartTime, getDayLabel, getReadinessStatus } from "../utils/planUtils";

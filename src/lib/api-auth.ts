@@ -16,6 +16,7 @@ import {
   startAuthTimer,
 } from "@/lib/observability/auth";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
+import { rememberRequestAuth } from "@/lib/auth/requestAuth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasPermission } from "@/services/authorization";
 import type { AppRole, CoreTable, TableAction } from "@/services/authorization";
@@ -120,6 +121,7 @@ async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult>
 
     const user = resolved.user;
     if (resolved.status === "authenticated" && user) {
+      if (user.id) rememberRequestAuth({ supabase, userId: user.id });
       const extractedRole = extractRoleFromUser(user);
       if (extractedRole) {
         return { ok: true, auth: { role: extractedRole, userId: user.id ?? "" } };

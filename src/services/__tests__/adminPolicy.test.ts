@@ -10,7 +10,7 @@ import {
   isAdminRole,
   AdminAuthorizationError,
 } from "@/services/adminPolicy";
-import type { AdminRole, AdminEntity, AdminAction } from "@/services/adminPolicy";
+import type { AdminEntity, AdminAction } from "@/services/adminPolicy";
 
 // ---------------------------------------------------------------------------
 // isAdminRole

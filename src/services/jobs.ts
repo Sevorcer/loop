@@ -304,8 +304,9 @@ export async function createJob(
 
   // Next number = highest JOB-<n> in use + 1. Never derive this from the
   // job count: deleting a job drops the count and reuses a live number.
-  const nextIndex = (await getMaxJobNumberSuffix(contextInput)) + 1;
-  const [resolvedCustomerId, resolvedPropertyId] = await Promise.all([
+  // The number lookup does not depend on resolving the customer or property.
+  const [nextIndex, resolvedCustomerId, resolvedPropertyId] = await Promise.all([
+    getMaxJobNumberSuffix(contextInput).then((suffix) => suffix + 1),
     normalized.customerId
       ? Promise.resolve(normalized.customerId)
       : resolveCustomerIdByName(normalized.customerName, contextInput),
@@ -352,10 +353,11 @@ export async function createJob(
     }, contextInput),
   ]);
 
-  await syncRelatedCounters(createdJob, contextInput);
-
-  // One dispatch plan per job. Extra plans for the same job are removed.
-  await ensureDispatchPlanForJob(createdJob);
+  // Counters and the dispatch card do not depend on each other.
+  await Promise.all([
+    syncRelatedCounters(createdJob, contextInput),
+    ensureDispatchPlanForJob(createdJob),
+  ]);
   if (createdJob.notes.trim()) {
     try {
       await appendJobNote(createdJob.id, createdJob.notes, {
