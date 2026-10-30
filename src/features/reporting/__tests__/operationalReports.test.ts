@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  reportTeamNames,
   buildJobTiming,
   computeCallbackReport,
   computeInstallReport,
@@ -276,6 +277,38 @@ describe("computeTechScorecards", () => {
     expect(card.onTimePct).toBeNull();
     expect(card.callbackRate).toBeNull();
     expect(card.booked).toBe(1);
+  });
+});
+
+describe("shared teams", () => {
+  it("shows the team together and credits every person, keeping the completion snapshot", () => {
+    const shared = job({
+      id: "shared",
+      type: "Install",
+      status: "Completed",
+      assignedTo: "Maya Singh",
+      assignees: [{ id: "maya", name: "Maya Singh" }],
+      completionTeam: [
+        { id: "brian", name: "Brian Ramirez" },
+        { id: "sean", name: "Sean Ryan" },
+      ],
+      scheduledStartAt: "2026-09-08T16:00:00.000Z",
+    });
+    expect(reportTeamNames(shared)).toEqual(["Brian Ramirez", "Sean Ryan"]);
+    const report = computeInstallReport([shared], "2026-09");
+    expect(report.jobs[0].tech).toBe("Brian Ramirez + Sean Ryan");
+    expect(report.total).toBe(1);
+    expect(report.byTech).toEqual([
+      { tech: "Brian Ramirez", count: 1 },
+      { tech: "Sean Ryan", count: 1 },
+    ]);
+    const cards = computeTechScorecards(
+      [shared],
+      buildJobTiming([shared], [activity({ jobId: "shared", createdAt: "2026-09-08T20:00:00.000Z" })]),
+      "2026-09",
+    );
+    expect(cards.map((card) => card.tech).sort()).toEqual(["Brian Ramirez", "Sean Ryan"]);
+    expect(cards.every((card) => card.jobsDone === 1)).toBe(true);
   });
 });
 

@@ -18,9 +18,12 @@ import {
   readJsonObject,
 } from "@/lib/api/routeErrors";
 import { logWriteFailure } from "@/lib/observability/writes";
+import { canAssignDispatchPeople } from "@/features/dispatch/utils/dispatchPeople";
 import {
   assignCrewToPlan,
+  assignPeopleToJob,
   emitDispatchEvent,
+  movePersonBetweenJobs,
   schedulePlan,
 } from "@/services/dispatch";
 import { updateDispatchPlanStatus } from "@/repositories/dispatch";
@@ -46,6 +49,50 @@ export async function PATCH(
 
   try {
     switch (action) {
+      case "assign_people":
+      case "move_person": {
+        if (!canAssignDispatchPeople(guard.ctx.role)) {
+          return createApiErrorResponse(
+            "FORBIDDEN",
+            "Only office staff can assign people to a job.",
+            403,
+          );
+        }
+        if (action === "move_person") {
+          const personId = String(body.personId ?? "");
+          const fromJobId = String(body.fromJobId ?? "");
+          const toJobId = String(body.toJobId ?? "");
+          const moved = await movePersonBetweenJobs(fromJobId, toJobId, personId);
+          try {
+            await emitDispatchEvent(
+              id,
+              "crew_assigned",
+              `${moved.personName} moved to ${moved.toJobNumber}.`,
+            );
+          } catch {
+            // The move is already saved.
+          }
+          return NextResponse.json({ ok: true });
+        }
+        const jobId = String(body.jobId ?? "");
+        const assigneeIds = Array.isArray(body.assigneeIds)
+          ? body.assigneeIds.filter((value): value is string => typeof value === "string")
+          : [];
+        const job = await assignPeopleToJob(jobId, assigneeIds);
+        try {
+          await emitDispatchEvent(
+            id,
+            "crew_assigned",
+            job.assignedTo.trim()
+              ? `${job.assignedTo.trim()} assigned to this job.`
+              : "Everyone was removed from this job.",
+          );
+        } catch {
+          // The assignment is already saved.
+        }
+        return NextResponse.json({ job });
+      }
+
       case "assign_crew": {
         const crewId = String(body.crewId ?? "");
         const crewName = String(body.crewName ?? "");

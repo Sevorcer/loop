@@ -119,7 +119,7 @@ function InstallReportSection({ reports }: { reports: OperationalReports }) {
   return (
     <SectionCard
       title={`Install Report — ${reports.monthLabel}`}
-      description="Install jobs by week and by tech. Unscheduled installs are counted in the total but not in a week."
+      description="Install jobs by week and by person. A job with two people counts for both. The job list shows the whole team together. Unscheduled installs are counted in the total but not in a week."
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KPICard title="Installs" value={install.total} />
@@ -148,7 +148,7 @@ function InstallReportSection({ reports }: { reports: OperationalReports }) {
         Install jobs
       </h4>
       <ReportTable
-        headers={["Job", "Title", "Customer", "Tech", "Date", "Status"]}
+        headers={["Job", "Title", "Customer", "Team", "Date", "Status"]}
         rows={install.jobs.map((job) => [
           job.jobNumber,
           job.title || "—",
@@ -192,7 +192,7 @@ function PipelineSection({ reports }: { reports: OperationalReports }) {
         Open estimates
       </h4>
       <ReportTable
-        headers={["Estimate", "Title", "Customer", "Status", "Tech"]}
+        headers={["Estimate", "Title", "Customer", "Status", "Team"]}
         rows={pipeline.openEstimatesList.map((estimate) => [
           estimate.jobNumber,
           estimate.title || "—",
@@ -211,7 +211,7 @@ function TechScorecardsSection({ reports }: { reports: OperationalReports }) {
   return (
     <SectionCard
       title={`Tech Scorecards — ${reports.monthLabel}`}
-      description="Jobs done, on-time completion, callbacks, and currently booked work per tech. On-time means finished on or before the scheduled date."
+      description="Jobs done, on-time completion, callbacks, and currently booked work. Everyone on a job is credited. A completed job keeps the team that finished it. On-time means finished on or before the scheduled date."
     >
       <ReportTable
         headers={["Tech", "Jobs done", "On-time", "Callbacks", "Callback rate", "Booked"]}
@@ -253,7 +253,7 @@ function CallbacksSection({ reports }: { reports: OperationalReports }) {
         Callback jobs
       </h4>
       <ReportTable
-        headers={["Job", "Title", "Customer", "Property", "Tech", "Date", "Status"]}
+        headers={["Job", "Title", "Customer", "Property", "Team", "Date", "Status"]}
         rows={callbacks.jobs.map((job) => [
           job.jobNumber,
           job.title || "—",

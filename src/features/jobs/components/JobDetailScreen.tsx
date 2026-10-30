@@ -22,6 +22,7 @@ import { useInstalledSystems } from "@/features/installed-systems/state/Installe
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTE_BUILDERS } from "@/lib/routes";
+import { formatTeamLabel } from "@/lib/teamLabel";
 
 import type { JobCallbackContext } from "../types/jobCallback";
 import { EMPTY_JOB_CALLBACK_CONTEXT } from "../types/jobCallback";
@@ -103,7 +104,15 @@ export function JobDetailScreen({
   );
   // F20: prefer the real scheduled time over the legacy appointment-hour
   // field, which always falls back to 9 AM for jobs created by the new form.
-  const appointmentDisplay = formatJobAppointmentDisplay(job); const assignedTechNames = job.assignees && job.assignees.length > 0 ? job.assignees.map((assignee) => assignee.name).join(", ") : job.assignedTo || "No technician assigned"; const scheduleRangeLabel = formatCompanyScheduleRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
+  const appointmentDisplay = formatJobAppointmentDisplay(job);
+  const currentTeam = job.assignees && job.assignees.length > 0
+    ? formatTeamLabel(job.assignees.map((assignee) => assignee.name))
+    : job.assignedTo || "";
+  const assignedTechNames = currentTeam || "No technician assigned";
+  const completedTeam = job.status === "Completed" && job.completionTeam && job.completionTeam.length > 0
+    ? formatTeamLabel(job.completionTeam.map((person) => person.name))
+    : "";
+  const scheduleRangeLabel = formatCompanyScheduleRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
   // F15: "Assigned To" (internal technician) and "Assigned Contractors"
   // (external subs) are stored separately and could silently disagree on this
   // screen. Render them side by side so both facts are always visible together.
@@ -244,11 +253,16 @@ export function JobDetailScreen({
                   <User className="mt-0.5 h-4 w-4 text-slate-400" />
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Assigned Technician
+                      Team
                     </p>
                     <p className="mt-1 text-sm text-slate-200">
                       {assignedTechNames}
                     </p>
+                    {completedTeam && completedTeam !== currentTeam ? (
+                      <p className="mt-1 text-xs text-slate-400">
+                        When it was completed: {completedTeam}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 

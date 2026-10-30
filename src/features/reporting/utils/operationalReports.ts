@@ -6,6 +6,13 @@
  * "YYYY-MM" month key, and return plain report objects. No I/O, no framework.
  */
 
+import { formatTeamLabel, splitTeamNames } from "@/lib/teamLabel";
+
+export interface ReportPerson {
+  id: string | null;
+  name: string;
+}
+
 export interface ReportJobRow {
   id: string;
   jobNumber: string;
@@ -15,6 +22,13 @@ export interface ReportJobRow {
   customerName: string;
   propertyName: string;
   assignedTo: string;
+  /** Current people on the job. */
+  assignees?: ReportPerson[];
+  /**
+   * People on the job when it was first completed. Later reassignment does
+   * not change this list.
+   */
+  completionTeam?: ReportPerson[];
   scheduledStartAt: string | null;
   scheduledFor: string | null;
   createdAt: string;
@@ -59,9 +73,35 @@ export function reportMonthOf(job: ReportJobRow): MonthKey | null {
   );
 }
 
+function uniqueNames(names: readonly string[]): string[] {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    const trimmed = name.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(trimmed);
+  }
+  return unique;
+}
+
+/**
+ * People credited for a job. A completed job keeps the team that finished it,
+ * even if someone is moved off later. Open work uses whoever is assigned now.
+ */
+export function reportTeamNames(job: ReportJobRow): string[] {
+  const snapshot = uniqueNames((job.completionTeam ?? []).map((person) => person.name));
+  if (job.status === "Completed" && snapshot.length > 0) return snapshot;
+  const current = uniqueNames((job.assignees ?? []).map((person) => person.name));
+  if (current.length > 0) return current;
+  return uniqueNames(splitTeamNames(job.assignedTo));
+}
+
+/** The job's team, shown together. Empty work is "Unassigned". */
 export function techNameOf(job: ReportJobRow): string {
-  const name = job.assignedTo.trim();
-  return name === "" ? "Unassigned" : name;
+  const names = reportTeamNames(job);
+  return names.length === 0 ? "Unassigned" : formatTeamLabel(names);
 }
 
 export interface JobTiming {
@@ -172,14 +212,19 @@ export function computeInstallReport(
     } else {
       unscheduled += 1;
     }
-    const tech = techNameOf(job);
-    techCounts.set(tech, (techCounts.get(tech) ?? 0) + 1);
+    const team = reportTeamNames(job);
+    for (const name of team) {
+      techCounts.set(name, (techCounts.get(name) ?? 0) + 1);
+    }
+    if (team.length === 0) {
+      techCounts.set("Unassigned", (techCounts.get("Unassigned") ?? 0) + 1);
+    }
     rows.push({
       id: job.id,
       jobNumber: job.jobNumber,
       title: job.title,
       customerName: job.customerName,
-      tech,
+      tech: techNameOf(job),
       date,
       status: job.status,
     });
@@ -339,30 +384,33 @@ export function computeTechScorecards(
   };
 
   for (const job of jobs) {
-    const tech = techNameOf(job);
+    const team = reportTeamNames(job);
+    const credited = team.length > 0 ? team : ["Unassigned"];
     const t = timing.get(job.id);
     const completedDate = t?.completedDate ?? null;
 
-    if (
-      job.type !== "Estimate" &&
-      completedDate &&
-      monthOfDate(completedDate) === month
-    ) {
-      const a = get(tech);
-      a.jobsDone += 1;
-      const scheduled = scheduledDateOf(job);
-      if (scheduled) {
-        a.timed += 1;
-        if (completedDate <= scheduled) a.onTime += 1;
+    for (const tech of credited) {
+      if (
+        job.type !== "Estimate" &&
+        completedDate &&
+        monthOfDate(completedDate) === month
+      ) {
+        const a = get(tech);
+        a.jobsDone += 1;
+        const scheduled = scheduledDateOf(job);
+        if (scheduled) {
+          a.timed += 1;
+          if (completedDate <= scheduled) a.onTime += 1;
+        }
       }
-    }
 
-    if (job.type === "Callback" && reportMonthOf(job) === month) {
-      get(tech).callbacks += 1;
-    }
+      if (job.type === "Callback" && reportMonthOf(job) === month) {
+        get(tech).callbacks += 1;
+      }
 
-    if (job.type !== "Estimate" && OPEN_STATUSES.has(job.status)) {
-      get(tech).booked += 1;
+      if (job.type !== "Estimate" && OPEN_STATUSES.has(job.status)) {
+        get(tech).booked += 1;
+      }
     }
   }
 
@@ -408,15 +456,20 @@ export function computeCallbackReport(
 
   const techCounts = new Map<string, number>();
   const rows: CallbackJobRow[] = callbacks.map((job) => {
-    const tech = techNameOf(job);
-    techCounts.set(tech, (techCounts.get(tech) ?? 0) + 1);
+    const team = reportTeamNames(job);
+    for (const name of team) {
+      techCounts.set(name, (techCounts.get(name) ?? 0) + 1);
+    }
+    if (team.length === 0) {
+      techCounts.set("Unassigned", (techCounts.get("Unassigned") ?? 0) + 1);
+    }
     return {
       id: job.id,
       jobNumber: job.jobNumber,
       title: job.title,
       customerName: job.customerName,
       propertyName: job.propertyName,
-      tech,
+      tech: techNameOf(job),
       date: scheduledDateOf(job) ?? toDatePart(job.createdAt),
       status: job.status,
     };

@@ -6,21 +6,25 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
-  UserPlus,
-  Users,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
-import { ROUTE_BUILDERS } from "@/lib/routes"; import { useCurrentRole } from "@/features/auth";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 import { JobTypeLabel } from "@/features/jobs/components/JobTypeLabel";
 import { isCallbackJob } from "@/features/jobs/utils/callbackJob";
 import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
 import { hoursBetweenIso } from "@/lib/timezone";
 import { todayLocalISODate } from "@/lib/dates";
 
-import type { Crew, DispatchPlan } from "../types/dispatch";
+import type {
+  DispatchAssignee,
+  DispatchPerson,
+  DispatchPlan,
+  DispatchTimeOffWindow,
+} from "../types/dispatch";
+import { DispatchPersonChips } from "./DispatchPersonChips";
 import {
   formatTargetDate,
   getDispatchStatusLabel,
@@ -28,9 +32,14 @@ import {
 
 interface DispatchBoardCardProps {
   plan: DispatchPlan;
-  crewName?: string;
-  availableCrews?: Crew[];
-  onAssignCrew?: (planId: string, crewId: string) => void;
+  people?: DispatchAssignee[];
+  directory?: DispatchPerson[];
+  timeOff?: DispatchTimeOffWindow[];
+  canAssignPeople?: boolean;
+  onAddPerson?: (planId: string, personId: string) => void;
+  onRemovePerson?: (planId: string, personId: string) => void;
+  onReplacePerson?: (planId: string, personId: string, nextPersonId: string) => void;
+  onMovePerson?: (fromPlanId: string, toPlanId: string, personId: string) => void;
   onSchedulePlan?: (planId: string, date: string) => void;
 }
 
@@ -93,12 +102,17 @@ function StatusIcon({ variant }: { variant: Variant }) {
 
 export function DispatchBoardCard({
   plan,
-  crewName,
-  availableCrews = [],
-  onAssignCrew,
+  people = [],
+  directory = [],
+  timeOff = [],
+  canAssignPeople = false,
+  onAddPerson,
+  onRemovePerson,
+  onReplacePerson,
+  onMovePerson,
   onSchedulePlan,
 }: DispatchBoardCardProps) {
-  const { role } = useCurrentRole(); const variant: Variant =
+  const variant: Variant =
     statusVariant[plan.dispatchStatus] ?? "neutral";
   const styles = variantStyles[variant];
 
@@ -106,14 +120,14 @@ export function DispatchBoardCard({
     (c) => c.severity === "blocking"
   );
 
-  // Crew assignment is intentionally allowed for all non-completed plans,
-  // including scheduled and in-progress. Dispatchers need to be able to
-  // reassign crews in real time (equipment failures, crew emergencies, etc.)
-  // without waiting for a job to return to a "ready" state.
   const canAssign =
     plan.dispatchStatus !== "completed" &&
-    !!onAssignCrew &&
-    role !== "tech" && availableCrews.length > 0;
+    canAssignPeople &&
+    !!plan.jobId &&
+    !!onAddPerson &&
+    !!onRemovePerson &&
+    !!onReplacePerson &&
+    !!onMovePerson;
 
   const canSchedule =
     (plan.dispatchStatus === "ready_to_schedule" ||
@@ -192,21 +206,24 @@ export function DispatchBoardCard({
             state={plan.dispatchability.customerReadiness.state}
           />
           <ReadinessChip
-            label="Crew"
+            label="People"
             state={plan.dispatchability.crewReadiness.state}
           />
         </div>
 
-        {/* Crew assignment footer */}
+        <DispatchPersonChips
+          planId={plan.id}
+          people={people}
+          directory={directory}
+          timeOff={timeOff}
+          canAssign={canAssign}
+          onAddPerson={(personId) => onAddPerson?.(plan.id, personId)}
+          onRemovePerson={(personId) => onRemovePerson?.(plan.id, personId)}
+          onReplacePerson={(personId, nextPersonId) => onReplacePerson?.(plan.id, personId, nextPersonId)}
+          onMovePerson={(fromPlanId, personId) => onMovePerson?.(fromPlanId, plan.id, personId)}
+        />
+
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/5 pt-4">
-          {crewName ? (
-            <span className="flex items-center gap-1.5 text-xs text-slate-400">
-              <Users className="h-3.5 w-3.5 text-slate-500" />
-              {crewName}
-            </span>
-          ) : (
-            <span className="text-xs text-slate-600">No crew assigned</span>
-          )}
 
           {blockingConstraints.length > 0 && (
             <span className="ml-auto text-xs text-red-400">
@@ -223,33 +240,7 @@ export function DispatchBoardCard({
             </span>
           )}
 
-          {canAssign && (
-            <div className="flex items-center gap-1.5">
-              <UserPlus className="h-3.5 w-3.5 text-slate-500" />
-              <select
-                defaultValue=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    onAssignCrew!(plan.id, e.target.value);
-                    e.target.value = "";
-                  }
-                }}
-                className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-emerald-500/40"
-                aria-label="Assign crew"
-              >
-                <option value="" disabled>
-                  {crewName ? "Reassign crew…" : "Assign crew…"}
-                </option>
-                {availableCrews.map((crew) => (
-                  <option key={crew.id} value={crew.id}>
-                    {crew.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {canSchedule && (
+          {canSchedule && onSchedulePlan ? (
             <div className="flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
               <input
@@ -265,7 +256,7 @@ export function DispatchBoardCard({
                 aria-label={plan.dispatchStatus === "scheduled" ? "Reschedule date" : "Schedule date"}
               />
             </div>
-          )}
+          ) : null}
 
           {plan.jobId && (
             <Link

@@ -71,6 +71,14 @@ describe("detectCrewConflicts", () => {
     expect(conflicts.has("b2")).toBe(true);
   });
 
+  it("flags two teams that share a person", () => {
+    const b1 = makeBlock("b1", "Brian Ramirez + Sean Ryan", "2026-10-30", "08:00", "12:00");
+    const b2 = makeBlock("b2", "Maya Singh + Sean Ryan", "2026-10-30", "10:00", "14:00");
+    const conflicts = detectCrewConflicts([b1, b2]);
+    expect(conflicts.has("b1")).toBe(true);
+    expect(conflicts.has("b2")).toBe(true);
+  });
+
   it("does not flag blocks from different crews as conflicts", () => {
     const b1 = makeBlock("b1", "Alpha", "2026-07-25", "07:00", "11:00");
     const b2 = makeBlock("b2", "Beta", "2026-07-25", "09:00", "14:00");

@@ -11,6 +11,8 @@ import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentW
 import { deriveScheduledStartAt } from "@/features/jobs/utils/schedulingTime";
 import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActivity";
 
+import { formatTeamLabel } from "@/lib/teamLabel";
+
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
 // ─── Scheduling column names ──────────────────────────────────────────────────
@@ -418,7 +420,11 @@ export async function getJobById(
     throw new Error(error.message);
   }
 
-  if (!data) { return null; } const fetchedJob = mapJob(data); await attachAssignees(supabase, orgId, [fetchedJob]); return fetchedJob;
+  if (!data) { return null; }
+  const fetchedJob = mapJob(data);
+  await attachAssignees(supabase, orgId, [fetchedJob]);
+  await attachCompletionTeam(supabase, orgId, fetchedJob);
+  return fetchedJob;
 }
 
 export async function getJobRowById(id: string): Promise<JobRow | null> {
@@ -851,10 +857,84 @@ export interface JobReportRow {
   customerName: string;
   propertyName: string;
   assignedTo: string;
+  assignees?: { id: string | null; name: string }[];
+  completionTeam?: { id: string | null; name: string }[];
   scheduledStartAt: string | null;
   scheduledFor: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+function isMissingCompletionTeam(error: { code?: string; message?: string }): boolean {
+  const message = error.message ?? "";
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    message.includes("job_completion_team")
+  );
+}
+
+async function readCompletionTeams(
+  supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"],
+  orgId: string,
+  jobIds: string[],
+): Promise<Map<string, { id: string | null; name: string }[]>> {
+  const byJob = new Map<string, { id: string | null; name: string }[]>();
+  if (jobIds.length === 0) return byJob;
+  const { data, error } = await supabase
+    .from("job_completion_team")
+    .select("job_id,user_id,person_name")
+    .eq("org_id", orgId)
+    .in("job_id", jobIds);
+  if (error) {
+    if (isMissingCompletionTeam(error)) return byJob;
+    throw new Error(error.message);
+  }
+  for (const row of (data ?? []) as Array<{ job_id: string; user_id: string | null; person_name: string }>) {
+    const list = byJob.get(row.job_id) ?? [];
+    list.push({ id: row.user_id, name: row.person_name });
+    byJob.set(row.job_id, list);
+  }
+  return byJob;
+}
+
+async function attachCompletionTeam(
+  supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"],
+  orgId: string,
+  job: Job,
+): Promise<void> {
+  const teams = await readCompletionTeams(supabase, orgId, [job.id]);
+  const team = teams.get(job.id);
+  if (team && team.length > 0) job.completionTeam = team;
+}
+
+export async function setJobPeople(jobId: string, assigneeIds: string[]): Promise<Job | null> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const ids = [...new Set(assigneeIds.map((id) => id.trim()).filter(Boolean))];
+  let names: string[] = [];
+  if (ids.length > 0) {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("id,full_name,email")
+      .eq("org_id", orgId)
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>;
+    if (rows.length !== ids.length) {
+      throw new Error("Invalid person for this company.");
+    }
+    const nameById = new Map(
+      rows.map((row) => [
+        row.id,
+        (row.full_name ?? "").trim() || (row.email ?? "").trim() || "Team member",
+      ]),
+    );
+    names = ids.map((id) => nameById.get(id) ?? "Team member");
+  }
+  return updateJob(jobId, {
+    assignedTo: formatTeamLabel(names),
+    assigneeIds: ids,
+  });
 }
 
 export interface JobStatusActivity {
@@ -887,7 +967,7 @@ export async function listJobReportRows(
     throw new Error(error.message);
   }
 
-  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
     id: String(row.id),
     jobNumber: String(row.job_number ?? ""),
     type: String(row.type ?? ""),
@@ -900,6 +980,16 @@ export async function listJobReportRows(
     scheduledFor: (row.scheduled_for as string | null) ?? null,
     createdAt: String(row.created_at ?? ""),
     updatedAt: String(row.updated_at ?? ""),
+  }));
+  const jobIds = rows.map((row) => row.id);
+  const [assignees, completionTeams] = await Promise.all([
+    readJobAssignees(supabase, orgId, jobIds),
+    readCompletionTeams(supabase, orgId, jobIds),
+  ]);
+  return rows.map((row) => ({
+    ...row,
+    assignees: assignees.get(row.id) ?? [],
+    completionTeam: completionTeams.get(row.id) ?? [],
   }));
 }
 

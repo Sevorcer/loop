@@ -15,6 +15,7 @@ import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 
 import { CalendarEntryDialog, type CalendarEditor } from "../components/CalendarEntryDialog";
 import { CalendarGrid } from "../components/CalendarGrid";
+import { CalendarPeopleFilter } from "../components/CalendarPeopleFilter";
 import {
   canManageCalendarEntries,
   type CalendarPerson,
@@ -22,6 +23,14 @@ import {
   type TimeOffEntry,
 } from "../types/calendarEntries";
 import { groupCalendarBoard } from "../utils/calendarEntries";
+import {
+  CALENDAR_PEOPLE_GROUPS_KEY,
+  CALENDAR_PEOPLE_STORAGE_KEY,
+  filterCalendarByPeople,
+  parseStoredPersonIds,
+  parseStoredQuickGroups,
+  type CalendarQuickGroup,
+} from "../utils/calendarPeopleFilter";
 import {
   CALENDAR_VIEW_STORAGE_KEY,
   calendarJobHeading,
@@ -41,6 +50,51 @@ import {
 } from "../utils/calendarSchedule";
 
 const CALENDAR_VIEW_PENDING = "pending" as const;
+const CALENDAR_PEOPLE_PENDING = "pending" as const;
+
+const calendarPeopleListeners = new Set<() => void>();
+let rememberedPeople: string[] | null = null;
+let rememberedGroups: CalendarQuickGroup[] | null = null;
+
+function subscribeCalendarPeople(listener: () => void) {
+  calendarPeopleListeners.add(listener);
+  return () => {
+    calendarPeopleListeners.delete(listener);
+  };
+}
+
+function emitCalendarPeople() {
+  for (const listener of calendarPeopleListeners) listener();
+}
+
+type StoredPeople = string[] | typeof CALENDAR_PEOPLE_PENDING;
+type StoredGroups = CalendarQuickGroup[] | typeof CALENDAR_PEOPLE_PENDING;
+
+function readStoredPeople(): StoredPeople {
+  if (rememberedPeople) return rememberedPeople;
+  try {
+    return parseStoredPersonIds(window.localStorage.getItem(CALENDAR_PEOPLE_STORAGE_KEY));
+  } catch {
+    return [];
+  }
+}
+
+function readStoredGroups(): StoredGroups {
+  if (rememberedGroups) return rememberedGroups;
+  try {
+    return parseStoredQuickGroups(window.localStorage.getItem(CALENDAR_PEOPLE_GROUPS_KEY));
+  } catch {
+    return [];
+  }
+}
+
+function readPeopleServer(): StoredPeople {
+  return CALENDAR_PEOPLE_PENDING;
+}
+
+function readGroupsServer(): StoredGroups {
+  return CALENDAR_PEOPLE_PENDING;
+}
 
 const calendarViewListeners = new Set<() => void>();
 let rememberedCalendarView: CalendarViewMode | null = null;
@@ -211,14 +265,83 @@ export function CalendarScreen() {
   );
   const viewReady = viewSnapshot !== CALENDAR_VIEW_PENDING;
   const view: CalendarViewMode = viewReady ? viewSnapshot : "month";
+  const peopleSnapshot = useSyncExternalStore(
+    subscribeCalendarPeople,
+    readStoredPeople,
+    readPeopleServer,
+  );
+  const groupsSnapshot = useSyncExternalStore(
+    subscribeCalendarPeople,
+    readStoredGroups,
+    readGroupsServer,
+  );
+  const peopleReady = peopleSnapshot !== CALENDAR_PEOPLE_PENDING && groupsSnapshot !== CALENDAR_PEOPLE_PENDING;
+  const selectedPeople = useMemo(
+    () => (peopleSnapshot === CALENDAR_PEOPLE_PENDING ? [] : peopleSnapshot),
+    [peopleSnapshot],
+  );
+  const savedGroups = useMemo(
+    () => (groupsSnapshot === CALENDAR_PEOPLE_PENDING ? [] : groupsSnapshot),
+    [groupsSnapshot],
+  );
+
+  const directory = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const person of team) byId.set(person.id, person.name);
+    for (const job of jobs) {
+      for (const assignee of job.assignees ?? []) {
+        if (assignee.id && assignee.name.trim()) byId.set(assignee.id, assignee.name.trim());
+      }
+    }
+    for (const entry of timeOff) {
+      if (entry.userId && entry.personName.trim()) byId.set(entry.userId, entry.personName.trim());
+    }
+    return [...byId.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+  }, [jobs, team, timeOff]);
+
+  const filtered = useMemo(
+    () =>
+      office
+        ? filterCalendarByPeople({
+            jobs,
+            timeOff,
+            tasks,
+            selectedIds: selectedPeople,
+            people: directory,
+          })
+        : { jobs, timeOff, tasks },
+    [directory, jobs, office, selectedPeople, tasks, timeOff],
+  );
 
   const itemsByDate = useMemo(
-    () => groupCalendarBoard({ jobs, timeOff, tasks }),
-    [jobs, tasks, timeOff],
+    () => groupCalendarBoard(filtered),
+    [filtered],
   );
   const visibleWeek = useMemo(() => weekDates(selectedDate), [selectedDate]);
   const dayItems = itemsByDate[selectedDate] ?? [];
   const dayJobs = dayItems.flatMap((item) => (item.kind === "job" && item.job ? [item.job] : []));
+
+  const rememberPeople = useCallback((personIds: string[]) => {
+    rememberedPeople = personIds;
+    try {
+      window.localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(personIds));
+    } catch {
+      // Private browsing can block storage. The choice still lasts for this visit.
+    }
+    emitCalendarPeople();
+  }, []);
+
+  const rememberGroups = useCallback((groups: CalendarQuickGroup[]) => {
+    rememberedGroups = groups;
+    try {
+      window.localStorage.setItem(CALENDAR_PEOPLE_GROUPS_KEY, JSON.stringify(groups));
+    } catch {
+      // The group list still updates for this visit.
+    }
+    emitCalendarPeople();
+  }, []);
 
   const reloadEntries = useCallback(async () => {
     if (!role) return;
@@ -365,16 +488,34 @@ export function CalendarScreen() {
       <div className="print:hidden">
         <PageHeader
           title="Calendar"
-          description="Every scheduled job, time off, and task is listed on its day. Switch between month and week."
+          description="Every scheduled job, time off, and task is listed on its day. Switch between month and week, or show one person's work."
         />
       </div>
 
-      {!hydrated || !viewReady ? (
+      {!hydrated || !viewReady || (office && !peopleReady) ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
           Loading calendar…
         </div>
       ) : (
         <div className="space-y-4">
+          {office ? (
+            <CalendarPeopleFilter
+              people={directory}
+              selectedIds={selectedPeople}
+              groups={savedGroups}
+              onChange={rememberPeople}
+              onApplyGroup={rememberPeople}
+              onSaveGroup={(name, personIds) => {
+                rememberGroups([
+                  ...savedGroups.filter((group) => group.name !== name),
+                  { id: `${Date.now()}`, name, personIds },
+                ]);
+              }}
+              onDeleteGroup={(groupId) => {
+                rememberGroups(savedGroups.filter((group) => group.id !== groupId));
+              }}
+            />
+          ) : null}
           <CalendarGrid
             view={view}
             month={month}

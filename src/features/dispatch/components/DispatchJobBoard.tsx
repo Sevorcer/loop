@@ -17,9 +17,19 @@ import { jobTypeFilterLabel } from "@/features/jobs/utils/callbackJob";
 import { requestJson } from "@/lib/api/client";
 import { pushToast } from "@/components/ui/toast";
 
-import type { CrewAssignment, DispatchPlan, DispatchSnapshot } from "../types/dispatch";
-import { buildDispatchQueueSections, getAssignedCrewLabelForPlan } from "../utils/dispatchWorkspace";
+import type { CrewAssignment, DispatchAssignee, DispatchPlan, DispatchSnapshot } from "../types/dispatch";
+import { buildDispatchQueueSections } from "../utils/dispatchWorkspace";
 import { filterPlansByDate } from "../utils/dispatchUtils";
+import {
+  addDispatchPerson,
+  canAssignDispatchPeople,
+  moveDispatchPerson,
+  persistedAssigneeIds,
+  teamLabelForPeople,
+  removeDispatchPerson,
+  replaceDispatchPerson,
+  timeOffForPeople,
+} from "../utils/dispatchPeople";
 import { DispatchBoardCard } from "./DispatchBoardCard";
 
 const BOARD_GROUPS = {
@@ -66,17 +76,6 @@ interface DispatchJobBoardProps {
   initialSnapshot: DispatchSnapshot;
 }
 
-function updateAssignment(
-  assignments: CrewAssignment[],
-  nextAssignment: CrewAssignment,
-): CrewAssignment[] {
-  const remaining = assignments.filter(
-    (assignment) => assignment.dispatchPlanId !== nextAssignment.dispatchPlanId,
-  );
-
-  return [...remaining, nextAssignment];
-}
-
 function updatePlan(
   plans: DispatchPlan[],
   planId: string,
@@ -88,7 +87,6 @@ function updatePlan(
 export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
   const { role } = useCurrentRole(); const { user } = useAuth();
   const router = useRouter();
-  const [crews] = useState(initialSnapshot.crews);
   const snapshotStamp = initialSnapshot.dispatchPlans
     .map((plan) => `${plan.id}:${plan.targetDate}:${plan.dispatchStatus}:${plan.updatedAt}`)
     .join("|");
@@ -106,16 +104,10 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
 
   // ── Filters ──────────────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "ready" | "scheduled" | "blocked" | "completed">("all");
-  const [crewFilter, setCrewFilter] = useState<string>("all");
   const [jobTypeFilter, setJobTypeFilter] = useState<string>("all");
   const [contractorFilter, setContractorFilter] = useState<string>("all");
   const [technicianFilter, setTechnicianFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("");
-
-  const crewNames = useMemo(() => {
-    const names = new Set(crews.map((c) => c.name));
-    return [...names].sort();
-  }, [crews]);
 
   /**
    * All job types the board can filter by: the canonical set plus anything
@@ -137,23 +129,16 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
 
   const technicianOptions = useMemo(() => {
     const names = new Set<string>();
-
-    for (const crew of crews) {
-      if (crew.leadInstaller) names.add(crew.leadInstaller);
-      for (const member of crew.members ?? []) {
-        if (member.name) names.add(member.name);
+    for (const person of initialSnapshot.people ?? []) {
+      if (person.name) names.add(person.name);
+    }
+    for (const plan of plans) {
+      for (const person of plan.assignees ?? []) {
+        if (person.name) names.add(person.name);
       }
     }
-
-    for (const assignment of assignments) {
-      if (assignment.leadInstaller) names.add(assignment.leadInstaller);
-      for (const tech of assignment.supportingTechnicians ?? []) {
-        names.add(tech);
-      }
-    }
-
     return [...names].sort();
-  }, [assignments, crews]);
+  }, [initialSnapshot.people, plans]);
 
   const contractors = initialSnapshot.contractors ?? [];
 
@@ -181,11 +166,6 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         if (!groupMap[statusFilter]?.includes(plan.dispatchStatus)) return false;
       }
 
-      if (crewFilter !== "all") {
-        const assigned = assignments.find((a) => a.dispatchPlanId === plan.id);
-        if (!assigned || assigned.crewName !== crewFilter) return false;
-      }
-
       if (jobTypeFilter !== "all" && plan.jobType !== jobTypeFilter) {
         return false;
       }
@@ -211,7 +191,6 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
     plans,
     assignments,
     statusFilter,
-    crewFilter,
     jobTypeFilter,
     contractorFilter,
     technicianFilter,
@@ -219,68 +198,123 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
     initialSnapshot.jobContractorIds, role, user,
   ]);
 
-  const handleAssignCrew = useCallback(
-    async (planId: string, crewId: string) => {
-      if (!role) return;
+  const directory = useMemo(() => initialSnapshot.people ?? [], [initialSnapshot.people]);
+  const officeCanAssign = canAssignDispatchPeople(role);
 
-      const crew = crews.find((item) => item.id === crewId);
-      const plan = plans.find((item) => item.id === planId);
+  const peopleFor = useCallback(
+    (plan: DispatchPlan): DispatchAssignee[] => planOverrides[plan.id]?.assignees ?? plan.assignees ?? [],
+    [planOverrides],
+  );
 
-      if (!crew || !plan) {
-        return;
-      }
-
-      const previousAssignments = assignments;
-      const nextAssignment: CrewAssignment = {
-        id:
-          previousAssignments.find((assignment) => assignment.dispatchPlanId === planId)?.id ??
-          `local-${planId}`,
-        dispatchPlanId: planId,
-        jobId: plan.jobId,
-        crewId: crew.id,
-        crewName: crew.name,
-        leadInstaller: crew.leadInstaller,
-        supportingTechnicians: crew.members
-          .filter((member) => member.role !== "lead")
-          .map((member) => member.name),
-        status: "confirmed",
-        assignedAt: new Date().toISOString(),
-        reassignmentHistory: [],
-      };
-
-      setAssignmentOverride(updateAssignment(assignments, nextAssignment));
-      setUpdatingIds((prev) => new Set(prev).add(planId));
-
+  const savePeople = useCallback(
+    async (plan: DispatchPlan, nextPeople: DispatchAssignee[]) => {
+      if (!officeCanAssign || !plan.jobId) return;
+      const previous = planOverrides;
+      setPlanOverrides((current) => ({
+        ...current,
+        [plan.id]: { ...(current[plan.id] ?? plan), assignees: nextPeople },
+      }));
+      setUpdatingIds((prev) => new Set(prev).add(plan.id));
       try {
-        await requestJson(`/api/dispatch-plans/${planId}`, {
+        await requestJson(`/api/dispatch-plans/${plan.id}`, {
           role,
           method: "PATCH",
           body: {
-            action: "assign_crew",
-            crewId: crew.id,
-            crewName: crew.name,
-            leadInstaller: crew.leadInstaller,
-            supportingTechnicians: nextAssignment.supportingTechnicians,
-            jobId: plan.jobId || undefined,
-            reassignmentHistory: nextAssignment.reassignmentHistory,
+            action: "assign_people",
+            jobId: plan.jobId,
+            assigneeIds: persistedAssigneeIds(nextPeople),
           },
         });
         router.refresh();
       } catch (error) {
-        setAssignmentOverride(previousAssignments);
+        setPlanOverrides(previous);
         pushToast(
-          error instanceof Error ? error.message : "Couldn't save the crew assignment.",
+          error instanceof Error ? error.message : "Couldn't save the people on this job.",
           "error",
         );
       } finally {
         setUpdatingIds((prev) => {
           const next = new Set(prev);
-          next.delete(planId);
+          next.delete(plan.id);
           return next;
         });
       }
     },
-    [assignments, crews, plans, role, router],
+    [officeCanAssign, planOverrides, role, router],
+  );
+
+  const handleAddPerson = useCallback(
+    (planId: string, personId: string) => {
+      const plan = plans.find((item) => item.id === planId);
+      const person = directory.find((item) => item.id === personId);
+      if (!plan || !person) return;
+      void savePeople(plan, addDispatchPerson(peopleFor(plan), person));
+    },
+    [directory, peopleFor, plans, savePeople],
+  );
+
+  const handleRemovePerson = useCallback(
+    (planId: string, personId: string) => {
+      const plan = plans.find((item) => item.id === planId);
+      if (!plan) return;
+      void savePeople(plan, removeDispatchPerson(peopleFor(plan), personId));
+    },
+    [peopleFor, plans, savePeople],
+  );
+
+  const handleReplacePerson = useCallback(
+    (planId: string, personId: string, nextPersonId: string) => {
+      const plan = plans.find((item) => item.id === planId);
+      const person = directory.find((item) => item.id === nextPersonId);
+      if (!plan || !person) return;
+      void savePeople(plan, replaceDispatchPerson(peopleFor(plan), personId, person));
+    },
+    [directory, peopleFor, plans, savePeople],
+  );
+
+  const handleMovePerson = useCallback(
+    async (fromPlanId: string, toPlanId: string, personId: string) => {
+      if (!officeCanAssign || fromPlanId === toPlanId) return;
+      const source = plans.find((item) => item.id === fromPlanId);
+      const target = plans.find((item) => item.id === toPlanId);
+      if (!source?.jobId || !target?.jobId) return;
+      const moved = moveDispatchPerson(peopleFor(source), peopleFor(target), personId);
+      if (!moved) return;
+      const previous = planOverrides;
+      setPlanOverrides((current) => ({
+        ...current,
+        [source.id]: { ...(current[source.id] ?? source), assignees: moved.source },
+        [target.id]: { ...(current[target.id] ?? target), assignees: moved.target },
+      }));
+      setUpdatingIds((prev) => new Set(prev).add(source.id).add(target.id));
+      try {
+        await requestJson(`/api/dispatch-plans/${source.id}`, {
+          role,
+          method: "PATCH",
+          body: {
+            action: "move_person",
+            personId,
+            fromJobId: source.jobId,
+            toJobId: target.jobId,
+          },
+        });
+        router.refresh();
+      } catch (error) {
+        setPlanOverrides(previous);
+        pushToast(
+          error instanceof Error ? error.message : "Couldn't move that person.",
+          "error",
+        );
+      } finally {
+        setUpdatingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(source.id);
+          next.delete(target.id);
+          return next;
+        });
+      }
+    },
+    [officeCanAssign, peopleFor, planOverrides, plans, role, router],
   );
 
   const handleSchedulePlan = useCallback(
@@ -298,8 +332,8 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
 
       const isReschedule = plan.dispatchStatus === "scheduled" || plan.dispatchStatus === "completed";
       const crewName =
+        teamLabelForPeople(peopleFor(plan)) ||
         crewAssignment?.crewName ||
-        (plan.assignedTechNames ?? []).filter(Boolean).join(", ") ||
         "Unassigned";
       const previousPlans = plans;
       setPlanOverrides(
@@ -347,13 +381,12 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
         });
       }
     },
-    [assignments, plans, role, router],
+    [assignments, peopleFor, plans, role, router],
   );
 
   const sections = buildDispatchQueueSections(filteredPlans);
   const hasActiveFilters =
     statusFilter !== "all" ||
-    crewFilter !== "all" ||
     jobTypeFilter !== "all" ||
     contractorFilter !== "all" ||
     technicianFilter !== "all" ||
@@ -381,22 +414,6 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
           <option value="blocked">Blocked</option>
           <option value="completed">Completed</option>
         </select>
-
-        {crewNames.length > 0 && (
-          <select
-            value={crewFilter}
-            onChange={(e) => setCrewFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-blue-500/40"
-            aria-label="Filter by crew"
-          >
-            <option value="all">All crews</option>
-            {crewNames.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
 
         <select
           value={jobTypeFilter}
@@ -468,7 +485,6 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
             type="button"
             onClick={() => {
               setStatusFilter("all");
-              setCrewFilter("all");
               setJobTypeFilter("all");
               setContractorFilter("all");
               setTechnicianFilter("all");
@@ -514,9 +530,22 @@ export function DispatchJobBoard({ initialSnapshot }: DispatchJobBoardProps) {
                   >
                     <DispatchBoardCard
                       plan={plan}
-                      crewName={getAssignedCrewLabelForPlan(plan, assignments)}
-                      availableCrews={crews}
-                      onAssignCrew={handleAssignCrew}
+                      people={peopleFor(plan)}
+                      directory={directory}
+                      timeOff={timeOffForPeople({
+                        timeOff: initialSnapshot.timeOff ?? [],
+                        people: peopleFor(plan),
+                        scheduledStartAt: plan.scheduledStartAt,
+                        scheduledEndAt: plan.scheduledEndAt,
+                        targetDate: plan.targetDate,
+                      })}
+                      canAssignPeople={officeCanAssign}
+                      onAddPerson={handleAddPerson}
+                      onRemovePerson={handleRemovePerson}
+                      onReplacePerson={handleReplacePerson}
+                      onMovePerson={(fromPlanId, toPlanId, personId) => {
+                        void handleMovePerson(fromPlanId, toPlanId, personId);
+                      }}
                       onSchedulePlan={handleSchedulePlan}
                     />
                   </div>

@@ -17,6 +17,20 @@ function parseTimeToMinutes(time24: string): number {
   return parseInt(hourStr, 10) * 60 + parseInt(minuteStr ?? "0", 10);
 }
 
+function personTokens(label: string): string[] {
+  return label
+    .split(/\s+\+\s+/)
+    .map((part) => part.trim().toLowerCase())
+    .filter((part) => part.length > 0 && part !== "unassigned");
+}
+
+/** Same person on two jobs, including when the teams are not identical. */
+function sharesPerson(left: string, right: string): boolean {
+  const tokens = new Set(personTokens(left));
+  if (tokens.size === 0) return false;
+  return personTokens(right).some((token) => tokens.has(token));
+}
+
 /**
  * Returns the IDs of all schedule blocks that overlap with another block
  * belonging to the same crew on the same day.
@@ -33,7 +47,7 @@ export function detectCrewConflicts(blocks: ScheduleBlock[]): Set<string> {
       const a = blocks[i];
       const b = blocks[j];
 
-      if (a.crewName !== b.crewName || a.scheduledDate !== b.scheduledDate) {
+      if (a.scheduledDate !== b.scheduledDate || !sharesPerson(a.crewName, b.crewName)) {
         continue;
       }
 
