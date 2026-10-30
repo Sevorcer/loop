@@ -185,6 +185,29 @@ export async function updateCustomer(
   return withLinkedPropertyCount(mapCustomer(data as CustomerRow), linked);
 }
 
+/** Rows that reference this customer and will block a delete. Includes cancelled jobs. */
+export async function countCustomerReferences(
+  customerId: string,
+): Promise<{ jobs: number; properties: number }> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const [jobs, properties] = await Promise.all([
+    supabase
+      .from("jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .eq("customer_id", customerId),
+    supabase
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .eq("customer_id", customerId),
+  ]);
+
+  if (jobs.error) throw new Error(jobs.error.message);
+  if (properties.error) throw new Error(properties.error.message);
+  return { jobs: jobs.count ?? 0, properties: properties.count ?? 0 };
+}
+
 export async function deleteCustomer(id: string): Promise<boolean> {
   const { supabase, orgId } = await getRepositoryContext();
   const { error, count } = await supabase

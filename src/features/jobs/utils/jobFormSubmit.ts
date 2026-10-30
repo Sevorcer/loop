@@ -28,7 +28,6 @@ export function missingJobFormFields(
     if (form.title.trim().length === 0) missing.push("Job title");
     if (form.customerName.trim().length === 0) missing.push("Customer");
     if (form.propertyName.trim().length === 0) missing.push("Property");
-    if (form.assignedTo.trim().length === 0) missing.push("Assigned technician");
     if (
       form.scheduledStartAt.length === 0 ||
       Number.isNaN(new Date(form.scheduledStartAt).getTime())
@@ -62,7 +61,6 @@ export function missingPersistedJobFields(input: {
   if (!input.title.trim()) missing.push("Job title");
   if (!input.customerName.trim()) missing.push("Customer");
   if (!input.propertyName.trim()) missing.push("Property");
-  if (!input.assignedTo.trim()) missing.push("Assigned technician");
   if (!input.location.trim()) missing.push("Location");
   if (!input.summary.trim()) missing.push("Work summary");
   return missing;

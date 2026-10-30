@@ -169,6 +169,15 @@ interface JobFormProps {
   onCustomerSelected?: (customerId: string) => void;
 }
 
+function RequiredStar() {
+  return (
+    <span className="text-red-400" aria-hidden="true">
+      {" "}
+      *
+    </span>
+  );
+}
+
 export function JobForm({
   mode,
   cancelHref,
@@ -333,8 +342,10 @@ export function JobForm({
         if (match) return match.id;
         throw new Error("Choose a property for this customer, or add a new one with its address.");
       };
-      const customerId = await resolveCustomerId();
-      const propertyId = await resolvePropertyId();
+      const [customerId, propertyId] = await Promise.all([
+        resolveCustomerId(),
+        resolvePropertyId(),
+      ]);
       await onSubmit({ ...normalized, customerId, propertyId, createNewCustomer: false, createNewProperty: false });
     } catch (nextError) {
       setError(
@@ -387,7 +398,10 @@ export function JobForm({
         <SurfaceCard>
           <div className="grid gap-6 p-6 lg:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Job Title</label>
+              <label className="text-sm font-medium text-slate-200">
+                Job title
+                {!isTech ? <RequiredStar /> : null}
+              </label>
               <input
                 value={form.title}
                 onChange={(e) => updateField("title", e.target.value)}
@@ -398,7 +412,10 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Customer Name</label>
+              <label className="text-sm font-medium text-slate-200">
+                Customer
+                {!isTech ? <RequiredStar /> : null}
+              </label>
               {/* F18: native select replaces the datalist combobox so only a
                   real customer record can be picked — a typo can no longer
                   silently unlink the job. Name-valued options match the F6
@@ -408,7 +425,10 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Property Name</label>
+              <label className="text-sm font-medium text-slate-200">
+                Property
+                {!isTech ? <RequiredStar /> : null}
+              </label>
               {/* F18: native select replaces the datalist combobox. Options stay
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
@@ -487,17 +507,20 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Assigned Technician</label> {technicianProfiles.length > 0 && (<div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">{technicianProfiles.map((profile) => (<label key={profile.id} className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" disabled={isTech} checked={(form.assigneeIds ?? []).includes(profile.id)} onChange={(e) => toggleAssignee(profile.id, e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-white/[0.03]" />{profile.name}</label>))}</div>)}
+              <label className="text-sm font-medium text-slate-200">
+                Assigned technician <span className="text-slate-500">(optional)</span>
+              </label>
+              <p className="text-xs text-slate-500">
+                Leave this blank to book the job now and assign someone later.
+              </p>
+              {technicianProfiles.length > 0 && (<div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">{technicianProfiles.map((profile) => (<label key={profile.id} className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" disabled={isTech} checked={(form.assigneeIds ?? []).includes(profile.id)} onChange={(e) => toggleAssignee(profile.id, e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-white/[0.03]" />{profile.name}</label>))}</div>)}
               {technicianProfiles.length === 0 && (<select
                 value={form.assignedTo}
                 onChange={(e) => updateField("assignedTo", e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
-                aria-required="true"
                 disabled={isTech}
               >
-                <option value="" disabled>
-                  Select technician
-                </option>
+                <option value="">Unassigned</option>
                 {/* Keep a legacy free-text value selectable on edit so an
                     existing assignment is never lost when it predates the
                     technician roster. */}
@@ -523,7 +546,8 @@ export function JobForm({
             {/* Scheduling — PR3C clock-time fields */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
-                Scheduled Start <span className="text-red-400">*</span>
+                Scheduled start
+                {!isTech ? <RequiredStar /> : <span className="text-slate-500"> (optional)</span>}
               </label>
               <DateTimePicker
                 id="job-scheduled-start"
@@ -580,7 +604,10 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Location</label>
+              <label className="text-sm font-medium text-slate-200">
+                Location
+                <RequiredStar />
+              </label>
               <input
                 value={form.location}
                 onChange={(e) => updateField("location", e.target.value)}
@@ -648,7 +675,10 @@ export function JobForm({
             ) : null}
 
             <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium text-slate-200">Work Summary</label>
+              <label className="text-sm font-medium text-slate-200">
+                Work summary
+                <RequiredStar />
+              </label>
               <textarea
                 value={form.summary}
                 onChange={(e) => updateField("summary", e.target.value)}
