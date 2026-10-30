@@ -79,6 +79,28 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 > **Append-only:** `job_activity` is an immutable audit log. No role may UPDATE or DELETE rows. Office may insert so a note they add is recorded on the timeline. Tech read and insert follow job assignment (`assigned_user_id` or `job_assignees`).
 
+### time_off
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓       | ✓        | own  | ✓      | —     | —      |
+| INSERT | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+| UPDATE | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+| DELETE | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+
+> A technician can read only their own time off. They cannot create or change it.
+
+### calendar_tasks
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓       | ✓        | assigned or everyone | ✓ | — | — |
+| INSERT | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+| UPDATE | ✓     | ✓       | ✓        | mark done | ✓ | — | — |
+| DELETE | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+
+> Tech updates are limited to `done_at` and `done_by` by `guard_tech_calendar_task_update`.
+
 ### job_notes
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |

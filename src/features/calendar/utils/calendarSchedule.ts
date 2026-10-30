@@ -6,9 +6,9 @@
  * A job with neither scheduledFor nor scheduledStartAt is unscheduled and is
  * left off the board (those stay in Daily Plans).
  *
- * Checklist rows in job_tasks have no schedule. Dispatch schedule_blocks are a
- * copy of the same jobs and would show the work twice. Crew availability is a
- * status flag, not dated time off. There is no time-off table to plot.
+ * Time off and standalone calendar tasks are separate records. They are placed
+ * on the board by calendarEntries.ts. Checklist rows in job_tasks are not
+ * appointments, and dispatch schedule blocks would duplicate the same jobs.
  */
 
 import type { Job, JobAppointmentHour } from "@/features/jobs/types/job";

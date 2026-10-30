@@ -49,7 +49,7 @@ const pageContent: Record<string, PageMeta> = {
   },
   [ROUTES.CALENDAR]: {
     title: "Calendar",
-    description: "Every scheduled job is listed on its day. Switch between month and week.",
+    description: "Every scheduled job, time off, and task is listed on its day.",
   },
   // Field
   [ROUTES.JOBS]: {

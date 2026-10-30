@@ -3,16 +3,18 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { Job, JobType } from "@/features/jobs/types/job";
+import type { JobType } from "@/features/jobs/types/job";
 import { getCalendarMonthGrid } from "@/features/daily-plans/utils/planUtils";
 import { cn } from "@/lib/utils";
 
+import type { CalendarTaskEntry, TimeOffEntry } from "../types/calendarEntries";
+import type { CalendarBoardItem } from "../utils/calendarEntries";
 import {
-  compareCalendarJobs,
   isCalendarJobUnassigned,
   type CalendarViewMode,
   weekdayLabel,
 } from "../utils/calendarSchedule";
+import { TaskCard, TimeOffCard } from "./CalendarEntryCards";
 import { CalendarJobCard, JOB_TYPE_DOT } from "./CalendarJobCard";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -34,8 +36,8 @@ interface CalendarGridProps {
   /** Any day in the week to show. Ignored while the month view is active. */
   weekDates: string[];
   title: string;
-  /** Jobs already grouped and sorted by company date. Unscheduled jobs are absent. */
-  jobsByDate: Record<string, Job[]>;
+  /** Jobs, time off, and tasks already grouped and sorted for each company date. */
+  itemsByDate: Record<string, CalendarBoardItem[]>;
   selectedDate: string;
   today: string;
   showToday: boolean;
@@ -44,6 +46,9 @@ interface CalendarGridProps {
   onPrev?: () => void;
   onNext?: () => void;
   onToday?: () => void;
+  onAdd?: () => void;
+  onOpenTimeOff?: (entry: TimeOffEntry) => void;
+  onOpenTask?: (entry: CalendarTaskEntry) => void;
 }
 
 export function CalendarGrid({
@@ -52,7 +57,7 @@ export function CalendarGrid({
   year,
   weekDates,
   title,
-  jobsByDate,
+  itemsByDate,
   selectedDate,
   today,
   showToday,
@@ -61,6 +66,9 @@ export function CalendarGrid({
   onPrev = () => {},
   onNext = () => {},
   onToday = () => {},
+  onAdd,
+  onOpenTimeOff = () => {},
+  onOpenTask = () => {},
 }: CalendarGridProps) {
   const weeks =
     view === "week"
@@ -76,7 +84,17 @@ export function CalendarGrid({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">{title}</h2>
 
-        <div className="flex flex-wrap items-center gap-1.5 print:hidden">
+          <div className="flex flex-wrap items-center gap-1.5 print:hidden">
+            {onAdd ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onAdd}
+                className="h-8 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-300 hover:bg-white/10"
+              >
+                + Add
+              </Button>
+            ) : null}
           <div
             role="group"
             aria-label="Calendar view"
@@ -138,6 +156,14 @@ export function CalendarGrid({
             {type}
           </span>
         ))}
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted">
+          <span className="calendar-time-off h-2 w-3 rounded-sm border" />
+          Time off
+        </span>
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted">
+          <span className="calendar-task h-2 w-3 rounded-sm border" />
+          Task
+        </span>
       </div>
 
       <p className="mb-2 text-[11px] text-muted sm:hidden print:hidden">
@@ -172,16 +198,18 @@ export function CalendarGrid({
                     );
                   }
 
-                  const dayJobs = [...(jobsByDate[date] ?? [])].sort(compareCalendarJobs);
+                  const dayItems = itemsByDate[date] ?? [];
                   return (
                     <CalendarDay
                       key={date}
                       date={date}
-                      jobs={dayJobs}
+                      items={dayItems}
                       view={view}
                       isSelected={date === selectedDate}
                       isToday={date === today}
                       onSelectDate={onSelectDate}
+                      onOpenTimeOff={onOpenTimeOff}
+                      onOpenTask={onOpenTask}
                     />
                   );
                 })}
@@ -196,27 +224,32 @@ export function CalendarGrid({
 
 function CalendarDay({
   date,
-  jobs,
+  items,
   view,
   isSelected,
   isToday,
   onSelectDate,
+  onOpenTimeOff,
+  onOpenTask,
 }: {
   date: string;
-  jobs: Job[];
+  items: CalendarBoardItem[];
   view: CalendarViewMode;
   isSelected: boolean;
   isToday: boolean;
   onSelectDate: (date: string) => void;
+  onOpenTimeOff: (entry: TimeOffEntry) => void;
+  onOpenTask: (entry: CalendarTaskEntry) => void;
 }) {
   const dayNumber = Number(date.slice(8, 10));
+  const jobs = items.flatMap((item) => (item.kind === "job" && item.job ? [item.job] : []));
   const unassigned = jobs.filter((job) => isCalendarJobUnassigned(job)).length;
   const weekday = weekdayLabel(date);
 
   return (
     <div
       role="group"
-      aria-label={`${weekday} ${date}, ${jobs.length} scheduled`}
+      aria-label={`${weekday} ${date}, ${items.length} scheduled`}
       onClick={() => onSelectDate(date)}
       className={cn(
         "flex h-full min-w-0 cursor-pointer flex-col rounded-xl border px-1.5 py-1.5 text-left transition-colors",
@@ -252,24 +285,42 @@ function CalendarDay({
             {dayNumber}
           </span>
         </button>
-        {jobs.length > 0 ? (
-          <span className="text-[10px] font-medium tabular-nums text-muted">{jobs.length}</span>
+        {items.length > 0 ? (
+          <span className="text-[10px] font-medium tabular-nums text-muted">{items.length}</span>
         ) : null}
       </div>
 
-      {jobs.length === 0 && view === "week" ? (
+      {items.length === 0 && view === "week" ? (
         <p className="px-0.5 py-3 text-xs text-muted">Nothing scheduled</p>
       ) : null}
 
-      {jobs.length > 0 ? (
+      {items.length > 0 ? (
         <ul className={cn("mt-1.5 flex flex-col", view === "week" ? "gap-1.5" : "gap-1")}>
-          {jobs.map((job) => (
-            <li key={job.id} className="min-w-0">
-              <CalendarJobCard
-                job={job}
-                onDate={date}
-                density={view === "week" ? "comfortable" : "compact"}
-              />
+          {items.map((item) => (
+            <li key={`${item.kind}-${item.id}`} className="min-w-0">
+              {item.kind === "job" && item.job ? (
+                <CalendarJobCard
+                  job={item.job}
+                  onDate={date}
+                  density={view === "week" ? "comfortable" : "compact"}
+                />
+              ) : null}
+              {item.kind === "time_off" && item.timeOff ? (
+                <TimeOffCard
+                  entry={item.timeOff}
+                  onDate={date}
+                  density={view === "week" ? "comfortable" : "compact"}
+                  onOpen={onOpenTimeOff}
+                />
+              ) : null}
+              {item.kind === "task" && item.task ? (
+                <TaskCard
+                  entry={item.task}
+                  onDate={date}
+                  density={view === "week" ? "comfortable" : "compact"}
+                  onOpen={onOpenTask}
+                />
+              ) : null}
             </li>
           ))}
         </ul>

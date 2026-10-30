@@ -7,6 +7,7 @@ import Link from "next/link";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/atlas";
+import { AssignmentTimeOffWarning } from "@/features/calendar/components/AssignmentTimeOffWarning";
 import {
   estimateEquipmentBundles,
   getEstimateEquipmentBundle,
@@ -556,6 +557,11 @@ export function JobForm({
                   </option>
                 ))}
               </select>)}
+              <AssignmentTimeOffWarning
+                assigneeIds={form.assigneeIds ?? []}
+                scheduledStartAt={form.scheduledStartAt}
+                scheduledEndAt={form.scheduledEndAt ?? ""}
+              />
             </div>
 
             {/* Scheduling — PR3C clock-time fields */}

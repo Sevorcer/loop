@@ -532,6 +532,22 @@ describe("allowedRolesFor", () => {
     expect(allowedRolesFor("job_activity", "delete")).toHaveLength(0);
   });
 
+  it("lets the office manage time off and lets a tech only read it", () => {
+    for (const role of ["owner", "manager", "dispatch", "office"] as const) {
+      expectAllowed(role, "time_off", ["select", "insert", "update", "delete"]);
+    }
+    expectAllowed("tech", "time_off", ["select"]);
+    expectDenied("tech", "time_off", ["insert", "update", "delete"]);
+    expectDenied("sales", "time_off", ["select", "insert", "update", "delete"]);
+  });
+
+  it("lets a tech mark a calendar task done without deleting it", () => {
+    expectAllowed("tech", "calendar_tasks", ["select", "update"]);
+    expectDenied("tech", "calendar_tasks", ["insert", "delete"]);
+    expectAllowed("office", "calendar_tasks", ["select", "insert", "update", "delete"]);
+    expectDenied("sales", "calendar_tasks", ["select"]);
+  });
+
   it("returns correct roles for jobs SELECT", () => {
     const roles = allowedRolesFor("jobs", "select");
     expect(roles).toContain("owner");

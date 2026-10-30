@@ -1,17 +1,27 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowRight, CalendarRange, ListFilter, UserCircle2 } from "lucide-react";
 
 import { PageHeader, StatusBadge } from "@/components/atlas";
+import { useCurrentRole } from "@/features/auth";
 import { useJobs } from "@/features/jobs/state/JobsProvider";
 import type { Job } from "@/features/jobs/types/job";
+import { ApiRequestError, requestJson } from "@/lib/api/client";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
 import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 
+import { CalendarEntryDialog, type CalendarEditor } from "../components/CalendarEntryDialog";
 import { CalendarGrid } from "../components/CalendarGrid";
+import {
+  canManageCalendarEntries,
+  type CalendarPerson,
+  type CalendarTaskEntry,
+  type TimeOffEntry,
+} from "../types/calendarEntries";
+import { groupCalendarBoard } from "../utils/calendarEntries";
 import {
   CALENDAR_VIEW_STORAGE_KEY,
   calendarJobHeading,
@@ -21,7 +31,6 @@ import {
   formatLongDate,
   formatMonthTitle,
   formatWeekRangeLabel,
-  groupJobsByDate,
   isCalendarJobUnassigned,
   isJobScheduled,
   relativeDayLabel,
@@ -181,8 +190,15 @@ export function CalendarScreen() {
   // session, and row security limits a tech to assigned work. This screen
   // does not widen that list.
   const { hydrated, jobs } = useJobs();
+  const { role } = useCurrentRole();
   const router = useRouter();
   const pathname = usePathname();
+  const office = canManageCalendarEntries(role);
+  const [timeOff, setTimeOff] = useState<TimeOffEntry[]>([]);
+  const [tasks, setTasks] = useState<CalendarTaskEntry[]>([]);
+  const [team, setTeam] = useState<CalendarPerson[]>([]);
+  const [editor, setEditor] = useState<CalendarEditor | null>(null);
+  const [entriesNote, setEntriesNote] = useState<string | null>(null);
 
   const today = todayInCompanyTimeZone();
   const [year, setYear] = useState(() => Number(today.slice(0, 4)));
@@ -196,9 +212,75 @@ export function CalendarScreen() {
   const viewReady = viewSnapshot !== CALENDAR_VIEW_PENDING;
   const view: CalendarViewMode = viewReady ? viewSnapshot : "month";
 
-  const jobsByDate = useMemo(() => groupJobsByDate(jobs), [jobs]);
+  const itemsByDate = useMemo(
+    () => groupCalendarBoard({ jobs, timeOff, tasks }),
+    [jobs, tasks, timeOff],
+  );
   const visibleWeek = useMemo(() => weekDates(selectedDate), [selectedDate]);
-  const dayJobs = jobsByDate[selectedDate] ?? [];
+  const dayItems = itemsByDate[selectedDate] ?? [];
+  const dayJobs = dayItems.flatMap((item) => (item.kind === "job" && item.job ? [item.job] : []));
+
+  const reloadEntries = useCallback(async () => {
+    if (!role) return;
+    try {
+      const data = await requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>(
+        "/api/calendar",
+        { role, cache: "no-store" },
+      );
+      setTimeOff(data.timeOff);
+      setTasks(data.tasks);
+      setEntriesNote(null);
+    } catch (error) {
+      if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+        setTimeOff([]);
+        setTasks([]);
+        return;
+      }
+      setEntriesNote("Time off and tasks could not be loaded. Scheduled jobs are still shown.");
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    void requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>("/api/calendar", {
+      role,
+      cache: "no-store",
+    })
+      .then((data) => {
+        if (cancelled) return;
+        setTimeOff(data.timeOff);
+        setTasks(data.tasks);
+        setEntriesNote(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+          setTimeOff([]);
+          setTasks([]);
+          return;
+        }
+        setEntriesNote("Time off and tasks could not be loaded. Scheduled jobs are still shown.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
+  useEffect(() => {
+    if (!office) return;
+    let cancelled = false;
+    void requestJson<{ team: CalendarPerson[] }>("/api/calendar/team", { role, cache: "no-store" })
+      .then((data) => {
+        if (!cancelled) setTeam(data.team);
+      })
+      .catch(() => {
+        if (!cancelled) setTeam([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [office, role]);
   const title =
     view === "week"
       ? formatWeekRangeLabel(visibleWeek[0], visibleWeek[6])
@@ -283,7 +365,7 @@ export function CalendarScreen() {
       <div className="print:hidden">
         <PageHeader
           title="Calendar"
-          description="Every scheduled job is listed on its day. Switch between month and week. Jobs without a date stay in Daily Plans."
+          description="Every scheduled job, time off, and task is listed on its day. Switch between month and week."
         />
       </div>
 
@@ -299,7 +381,7 @@ export function CalendarScreen() {
             year={year}
             weekDates={visibleWeek}
             title={title}
-            jobsByDate={jobsByDate}
+            itemsByDate={itemsByDate}
             selectedDate={selectedDate}
             today={today}
             showToday={showToday}
@@ -308,8 +390,25 @@ export function CalendarScreen() {
             onPrev={handlePrev}
             onNext={handleNext}
             onToday={handleToday}
+            onAdd={office ? () => setEditor({ mode: "choose", date: selectedDate }) : undefined}
+            onOpenTimeOff={(entry) => setEditor({ mode: "time_off", date: selectedDate, entry })}
+            onOpenTask={(entry) => setEditor({ mode: "task", date: selectedDate, entry })}
           />
+          {entriesNote ? <p className="text-sm text-muted">{entriesNote}</p> : null}
           <DayPanel selectedDate={selectedDate} today={today} jobs={dayJobs} />
+          {editor ? (
+            <CalendarEntryDialog
+              editor={editor}
+              role={role}
+              team={team}
+              onClose={() => setEditor(null)}
+              onPickKind={(kind, date) => setEditor({ mode: kind, date })}
+              onSaved={() => {
+                setEditor(null);
+                void reloadEntries();
+              }}
+            />
+          ) : null}
         </div>
       )}
 
