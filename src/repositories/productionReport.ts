@@ -70,6 +70,7 @@ export async function listProductionSources(
       .order("created_at", { ascending: true })
       .range(from, to),
   );
+  // Keep the instant. The report turns it into the company calendar day.
   const completions: ProductionCompletion[] = completionRows.map((row) => ({
     jobId: row.job_id,
     createdAt: row.created_at,

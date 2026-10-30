@@ -9,10 +9,16 @@
  * once. Each person also receives an equal share. Leftover cents go to
  * people in alphabetical order. A person's full-job column repeats the whole
  * amount, so adding people counts a shared job more than once.
+ *
+ * A completion is the company calendar day of the "Job completed" activity,
+ * or of updated_at when that row is missing. The company zone is
+ * America/Los_Angeles unless NEXT_PUBLIC_COMPANY_TIME_ZONE sets another one.
+ * Week and month presets use that same calendar day.
  */
 
 import { formatCentsAsUsd } from "@/lib/money";
 import { formatTeamLabel, splitTeamNames } from "@/lib/teamLabel";
+import { companyCalendarDate, companyTimeZone, todayInCompanyTimeZone } from "@/lib/timezone";
 
 export const SCHEDULED_HOURS_LABEL = "Scheduled hours";
 
@@ -158,6 +164,16 @@ export function resolvePresetRange(preset: Exclude<RangePreset, "custom">, today
   return monthRangeContaining(today, 0);
 }
 
+/** This week, this month, and last month, measured on the company calendar. */
+export function companyPresetRange(
+  preset: Exclude<RangePreset, "custom">,
+  now = new Date(),
+  timeZone = companyTimeZone(),
+): DateRange {
+  const today = todayInCompanyTimeZone(now, timeZone);
+  return resolvePresetRange(preset, today);
+}
+
 export function assertDateRange(from: string, to: string): DateRange {
   if (!isDateKey(from) || !isDateKey(to) || from > to) throw new Error("Invalid date range.");
   const span = Math.round((utcDate(to).getTime() - utcDate(from).getTime()) / 86400000);
@@ -165,10 +181,9 @@ export function assertDateRange(from: string, to: string): DateRange {
   return { from, to };
 }
 
-function datePart(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value.trim());
-  return match && isDateKey(match[1]) ? match[1] : null;
+function datePart(value: string | null | undefined, timeZone: string): string | null {
+  const day = companyCalendarDate(value, timeZone);
+  return day && isDateKey(day) ? day : null;
 }
 
 function dedupePeople(people: readonly ProductionPerson[]): ProductionPerson[] {
@@ -230,14 +245,18 @@ function personSortKey(person: ProductionPerson): string {
   return `${person.name.toLowerCase()}|${person.id ?? ""}`;
 }
 
-function completionDate(job: ProductionSourceJob, completedOn: ReadonlyMap<string, string>): string | null {
-  return completedOn.get(job.id) ?? datePart(job.updatedAt);
+function completionDate(
+  job: ProductionSourceJob,
+  completedOn: ReadonlyMap<string, string>,
+  timeZone: string,
+): string | null {
+  return completedOn.get(job.id) ?? datePart(job.updatedAt, timeZone);
 }
 
-function latestCompletions(events: readonly ProductionCompletion[]): Map<string, string> {
+function latestCompletions(events: readonly ProductionCompletion[], timeZone: string): Map<string, string> {
   const dates = new Map<string, string>();
   for (const event of events) {
-    const day = datePart(event.createdAt);
+    const day = datePart(event.createdAt, timeZone);
     if (!day) continue;
     const previous = dates.get(event.jobId);
     if (!previous || day >= previous) dates.set(event.jobId, day);
@@ -294,11 +313,12 @@ export function computeProductionReport(
   jobs: readonly ProductionSourceJob[],
   completions: readonly ProductionCompletion[],
   range: DateRange,
+  timeZone = companyTimeZone(),
 ): ProductionReport {
-  const completedOn = latestCompletions(completions);
+  const completedOn = latestCompletions(completions, timeZone);
   const included = jobs
     .filter((job) => job.status === "Completed")
-    .map((job) => ({ job, completedOn: completionDate(job, completedOn) }))
+    .map((job) => ({ job, completedOn: completionDate(job, completedOn, timeZone) }))
     .filter((row): row is { job: ProductionSourceJob; completedOn: string } => {
       return row.completedOn != null && row.completedOn >= range.from && row.completedOn <= range.to;
     })

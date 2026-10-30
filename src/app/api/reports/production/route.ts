@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { productionReportToCsv } from "@/features/reporting/utils/productionReport";
+import { companyPresetRange, productionReportToCsv } from "@/features/reporting/utils/productionReport";
 import { requirePermission } from "@/lib/api-auth";
 import { mapRouteError } from "@/lib/api/routeErrors";
-import { todayInCompanyTimeZone } from "@/lib/timezone";
-import { monthRangeContaining } from "@/features/reporting/utils/productionReport";
 import { getProductionReport } from "@/services/productionReport";
 
 export async function GET(request: Request) {
@@ -13,8 +11,7 @@ export async function GET(request: Request) {
 
   try {
     const url = new URL(request.url);
-    const today = todayInCompanyTimeZone();
-    const fallback = monthRangeContaining(today);
+    const fallback = companyPresetRange("this-month");
     const from = url.searchParams.get("from") || fallback.from;
     const to = url.searchParams.get("to") || fallback.to;
     const report = await getProductionReport(guard.ctx.role, from, to);

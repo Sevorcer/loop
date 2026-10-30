@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { canSeeJobRevenue } from "../utils/revenueAccess";
 import {
+  companyPresetRange,
   computeProductionReport,
   equalShareCents,
   formatRevenueCents,
@@ -48,6 +49,22 @@ describe("date presets", () => {
     expect(resolvePresetRange("last-month", friday)).toEqual({
       from: "2026-09-01",
       to: "2026-09-30",
+    });
+  });
+
+  it("keeps October when it is 6 PM Pacific on October 31", () => {
+    const evening = new Date("2026-11-01T01:00:00.000Z");
+    expect(companyPresetRange("this-month", evening, "America/Los_Angeles")).toEqual({
+      from: "2026-10-01",
+      to: "2026-10-31",
+    });
+    expect(companyPresetRange("last-month", evening, "America/Los_Angeles")).toEqual({
+      from: "2026-09-01",
+      to: "2026-09-30",
+    });
+    expect(companyPresetRange("this-week", evening, "America/Los_Angeles")).toEqual({
+      from: "2026-10-26",
+      to: "2026-11-01",
     });
   });
 });
@@ -144,6 +161,39 @@ describe("production report", () => {
     expect(report.totals.averageTicketCents).toBeNull();
     expect(report.totals.scheduledHours).toBe(3);
     expect(formatRevenueCents(report.totals.revenueCents)).toBe("Not recorded");
+  });
+
+  it("counts a job completed at 6 PM Pacific on October 31 in October", () => {
+    const completedAt = "2026-11-01T01:00:00.000Z";
+    const evening = job({
+      id: "evening",
+      jobNumber: "JOB-31",
+      updatedAt: "2026-11-02T00:00:00.000Z",
+    });
+    const report = computeProductionReport(
+      [evening],
+      [{ jobId: "evening", createdAt: completedAt }],
+      range,
+      "America/Los_Angeles",
+    );
+    expect(report.totals.jobs).toBe(1);
+    expect(report.jobs.map((line) => line.completedOn)).toEqual(["2026-10-31"]);
+
+    const november = computeProductionReport(
+      [evening],
+      [{ jobId: "evening", createdAt: completedAt }],
+      { from: "2026-11-01", to: "2026-11-30" },
+      "America/Los_Angeles",
+    );
+    expect(november.totals.jobs).toBe(0);
+
+    const fromUpdatedAt = computeProductionReport(
+      [job({ id: "evening", jobNumber: "JOB-31", updatedAt: completedAt })],
+      [],
+      range,
+      "America/Los_Angeles",
+    );
+    expect(fromUpdatedAt.jobs.map((line) => line.completedOn)).toEqual(["2026-10-31"]);
   });
 
   it("ignores jobs completed outside the range and jobs that are still open", () => {
