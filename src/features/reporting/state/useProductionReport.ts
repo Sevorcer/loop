@@ -10,17 +10,20 @@ interface UseProductionReportResult {
   error: string | null;
 }
 
+interface LoadedReport {
+  from: string;
+  to: string;
+  report: ProductionReport | null;
+  error: string | null;
+}
+
 export function useProductionReport(from: string, to: string): UseProductionReportResult {
-  const [report, setReport] = useState<ProductionReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<LoadedReport | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
-      setError(null);
       try {
         const params = new URLSearchParams({ from, to });
         const response = await fetch(`/api/reports/production?${params.toString()}`, {
@@ -33,14 +36,16 @@ export function useProductionReport(from: string, to: string): UseProductionRepo
           throw new Error(body?.message || "Reports request failed.");
         }
         if (!body?.report) throw new Error("Reports request failed.");
-        if (!cancelled) setReport(body.report);
+        if (!cancelled) setLoaded({ from, to, report: body.report, error: null });
       } catch (err: unknown) {
         if (!cancelled) {
-          setReport(null);
-          setError(err instanceof Error ? err.message : "Failed to load the production report.");
+          setLoaded({
+            from,
+            to,
+            report: null,
+            error: err instanceof Error ? err.message : "Failed to load the production report.",
+          });
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
@@ -50,5 +55,10 @@ export function useProductionReport(from: string, to: string): UseProductionRepo
     };
   }, [from, to]);
 
-  return { report, loading, error };
+  const ready = loaded != null && loaded.from === from && loaded.to === to;
+  return {
+    report: ready ? loaded.report : null,
+    loading: !ready,
+    error: ready ? loaded.error : null,
+  };
 }

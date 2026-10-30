@@ -11,9 +11,10 @@ import {
   REVENUE_SPLIT_NOTE,
   SCHEDULED_HOURS_LABEL,
   SCHEDULED_HOURS_NOTE,
+  companyPresetRange,
   formatRevenueCents,
   formatScheduledHours,
-  companyPresetRange,
+  productionReportToCsv,
   redactProductionReport,
   type ProductionBucket,
   type ProductionPersonBucket,
@@ -33,7 +34,6 @@ export function ProductionReportSection() {
   const [preset, setPreset] = useState<RangePreset>("this-month");
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
-  const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const { report, loading, error } = useProductionReport(from, to);
   const showRevenue = Boolean(role) && canSeeJobRevenue(role) && report?.canSeeRevenue === true;
@@ -41,6 +41,7 @@ export function ProductionReportSection() {
     () => (report && !showRevenue ? redactProductionReport(report) : report),
     [report, showRevenue],
   );
+  const exportReady = !loading && visible != null && visible.from === from && visible.to === to;
 
   function applyPreset(next: Exclude<RangePreset, "custom">) {
     const range = companyPresetRange(next);
@@ -49,29 +50,20 @@ export function ProductionReportSection() {
     setTo(range.to);
   }
 
-  async function exportCsv() {
-    setExporting(true);
+  function exportCsv() {
+    if (!exportReady || !visible) return;
     setExportError(null);
     try {
-      const params = new URLSearchParams({ from, to, format: "csv" });
-      const response = await fetch(`/api/reports/production?${params.toString()}`, {
-        credentials: "same-origin",
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(body?.message || "The spreadsheet could not be downloaded.");
-      }
-      const blob = await response.blob();
+      const csv = productionReportToCsv(visible);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `production-${from}-to-${to}.csv`;
+      link.download = `production-${visible.from}-to-${visible.to}.csv`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
       setExportError(err instanceof Error ? err.message : "The spreadsheet could not be downloaded.");
-    } finally {
-      setExporting(false);
     }
   }
 
@@ -81,11 +73,12 @@ export function ProductionReportSection() {
       actions={
         <button
           type="button"
-          onClick={() => void exportCsv()}
-          disabled={exporting || loading || !visible}
+          onClick={exportCsv}
+          disabled={!exportReady}
+          aria-busy={loading}
           className="min-h-10 rounded-full border border-default px-3 text-sm text-foreground hover:bg-surface-elevated disabled:opacity-50"
         >
-          {exporting ? "Preparing…" : "Download CSV"}
+          {loading ? "Loading…" : "Download CSV"}
         </button>
       }
     >
