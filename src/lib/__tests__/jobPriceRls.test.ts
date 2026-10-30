@@ -81,8 +81,11 @@ describe("job price access", () => {
   });
 
   it("requires a price row to point at a job in the same company", () => {
-    const insert = policySql("job_financials: finance insert");
-    expect(insert).toContain("priced_job.org_id = org_id");
+    const followUp = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261031000001_price_trigger_definer.sql"),
+      "utf8",
+    );
+    expect(followUp).toContain("priced_job.org_id = job_financials.org_id");
     expect(migration).toContain("job price must belong to a job in the same company");
     expect(migration).toContain("TRIGGER job_financials_same_company");
     expect(migration).toContain("TRIGGER job_financials_history_same_company");
