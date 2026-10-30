@@ -33,6 +33,15 @@
     --warning: #f59e0b;
     --danger: #ef4444;
 
+    /* Aliases used by inline styles. They follow the mode tokens above. */
+    --color-background: var(--background);
+    --color-surface: var(--surface);
+    --color-surface-elevated: var(--surface-elevated);
+    --color-border: var(--border);
+    --color-text-primary: var(--foreground);
+    --color-text-muted: var(--foreground-muted);
+    --color-primary: var(--primary);
+
     /* ----------------------------------------------------------------------
        Spacing
        ---------------------------------------------------------------------- */
@@ -110,11 +119,13 @@
 
   /* Text */
 
-  .text-primary {
+  .text-primary,
+  .text-foreground {
     color: var(--foreground);
   }
 
-  .text-muted {
+  .text-muted,
+  .text-muted-foreground {
     color: var(--foreground-muted);
   }
 
@@ -351,20 +362,266 @@
    Appearance Preferences — Sprint 7 Settings Enhancements
    ========================================================================== */
 
-/* Light color mode */
+/* Light color mode.
+   Pages still use dark-canvas utilities (text-white, bg-slate-950, border-white/10).
+   These overrides keep that text readable on the light surfaces without
+   rewriting every screen. White text on solid colored buttons is preserved. */
 [data-color-mode="light"] {
   color-scheme: light;
-  --background: #f8fafc;
+  --background: #f1f5f9;
   --surface: #ffffff;
-  --surface-elevated: #f1f5f9;
+  --surface-elevated: #f8fafc;
   --foreground: #0f172a;
-  --foreground-muted: #64748b;
-  --border: #e2e8f0;
+  --foreground-muted: #334155;
+  --border: #cbd5e1;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --success: #166534;
+  --warning: #9a3412;
+  --danger: #991b1b;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-border: var(--border);
+  --color-text-primary: var(--foreground);
+  --color-text-muted: var(--foreground-muted);
+  --color-primary: var(--primary);
 }
 
 [data-color-mode="light"] body {
   background: var(--background);
   color: var(--foreground);
+}
+
+[data-color-mode="light"] :is(
+  .text-white,
+  .text-slate-50,
+  .text-slate-100,
+  .text-slate-200,
+  .text-slate-300
+) {
+  color: var(--foreground);
+}
+
+[data-color-mode="light"] :is(
+  .text-slate-400,
+  .text-slate-500,
+  .text-slate-600
+) {
+  color: var(--foreground-muted);
+}
+
+[data-color-mode="light"] :is(
+  .text-blue-200,
+  .text-blue-300,
+  .text-blue-400,
+  .text-sky-300,
+  .text-sky-400,
+  .text-cyan-200,
+  .text-cyan-300,
+  .text-cyan-400
+) {
+  color: #1e3a8a;
+}
+
+[data-color-mode="light"] :is(
+  .text-red-200,
+  .text-red-300,
+  .text-red-400
+) {
+  color: #991b1b;
+}
+
+[data-color-mode="light"] :is(
+  .text-emerald-200,
+  .text-emerald-300,
+  .text-emerald-400,
+  .text-green-300,
+  .text-green-400
+) {
+  color: #166534;
+}
+
+[data-color-mode="light"] :is(
+  .text-amber-200,
+  .text-amber-300,
+  .text-amber-400,
+  .text-yellow-300,
+  .text-yellow-400
+) {
+  color: #9a3412;
+}
+
+[data-color-mode="light"] :is(
+  .text-violet-300,
+  .text-violet-400,
+  .text-purple-300
+) {
+  color: #5b21b6;
+}
+
+/* Pale tints, including opacity modifiers such as text-red-100/80. */
+[data-color-mode="light"] :is(
+  [class*="text-blue-100"],
+  [class*="text-sky-100"],
+  [class*="text-sky-200"],
+  [class*="text-cyan-100"]
+) {
+  color: #1e3a8a;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-red-100"],
+  [class*="text-rose-100"],
+  [class*="text-rose-200"],
+  [class*="text-rose-300"]
+) {
+  color: #991b1b;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-emerald-100"],
+  [class*="text-green-100"],
+  [class*="text-green-200"]
+) {
+  color: #166534;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-amber-100"],
+  [class*="text-yellow-100"],
+  [class*="text-yellow-200"],
+  [class*="text-orange-200"],
+  [class*="text-orange-300"]
+) {
+  color: #9a3412;
+}
+
+[data-color-mode="light"] :is(
+  [class*="text-violet-100"],
+  [class*="text-violet-200"],
+  [class*="text-purple-100"],
+  [class*="text-purple-200"],
+  [class*="text-indigo-200"],
+  [class*="text-indigo-300"]
+) {
+  color: #5b21b6;
+}
+
+/* Solid and mostly-opaque actions keep white labels.
+   A translucent wash such as from-red-500/15 does not: white text on that
+   wash disappears in light mode. */
+[data-color-mode="light"] :is(
+  [class*="bg-blue-5"],
+  [class*="bg-blue-6"],
+  [class*="bg-blue-7"],
+  [class*="bg-red-5"],
+  [class*="bg-red-6"],
+  [class*="bg-red-7"],
+  [class*="bg-emerald-5"],
+  [class*="bg-emerald-6"],
+  [class*="bg-green-6"],
+  [class*="bg-primary"],
+  [class*="from-red-6"],
+  [class*="from-red-7"],
+  [class*="from-blue-6"],
+  [class*="from-blue-7"],
+  [class*="from-emerald-6"],
+  [class*="from-green-6"],
+  [class*="from-violet-6"],
+  [class*="from-purple-6"],
+  [class*="from-cyan-6"],
+  [class*="from-slate-9"],
+  [class*="/80"],
+  [class*="/90"]
+).text-white {
+  color: #ffffff;
+}
+
+[data-color-mode="light"] :is(
+  .bg-slate-950,
+  .bg-slate-900,
+  .bg-slate-950\/50,
+  .bg-slate-950\/60,
+  .bg-slate-950\/85,
+  .bg-slate-950\/95,
+  .bg-slate-900\/50,
+  .bg-slate-900\/80,
+  .bg-slate-900\/90,
+  .bg-slate-900\/95,
+  .bg-slate-800\/50
+) {
+  background-color: var(--surface);
+  color: var(--foreground);
+}
+
+[data-color-mode="light"] .bg-slate-950\/80 {
+  background-color: rgb(15 23 42 / 0.45);
+  color: #ffffff;
+}
+
+[data-color-mode="light"] :is(
+  .bg-white\/5,
+  .bg-white\/10,
+  .bg-white\/\[0\.02\],
+  .bg-white\/\[0\.03\],
+  .bg-white\/\[0\.04\],
+  .bg-white\/\[0\.05\],
+  .bg-white\/\[0\.06\],
+  .bg-white\/\[0\.07\]
+) {
+  background-color: var(--surface-elevated);
+}
+
+[data-color-mode="light"] :is(
+  .hover\:bg-white\/5:hover,
+  .hover\:bg-white\/10:hover,
+  .hover\:bg-white\/\[0\.03\]:hover,
+  .hover\:bg-white\/\[0\.05\]:hover,
+  .hover\:bg-white\/\[0\.07\]:hover
+) {
+  background-color: #e2e8f0;
+}
+
+[data-color-mode="light"] :is(
+  .border-white\/5,
+  .border-white\/10,
+  .border-white\/15,
+  .border-white\/20,
+  .border-white\/\[0\.06\],
+  .border-slate-700,
+  .border-slate-800,
+  .border-slate-800\/80
+) {
+  border-color: var(--border);
+}
+
+[data-color-mode="light"] :is(
+  .ring-white\/10,
+  .ring-white\/20
+) {
+  --tw-ring-color: var(--border);
+}
+
+[data-color-mode="light"] .hover\:text-white:hover {
+  color: var(--foreground);
+}
+
+[data-color-mode="light"] :is(
+  [class*="bg-blue-6"],
+  [class*="bg-red-6"],
+  [class*="from-red-6"],
+  [class*="from-blue-6"],
+  [class*="/80"],
+  [class*="/90"]
+).hover\:text-white:hover {
+  color: #ffffff;
+}
+
+/* Past calendar days are dimmed on the dark canvas. In light mode that
+   50% opacity drops small job text below a readable contrast, so keep it solid. */
+[data-color-mode="light"] .calendar-past-day {
+  opacity: 1;
 }
 
 /* Compact spacing density */

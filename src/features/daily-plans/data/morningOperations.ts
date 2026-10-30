@@ -9,127 +9,14 @@ function cloneChecklist(items: ChecklistItem[]): ChecklistItem[] {
   return items.map((item) => ({ ...item }));
 }
 
-const crewProfiles: CrewProfile[] = [
-  {
-    id: "crew-marcus-rivera",
-    technician: "Marcus Rivera",
-    leadInstaller: "Marcus Rivera",
-    helper: "Elena Cruz",
-    truckName: "Install Truck 4",
-    truckInService: true,
-    truckNote: "Condenser stand and lineset already staged.",
-    certifications: ["Heat Pump", "Rigging", "Startup"],
-    experienceLevel: "Senior lead · 11 years",
-    availability: "available",
-    dailyCapacityHours: 8,
-    departureTime: "6:30 AM",
-    truckChecks: [
-      { label: "Fuel", ready: true },
-      { label: "Ladder", ready: true },
-      { label: "Vacuum pump", ready: true },
-      { label: "Safety gear", ready: true },
-    ],
-  },
-  {
-    id: "crew-tina-brooks",
-    technician: "Tina Brooks",
-    leadInstaller: "Tina Brooks",
-    helper: "Maya Singh",
-    truckName: "Service Van 2",
-    truckInService: true,
-    truckNote: "Roof harness inspected before dispatch.",
-    certifications: ["Service", "EPA Universal"],
-    experienceLevel: "Lead tech · 8 years",
-    availability: "available",
-    dailyCapacityHours: 7.5,
-    departureTime: "7:00 AM",
-    truckChecks: [
-      { label: "Fuel", ready: true },
-      { label: "Recovery machine", ready: true },
-      { label: "Battery tools", ready: true },
-      { label: "Safety gear", ready: true },
-    ],
-  },
-  {
-    id: "crew-jordan-lee",
-    technician: "Jordan Lee",
-    leadInstaller: "Jordan Lee",
-    helper: "Chris Doyle",
-    truckName: "Service Truck 7",
-    truckInService: true,
-    truckNote: "Nitrogen refill arriving with warehouse runner at 7:20 AM.",
-    certifications: ["Commercial RTU", "Controls"],
-    experienceLevel: "Commercial specialist · 9 years",
-    availability: "late arrival",
-    dailyCapacityHours: 8,
-    departureTime: "7:15 AM",
-    truckChecks: [
-      { label: "Fuel", ready: true },
-      { label: "Nitrogen", ready: false, critical: true },
-      { label: "Micron gauge", ready: true },
-      { label: "Ladder", ready: true },
-    ],
-  },
-  {
-    id: "crew-riley-morgan",
-    technician: "Riley Morgan",
-    leadInstaller: "Riley Morgan",
-    helper: "Alex Park",
-    truckName: "Install Van 6",
-    truckInService: true,
-    truckNote: "Open capacity after morning warehouse stop.",
-    certifications: ["Ductless", "Commissioning"],
-    experienceLevel: "Field lead · 6 years",
-    availability: "available",
-    dailyCapacityHours: 8,
-    departureTime: "6:45 AM",
-    truckChecks: [
-      { label: "Fuel", ready: true },
-      { label: "Vacuum pump", ready: true },
-      { label: "Battery tools", ready: true },
-      { label: "Safety gear", ready: true },
-    ],
-  },
-  {
-    id: "crew-taylor-reed",
-    technician: "Taylor Reed",
-    leadInstaller: "Taylor Reed",
-    helper: "Devon Miles",
-    truckName: "Service Van 9",
-    truckInService: true,
-    truckNote: "Training block locked until noon.",
-    certifications: ["Maintenance", "IAQ"],
-    experienceLevel: "Journeyman · 5 years",
-    availability: "training",
-    dailyCapacityHours: 4,
-    departureTime: "12:30 PM",
-    truckChecks: [
-      { label: "Fuel", ready: true },
-      { label: "Inventory", ready: true },
-      { label: "Ladder", ready: true },
-      { label: "Safety gear", ready: true },
-    ],
-  },
-  {
-    id: "crew-avery-collins",
-    technician: "Avery Collins",
-    leadInstaller: "Avery Collins",
-    helper: "Jordan Pace",
-    truckName: "Quality Truck 1",
-    truckInService: false,
-    truckNote: "Truck assigned to inspection route is in the shop.",
-    certifications: ["Quality Assurance"],
-    experienceLevel: "Inspector · 7 years",
-    availability: "vacation",
-    dailyCapacityHours: 0,
-    departureTime: "-",
-    truckChecks: [
-      { label: "Fuel", ready: false, critical: true },
-      { label: "Inventory", ready: false, critical: true },
-      { label: "Safety gear", ready: false, critical: true },
-    ],
-  },
-];
+/**
+ * Crew rosters used to be hardcoded here. Daily Plans now loads crews and
+ * technicians from the database. This function stays so older callers receive
+ * an empty roster instead of fictional people.
+ */
+export function getCrewProfilesForDate(date: string): CrewProfile[] {
+  return date ? [] : [];
+}
 
 const jobPlansById: Record<string, JobPlanDetail> = {
   "job-001": {
@@ -357,22 +244,6 @@ const dayOverviewByDate: Record<string, DayOverview> = {
     alerts: ["Pacific Tower access window closes at 4 PM."],
   },
 };
-
-export function getCrewProfilesForDate(date: string): CrewProfile[] {
-  return crewProfiles.map((crew) => {
-    const nextCrew: CrewProfile = {
-      ...crew,
-      truckChecks: cloneChecklist(crew.truckChecks),
-    };
-
-    if (date === "2026-07-20" && crew.technician === "Taylor Reed") {
-      nextCrew.availability = "half day";
-      nextCrew.truckNote = "Morning training wraps at 11:30 AM before dispatch.";
-    }
-
-    return nextCrew;
-  });
-}
 
 export function getDayOverview(date: string): DayOverview {
   return (

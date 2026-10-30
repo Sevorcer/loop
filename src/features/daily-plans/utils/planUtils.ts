@@ -1,8 +1,9 @@
-import { getCrewProfilesForDate, getDayOverview, getJobPlanDetail } from "../data/morningOperations";
+import { getCrewProfilesForDate, getDayOverview } from "../data/morningOperations";
 import type {
   CrewProfile,
   CrewWorkload,
   DailyPlanJobOverride,
+  JobPlanDetail,
   JobReadinessSummary,
   MorningAlert,
   MorningDashboardMetrics,
@@ -89,6 +90,7 @@ function getAvailableInstallerCountForCrew(crew: CrewProfile): number {
   switch (crew.availability) {
     case "vacation":
     case "sick":
+    case "unavailable":
       return 0;
     case "training":
       return 0;
@@ -136,11 +138,30 @@ function addHoursToClock(value: string, hours: number): string {
   return formatClockValue(nextHour, nextMinute);
 }
 
+/**
+ * Planning details that are not stored on the job stay blank.
+ * Permit, material, and equipment checklists are not invented.
+ */
+function honestJobPlan(job: Job): JobPlanDetail {
+  return {
+    city: (job.location ?? "").trim() || "—",
+    equipment: "—",
+    estimatedHours: 0,
+    arrivalWindow: "—",
+    permitRequired: false,
+    photosRequired: false,
+    materialsReady: true,
+    readinessChecks: [],
+    materialChecklist: [],
+    constraints: [],
+  };
+}
+
 export function buildPlannedJob(
   job: Job,
   override?: DailyPlanJobOverride
 ): PlannedJob {
-  const planning = getJobPlanDetail(job.id);
+  const planning = honestJobPlan(job);
 
   const blockers = [
     ...planning.readinessChecks
@@ -416,6 +437,28 @@ export function getDayOverviewSummary(date: string): string {
 /** Jobs scheduled for today (scheduledFor === today, never null). */
 export function getScheduledTodayJobs(jobs: Job[]): Job[] {
   return jobs.filter((job) => job.scheduledFor === getTodayDate());
+}
+
+/**
+ * At-risk count for the morning briefing.
+ *
+ * Counts only jobs already on today's schedule (the same jobs as Total).
+ * A historical job scheduled on an earlier day is not on this board, so it
+ * does not increase the number. On Hold counts. An open job whose committed
+ * end time has passed counts as late. A start time alone does not, because
+ * older rows were backfilled to a morning hour and would all look late.
+ */
+export function countBriefingAtRisk(
+  todayJobs: Pick<Job, "status" | "scheduledEndAt">[],
+  nowMs: number = Date.now(),
+): number {
+  return todayJobs.filter((job) => {
+    if (job.status === "Completed" || job.status === "Cancelled") return false;
+    if (job.status === "On Hold") return true;
+    if (!job.scheduledEndAt) return false;
+    const endMs = Date.parse(job.scheduledEndAt);
+    return !Number.isNaN(endMs) && endMs < nowMs;
+  }).length;
 }
 
 /** Jobs scheduled for a future date, sorted ascending by date. */

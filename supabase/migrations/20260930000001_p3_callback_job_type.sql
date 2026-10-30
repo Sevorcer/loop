@@ -30,3 +30,11 @@ BEGIN
       CHECK (type IN ('Install', 'Service', 'Maintenance', 'Inspection', 'Estimate', 'Callback'));
   END IF;
 END $$;
+-- DOWN
+-- Restore the job type check from before Callback was allowed (Estimate stays).
+-- This fails while any job still has type 'Callback'; change those rows to
+-- another allowed type first. Do not delete the jobs.
+--   ALTER TABLE public.jobs DROP CONSTRAINT IF EXISTS jobs_type_check;
+--   ALTER TABLE public.jobs
+--     ADD CONSTRAINT jobs_type_check
+--     CHECK (type IN ('Install', 'Service', 'Maintenance', 'Inspection', 'Estimate'));

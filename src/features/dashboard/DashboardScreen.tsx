@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDashboardSummary } from "@/repositories/dashboard";
+import { getDashboardSummary, listDashboardAttentionJobs } from "@/repositories/dashboard";
 
 import { DashboardHeader } from "./DashboardHeader";
 import { HomeSummaryCards } from "./HomeSummaryCards";
@@ -8,6 +8,7 @@ import { NeedsAttention } from "./NeedsAttention";
 import { QuickActions } from "./QuickActions";
 import { RecentActivity } from "./RecentActivity";
 import { RecentJobsList } from "./RecentJobsList";
+import { buildAttentionItems, type AttentionItem } from "./data/operationalHealth";
 import type { DashboardSummary } from "@/repositories/dashboard";
 
 /**
@@ -17,29 +18,40 @@ import type { DashboardSummary } from "@/repositories/dashboard";
  * presentation sub-components. No mock data; falls back to zero-state on error
  * so the screen always renders.
  */
+const EMPTY_SUMMARY: DashboardSummary = {
+  activeJobs: 0,
+  completedToday: 0,
+  scheduledToday: 0,
+  blockedJobs: 0,
+  unassignedJobs: 0,
+  newCustomersThisMonth: 0,
+  totalProperties: 0,
+  activeCrews: 0,
+  openCallbacks: 0,
+  openEstimates: 0,
+};
+
 export async function DashboardScreen() {
-  let summary: DashboardSummary;
+  let summary: DashboardSummary = EMPTY_SUMMARY;
+  let attention: AttentionItem[] = [];
   try {
     summary = await getDashboardSummary();
   } catch {
-    summary = {
-      activeJobs: 0,
-      completedToday: 0,
-      scheduledToday: 0,
-      blockedJobs: 0,
-      unassignedJobs: 0,
-      newCustomersThisMonth: 0,
-      totalProperties: 0,
-    };
+    summary = EMPTY_SUMMARY;
+  }
+  try {
+    attention = buildAttentionItems(await listDashboardAttentionJobs());
+  } catch {
+    attention = [];
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <DashboardHeader />
+      <DashboardHeader summary={summary} />
 
       <HomeSummaryCards summary={summary} />
 
-      <NeedsAttention />
+      <NeedsAttention items={attention} />
 
       <MetricsGrid summary={summary} />
 

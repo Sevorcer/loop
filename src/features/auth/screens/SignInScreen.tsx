@@ -9,6 +9,7 @@ import {
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
+import { resolveSafeNextPath } from "@/lib/auth/safeNextPath";
 import { ROUTES } from "@/lib/routes";
 import { isAuthClientConfigured, signInWithPassword } from "@/services/authClient"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -85,8 +86,29 @@ export function SignInScreen() {
         details: { emailDomain },
       });
 
-      // Redirect to the intended destination (set by middleware) or dashboard.
-      const requestedNext = searchParams.get("next");       let next = requestedNext ?? ROUTES.DASHBOARD;       if (!requestedNext) {         try {           const supabase = getSupabaseBrowserClient();           const { data: authData } = await supabase.auth.getUser();           const userId = authData.user?.id;           if (userId) {             const { data: profileRow } = await supabase               .from("user_profiles")               .select("app_role")               .eq("id", userId)               .maybeSingle();             if ((profileRow as { app_role?: string | null } | null)?.app_role === "tech") {               next = ROUTES.JOBS;             }           }         } catch {           /* Fall through to the default destination on any lookup failure. */         }       }
+      // Honor only a same-origin relative path. An unsafe or missing `next`
+      // falls through to the role default (jobs for techs, dashboard otherwise).
+      const safeNext = resolveSafeNextPath(searchParams.get("next"));
+      let next = safeNext ?? ROUTES.DASHBOARD;
+      if (!safeNext) {
+        try {
+          const supabase = getSupabaseBrowserClient();
+          const { data: authData } = await supabase.auth.getUser();
+          const userId = authData.user?.id;
+          if (userId) {
+            const { data: profileRow } = await supabase
+              .from("user_profiles")
+              .select("app_role")
+              .eq("id", userId)
+              .maybeSingle();
+            if ((profileRow as { app_role?: string | null } | null)?.app_role === "tech") {
+              next = ROUTES.JOBS;
+            }
+          }
+        } catch {
+          /* Fall through to the default destination on any lookup failure. */
+        }
+      }
       router.push(next);
       router.refresh();
     },

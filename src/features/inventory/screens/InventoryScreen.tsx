@@ -9,6 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { EmptyState } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 
 import { MaterialPlanList } from "../components/MaterialPlanList";
@@ -16,8 +17,34 @@ import { WarehousePickList } from "../components/WarehousePickList";
 import { useInventory } from "../state/InventoryProvider";
 
 export function InventoryScreen() {
-  const { snapshot } = useInventory();
+  const { snapshot, emptyMessage, loading } = useInventory();
   const { metrics } = snapshot;
+
+  if (loading || emptyMessage) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <SurfaceCard className="overflow-hidden">
+          <div className="space-y-2 p-4 sm:p-6">
+            <h2 className="text-lg font-semibold tracking-tight text-white sm:text-2xl">
+              Material Readiness
+            </h2>
+            <p className="max-w-3xl text-sm leading-6 text-slate-400">
+              Inventory answers one question: can this work actually happen?
+            </p>
+          </div>
+        </SurfaceCard>
+        <EmptyState
+          icon={<Package className="h-5 w-5" />}
+          title={loading ? "Checking inventory" : "No inventory yet"}
+          description={
+            loading
+              ? "Looking for stock in the database."
+              : emptyMessage ?? "No inventory yet."
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">

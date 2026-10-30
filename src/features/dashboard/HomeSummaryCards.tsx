@@ -42,18 +42,18 @@ export function HomeSummaryCards({ summary }: HomeSummaryCardsProps) {
           <Link
             key={card.label}
             href={card.href}
-            className="group rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-white/20 hover:bg-white/[0.05]"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {card.label}
-              </p>
+          className="group rounded-2xl border border-default bg-surface p-5 transition-all hover:bg-surface-elevated"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-muted text-xs font-semibold uppercase tracking-[0.18em]">
+              {card.label}
+            </p>
               <Icon
                 className={`h-4 w-4 ${card.color} opacity-70 transition-opacity group-hover:opacity-100`}
               />
             </div>
 
-            <p className="mt-3 text-3xl font-bold tracking-tight text-white">
+            <p className="text-primary mt-3 text-3xl font-bold tracking-tight">
               {card.value}
             </p>
           </Link>

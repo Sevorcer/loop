@@ -5,3 +5,8 @@ ALTER TABLE public.job_tasks
 CREATE INDEX IF NOT EXISTS idx_job_tasks_completed_at ON public.job_tasks (completed_at);
 COMMENT ON COLUMN public.job_tasks.completed_at IS 'When this checklist item was checked complete (NULL = not completed / legacy row). Uncheck clears to NULL.';
 COMMENT ON COLUMN public.job_tasks.completed_by IS 'App-user id (public.users.id / auth uid at write) who checked the item. NULL when unchecked or legacy. No FK: stamped at the repository layer from the signed-in user id.';
+-- DOWN
+-- Remove the completion stamp. Checklist rows stay; who/when is discarded.
+--   DROP INDEX IF EXISTS public.idx_job_tasks_completed_at;
+--   ALTER TABLE public.job_tasks DROP COLUMN IF EXISTS completed_by;
+--   ALTER TABLE public.job_tasks DROP COLUMN IF EXISTS completed_at;

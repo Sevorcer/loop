@@ -15,3 +15,6 @@ BEGIN
   END IF;
 END
 $$;
+-- DOWN
+-- Remove the assignment array from jobs. Contractor directory rows are untouched.
+--   ALTER TABLE public.jobs DROP COLUMN IF EXISTS contractor_ids;

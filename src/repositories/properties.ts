@@ -7,6 +7,12 @@ import type {
   PropertyType,
 } from "@/features/properties/types/property";
 
+import {
+  isCustomerUuid,
+  linkedPropertyIdsByCustomer,
+  resolvePropertyCustomer,
+  type JobCustomerHint,
+} from "./propertyCustomerLink";
 import { OPEN_JOB_STATUS_EXCLUSION_FILTER, UNLINKED_CUSTOMER_LABEL } from "./shared";
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
@@ -102,6 +108,93 @@ function mapProperty(row: PropertyRow, customerName: string): Property {
   };
 }
 
+async function loadJobCustomerHints(
+  propertyIds: string[],
+  propertyNames: string[],
+  contextInput?: SessionRepositoryContextInput,
+): Promise<JobCustomerHint[]> {
+  const ids = Array.from(new Set(propertyIds.filter(Boolean)));
+  const names = Array.from(new Set(propertyNames.map((name) => name.trim()).filter(Boolean)));
+  if (ids.length === 0 && names.length === 0) return [];
+
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const hints: JobCustomerHint[] = [];
+
+  async function read(filter: "id" | "name", values: string[]) {
+    if (values.length === 0) return;
+    let query = supabase
+      .from("jobs")
+      .select("property_id,property_name,customer_id,customer_name")
+      .eq("org_id", orgId);
+    query = filter === "id" ? query.in("property_id", values) : query.in("property_name", values);
+    const { data, error } = await query;
+    if (error) return;
+    for (const row of data ?? []) {
+      hints.push({
+        propertyId: (row.property_id as string | null) ?? null,
+        propertyName: typeof row.property_name === "string" ? row.property_name : "",
+        customerId: (row.customer_id as string | null) ?? null,
+        customerName: typeof row.customer_name === "string" ? row.customer_name : "",
+      });
+    }
+  }
+
+  await Promise.all([read("id", ids), read("name", names)]);
+  return hints;
+}
+
+async function loadCustomerDirectory(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<{ id: string; name: string }[]> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const { data, error } = await supabase.from("customers").select("id,name").eq("org_id", orgId);
+  if (error) return [];
+  return (data ?? []).map((customer) => ({
+    id: customer.id as string,
+    name: customer.name as string,
+  }));
+}
+
+async function withCustomerNames(
+  rows: PropertyRow[],
+  contextInput?: SessionRepositoryContextInput,
+): Promise<Property[]> {
+  if (rows.length === 0) return [];
+
+  const directIds = rows.map((row) => row.customer_id).filter(Boolean) as string[];
+  const nameMap = await getCustomerNameMap(directIds, contextInput);
+  const unresolved = rows.filter((row) => !row.customer_id || !nameMap.has(row.customer_id));
+
+  let customers = Array.from(nameMap.entries()).map(([id, name]) => ({ id, name }));
+  let hints: JobCustomerHint[] = [];
+  if (unresolved.length > 0) {
+    const [directory, jobHints] = await Promise.all([
+      loadCustomerDirectory(contextInput),
+      loadJobCustomerHints(
+        unresolved.map((row) => row.id),
+        unresolved.map((row) => row.name),
+        contextInput,
+      ),
+    ]);
+    customers = directory.length > 0 ? directory : customers;
+    hints = jobHints;
+  }
+
+  return rows.map((row) => {
+    const resolved = resolvePropertyCustomer({
+      propertyId: row.id,
+      propertyName: row.name,
+      customerId: row.customer_id,
+      customers,
+      jobHints: hints,
+    });
+    return mapProperty(
+      { ...row, customer_id: resolved.customerId ?? row.customer_id },
+      resolved.customerName,
+    );
+  });
+}
+
 async function getCustomerNameMap(
   customerIds: string[],
   contextInput?: SessionRepositoryContextInput,
@@ -150,16 +243,89 @@ export async function listProperties(
 
   if (error) throw new Error(error.message);
 
-  const rows = (data ?? []) as PropertyRow[];
-  const customerIds = rows.map((r) => r.customer_id).filter(Boolean) as string[];
-  const nameMap = await getCustomerNameMap(customerIds, contextInput);
+  return withCustomerNames((data ?? []) as PropertyRow[], contextInput);
+}
 
-  return rows.map((row) =>
-    mapProperty(
-      row,
-      row.customer_id ? (nameMap.get(row.customer_id) ?? UNLINKED_CUSTOMER_LABEL) : UNLINKED_CUSTOMER_LABEL,
-    ),
+const LINK_PAGE_SIZE = 1000;
+const LINK_PAGE_LIMIT = 20;
+
+async function readPages<T>(
+  read: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 0; page < LINK_PAGE_LIMIT; page += 1) {
+    const from = page * LINK_PAGE_SIZE;
+    const to = from + LINK_PAGE_SIZE - 1;
+    const { data, error } = await read(from, to);
+    if (error) throw new Error(error.message);
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < LINK_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+/**
+ * Property ids grouped by the customer the property list would display.
+ * Includes properties.customer_id and properties that resolve through jobs.
+ */
+export async function loadLinkedPropertyIds(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<Map<string, string[]>> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+
+  const propertyRows = await readPages<{ id: string; name: string | null; customer_id: string | null }>(
+    (from, to) =>
+      supabase
+        .from("properties")
+        .select("id,name,customer_id")
+        .eq("org_id", orgId)
+        .order("id", { ascending: true })
+        .range(from, to),
   );
+
+  const customers = await readPages<{ id: string; name: string | null }>((from, to) =>
+    supabase
+      .from("customers")
+      .select("id,name")
+      .eq("org_id", orgId)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+
+  const jobRows = await readPages<{
+    property_id: string | null;
+    property_name: string | null;
+    customer_id: string | null;
+    customer_name: string | null;
+  }>((from, to) =>
+    supabase
+      .from("jobs")
+      .select("property_id,property_name,customer_id,customer_name")
+      .eq("org_id", orgId)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+
+  const hints: JobCustomerHint[] = jobRows.map((row) => ({
+    propertyId: row.property_id,
+    propertyName: row.property_name ?? "",
+    customerId: row.customer_id,
+    customerName: row.customer_name ?? "",
+  }));
+
+  return linkedPropertyIdsByCustomer({
+    properties: propertyRows.map((row) => ({
+      id: row.id,
+      name: row.name ?? "",
+      customerId: row.customer_id,
+    })),
+    customers: customers.map((customer) => ({
+      id: customer.id,
+      name: customer.name ?? "",
+    })),
+    jobHints: hints,
+  });
 }
 
 export async function listPropertiesByCustomerId(
@@ -169,25 +335,27 @@ export async function listPropertiesByCustomerId(
 ): Promise<Property[]> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+  const linked = await loadLinkedPropertyIds(contextInput);
+  const ids = linked.get(customerId) ?? [];
+  if (ids.length === 0) return [];
 
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await supabase
-    .from("properties")
-    .select(PROPERTY_SELECT)
-    .eq("org_id", orgId)
-    .eq("customer_id", customerId)
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  const rows: PropertyRow[] = [];
+  const chunkSize = 80;
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    const chunk = ids.slice(index, index + chunkSize);
+    const { data, error } = await supabase
+      .from("properties")
+      .select(PROPERTY_SELECT)
+      .eq("org_id", orgId)
+      .in("id", chunk);
+    if (error) throw new Error(error.message);
+    rows.push(...((data ?? []) as PropertyRow[]));
+  }
 
-  if (error) throw new Error(error.message);
-
-  const rows = (data ?? []) as PropertyRow[];
-  const nameMap = await getCustomerNameMap([customerId], contextInput);
-  const customerName = nameMap.get(customerId) ?? UNLINKED_CUSTOMER_LABEL;
-
-  return rows.map((row) => mapProperty(row, customerName));
+  rows.sort((left, right) => right.created_at.localeCompare(left.created_at));
+  const from = (page - 1) * pageSize;
+  return withCustomerNames(rows.slice(from, from + pageSize), contextInput);
 }
 
 export async function getPropertyById(
@@ -205,32 +373,40 @@ export async function getPropertyById(
   if (error) throw new Error(error.message);
   if (!data) return null;
 
-  const row = data as PropertyRow;
-  const nameMap = row.customer_id
-    ? await getCustomerNameMap([row.customer_id], contextInput)
-    : new Map<string, string>();
-  const customerName = row.customer_id
-    ? (nameMap.get(row.customer_id) ?? UNLINKED_CUSTOMER_LABEL)
-    : UNLINKED_CUSTOMER_LABEL;
-
-  return mapProperty(row, customerName);
+  const [property] = await withCustomerNames([data as PropertyRow], contextInput);
+  return property ?? null;
 }
 
 export async function resolveCustomerIdByName(
   customerName: string,
   contextInput?: SessionRepositoryContextInput,
 ): Promise<string | null> {
-  if (!customerName) return null;
+  const trimmed = customerName.trim();
+  if (!trimmed) return null;
   const { supabase, orgId } = await getRepositoryContext(contextInput);
+
+  if (isCustomerUuid(trimmed)) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("id", trimmed)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data?.id) return data.id as string;
+  }
+
+  const pattern = trimmed.replace(/[%_\\]/g, (character) => `\\${character}`);
   const { data, error } = await supabase
     .from("customers")
     .select("id")
     .eq("org_id", orgId)
-    .eq("name", customerName)
-    .maybeSingle();
+    .ilike("name", pattern)
+    .limit(2);
 
   if (error) throw new Error(error.message);
-  return (data as { id: string } | null)?.id ?? null;
+  const matches = (data ?? []) as { id: string }[];
+  return matches.length === 1 ? matches[0].id : null;
 }
 
 export async function resolvePropertyIdByName(
@@ -276,10 +452,10 @@ export async function createPropertyRecord(
 ): Promise<Property> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
 
-  const customerId =
-    input.customerId !== undefined
-      ? input.customerId
-      : await resolveCustomerIdByName(input.customer, contextInput);
+  const explicitCustomerId = input.customerId?.trim() || null;
+  const customerId = explicitCustomerId
+    ? explicitCustomerId
+    : await resolveCustomerIdByName(input.customer, contextInput);
 
   const { data, error } = await supabase
     .from("properties")
@@ -320,7 +496,16 @@ export async function createPropertyRecord(
     });
   }
 
-  return mapProperty(data as PropertyRow, input.customer);
+  const row = data as PropertyRow;
+  let displayName = input.customer.trim();
+  if (row.customer_id) {
+    const nameMap = await getCustomerNameMap([row.customer_id], contextInput);
+    displayName = nameMap.get(row.customer_id) ?? (displayName || UNLINKED_CUSTOMER_LABEL);
+  } else if (!displayName) {
+    displayName = UNLINKED_CUSTOMER_LABEL;
+  }
+
+  return mapProperty(row, displayName);
 }
 
 export async function updatePropertyRecord(

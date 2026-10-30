@@ -45,11 +45,11 @@ export default function Sidebar({
     <aside
       id={id}
       className={cn(
-        "flex h-full w-full flex-col border-r border-slate-800 bg-slate-950 text-slate-100",
+        "flex h-full w-full flex-col border-r border-default bg-background text-foreground",
         className
       )}
     >
-      <div className="border-b border-slate-800 px-4 py-4 sm:px-5 sm:py-5">
+      <div className="border-b border-default px-4 py-4 sm:px-5 sm:py-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white shadow-[0_0_30px_rgba(239,68,68,0.12)] ring-1 ring-white/10">
@@ -152,7 +152,7 @@ export default function Sidebar({
         </nav>
       </div>
 
-      <div className="border-t border-slate-800 px-1 py-2">
+      <div className="border-t border-default px-1 py-2">
         <UserDisplay />
         <SignOutButton />
       </div>

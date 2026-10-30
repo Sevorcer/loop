@@ -6,10 +6,13 @@
  *      expires between page navigations.
  *   2. Protect all app-shell routes (`/(shell)/*`) — redirect unauthenticated
  *      users to `/sign-in`.
- *   3. Protect all internal API routes (`/api/*`) — return 401 for
+ *   3. Protect internal API routes (`/api/*`) — return 401 for
  *      unauthenticated requests (API-specific guard is also available at the
  *      handler level via `requireApiSession()`).
- *   4. Allow public routes (sign-in, portal, static assets) to pass through
+ *   4. Let CI token routes (`/api/admin/db-health/check` and
+ *      `/api/admin/smoke-test`) through so their own bearer-token check runs.
+ *      They do not accept a user session.
+ *   5. Allow public routes (sign-in, portal, static assets) to pass through
  *      without auth checks.
  *
  * Session token refresh is handled here so that Server Components always
@@ -24,56 +27,17 @@ import {
 } from "@/lib/auth/errorContract";
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import {
+  isProtectedApiRoute,
+  isPublicRoute,
+  isShellRoute,
+  isTokenAuthenticatedApiRoute,
+} from "@/lib/auth/routeAccess";
+import {
   applyTraceHeaders,
   getRequestTraceContext,
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
-
-// ---------------------------------------------------------------------------
-// Route classification helpers
-// ---------------------------------------------------------------------------
-
-/** Shell routes that require an authenticated internal user. */
-function isShellRoute(pathname: string): boolean {
-  const shellPrefixes = [
-    "/admin",
-    "/dashboard",
-    "/jobs",
-    "/properties",
-    "/customers",
-    "/contractors",
-    "/installed-systems",
-    "/vehicle-alerts",
-    "/daily-plans",
-    "/live-operations",
-    "/inventory",
-    "/dispatch",
-    "/company-brain",
-    "/reporting",
-    "/settings",
-  ];
-  return shellPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-/** Internal API routes that must reject unauthenticated requests. */
-function isProtectedApiRoute(pathname: string): boolean {
-  // /api/auth/sign-out is handled by Supabase directly (no auth guard needed)
-  if (pathname === "/api/auth/sign-out") return false;
-  return pathname.startsWith("/api/");
-}
-
-/** Routes that are always public (no session required). */
-function isPublicRoute(pathname: string): boolean {
-  return (
-    pathname.startsWith("/sign-in") ||
-    pathname.startsWith("/update-password") ||
-    pathname.startsWith("/portal") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname === "/"
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Middleware
@@ -85,6 +49,13 @@ export async function proxy(request: NextRequest) {
 
   // Pass through public routes without touching session state.
   if (isPublicRoute(pathname)) {
+    return applyTraceHeaders(NextResponse.next(), trace);
+  }
+
+  // CI calls these with Authorization: Bearer $LOOP_HEALTH_CHECK_TOKEN and no
+  // session cookie. Returning here lets the route handler accept or reject
+  // that token. Every other /api route still requires a session below.
+  if (isTokenAuthenticatedApiRoute(pathname)) {
     return applyTraceHeaders(NextResponse.next(), trace);
   }
 

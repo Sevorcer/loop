@@ -10,3 +10,10 @@ ALTER TABLE public.customers
   ADD COLUMN IF NOT EXISTS zip text NOT NULL DEFAULT '',
   ADD COLUMN IF NOT EXISTS phone2 text NOT NULL DEFAULT '',
   ADD COLUMN IF NOT EXISTS notes text NOT NULL DEFAULT '';
+-- DOWN
+-- Drop the intake columns added to customers. Doing so discards street, ZIP,
+-- second phone, and notes stored in those columns. It does not delete customer rows.
+--   ALTER TABLE public.customers DROP COLUMN IF EXISTS notes;
+--   ALTER TABLE public.customers DROP COLUMN IF EXISTS phone2;
+--   ALTER TABLE public.customers DROP COLUMN IF EXISTS zip;
+--   ALTER TABLE public.customers DROP COLUMN IF EXISTS street;

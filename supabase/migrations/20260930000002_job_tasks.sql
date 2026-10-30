@@ -114,3 +114,7 @@ BEGIN
       );
   END IF;
 END $$;
+-- DOWN
+-- Drop the checklist table. This removes every job_tasks row. It does not
+-- delete jobs. Policies and indexes go away with the table.
+--   DROP TABLE IF EXISTS public.job_tasks;

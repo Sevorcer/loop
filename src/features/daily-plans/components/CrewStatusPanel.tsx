@@ -18,6 +18,7 @@ function availabilityLabel(availability: CrewProfile["availability"]): string {
   if (availability === "half day") return "Half day";
   if (availability === "training") return "Training";
   if (availability === "vacation") return "Vacation";
+  if (availability === "unavailable") return "Unavailable";
   return "Sick";
 }
 
@@ -38,13 +39,15 @@ function CrewRow({ crew, jobCount }: CrewRowProps) {
               getAvailabilityClasses(crew.availability),
             ].join(" ")}
           >
-            {availabilityLabel(crew.availability)}
+            {crew.rosterOnly ? "On roster" : availabilityLabel(crew.availability)}
           </span>
         </div>
         <p className="mt-0.5 text-xs text-slate-500">
-          {crew.truckName}
-          {crew.helper ? ` · Helper: ${crew.helper}` : " · Solo route"}
-          {crew.departureTime !== "-" ? ` · Departs ${crew.departureTime}` : ""}
+          {crew.truckName === "—" ? "No truck on file" : crew.truckName}
+          {crew.helper ? ` · Helper: ${crew.helper}` : ""}
+          {crew.departureTime !== "-" && crew.departureTime !== "—"
+            ? ` · Departs ${crew.departureTime}`
+            : ""}
         </p>
       </div>
 
@@ -62,16 +65,25 @@ interface CrewStatusPanelProps {
 }
 
 /**
- * Compact crew status panel. Shows active crews (excludes vacation/sick).
- * Vacation and sick crews are surfaced in the Needs Attention panel or
- * alerts, not here — this panel is for operational context only.
+ * Crew roster for the selected day. Empty when the company has no crews,
+ * technicians, or assigned names on file.
  */
 export function CrewStatusPanel({ crews, jobCountByTechnician }: CrewStatusPanelProps) {
-  const activeCrews = crews.filter(
-    (c) => c.availability !== "vacation" && c.availability !== "sick"
-  );
-
-  if (activeCrews.length === 0) return null;
+  if (crews.length === 0) {
+    return (
+      <section aria-label="Crew Status">
+        <div className="mb-3 flex items-center gap-2 px-1">
+          <Users className="h-4 w-4 text-slate-400" />
+          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-400">
+            Crew Status
+          </h2>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm text-slate-300">
+          No crews or technicians are on file yet. Add technicians in Settings, or assign someone to a job, and they will show up here.
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section aria-label="Crew Status">
@@ -81,11 +93,11 @@ export function CrewStatusPanel({ crews, jobCountByTechnician }: CrewStatusPanel
           Crew Status
         </h2>
         <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-500">
-          {activeCrews.length} crew{activeCrews.length !== 1 ? "s" : ""}
+          {crews.length} crew{crews.length !== 1 ? "s" : ""}
         </span>
       </div>
       <div className="space-y-2">
-        {activeCrews.map((crew) => (
+        {crews.map((crew) => (
           <CrewRow
             key={crew.id}
             crew={crew}

@@ -12,7 +12,7 @@ export default function SurfaceCard({
   return (
     <div
       className={[
-        "rounded-3xl border border-white/10 bg-white/[0.04] shadow-[0_10px_30px_rgba(0,0,0,0.25)] backdrop-blur-sm",
+        "rounded-3xl border border-default bg-surface text-foreground shadow-atlas-md",
         className,
       ].join(" ")}
     >

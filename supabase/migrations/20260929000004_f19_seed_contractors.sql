@@ -25,3 +25,9 @@ WHERE NOT EXISTS (
   WHERE c.org_id = o.org_id
     AND c.company_name = v.company_name
 );
+-- DOWN
+-- Remove only the three seeded directory rows (Arctic Air Solutions,
+-- Volt Masters Electric, Pacific Plumbing Co.) for the org this migration
+-- targeted, and only if they are still the untouched seed rows. Do not
+-- remove contractors staff have edited, and do not delete jobs that
+-- reference them. Skip this rollback if those companies are in real use.
