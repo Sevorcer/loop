@@ -214,6 +214,23 @@ export async function deleteFile(storageObjectId: string): Promise<void> {
   }
 }
 
+/**
+ * Map profile rows to uploader roles. The column is `app_role`.
+ * A query against `role` leaves every photo without a role, and the
+ * completion gate then says a technician photo is missing.
+ */
+export function uploaderRolesByUserId(
+  profiles: Array<{ id: string; app_role?: string | null }>,
+): Map<string, string> {
+  const roleById = new Map<string, string>();
+  for (const profile of profiles) {
+    if (typeof profile.app_role === "string" && profile.app_role.length > 0) {
+      roleById.set(profile.id, profile.app_role);
+    }
+  }
+  return roleById;
+}
+
 // ─── List metadata ────────────────────────────────────────────────────────────
 
 export async function listStorageObjects(
@@ -254,9 +271,11 @@ export async function listStorageObjects(
   if (uploaderIds.length > 0) {
     const { data: profiles } = await supabase
       .from("user_profiles")
-      .select("id, role")
+      .select("id, app_role")
       .in("id", uploaderIds);
-    const roleById = new Map((profiles ?? []).map((profile) => [profile.id as string, profile.role as string]));
+    const roleById = uploaderRolesByUserId(
+      (profiles ?? []) as Array<{ id: string; app_role?: string | null }>,
+    );
     for (const row of rows) {
       row.uploaderRole = row.uploadedBy ? roleById.get(row.uploadedBy) ?? null : null;
     }

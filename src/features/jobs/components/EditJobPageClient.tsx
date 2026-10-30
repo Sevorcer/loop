@@ -9,6 +9,7 @@ import { requestJson } from "@/lib/api/client"; import { getSupabaseBrowserClien
 import type { Customer } from "@/features/customers/types/customer";
 import type { Property } from "@/features/properties/types/property";
 
+import { editJobIdentityValues } from "../utils/editJobInitialValues";
 import type { Job } from "../types/job";
 import { JobForm } from "./JobForm";
 
@@ -52,18 +53,8 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
       role={role ?? undefined}
       cancelHref={`/jobs/${job.id}`}
       initialValues={{
-        estimateId: job.estimateId,
-        equipmentBundleId: job.equipmentBundleId,
-        title: job.title,
-        customerName: job.customerName,
-        propertyName: job.propertyName,
-        assignedTo: job.assignedTo, assigneeIds: (job.assignees ?? []).map((assignee) => assignee.id),
+        ...editJobIdentityValues(job),
         ...schedulingValues,
-        type: job.type,
-        priority: job.priority,
-        location: job.location,
-        summary: job.summary,
-        notes: job.notes,
       }}
       customerOptions={customerOptions}
       propertyOptions={propertyOptions} technicianProfiles={technicianProfiles}

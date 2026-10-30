@@ -132,7 +132,7 @@ export function assembleDispatchSnapshot(
 ): DispatchSnapshot {
   // Drop plans orphaned by job deletion: keep only plans whose job still
   // exists (or plans without a job link).
-  const knownPlans = validJobIds
+  const knownPlans = validJobIds && validJobIds.size > 0
     ? plans.filter((plan) => !plan.jobId || validJobIds.has(plan.jobId))
     : plans;
   // Dedupe: when multiple plans exist for the same job + target date, keep

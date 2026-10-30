@@ -28,6 +28,7 @@ import {
   deriveScheduledForDate,
 } from "@/features/jobs/utils/schedulingTime";
 import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentWindow";
+import { canSubmitJobForm } from "@/features/jobs/utils/jobFormSubmit";
 
 import type { JobAppointmentHour, JobPriority, JobType } from "../types/job"; import { RecordCombobox } from "./RecordCombobox";
 
@@ -298,21 +299,14 @@ export function JobForm({
     [parsedArrivalStart, parsedArrivalEnd],
   );
 
-  const canSubmit = useMemo(() => {
-    const hasRequiredText =
-      form.title.trim().length > 0 &&
-      form.customerName.trim().length > 0 &&
-      form.propertyName.trim().length > 0 &&
-      form.assignedTo.trim().length > 0 &&
-      form.location.trim().length > 0 &&
-      form.summary.trim().length > 0;
-
-    const hasValidStart =
-      form.scheduledStartAt.length > 0 &&
-      !Number.isNaN(new Date(form.scheduledStartAt).getTime());
-
-    return hasRequiredText && hasValidStart && !scheduledWindowError && !arrivalWindowError;
-  }, [form, scheduledWindowError, arrivalWindowError]);
+  const canSubmit = useMemo(
+    () =>
+      canSubmitJobForm(role, form, {
+        scheduledWindowError,
+        arrivalWindowError,
+      }),
+    [form, scheduledWindowError, arrivalWindowError, role],
+  );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

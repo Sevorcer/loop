@@ -211,7 +211,30 @@ export async function updateFeedbackReport(
 }
 
 /**
- * F16: bulk status update for triage. Updates all matching rows in the caller's
+ * Deletes a single feedback report by id (org-scoped).
+ * Chains `.select("id")` so a delete that matches 0 rows (e.g. blocked by
+ * RLS) throws instead of silently succeeding.
+ */
+export async function deleteFeedbackReport(id: string): Promise<void> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const { data, error } = await supabase
+    .from("feedback_reports")
+    .delete()
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select("id");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error("Feedback report not found.");
+  }
+}
+
+/** F16: bulk status update for triage. Updates all matching rows in the caller's
  * org and returns the updated reports.
  */
 export async function bulkUpdateFeedbackReports(
