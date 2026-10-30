@@ -1,37 +1,44 @@
 "use client";
+
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useCurrentRole } from "@/features/auth";
 
+import { useCurrentRole } from "@/features/auth";
+import { ROUTES } from "@/lib/routes";
+import { canAccessAdminArea } from "@/services/authorization";
+
+/**
+ * Browser half of the /admin role gate. The server layout already redirected
+ * anyone who is not an owner or manager. This keeps the shell from painting
+ * while the role is still loading, and sends a technician away if the role
+ * changes after the page is open.
+ */
 export function AdminRoleGuard({ children }: { children: React.ReactNode }) {
   const { role } = useCurrentRole();
   const router = useRouter();
+  const allowed = canAccessAdminArea(role);
 
   useEffect(() => {
-    if (role && role !== "owner") {
-      router.replace("/jobs");
+    if (role && !allowed) {
+      router.replace(ROUTES.JOBS);
     }
-  }, [role, router]);
+  }, [allowed, role, router]);
 
-  // Fail closed: the admin UI renders only when the role is exactly "owner".
-  if (role === "owner") {
+  if (allowed) {
     return <>{children}</>;
   }
 
-  // Known non-owner role — the redirect above is in flight, render nothing.
   if (role) {
     return null;
   }
 
-  // Role is loading or unknown — never render the admin UI (or redirect)
-  // until the role is positively known.
   return (
     <div
       className="flex min-h-screen items-center justify-center"
       role="status"
       aria-label="Loading"
     >
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
     </div>
   );
 }

@@ -292,6 +292,42 @@ export function allowedRolesFor(
   return Array.from(PERMISSIONS[table][action]);
 }
 
+const APP_ROLES: readonly AppRole[] = [
+  "owner",
+  "manager",
+  "dispatch",
+  "tech",
+  "office",
+  "sales",
+  "portal",
+];
+
+function toAppRole(value: string | null | undefined): AppRole | null {
+  if (!value) return null;
+  return (APP_ROLES as readonly string[]).includes(value) ? (value as AppRole) : null;
+}
+
+/**
+ * Role used to decide who may open /admin.
+ * The profile `app_role` is the source of truth. Sign-in metadata is only a
+ * fallback when the profile row has no role, so an owner is not locked out
+ * when the token omits `app_role`.
+ */
+export function resolveAdminAreaRole(
+  profileRole: string | null | undefined,
+  metadataRole: string | null | undefined,
+): AppRole | null {
+  return toAppRole(profileRole) ?? toAppRole(metadataRole);
+}
+
+/**
+ * Company owners and office managers may open /admin.
+ * Technicians and every other role are turned away.
+ */
+export function canAccessAdminArea(role: string | null | undefined): boolean {
+  return role === "owner" || role === "manager";
+}
+
 // ---------------------------------------------------------------------------
 // Error type
 // ---------------------------------------------------------------------------

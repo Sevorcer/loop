@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 import { ALLOWED_FILE_ACCEPT, MAX_JOB_FILE_SIZE_BYTES, validateJobFile, formatFileSize } from "@/lib/fileValidation";
+import { applyFileDownload } from "@/features/jobs/utils/fileDownload";
 
 interface JobFileMeta {
   id: string;
@@ -158,7 +159,11 @@ export function JobFilesPanel({
         { role, cache: "no-store" },
       );
       // Use programmatic anchor click to avoid popup blocker
-      const a = document.createElement("a"); a.href = result.url; a.download = result.fileName;  a.rel = "noopener noreferrer"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      const a = document.createElement("a");
+      applyFileDownload(a, result.url, result.fileName);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch {
       setError("Could not generate download link. Please try again.");
     } finally {

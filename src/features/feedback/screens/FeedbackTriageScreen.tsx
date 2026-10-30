@@ -23,6 +23,7 @@ import type {
   FeedbackSeverity,
   FeedbackStatus,
 } from "@/features/feedback/types/feedbackReport";
+import { showFeedbackTriageActions } from "@/features/feedback/utils/feedbackAccess";
 import {
   FEEDBACK_SEVERITY_VALUES,
   FEEDBACK_SEVERITY_LABELS,
@@ -86,7 +87,10 @@ interface TriageDrawerProps {
 function TriageDrawer({ report, role, currentUserId, onUpdated, onDeleted, onClose }: TriageDrawerProps) {
   const [status, setStatus] = useState<FeedbackStatus>(report.status);
   const [triageNotes, setTriageNotes] = useState(report.triageNotes ?? "");
-  const [isSubmitting, setIsSubmitting] = useState(false); const [isDeleting, setIsDeleting] = useState(false); const isTech = role === "tech"; const isOwnReport = currentUserId != null && report.createdByUserId === currentUserId;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const showTriage = showFeedbackTriageActions(role);
+  const isOwnReport = currentUserId != null && report.createdByUserId === currentUserId;
   const [error, setError] = useState<string | null>(null); async function handleDelete() { if (!isOwnReport || isDeleting) return; if (!window.confirm("Delete this feedback report? This cannot be undone.")) return; setError(null); setIsDeleting(true); try { const res = await fetch(`/api/feedback/${report.id}`, { method: "DELETE" }); const data = await res.json().catch(() => ({})) as { message?: string }; if (res.ok) { onDeleted(report.id); return; } setError(data.message ?? "Failed to delete feedback report."); } catch { setError("Network error. Please try again."); } finally { setIsDeleting(false); } }
 
   async function handleSave() {
@@ -163,9 +167,11 @@ function TriageDrawer({ report, role, currentUserId, onUpdated, onDeleted, onClo
 {isOwnReport ? (<Button type="button" variant="ghost" size="sm" onClick={handleDelete} disabled={isSubmitting || isDeleting} className="text-red-400 hover:text-red-300">{isDeleting ? "Deleting…" : "Delete"}</Button>) : null} <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={isSubmitting} className={isTech ? "hidden" : undefined}>
-          {isSubmitting ? "Saving…" : "Save"}
-        </Button>
+        {showTriage ? (
+          <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={isSubmitting}>
+            {isSubmitting ? "Saving…" : "Save"}
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -411,7 +417,7 @@ export function FeedbackTriageScreen() {   const { role } = useCurrentRole(); co
         </div>
 
         {/* F16: bulk triage bar */}
-        {selectedIds.size > 0 && role !== "tech" ? (
+        {selectedIds.size > 0 && showFeedbackTriageActions(role) ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
             <p className="text-sm font-medium text-blue-300">
               {selectedIds.size} selected
