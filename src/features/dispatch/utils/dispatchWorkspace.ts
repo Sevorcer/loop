@@ -47,12 +47,12 @@ const DISPATCH_QUEUE_META: Record<
   scheduled: {
     key: "scheduled",
     label: "Scheduled",
-    description: "Work with a crew and date already committed.",
+    description: "Work with people and a date already committed.",
   },
   blocked: {
     key: "blocked",
     label: "Blocked",
-    description: "Work waiting on readiness, customer, crew, or materials.",
+    description: "Work waiting on readiness, the customer, people, or materials.",
   },
   completed: {
     key: "completed",

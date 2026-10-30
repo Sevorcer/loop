@@ -1,12 +1,12 @@
 import type { Job, JobStatus } from "@/features/jobs/types/job";
 import { companyCalendarDate, hoursBetweenIso } from "@/lib/timezone";
-
 import type {
   CrewAssignment,
   DispatchPlan,
   DispatchSnapshot,
   ScheduleBlock,
 } from "../types/dispatch";
+import { resolvePlanPeople, teamLabelForPeople } from "./dispatchPeople";
 import { chooseDispatchPlanToKeep } from "./dispatchPlanIdentity";
 import { dispatchMetricsForPlans } from "./dispatchUtils";
 import { dispatchStatusForJob, scheduledWindowClock, scheduledWindowHours } from "./jobSchedule";
@@ -18,6 +18,7 @@ export interface DispatchJobSchedule {
   scheduledStartAt?: string | null;
   scheduledEndAt?: string | null;
   assignedTo?: string | null;
+  assignees?: { id: string; name: string }[];
 }
 
 function jobCompanyDate(job: DispatchJobSchedule): string | null {
@@ -99,7 +100,20 @@ export function alignDispatchSnapshotWithJobs(
       scheduledEndAt: job.scheduledEndAt ?? null,
     };
     if (companyDate) next.targetDate = companyDate;
-    if (!next.assignedTechNames?.length && job.assignedTo?.trim()) {
+    const assignment = assignmentByPlan.get(plan.id);
+    const crew = assignment
+      ? snapshot.crews.find((item) => item.id === assignment.crewId)
+      : undefined;
+    const resolved = resolvePlanPeople({
+      jobAssignees: job.assignees,
+      assignedTo: job.assignedTo,
+      assignment,
+      crew,
+    });
+    if (resolved.length > 0) {
+      next.assignees = resolved;
+      next.assignedTechNames = resolved.map((person) => person.name);
+    } else if (!next.assignedTechNames?.length && job.assignedTo?.trim()) {
       next.assignedTechNames = job.assignedTo.split(",").map((name) => name.trim()).filter(Boolean);
     }
     return next;
@@ -119,8 +133,9 @@ export function alignDispatchSnapshotWithJobs(
     const existing = blocksByPlan.get(plan.id);
     const clock = scheduledWindowClock(job?.scheduledStartAt, job?.scheduledEndAt);
     const assignment = assignmentByPlan.get(plan.id);
+    const team = teamLabelForPeople(plan.assignees ?? []);
     const techLabel = (plan.assignedTechNames ?? []).filter(Boolean).join(", ");
-    const crewName = assignment?.crewName || techLabel || existing?.crewName || "Unassigned";
+    const crewName = team || techLabel || assignment?.crewName || existing?.crewName || "Unassigned";
     const hours =
       hoursBetweenIso(job?.scheduledStartAt, job?.scheduledEndAt) ?? plan.estimatedDurationHours;
 
@@ -150,7 +165,7 @@ export function alignDispatchSnapshotWithJobs(
   };
 }
 
-export function jobSchedulesFromJobs(jobs: Pick<Job, "id" | "status" | "scheduledFor" | "scheduledStartAt" | "scheduledEndAt" | "assignedTo">[]): DispatchJobSchedule[] {
+export function jobSchedulesFromJobs(jobs: Pick<Job, "id" | "status" | "scheduledFor" | "scheduledStartAt" | "scheduledEndAt" | "assignedTo" | "assignees">[]): DispatchJobSchedule[] {
   return jobs.map((job) => ({
     id: job.id,
     status: job.status,
@@ -158,5 +173,6 @@ export function jobSchedulesFromJobs(jobs: Pick<Job, "id" | "status" | "schedule
     scheduledStartAt: job.scheduledStartAt,
     scheduledEndAt: job.scheduledEndAt,
     assignedTo: job.assignedTo,
+    assignees: job.assignees,
   }));
 }

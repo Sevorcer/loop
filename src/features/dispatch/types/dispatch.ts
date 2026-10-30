@@ -145,6 +145,9 @@ export interface DispatchPlan {
 
   priority: DispatchPriority;
 
+  /** People on this job. Legacy entries are unmatched names from an old crew. */
+  assignees?: DispatchAssignee[];
+
   /** Human-readable sequencing intent: what should happen first, dependencies */
   sequencingNotes?: string;
 
@@ -206,6 +209,26 @@ export interface ReassignmentRecord {
   previousCrewId: string;
   previousCrewName: string;
   reassignedAt: string;
+  reason: string;
+}
+
+export interface DispatchPerson {
+  id: string;
+  name: string;
+}
+
+/** Someone shown on a dispatch card. Legacy rows are names from an old crew. */
+export interface DispatchAssignee {
+  id: string;
+  name: string;
+  legacy?: boolean;
+}
+
+export interface DispatchTimeOffWindow {
+  userId: string;
+  personName: string;
+  startsAt: string;
+  endsAt: string;
   reason: string;
 }
 
@@ -299,6 +322,10 @@ export interface DispatchSnapshot {
   scheduleBlocks: ScheduleBlock[];
   dispatchEvents: DispatchEvent[];
   crews: Crew[];
+  /** People the office can assign. Loaded with the snapshot. */
+  people?: DispatchPerson[];
+  /** Time off used to warn before assigning someone who is out. */
+  timeOff?: DispatchTimeOffWindow[];
   /** Job-level context for board filters (contractor filter). Loaded with the snapshot. */
   contractors?: { id: string; name: string }[];
   jobContractorIds?: Record<string, string[]>;

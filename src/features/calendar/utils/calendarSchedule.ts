@@ -12,6 +12,7 @@
  */
 
 import type { Job, JobAppointmentHour } from "@/features/jobs/types/job";
+import { formatTeamLabel, splitTeamNames } from "@/lib/teamLabel";
 import {
   addCalendarDays,
   companyCalendarDate,
@@ -272,16 +273,13 @@ export function calendarTechnicianNames(
     .map((assignee) => assignee.name.trim())
     .filter((name) => name.length > 0);
   if (fromAssignees.length > 0) return fromAssignees;
-  return (job.assignedTo ?? "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter((name) => name.length > 0);
+  return splitTeamNames(job.assignedTo);
 }
 
 export function calendarTechLabel(job: Pick<Job, "assignees" | "assignedTo">): string {
   const names = calendarTechnicianNames(job);
   if (names.length === 0) return "Techs: Unassigned";
-  return `Techs: ${names.join(", ")}`;
+  return `Techs: ${formatTeamLabel(names)}`;
 }
 
 export function isCalendarJobUnassigned(job: Pick<Job, "assignees" | "assignedTo">): boolean {

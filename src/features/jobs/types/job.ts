@@ -49,4 +49,6 @@ export interface Job {
   location: string;
   notes: string;
   contractorIds?: string[];   assignees?: { id: string; name: string }[];
+  /** People on the job when it was first marked completed. */
+  completionTeam?: { id: string | null; name: string }[];
 }

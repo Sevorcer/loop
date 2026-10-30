@@ -8,6 +8,7 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/atlas";
 import { AssignmentTimeOffWarning } from "@/features/calendar/components/AssignmentTimeOffWarning";
+import { formatTeamLabel } from "@/lib/teamLabel";
 import {
   estimateEquipmentBundles,
   getEstimateEquipmentBundle,
@@ -190,7 +191,7 @@ export function JobForm({
   const [selection, setSelection] = useState<SmartSelectionState>({
     customerId: initialValues?.customerId ?? undefined,
     propertyId: initialValues?.propertyId ?? undefined,
-  }); function toggleAssignee(id: string, checked: boolean) { setForm((current) => { const currentIds = current.assigneeIds ?? []; const nextIds = checked ? Array.from(new Set([...currentIds, id])) : currentIds.filter((value) => value !== id); const names = technicianProfiles.filter((profile) => nextIds.includes(profile.id)).map((profile) => profile.name); return { ...current, assigneeIds: nextIds, assignedTo: names.join(", ") }; }); setError(null); }
+  }); function toggleAssignee(id: string, checked: boolean) { setForm((current) => { const currentIds = current.assigneeIds ?? []; const nextIds = checked ? Array.from(new Set([...currentIds, id])) : currentIds.filter((value) => value !== id); const names = technicianProfiles.filter((profile) => nextIds.includes(profile.id)).map((profile) => profile.name); return { ...current, assigneeIds: nextIds, assignedTo: formatTeamLabel(names) }; }); setError(null); }
 
   const scopedPropertyOptions = useMemo(
     () => propertiesForCustomer(propertyOptions, selection.customerId),

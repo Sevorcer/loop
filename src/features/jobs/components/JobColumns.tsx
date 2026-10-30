@@ -6,6 +6,7 @@ import { ArrowUpDown, Briefcase, Wrench } from "lucide-react";
 import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 import { formatCompanyScheduleRange, formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
+import { formatTeamLabel } from "@/lib/teamLabel";
 
 import { JobTypeLabel } from "./JobTypeLabel";
 import type { Job } from "../types/job";
@@ -144,14 +145,19 @@ export const jobColumns: ColumnDef<Job>[] = [
   {
     accessorKey: "assignedTo",
     meta: {
-      mobileLabel: "Assigned To",
+      mobileLabel: "Team",
       // F14: redundant on a phone card for the tech's own jobs; the status,
       // schedule, customer, and property carry the card.
       mobileHidden: true,
     },
     header: ({ column }) => (
-      <SortableHeader label="Assigned To" column={column} />
+      <SortableHeader label="Team" column={column} />
     ),
+    cell: ({ row }) => {
+      const names = (row.original.assignees ?? []).map((assignee) => assignee.name);
+      const label = names.length > 0 ? formatTeamLabel(names) : row.original.assignedTo.trim();
+      return <span className="text-sm text-slate-300">{label || "Unassigned"}</span>;
+    },
   },
   {
     // Sort by scheduledStartAt when available, fall back to scheduledFor

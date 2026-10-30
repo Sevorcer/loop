@@ -33,7 +33,7 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
       {/* Page header */}
       <PageHeader
         title="Dispatch"
-        description="Coordinate plan readiness, crew assignment, and schedule placement across all active work."
+        description="Coordinate plan readiness, who is on each job, and schedule placement across all active work."
       />
 
       {/* ── Hero ── */}
@@ -50,8 +50,7 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
                 Dispatch Board
               </h2>
               <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-slate-400 sm:block">
-                Live coordination queue for plan readiness, crew assignment,
-                and schedule placement across operational work.
+                Live coordination queue. Add people one at a time, and drag a person to another job when someone calls out.
               </p>
             </div>
           </div>
@@ -103,7 +102,7 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
         <div className="mb-4 flex items-center gap-3">
           <Users className="h-5 w-5 text-slate-400" />
           <h3 className="text-lg font-semibold text-white">
-            Crew Schedule
+            People on this day
           </h3>
         </div>
 
@@ -122,7 +121,7 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
       ) : (
         <EmptyState
           title="No dispatch events yet"
-          description="Crew assignments, schedule changes, and dispatch coordination events will appear here."
+          description="Assignments, schedule changes, and dispatch coordination events will appear here."
           icon={<Clock className="h-5 w-5" />}
           className="border-white/10 bg-white/[0.02]"
         />
@@ -156,9 +155,9 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
               description="Customer confirmed execution date, access, and appointment."
             />
             <ReadinessDomain
-              label="Crew Readiness"
+              label="People"
               source="Dispatch"
-              description="Qualified crew with correct certifications is available."
+              description="The people who will do the work are assigned."
             />
           </div>
 

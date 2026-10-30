@@ -388,7 +388,7 @@ describe("calendar card text", () => {
       ],
     });
     expect(calendarTechnicianNames(assigned)).toEqual(["Brian Ramirez", "Sean Ryan"]);
-    expect(calendarTechLabel(assigned)).toBe("Techs: Brian Ramirez, Sean Ryan");
+    expect(calendarTechLabel(assigned)).toBe("Techs: Brian Ramirez + Sean Ryan");
   });
 
   it("splits a legacy comma-separated assigned-to list", () => {
@@ -396,7 +396,7 @@ describe("calendar card text", () => {
       calendarTechLabel(
         job({ id: "legacy", assignedTo: "Riley Morgan, Taylor Reed", assignees: [] }),
       ),
-    ).toBe("Techs: Riley Morgan, Taylor Reed");
+    ).toBe("Techs: Riley Morgan + Taylor Reed");
   });
 
   it("marks a job with nobody assigned", () => {

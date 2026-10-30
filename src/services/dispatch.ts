@@ -1,7 +1,7 @@
 import "server-only";
 
 import { listContractors } from "@/repositories/contractors";
-import { getJobById, listJobs, updateJob } from "@/repositories/jobs";
+import { createJobActivity, getJobById, listJobs, setJobPeople, updateJob } from "@/repositories/jobs";
 import {
   companyTimeOfDay,
   shiftIsoToCompanyDate,
@@ -66,6 +66,60 @@ export async function loadDispatchJobContext(): Promise<{
 }
 export async function createPlan(input: DispatchPlanWriteInput) {
   return createDispatchPlan(input);
+}
+
+async function recordPeopleChange(jobId: string, description: string) {
+  try {
+    await createJobActivity({
+      jobId,
+      type: "edited",
+      title: "People assigned",
+      description,
+    });
+  } catch {
+    // The assignment is already saved. A history-row failure must not undo it.
+  }
+}
+
+export async function assignPeopleToJob(jobId: string, assigneeIds: string[]) {
+  const job = await setJobPeople(jobId, assigneeIds);
+  if (!job) {
+    throw Object.assign(new Error("Job not found."), { status: 404 });
+  }
+  const label = job.assignedTo.trim();
+  await recordPeopleChange(
+    jobId,
+    label ? `${label} assigned to this job.` : "Everyone was removed from this job.",
+  );
+  return job;
+}
+
+export async function movePersonBetweenJobs(
+  fromJobId: string,
+  toJobId: string,
+  personId: string,
+) {
+  if (fromJobId === toJobId) {
+    throw Object.assign(new Error("Invalid move. Pick a different job."), { status: 400 });
+  }
+  const [fromJob, toJob] = await Promise.all([getJobById(fromJobId), getJobById(toJobId)]);
+  if (!fromJob || !toJob) {
+    throw Object.assign(new Error("Job not found."), { status: 404 });
+  }
+  const fromIds = (fromJob.assignees ?? []).map((assignee) => assignee.id);
+  if (!fromIds.includes(personId)) {
+    throw Object.assign(new Error("That person is not on the job."), { status: 400 });
+  }
+  const person = fromJob.assignees?.find((assignee) => assignee.id === personId);
+  const toIds = (toJob.assignees ?? []).map((assignee) => assignee.id);
+  const nextTo = toIds.includes(personId) ? toIds : [...toIds, personId];
+  const nextFrom = fromIds.filter((id) => id !== personId);
+  const savedTarget = await setJobPeople(toJobId, nextTo);
+  const savedSource = await setJobPeople(fromJobId, nextFrom);
+  const name = person?.name ?? "A person";
+  await recordPeopleChange(toJobId, `${name} was added to this job.`);
+  await recordPeopleChange(fromJobId, `${name} was moved to ${toJob.jobNumber}.`);
+  return { source: savedSource, target: savedTarget, personName: name, toJobNumber: toJob.jobNumber };
 }
 
 export async function assignCrewToPlan(
