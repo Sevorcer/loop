@@ -1,0 +1,12 @@
+-- Split job checklist into field ("Job Checklist") and office ("Office Checklist") sections.
+--
+-- Version note: this file was originally 20260930000003_job_tasks_section.sql.
+-- That 14-digit prefix was already used by job_number_unique.sql, which landed
+-- earlier the same day and is the version recorded in migration history.
+-- Supabase applies a version once, so the duplicate blocked every later file,
+-- including the property-customer backfill. The statement below is unchanged.
+-- ADD COLUMN IF NOT EXISTS is safe if this version is applied again.
+ALTER TABLE job_tasks ADD COLUMN IF NOT EXISTS section text NOT NULL DEFAULT 'field';
+-- DOWN
+-- Remove the checklist section column. Existing task rows stay.
+--   ALTER TABLE public.job_tasks DROP COLUMN IF EXISTS section;

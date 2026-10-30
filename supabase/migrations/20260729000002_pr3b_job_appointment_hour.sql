@@ -25,3 +25,21 @@ ALTER TABLE jobs
 ALTER TABLE jobs
   ADD CONSTRAINT jobs_appointment_window_check
   CHECK (appointment_window BETWEEN 1 AND 12);
+-- DOWN
+-- The column was cast from text ('Morning'/'Afternoon') to smallint 1-12.
+-- Reversing it is lossy: only hour 9 maps back to 'Morning' and hour 1 to
+-- 'Afternoon'. Other hours were stored as 9 during the forward backfill.
+--   ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_appointment_window_check;
+--   ALTER TABLE jobs ALTER COLUMN appointment_window DROP NOT NULL;
+--   ALTER TABLE jobs ALTER COLUMN appointment_window DROP DEFAULT;
+--   ALTER TABLE jobs
+--     ALTER COLUMN appointment_window TYPE text
+--     USING CASE appointment_window
+--       WHEN 1 THEN 'Afternoon'
+--       ELSE 'Morning'
+--     END;
+--   ALTER TABLE jobs
+--     ADD CONSTRAINT jobs_appointment_window_check
+--     CHECK (appointment_window IN ('Morning', 'Afternoon'));
+--   ALTER TABLE jobs ALTER COLUMN appointment_window SET DEFAULT 'Morning';
+--   ALTER TABLE jobs ALTER COLUMN appointment_window SET NOT NULL;

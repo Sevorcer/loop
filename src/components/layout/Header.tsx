@@ -350,7 +350,7 @@ export default function Header({
             <Button
               variant="secondary"
               size="icon"
-              className="h-9 w-9 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 text-white hover:from-red-500/20 hover:to-blue-500/15"
+              className="h-9 w-9"
             >
               <User size={16} />
             </Button>
@@ -470,7 +470,7 @@ export default function Header({
             <Link href={ROUTES.SETTINGS} aria-label="User menu">
               <Button
                 variant="secondary"
-                className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/15 to-blue-500/10 px-3 text-white hover:from-red-500/20 hover:to-blue-500/15"
+                className="gap-2 px-3"
               >
                 <User size={18} />
                 <span className="hidden sm:inline">{userLabel}</span>

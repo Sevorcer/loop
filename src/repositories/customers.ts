@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 
+import { loadLinkedPropertyIds } from "./properties";
 import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
 
@@ -37,6 +38,16 @@ export interface CustomerWriteInput {
   propertyCount?: number;
   openJobs?: number;
   lastActivity?: string | null;
+}
+
+function withLinkedPropertyCount(
+  customer: Customer,
+  linked: Map<string, string[]>,
+): Customer {
+  return {
+    ...customer,
+    propertyCount: linked.get(customer.id)?.length ?? 0,
+  };
 }
 
 function mapCustomer(row: CustomerRow): Customer {
@@ -84,7 +95,8 @@ export async function listCustomers(
     throw new Error(error.message);
   }
 
-  return ((data ?? []) as CustomerRow[]).map(mapCustomer);
+  const linked = await loadLinkedPropertyIds();
+  return ((data ?? []) as CustomerRow[]).map((row) => withLinkedPropertyCount(mapCustomer(row), linked));
 }
 
 export async function getCustomerById(id: string): Promise<Customer | null> {
@@ -100,7 +112,9 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
     throw new Error(error.message);
   }
 
-  return data ? mapCustomer(data as CustomerRow) : null;
+  if (!data) return null;
+  const linked = await loadLinkedPropertyIds();
+  return withLinkedPropertyCount(mapCustomer(data as CustomerRow), linked);
 }
 
 export async function createCustomer(input: CustomerWriteInput): Promise<Customer> {
@@ -166,7 +180,9 @@ export async function updateCustomer(
     throw new Error(error.message);
   }
 
-  return data ? mapCustomer(data as CustomerRow) : null;
+  if (!data) return null;
+  const linked = await loadLinkedPropertyIds();
+  return withLinkedPropertyCount(mapCustomer(data as CustomerRow), linked);
 }
 
 export async function deleteCustomer(id: string): Promise<boolean> {
@@ -185,18 +201,8 @@ export async function deleteCustomer(id: string): Promise<boolean> {
 }
 
 export async function countPropertiesForCustomer(customerId: string): Promise<number> {
-  const { supabase, orgId } = await getRepositoryContext();
-  const { count, error } = await supabase
-    .from("properties")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .eq("customer_id", customerId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return count ?? 0;
+  const linked = await loadLinkedPropertyIds();
+  return linked.get(customerId)?.length ?? 0;
 }
 
 export async function countOpenJobsForCustomer(customerId: string): Promise<number> {

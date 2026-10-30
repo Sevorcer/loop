@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  linkedPropertyIdsByCustomer,
   resolvePropertyCustomer,
   UNLINKED_CUSTOMER_LABEL,
 } from "../propertyCustomerLink";
@@ -87,6 +88,93 @@ describe("property customer linking", () => {
         ],
       }),
     ).toEqual({ customerId: "cust-1", customerName: "Northwind HVAC" });
+  });
+});
+
+describe("linked property counts", () => {
+  const customers = [
+    { id: "cust-1", name: "Northwind HVAC" },
+    { id: "cust-2", name: "Harbor View" },
+  ];
+
+  it("counts a property saved on the customer and one linked only by a job", () => {
+    const linked = linkedPropertyIdsByCustomer({
+      properties: [
+        { id: "prop-direct", name: "Shop", customerId: "cust-1" },
+        { id: "prop-job", name: "Warehouse", customerId: null },
+      ],
+      customers,
+      jobHints: [
+        {
+          propertyId: "prop-job",
+          propertyName: "Warehouse",
+          customerId: "cust-1",
+          customerName: "Northwind HVAC",
+        },
+      ],
+    });
+
+    expect(linked.get("cust-1")?.sort()).toEqual(["prop-direct", "prop-job"]);
+    expect(linked.get("cust-2")).toBeUndefined();
+  });
+
+  it("does not count a property whose jobs disagree, including a generic Commercial name", () => {
+    const linked = linkedPropertyIdsByCustomer({
+      properties: [
+        { id: "prop-commercial", name: "Commercial", customerId: null },
+      ],
+      customers,
+      jobHints: [
+        {
+          propertyId: "prop-commercial",
+          propertyName: "Commercial",
+          customerId: "cust-1",
+          customerName: "Northwind HVAC",
+        },
+        {
+          propertyId: "prop-commercial",
+          propertyName: "Commercial",
+          customerId: "cust-2",
+          customerName: "Harbor View",
+        },
+      ],
+    });
+
+    expect(linked.size).toBe(0);
+    expect(
+      resolvePropertyCustomer({
+        propertyId: "prop-commercial",
+        propertyName: "Commercial",
+        customerId: null,
+        customers,
+        jobHints: [
+          {
+            propertyId: "prop-commercial",
+            propertyName: "Commercial",
+            customerId: "cust-1",
+            customerName: "Northwind HVAC",
+          },
+          {
+            propertyId: "prop-commercial",
+            propertyName: "Commercial",
+            customerId: "cust-2",
+            customerName: "Harbor View",
+          },
+        ],
+      }).customerName,
+    ).toBe(UNLINKED_CUSTOMER_LABEL);
+  });
+
+  it("leaves a property unlinked when nothing points at it", () => {
+    expect(
+      resolvePropertyCustomer({
+        propertyId: "prop-commercial",
+        propertyName: "Commercial",
+        customerId: null,
+        customers,
+        jobHints: [],
+      }).customerName,
+    ).toBe(UNLINKED_CUSTOMER_LABEL);
   });
 });
 

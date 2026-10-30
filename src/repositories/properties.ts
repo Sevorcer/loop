@@ -9,6 +9,7 @@ import type {
 
 import {
   isCustomerUuid,
+  linkedPropertyIdsByCustomer,
   resolvePropertyCustomer,
   type JobCustomerHint,
 } from "./propertyCustomerLink";
@@ -245,6 +246,88 @@ export async function listProperties(
   return withCustomerNames((data ?? []) as PropertyRow[], contextInput);
 }
 
+const LINK_PAGE_SIZE = 1000;
+const LINK_PAGE_LIMIT = 20;
+
+async function readPages<T>(
+  read: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 0; page < LINK_PAGE_LIMIT; page += 1) {
+    const from = page * LINK_PAGE_SIZE;
+    const to = from + LINK_PAGE_SIZE - 1;
+    const { data, error } = await read(from, to);
+    if (error) throw new Error(error.message);
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < LINK_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+/**
+ * Property ids grouped by the customer the property list would display.
+ * Includes properties.customer_id and properties that resolve through jobs.
+ */
+export async function loadLinkedPropertyIds(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<Map<string, string[]>> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+
+  const propertyRows = await readPages<{ id: string; name: string | null; customer_id: string | null }>(
+    (from, to) =>
+      supabase
+        .from("properties")
+        .select("id,name,customer_id")
+        .eq("org_id", orgId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
+
+  const customers = await readPages<{ id: string; name: string | null }>((from, to) =>
+    supabase
+      .from("customers")
+      .select("id,name")
+      .eq("org_id", orgId)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+
+  const jobRows = await readPages<{
+    property_id: string | null;
+    property_name: string | null;
+    customer_id: string | null;
+    customer_name: string | null;
+  }>((from, to) =>
+    supabase
+      .from("jobs")
+      .select("property_id,property_name,customer_id,customer_name")
+      .eq("org_id", orgId)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+
+  const hints: JobCustomerHint[] = jobRows.map((row) => ({
+    propertyId: row.property_id,
+    propertyName: row.property_name ?? "",
+    customerId: row.customer_id,
+    customerName: row.customer_name ?? "",
+  }));
+
+  return linkedPropertyIdsByCustomer({
+    properties: propertyRows.map((row) => ({
+      id: row.id,
+      name: row.name ?? "",
+      customerId: row.customer_id,
+    })),
+    customers: customers.map((customer) => ({
+      id: customer.id,
+      name: customer.name ?? "",
+    })),
+    jobHints: hints,
+  });
+}
+
 export async function listPropertiesByCustomerId(
   customerId: string,
   contextInput?: SessionRepositoryContextInput,
@@ -252,21 +335,27 @@ export async function listPropertiesByCustomerId(
 ): Promise<Property[]> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+  const linked = await loadLinkedPropertyIds(contextInput);
+  const ids = linked.get(customerId) ?? [];
+  if (ids.length === 0) return [];
 
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await supabase
-    .from("properties")
-    .select(PROPERTY_SELECT)
-    .eq("org_id", orgId)
-    .eq("customer_id", customerId)
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  const rows: PropertyRow[] = [];
+  const chunkSize = 80;
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    const chunk = ids.slice(index, index + chunkSize);
+    const { data, error } = await supabase
+      .from("properties")
+      .select(PROPERTY_SELECT)
+      .eq("org_id", orgId)
+      .in("id", chunk);
+    if (error) throw new Error(error.message);
+    rows.push(...((data ?? []) as PropertyRow[]));
+  }
 
-  if (error) throw new Error(error.message);
-
-  return withCustomerNames((data ?? []) as PropertyRow[], contextInput);
+  rows.sort((left, right) => right.created_at.localeCompare(left.created_at));
+  const from = (page - 1) * pageSize;
+  return withCustomerNames(rows.slice(from, from + pageSize), contextInput);
 }
 
 export async function getPropertyById(

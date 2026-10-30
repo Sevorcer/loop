@@ -439,6 +439,28 @@ export function getScheduledTodayJobs(jobs: Job[]): Job[] {
   return jobs.filter((job) => job.scheduledFor === getTodayDate());
 }
 
+/**
+ * At-risk count for the morning briefing.
+ *
+ * Counts only jobs already on today's schedule (the same jobs as Total).
+ * A historical job scheduled on an earlier day is not on this board, so it
+ * does not increase the number. On Hold counts. An open job whose committed
+ * end time has passed counts as late. A start time alone does not, because
+ * older rows were backfilled to a morning hour and would all look late.
+ */
+export function countBriefingAtRisk(
+  todayJobs: Pick<Job, "status" | "scheduledEndAt">[],
+  nowMs: number = Date.now(),
+): number {
+  return todayJobs.filter((job) => {
+    if (job.status === "Completed" || job.status === "Cancelled") return false;
+    if (job.status === "On Hold") return true;
+    if (!job.scheduledEndAt) return false;
+    const endMs = Date.parse(job.scheduledEndAt);
+    return !Number.isNaN(endMs) && endMs < nowMs;
+  }).length;
+}
+
 /** Jobs scheduled for a future date, sorted ascending by date. */
 export function getUpcomingJobs(jobs: Job[]): Job[] {
   const today = getTodayDate();

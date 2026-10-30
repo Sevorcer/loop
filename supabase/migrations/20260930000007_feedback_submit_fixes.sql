@@ -48,3 +48,18 @@ DROP POLICY IF EXISTS "feedback_reports_select_own" ON public.feedback_reports;
 CREATE POLICY "feedback_reports_select_own" ON public.feedback_reports
   FOR SELECT TO authenticated
   USING (org_id = public.current_org_id() AND created_by_user_id = auth.uid());
+-- DOWN
+-- Remove the submitter read-back policy and the org-member insert policy,
+-- then restore the previous role-limited insert policy if feedback should
+-- no longer be submitted by every org member. Drop the storage policies and
+-- the bucket only when no screenshot objects remain in it. Do not delete
+-- feedback_reports rows.
+--   DROP POLICY IF EXISTS "feedback_reports_select_own" ON public.feedback_reports;
+--   DROP POLICY IF EXISTS "feedback_reports_insert_org_member" ON public.feedback_reports;
+--   DROP POLICY IF EXISTS "feedback_screenshots_delete_authenticated" ON storage.objects;
+--   DROP POLICY IF EXISTS "feedback_screenshots_update_authenticated" ON storage.objects;
+--   DROP POLICY IF EXISTS "feedback_screenshots_select_authenticated" ON storage.objects;
+--   DROP POLICY IF EXISTS "feedback_screenshots_insert_authenticated" ON storage.objects;
+--   DELETE FROM storage.buckets WHERE id = 'feedback-screenshots';
+-- The bucket removal line above deletes the empty bucket record only.
+-- Skip it if screenshot files are still stored there.

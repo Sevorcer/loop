@@ -96,3 +96,38 @@ export function resolvePropertyCustomer(input: {
 
   return { customerName: UNLINKED_CUSTOMER_LABEL };
 }
+
+export interface PropertyCustomerLinkRow {
+  id: string;
+  name: string;
+  customerId: string | null;
+}
+
+/**
+ * Groups properties by the customer resolvePropertyCustomer would show.
+ * A property that stays "Unlinked Customer" is omitted. Direct customer_id
+ * links and job links use the same rules as the property list.
+ */
+export function linkedPropertyIdsByCustomer(input: {
+  properties: PropertyCustomerLinkRow[];
+  customers: CustomerNameRecord[];
+  jobHints: JobCustomerHint[];
+}): Map<string, string[]> {
+  const grouped = new Map<string, string[]>();
+
+  for (const property of input.properties) {
+    const resolved = resolvePropertyCustomer({
+      propertyId: property.id,
+      propertyName: property.name,
+      customerId: property.customerId,
+      customers: input.customers,
+      jobHints: input.jobHints,
+    });
+    if (!resolved.customerId) continue;
+    const ids = grouped.get(resolved.customerId) ?? [];
+    if (!ids.includes(property.id)) ids.push(property.id);
+    grouped.set(resolved.customerId, ids);
+  }
+
+  return grouped;
+}

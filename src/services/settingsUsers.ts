@@ -48,6 +48,66 @@ function toSupabaseServiceError(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+/** Auth admin lookups must not hold the team page open. */
+const AUTH_LOOKUP_BUDGET_MS = 4_000;
+
+interface ListedAuthUser {
+  id: string;
+  email?: string | null;
+  banned_until?: string | null;
+  last_sign_in_at?: string | null;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
+/**
+ * Email and ban state live on auth.users. Listing the whole project with no
+ * deadline can stall the Users page, so this stops at the budget and returns
+ * whatever it found. Missing auth rows still leave the profile on the page.
+ */
+async function loadAuthUsersForProfiles(profileIds: string[]): Promise<Map<string, ListedAuthUser>> {
+  const wanted = new Set(profileIds);
+  const found = new Map<string, ListedAuthUser>();
+  if (wanted.size === 0) return found;
+
+  const deadline = Date.now() + AUTH_LOOKUP_BUDGET_MS;
+  try {
+    const admin = createSupabaseAdminClient();
+    for (let page = 1; page <= 20 && found.size < wanted.size; page += 1) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 250) break;
+      const pageResult = await withTimeout(
+        admin.auth.admin.listUsers({ page, perPage: 200 }),
+        remaining,
+      );
+      const users = pageResult?.data?.users as ListedAuthUser[] | undefined;
+      if (!pageResult || pageResult.error || !users || users.length === 0) break;
+      for (const user of users) {
+        if (wanted.has(user.id)) found.set(user.id, user);
+      }
+      if (users.length < 200) break;
+    }
+  } catch {
+    return found;
+  }
+
+  return found;
+}
+
 /** Resolve the org_id of the calling user (server context). */
 async function resolveCallerOrgId(userId: string): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
@@ -80,24 +140,9 @@ export async function listOrgUsers(callerUserId: string): Promise<OrgUser[]> {
 
   if (error || !profiles) return [];
 
-  // Fetch auth metadata via admin client for email/last_sign_in_at/banned.
-  // When SUPABASE_SERVICE_ROLE_KEY isn't configured the admin client is
-  // unavailable — degrade to profile-only data so the page still loads
-  // instead of throwing.
-  let authUsers: Array<{
-    id: string;
-    email?: string | null;
-    banned_until?: string | null;
-    last_sign_in_at?: string | null;
-  }> = [];
-  try {
-    const admin = createSupabaseAdminClient();
-    const { data: authData } = await admin.auth.admin.listUsers();
-    authUsers = authData?.users ?? [];
-  } catch {
-    authUsers = [];
-  }
-  const authMap = new Map(authUsers.map((u) => [u.id, u]));
+  // Email and last sign-in come from auth.users. A slow or unreachable admin
+  // API must not leave the page on "Loading team members…".
+  const authMap = await loadAuthUsersForProfiles(profiles.map((profile) => profile.id));
 
   return profiles.map((profile): OrgUser => {
     const authUser = authMap.get(profile.id);

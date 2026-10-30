@@ -77,3 +77,12 @@ BEGIN
   END IF;
 END;
 $$;
+-- DOWN
+-- Drop the clock-time columns and their ordering checks. scheduled_for and
+-- appointment_window stay, so the timestamps can be rebuilt from them.
+--   ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_arrival_window_order_check;
+--   ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_scheduled_window_order_check;
+--   ALTER TABLE jobs DROP COLUMN IF EXISTS arrival_window_end_at;
+--   ALTER TABLE jobs DROP COLUMN IF EXISTS arrival_window_start_at;
+--   ALTER TABLE jobs DROP COLUMN IF EXISTS scheduled_end_at;
+--   ALTER TABLE jobs DROP COLUMN IF EXISTS scheduled_start_at;

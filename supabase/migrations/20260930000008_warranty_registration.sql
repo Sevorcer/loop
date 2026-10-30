@@ -8,3 +8,9 @@ ALTER TABLE public.installed_systems
   ADD COLUMN IF NOT EXISTS warranty_registered BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS warranty_registered_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS warranty_registered_by TEXT;
+-- DOWN
+-- Remove warranty registration fields from installed systems. System rows stay.
+-- The registered/not-registered marks stored in these columns are discarded.
+--   ALTER TABLE public.installed_systems DROP COLUMN IF EXISTS warranty_registered_by;
+--   ALTER TABLE public.installed_systems DROP COLUMN IF EXISTS warranty_registered_at;
+--   ALTER TABLE public.installed_systems DROP COLUMN IF EXISTS warranty_registered;
