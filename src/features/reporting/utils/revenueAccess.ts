@@ -1,9 +1,14 @@
-const REVENUE_ROLES = new Set(["owner", "manager", "dispatch", "office"]);
-
 /**
- * Owner, manager, dispatch, and office may see revenue reports and edit a
- * job price. Technicians, sales, and portal users must not.
+ * One list for revenue. These roles may see production reports, export the
+ * CSV, call the reports API, and enter or edit a job price.
+ * A technician can read a price on an assigned job and cannot see reports.
+ * Portal users cannot see prices or reports.
  */
+export const JOB_REVENUE_ROLES = ["owner", "manager", "dispatch", "office", "sales"] as const;
+
+const REVENUE_ROLES = new Set<string>(JOB_REVENUE_ROLES);
+
+/** Owner, manager, dispatch, office, and sales may see revenue and edit a job price. */
 export function canSeeJobRevenue(role: string | null | undefined): boolean {
   return typeof role === "string" && REVENUE_ROLES.has(role);
 }

@@ -166,8 +166,11 @@ describe("sales role", () => {
     expect(canSee("sales", ROUTES.INSTALLED_SYSTEMS)).toBe(true);
   });
 
+  it("can open production reports", () => {
+    expect(canSee("sales", ROUTES.REPORTING)).toBe(true);
+  });
+
   it("cannot see management or operations sections", () => {
-    expect(canSee("sales", ROUTES.REPORTING)).toBe(false);
     expect(canSee("sales", ROUTES.COMPANY_BRAIN)).toBe(false);
     expect(canSee("sales", ROUTES.SETTINGS)).toBe(false);
     expect(canSee("sales", ROUTES.DISPATCH)).toBe(false);
