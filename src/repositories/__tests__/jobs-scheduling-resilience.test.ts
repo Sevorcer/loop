@@ -26,16 +26,34 @@ const {
   const orderMock = vi.fn();
   const maybeSingleMock = vi.fn();
 
-  // Recursive eq chain handles any number of chained .eq() calls
-  const eqChainBase = {
-    order: orderMock,
+  // listJobs awaits .order().range(). Assignee reads await .in().order()
+  // or .in() directly. Extra reads after the job query should not consume
+  // the queued job result, so a missing mock resolves to an empty page.
+  function terminal(result: unknown) {
+    const promise = Promise.resolve(result ?? { data: [], error: null });
+    return Object.assign(promise, {
+      range: () => promise,
+      order: (...args: unknown[]) => terminal(orderMock(...args)),
+      in: () => terminal({ data: [], error: null }),
+      eq: () => terminal({ data: [], error: null }),
+    });
+  }
+
+  const order = (...args: unknown[]) => terminal(orderMock(...args));
+
+  const eqChain: {
+    order: typeof order;
+    maybeSingle: typeof maybeSingleMock;
+    eq: () => typeof eqChain;
+    in: () => ReturnType<typeof terminal>;
+    range: () => ReturnType<typeof terminal>;
+  } = {
+    order,
     maybeSingle: maybeSingleMock,
+    eq: () => eqChain,
+    in: () => terminal({ data: [], error: null }),
+    range: () => terminal(orderMock()),
   };
-  const eqMockFn: ReturnType<typeof vi.fn> & { [key: string]: unknown } = vi.fn(
-    () => eqChain,
-  );
-  const eqChain = { ...eqChainBase, eq: eqMockFn };
-  eqMockFn.mockReturnValue(eqChain);
 
   const selectFn = vi.fn(() => eqChain);
 

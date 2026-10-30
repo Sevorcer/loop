@@ -44,8 +44,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       setJobs(response.jobs);
       setActivity(response.activity);
     } catch (loadError) {
-      setJobs([]);
-      setActivity([]);
+      // Keep jobs already on screen. Clearing them made the stat cards
+      // read 0 after a refresh failure even though the board still had work.
       setError(loadError instanceof Error ? loadError.message : "Failed to load jobs.");
     } finally {
       setLoading(false);

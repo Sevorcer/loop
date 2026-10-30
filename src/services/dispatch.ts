@@ -114,11 +114,15 @@ export async function movePersonBetweenJobs(
   const toIds = (toJob.assignees ?? []).map((assignee) => assignee.id);
   const nextTo = toIds.includes(personId) ? toIds : [...toIds, personId];
   const nextFrom = fromIds.filter((id) => id !== personId);
-  const savedTarget = await setJobPeople(toJobId, nextTo);
-  const savedSource = await setJobPeople(fromJobId, nextFrom);
+  const [savedTarget, savedSource] = await Promise.all([
+    setJobPeople(toJobId, nextTo),
+    setJobPeople(fromJobId, nextFrom),
+  ]);
   const name = person?.name ?? "A person";
-  await recordPeopleChange(toJobId, `${name} was added to this job.`);
-  await recordPeopleChange(fromJobId, `${name} was moved to ${toJob.jobNumber}.`);
+  await Promise.all([
+    recordPeopleChange(toJobId, `${name} was added to this job.`),
+    recordPeopleChange(fromJobId, `${name} was moved to ${toJob.jobNumber}.`),
+  ]);
   return { source: savedSource, target: savedTarget, personName: name, toJobNumber: toJob.jobNumber };
 }
 

@@ -422,9 +422,27 @@ export async function getJobById(
 
   if (!data) { return null; }
   const fetchedJob = mapJob(data);
-  await attachAssignees(supabase, orgId, [fetchedJob]);
-  await attachCompletionTeam(supabase, orgId, fetchedJob);
+  await Promise.all([
+    attachAssignees(supabase, orgId, [fetchedJob]),
+    attachCompletionTeam(supabase, orgId, fetchedJob),
+  ]);
   return fetchedJob;
+}
+
+/** True when this org can see the job. Does not load assignees or history. */
+export async function jobExists(
+  id: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<boolean> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
 }
 
 export async function getJobRowById(id: string): Promise<JobRow | null> {
@@ -570,7 +588,14 @@ export async function updateJob(
   if (input.customerName !== undefined) updatePayload.customer_name = input.customerName;
   if (input.propertyId !== undefined) updatePayload.property_id = input.propertyId;
   if (input.propertyName !== undefined) updatePayload.property_name = input.propertyName;
-  if (input.assignedTo !== undefined) { updatePayload.assigned_to = input.assignedTo; updatePayload.assigned_user_id = await resolveAssignedUserId(supabase, orgId, input.assignedTo); } if (input.assigneeIds !== undefined) { updatePayload.assigned_user_id = input.assigneeIds[0] ?? null; }
+  if (input.assignedTo !== undefined) updatePayload.assigned_to = input.assignedTo;
+  // A known user id list is the source of truth. Looking up every profile
+  // by the joined display name delays the write and rarely matches.
+  if (input.assigneeIds !== undefined) {
+    updatePayload.assigned_user_id = input.assigneeIds[0] ?? null;
+  } else if (input.assignedTo !== undefined) {
+    updatePayload.assigned_user_id = await resolveAssignedUserId(supabase, orgId, input.assignedTo);
+  }
   if (input.contractorIds !== undefined) updatePayload.contractor_ids = input.contractorIds;
   if (input.scheduledFor !== undefined) updatePayload.scheduled_for = input.scheduledFor;
   if (input.appointmentHour !== undefined) {
@@ -908,8 +933,12 @@ async function attachCompletionTeam(
   if (team && team.length > 0) job.completionTeam = team;
 }
 
-export async function setJobPeople(jobId: string, assigneeIds: string[]): Promise<Job | null> {
-  const { supabase, orgId } = await getRepositoryContext();
+export async function setJobPeople(
+  jobId: string,
+  assigneeIds: string[],
+  contextInput?: SessionRepositoryContextInput,
+): Promise<Job | null> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
   const ids = [...new Set(assigneeIds.map((id) => id.trim()).filter(Boolean))];
   let names: string[] = [];
   if (ids.length > 0) {
@@ -931,10 +960,28 @@ export async function setJobPeople(jobId: string, assigneeIds: string[]): Promis
     );
     names = ids.map((id) => nameById.get(id) ?? "Team member");
   }
-  return updateJob(jobId, {
-    assignedTo: formatTeamLabel(names),
-    assigneeIds: ids,
-  });
+
+  const assignedTo = formatTeamLabel(names);
+  // The board reads job_assignees. Write that first so a reload during the
+  // label update already shows the person as removed.
+  await writeJobAssignees(supabase, orgId, jobId, ids);
+  const updateResult = await supabase
+    .from("jobs")
+    .update({
+      assigned_to: assignedTo,
+      assigned_user_id: ids[0] ?? null,
+    })
+    .eq("org_id", orgId)
+    .eq("id", jobId)
+    .select(JOB_SELECT)
+    .maybeSingle();
+
+  if (updateResult.error) throw new Error(updateResult.error.message);
+  const data = toJobRow(updateResult.data);
+  if (!data) return null;
+  const job = mapJob(data);
+  job.assignees = ids.map((id, index) => ({ id, name: names[index] ?? "Team member" }));
+  return job;
 }
 
 export interface JobStatusActivity {

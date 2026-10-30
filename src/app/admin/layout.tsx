@@ -12,8 +12,6 @@
 
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
-
 import { AuthProvider, RoleProvider } from "@/features/auth";
 import { AdminShell } from "@/features/admin";
 import { redirectTechFromOfficePath } from "@/lib/auth/requireRouteRole";
@@ -38,7 +36,15 @@ const VALID_ROLES: ReadonlySet<string> = new Set<AppRole>([
  * Role stored on the sign-in token. Used only when the profile row has no
  * app_role. Order matches src/lib/api-auth.ts.
  */
-function resolveMetadataRole(user: User | null | undefined): AppRole | null {
+function resolveMetadataRole(
+  user:
+    | {
+        app_metadata?: Record<string, unknown> | null;
+        user_metadata?: Record<string, unknown> | null;
+      }
+    | null
+    | undefined,
+): AppRole | null {
   const candidates: unknown[] = [
     user?.app_metadata?.app_role,
     user?.user_metadata?.app_role,

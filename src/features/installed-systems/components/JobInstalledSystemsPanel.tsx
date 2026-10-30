@@ -7,7 +7,7 @@ import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTES } from "@/lib/routes";
 
-import { useEffect, useMemo, useState } from "react"; import { actorDisplayName } from "@/lib/actors"; import { getSupabaseBrowserClient } from "@/lib/supabase/client"; import { useInstalledSystems } from "../state/InstalledSystemsProvider";
+import { useEffect, useMemo, useState } from "react"; import { useRouter } from "next/navigation"; import { actorDisplayName } from "@/lib/actors"; import { loadProfileNames } from "@/services/profileDirectory"; import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import type { InstalledSystem } from "../types/installedSystem";
 
 function getMatchVariant(system: InstalledSystem) {
@@ -37,10 +37,11 @@ export function JobInstalledSystemsPanel({
   customerName,
   propertyName,
 }: JobInstalledSystemsPanelProps) {
+  const router = useRouter();
   const { getInstalledSystemsForJob, getTechnicalProfileById } =
     useInstalledSystems();
 
-  const systems = getInstalledSystemsForJob(jobId, propertyId);    const technicalIdentityIds = useMemo(     () =>       Array.from(         new Set(           systems             .map((system) => system.technicalIdentityId)             .filter((value): value is string => Boolean(value)),         ),       ),     [systems],   );   const [identityNames, setIdentityNames] = useState<Record<string, string>>({});    useEffect(() => {     let cancelled = false;     async function loadIdentityNames() {       if (technicalIdentityIds.length === 0) {         if (!cancelled) setIdentityNames({});         return;       }       try {         const supabase = getSupabaseBrowserClient();         const { data } = await supabase           .from("user_profiles")           .select("id, full_name, email")           .in("id", technicalIdentityIds);         if (cancelled) return;         const next: Record<string, string> = {};         for (const row of data ?? []) {           const profile = row as { id: string; full_name?: string | null; email?: string | null };           const label = profile.full_name?.trim() || profile.email?.trim() || null;           if (label) next[profile.id] = label;         }         setIdentityNames(next);       } catch {         if (!cancelled) setIdentityNames({});       }     }     void loadIdentityNames();     return () => {       cancelled = true;     };   }, [technicalIdentityIds]);    function technicalIdentityLabel(technicalIdentityId: string | null | undefined): string {     if (!technicalIdentityId) return "a team member";     const direct = actorDisplayName(technicalIdentityId);     if (direct) return direct;     return identityNames[technicalIdentityId] ?? "a team member";   }
+  const systems = getInstalledSystemsForJob(jobId, propertyId);    const technicalIdentityIds = useMemo(     () =>       Array.from(         new Set(           systems             .map((system) => system.technicalIdentityId)             .filter((value): value is string => Boolean(value)),         ),       ),     [systems],   );   const [identityNames, setIdentityNames] = useState<Record<string, string>>({});    useEffect(() => {     let cancelled = false;     async function loadIdentityNames() {       if (technicalIdentityIds.length === 0) {         if (!cancelled) setIdentityNames({});         return;       }       try {         const next = await loadProfileNames(technicalIdentityIds);         if (!cancelled) setIdentityNames(next);       } catch {         if (!cancelled) setIdentityNames({});       }     }     void loadIdentityNames();     return () => {       cancelled = true;     };   }, [technicalIdentityIds]);    function technicalIdentityLabel(technicalIdentityId: string | null | undefined): string {     if (!technicalIdentityId) return "a team member";     const direct = actorDisplayName(technicalIdentityId);     if (direct) return direct;     return identityNames[technicalIdentityId] ?? "a team member";   }
 
   const addSystemParams = new URLSearchParams({
     ...(jobId ? { jobId } : {}),
@@ -76,7 +77,7 @@ export function JobInstalledSystemsPanel({
             <button
               type="button"
               onClick={() => {
-                window.location.href = addSystemHref;
+                router.push(addSystemHref);
               }}
               className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
             >

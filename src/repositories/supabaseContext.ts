@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { readRequestAuth } from "@/lib/auth/requestAuth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -144,6 +145,13 @@ export async function getRepositoryContext(
 ): Promise<RepositoryContext> {
   if (input?.supabase || input?.userId) {
     return loadRepositoryContext(input);
+  }
+  const remembered = readRequestAuth();
+  if (remembered) {
+    return loadRepositoryContext({
+      userId: remembered.userId,
+      supabase: remembered.supabase,
+    });
   }
   return loadCachedSessionContext();
 }

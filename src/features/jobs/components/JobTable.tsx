@@ -9,7 +9,8 @@ import { DataTableToolbar } from "@/components/atlas/data-table";
 import { useAuth, useCurrentRole } from "@/features/auth";
 import { isOpenStatus, normalizeJobStatus } from "@/lib/jobs/status";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
-import { Button } from "@/components/ui/button"; import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { lookupProfileName } from "@/services/profileDirectory";
 
 import { useJobs } from "../state/JobsProvider";
 import type { JobPriority, JobStatus, JobType } from "../types/job";
@@ -62,7 +63,17 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const { user } = useAuth();
-  const { jobs, loading, hydrated, error, refreshJobs } = useJobs(); const [profileFullName, setProfileFullName] = useState<string | null>(null); useEffect(() => { let cancelled = false; async function loadProfileFullName() { if (!user?.id && !user?.email) { return; } const supabase = getSupabaseBrowserClient(); if (!supabase) { return; } let fullName: string | null = null; if (user?.id) { const byId = await supabase.from("user_profiles").select("full_name,email").eq("id", user.id).maybeSingle(); const row = byId.data as { full_name?: string | null } | null; if (row?.full_name?.trim()) { fullName = row.full_name; } } if (!fullName && user?.email) { const byEmail = await supabase.from("user_profiles").select("full_name,email").eq("email", user.email).maybeSingle(); const row = byEmail.data as { full_name?: string | null } | null; if (row?.full_name?.trim()) { fullName = row.full_name; } } if (!cancelled && fullName) { setProfileFullName(fullName); } } void loadProfileFullName(); return () => { cancelled = true; }; }, [user?.id, user?.email]);
+  const { jobs, loading, hydrated, error, refreshJobs } = useJobs();
+  const [profileFullName, setProfileFullName] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void lookupProfileName({ id: user?.id, email: user?.email }).then((fullName) => {
+      if (!cancelled && fullName) setProfileFullName(fullName);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.email]);
 
   const [searchValue, setSearchValue] = useState(
     () => readSearchParam(initialSearchParams, "q") ?? "",

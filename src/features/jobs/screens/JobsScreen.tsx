@@ -11,14 +11,17 @@ import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import { JobTable } from "../components/JobTable";
 import { JobsMetrics } from "../components/JobsMetrics";
+import type { Job } from "../types/job";
 
 type SearchParamValue = string | string[] | undefined;
 
 interface JobsScreenProps {
   initialSearchParams?: Record<string, SearchParamValue>;
+  /** Jobs loaded on the server so the stat cards are not 0 while the client store fills. */
+  initialJobs?: Job[];
 }
 
-export function JobsScreen({ initialSearchParams }: JobsScreenProps) {
+export function JobsScreen({ initialSearchParams, initialJobs = [] }: JobsScreenProps) {
   const { role } = useCurrentRole();
   const isTech = role === "tech";
 
@@ -67,7 +70,7 @@ export function JobsScreen({ initialSearchParams }: JobsScreenProps) {
         </div>
       </SurfaceCard>
 
-      <JobsMetrics />
+      <JobsMetrics initialJobs={initialJobs} />
 
       <SurfaceCard className="overflow-hidden">
         <div className="border-b border-white/10 px-4 py-3 sm:px-6 sm:py-5">

@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 
 import type { JobSignature } from "@/features/jobs/types/jobSignature";
 import { signatureCaptureError } from "@/features/jobs/utils/jobSignature";
-import { createJobActivity, getJobById } from "@/repositories/jobs";
+import { createJobActivity, jobExists } from "@/repositories/jobs";
 import {
   insertJobSignature,
   listJobSignatures,
@@ -53,17 +53,12 @@ export async function listJobSignaturesForJob(
 ): Promise<JobSignature[]> {
   try {
     const rows = await listJobSignatures(jobId);
-    const signatures: JobSignature[] = [];
-    for (const row of rows) {
-      let previewUrl: string | null = null;
-      try {
-        previewUrl = await getDownloadUrl(role, row.storage_object_id, 600);
-      } catch {
-        previewUrl = null;
-      }
-      signatures.push(toJobSignature(row, previewUrl));
-    }
-    return signatures;
+    return Promise.all(
+      rows.map(async (row) => {
+        const previewUrl = await getDownloadUrl(role, row.storage_object_id, 600).catch(() => null);
+        return toJobSignature(row, previewUrl);
+      }),
+    );
   } catch (error) {
     if (isMissingSignatureStore(error)) return [];
     throw error;
@@ -87,15 +82,17 @@ export async function captureJobSignature(
     throw new Error("Signature image must be 2 MB or smaller.");
   }
 
-  const job = await getJobById(jobId);
-  if (!job) {
+  const signerName = input.signerName.trim();
+  const [visible, capturedByName] = await Promise.all([
+    jobExists(jobId),
+    capturerName(context),
+  ]);
+  if (!visible) {
     const missing = new Error("Job not found.");
     (missing as { status?: number }).status = 404;
     throw missing;
   }
 
-  const signerName = input.signerName.trim();
-  const capturedByName = await capturerName(context);
   const storagePath = `jobs/${jobId}/${randomUUID()}.png`;
 
   try {
@@ -120,20 +117,16 @@ export async function captureJobSignature(
       capturedByRole: context.role,
     });
 
-    await createJobActivity({
-      jobId,
-      actorId: context.actorId,
-      type: "signature",
-      title: "Customer signature captured",
-      description: `${signerName} signed. Captured by ${capturedByName}.`,
-    });
-
-    let previewUrl: string | null = null;
-    try {
-      previewUrl = await getDownloadUrl(context.role, uploaded.id, 600);
-    } catch {
-      previewUrl = null;
-    }
+    const [, previewUrl] = await Promise.all([
+      createJobActivity({
+        jobId,
+        actorId: context.actorId,
+        type: "signature",
+        title: "Customer signature captured",
+        description: `${signerName} signed. Captured by ${capturedByName}.`,
+      }),
+      getDownloadUrl(context.role, uploaded.id, 600).catch(() => null),
+    ]);
     return toJobSignature(row, previewUrl);
   } catch (error) {
     if (isMissingSignatureStore(error)) {
