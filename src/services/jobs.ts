@@ -243,8 +243,26 @@ async function ensureDispatchPlanForJob(job: Job): Promise<void> {
   return listJobsForDispatch();
 }
 
+/**
+ * The calendar and the jobs list share this loader. The repository default
+ * of 50 rows hid the rest of a busy month, so page until the schedule is
+ * complete (or a high safety cap).
+ */
+const WORKSPACE_JOB_PAGE_SIZE = 200;
+const WORKSPACE_JOB_MAX_PAGES = 15;
+
+async function listWorkspaceJobs(): Promise<Job[]> {
+  const jobs: Job[] = [];
+  for (let page = 1; page <= WORKSPACE_JOB_MAX_PAGES; page += 1) {
+    const batch = await listJobs({ page, pageSize: WORKSPACE_JOB_PAGE_SIZE });
+    jobs.push(...batch);
+    if (batch.length < WORKSPACE_JOB_PAGE_SIZE) break;
+  }
+  return jobs;
+}
+
 export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
-  const [jobs, activity] = await Promise.all([listJobs(), listAllJobActivity()]);
+  const [jobs, activity] = await Promise.all([listWorkspaceJobs(), listAllJobActivity()]);
   return { jobs, activity };
 }
 

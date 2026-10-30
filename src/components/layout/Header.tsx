@@ -49,7 +49,7 @@ const pageContent: Record<string, PageMeta> = {
   },
   [ROUTES.CALENDAR]: {
     title: "Calendar",
-    description: "See scheduled jobs by date. Unscheduled jobs are managed in Daily Plans.",
+    description: "Every scheduled job is listed on its day. Switch between month and week.",
   },
   // Field
   [ROUTES.JOBS]: {
@@ -289,7 +289,7 @@ export default function Header({
   const showDashboardCrumb = pathname !== ROUTES.DASHBOARD;
 
   return (
-    <header className="safe-area-header sticky top-0 z-30 border-b border-default bg-background text-foreground backdrop-blur-xl">
+    <header className="safe-area-header sticky top-0 z-30 border-b border-default bg-background text-foreground backdrop-blur-xl print:hidden">
       {/* ── Mobile top bar (< sm) ── */}
       <div className="flex items-center gap-2 px-3 py-2 sm:hidden">
         <Button

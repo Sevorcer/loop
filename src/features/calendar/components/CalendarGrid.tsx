@@ -3,113 +3,101 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { Job, JobType } from "@/features/jobs/types/job";
+import { getCalendarMonthGrid } from "@/features/daily-plans/utils/planUtils";
+import { cn } from "@/lib/utils";
 
-import type { Job } from "@/features/jobs/types/job";
-import { scheduledCompanyDate } from "@/features/jobs/utils/schedulingTime";
 import {
-  getCalendarMonthGrid,
-  getTodayDate,
-} from "@/features/daily-plans/utils/planUtils";
+  compareCalendarJobs,
+  isCalendarJobUnassigned,
+  type CalendarViewMode,
+  weekdayLabel,
+} from "../utils/calendarSchedule";
+import { CalendarJobCard, JOB_TYPE_DOT } from "./CalendarJobCard";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// ─── Job type colors (feedback: color-code Service vs Install on calendar) ───
-
-export const JOB_TYPE_DOT: Record<string, string> = {
-  Install: "bg-blue-400",
-  Service: "bg-emerald-400",
-  Maintenance: "bg-amber-400",
-  Inspection: "bg-violet-400",
-  Estimate: "bg-slate-400",
-  Callback: "bg-rose-400",
-};
-
-const JOB_TYPE_LEGEND = [
+const JOB_TYPE_LEGEND: JobType[] = [
   "Install",
   "Service",
   "Maintenance",
   "Inspection",
   "Estimate",
   "Callback",
-] as const;
-
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
 ];
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
 interface CalendarGridProps {
-  /** 0-indexed month (0 = January). */
+  view: CalendarViewMode;
+  /** 0-indexed month, used by the month view. */
   month: number;
   year: number;
-  /**
-   * Jobs with a `scheduled_for` date set.
-   * Unscheduled jobs (scheduledFor === null) must be excluded by the caller.
-   */
-  scheduledJobs: Job[];
+  /** Any day in the week to show. Ignored while the month view is active. */
+  weekDates: string[];
+  title: string;
+  /** Jobs already grouped and sorted by company date. Unscheduled jobs are absent. */
+  jobsByDate: Record<string, Job[]>;
   selectedDate: string;
-  onSelectDate: (date: string) => void;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
-  onToday: () => void;
+  today: string;
+  showToday: boolean;
+  onSelectDate?: (date: string) => void;
+  onViewChange?: (view: CalendarViewMode) => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  onToday?: () => void;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function CalendarGrid({
+  view,
   month,
   year,
-  scheduledJobs,
+  weekDates,
+  title,
+  jobsByDate,
   selectedDate,
-  onSelectDate,
-  onPrevMonth,
-  onNextMonth,
-  onToday,
+  today,
+  showToday,
+  onSelectDate = () => {},
+  onViewChange = () => {},
+  onPrev = () => {},
+  onNext = () => {},
+  onToday = () => {},
 }: CalendarGridProps) {
-  const today = getTodayDate();
-  const weeks = getCalendarMonthGrid(year, month);
-
-  // Group jobs by date (only jobs that actually have scheduledFor set).
-  const jobsByDate: Record<string, Job[]> = {};
-  const unassignedCountByDate: Record<string, number> = {};
-
-  for (const job of scheduledJobs) {
-    // Guard: scheduledFor must be non-null (caller should filter, but be safe)
-    if (!job.scheduledFor) continue; const jobDates = [job.scheduledFor]; const endDate = scheduledCompanyDate(job.scheduledEndAt); if (endDate && endDate > job.scheduledFor) { let cursor = job.scheduledFor; while (cursor < endDate) { const d = new Date(cursor + "T00:00:00.000Z"); d.setUTCDate(d.getUTCDate() + 1); cursor = d.toISOString().slice(0, 10); jobDates.push(cursor); } }
-
-    if (!jobsByDate[job.scheduledFor]) {
-      jobsByDate[job.scheduledFor] = [];
-    }
-    for (const jobDate of jobDates) { if (!jobsByDate[jobDate]) { jobsByDate[jobDate] = []; } jobsByDate[jobDate].push(job); }
-
-    if (!job.assignedTo.trim()) {
-      unassignedCountByDate[job.scheduledFor] =
-        (unassignedCountByDate[job.scheduledFor] ?? 0) + 1;
-    }
-  }
-
-  // Earliest first inside each day cell.
-  for (const date of Object.keys(jobsByDate)) {
-    jobsByDate[date].sort((a, b) =>
-      (a.scheduledStartAt ?? "").localeCompare(b.scheduledStartAt ?? ""),
-    );
-  }
-
-  const viewingCurrentMonth =
-    today.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`);
+  const weeks =
+    view === "week"
+      ? [weekDates]
+      : getCalendarMonthGrid(year, month);
+  const periodLabel = view === "week" ? "week" : "month";
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-foreground">
-          {MONTH_NAMES[month]} {year}
-        </h2>
+    <section
+      className="calendar-board min-w-0 rounded-3xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 print:border-neutral-300 print:bg-white print:p-0"
+      aria-label={view === "week" ? "Week calendar" : "Month calendar"}
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
 
-        <div className="flex items-center gap-1.5">
-          {!viewingCurrentMonth && (
+        <div className="flex flex-wrap items-center gap-1.5 print:hidden">
+          <div
+            role="group"
+            aria-label="Calendar view"
+            className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5"
+          >
+            {(["month", "week"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={view === mode}
+                onClick={() => onViewChange(mode)}
+                className={cn(
+                  "rounded-lg px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
+                  view === mode ? "bg-accent" : "text-muted hover:text-foreground",
+                )}
+              >
+                {mode === "month" ? "Month" : "Week"}
+              </button>
+            ))}
+          </div>
+          {showToday ? (
             <Button
               variant="ghost"
               size="sm"
@@ -118,12 +106,12 @@ export function CalendarGrid({
             >
               Today
             </Button>
-          )}
+          ) : null}
           <Button
             variant="ghost"
             size="icon"
-            onClick={onPrevMonth}
-            aria-label="Previous month"
+            onClick={onPrev}
+            aria-label={`Previous ${periodLabel}`}
             className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -131,8 +119,8 @@ export function CalendarGrid({
           <Button
             variant="ghost"
             size="icon"
-            onClick={onNextMonth}
-            aria-label="Next month"
+            onClick={onNext}
+            aria-label={`Next ${periodLabel}`}
             className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white"
           >
             <ChevronRight className="h-4 w-4" />
@@ -140,123 +128,158 @@ export function CalendarGrid({
         </div>
       </div>
 
-      {/* Type legend */}
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
         {JOB_TYPE_LEGEND.map((type) => (
           <span
             key={type}
             className="inline-flex items-center gap-1 text-[10px] font-medium text-muted"
           >
-            <span
-              className={`h-2 w-2 rounded-full ${JOB_TYPE_DOT[type] ?? "bg-slate-400"}`}
-            />
+            <span className={cn("h-2 w-2 rounded-full", JOB_TYPE_DOT[type])} />
             {type}
           </span>
         ))}
       </div>
 
-      {/* Day-of-week headers */}
-      <div className="mb-1 grid grid-cols-7 gap-1">
-        {DAY_LABELS.map((d) => (
-          <div
-            key={d}
-            className="py-1 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-muted"
-          >
-            {d}
-          </div>
-        ))}
-      </div>
+      <p className="mb-2 text-[11px] text-muted sm:hidden print:hidden">
+        Swipe sideways to read every job.
+      </p>
 
-      {/* Weeks */}
-      <div className="space-y-1">
-        {weeks.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 gap-1">
-            {week.map((date, di) => {
-              if (date === null) {
-                return <div key={di} className="h-24 rounded-xl sm:h-28" />;
-              }
-
-              const dayJobs = jobsByDate[date] ?? [];
-              const jobCount = dayJobs.length;
-              const visibleJobs = dayJobs.slice(0, 2);
-              const overflowCount = jobCount - visibleJobs.length;
-              const unassignedCount = unassignedCountByDate[date] ?? 0;
-              const isSelected = date === selectedDate;
-              const isToday = date === today;
-              const isPast = date < today;
-
-              return (
-                <button
-                  key={date}
-                  type="button"
-                  onClick={() => onSelectDate(date)}
-                  className={[
-                    "relative flex h-24 flex-col overflow-hidden rounded-xl border px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 sm:h-28",
-                    isSelected
-                      ? "border-blue-500/40 bg-blue-500/10"
-                      : isToday
-                        ? "border-blue-500/20 bg-blue-500/[0.06] hover:bg-blue-500/10"
-                        : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
-                    isPast && !isSelected && !isToday ? "calendar-past-day opacity-50" : "",
-                  ].join(" ")}
-                  aria-label={`${date}${jobCount > 0 ? `: ${dayJobs.map((job) => `${job.customerName} – ${job.title}`).join("; ")}` : ""}`}
-                  aria-pressed={isSelected}
+      <div className="overflow-x-auto print:overflow-visible">
+        <div className="min-w-[62rem] print:min-w-0">
+          {view === "month" ? (
+            <div className="mb-1 grid grid-cols-7 gap-2">
+              {DAY_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="py-1 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-muted"
                 >
-                  {/* Date number */}
-                  <span
-                    className={[
-                      "text-xs font-semibold leading-none",
-                      isToday
-                        ? "text-accent"
-                        : "text-foreground",
-                    ].join(" ")}
-                  >
-                    {parseInt(date.split("-")[2], 10)}
-                  </span>
+                  {label}
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-                  {/* Jobs: customer name + brief description, color-coded by type */}
-                  {visibleJobs.map((job) => (
-                    <span
-                      key={job.id}
-                      className="mt-1.5 flex items-start gap-1 text-[10px] leading-snug"
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${JOB_TYPE_DOT[job.type] ?? "bg-slate-400"}`}
+          <div className="space-y-2">
+            {weeks.map((week, weekIndex) => (
+              <div key={weekIndex} className="grid grid-cols-7 items-stretch gap-2">
+                {week.map((date, dayIndex) => {
+                  if (date === null) {
+                    return (
+                      <div
+                        key={`empty-${weekIndex}-${dayIndex}`}
+                        className="min-h-24 rounded-xl"
                       />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-foreground">
-                          {job.customerName}
-                        </span>
-                        <span className="block truncate text-muted">
-                          {job.title}
-                        </span>
-                      </span>
-                    </span>
-                  ))}
+                    );
+                  }
 
-                  {overflowCount > 0 && (
-                    <span className="mt-1 text-[9px] font-medium text-muted">
-                      +{overflowCount} more
-                    </span>
-                  )}
-
-                  {/* Unassigned indicator dot */}
-                  {unassignedCount > 0 && (
-                    <span
-                      aria-label={`${unassignedCount} unassigned`}
-                      className="mt-auto inline-flex items-center gap-1 text-[9px] font-medium text-yellow-400"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                      {unassignedCount} unassigned
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                  const dayJobs = [...(jobsByDate[date] ?? [])].sort(compareCalendarJobs);
+                  return (
+                    <CalendarDay
+                      key={date}
+                      date={date}
+                      jobs={dayJobs}
+                      view={view}
+                      isSelected={date === selectedDate}
+                      isToday={date === today}
+                      onSelectDate={onSelectDate}
+                    />
+                  );
+                })}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
+    </section>
+  );
+}
+
+function CalendarDay({
+  date,
+  jobs,
+  view,
+  isSelected,
+  isToday,
+  onSelectDate,
+}: {
+  date: string;
+  jobs: Job[];
+  view: CalendarViewMode;
+  isSelected: boolean;
+  isToday: boolean;
+  onSelectDate: (date: string) => void;
+}) {
+  const dayNumber = Number(date.slice(8, 10));
+  const unassigned = jobs.filter((job) => isCalendarJobUnassigned(job)).length;
+  const weekday = weekdayLabel(date);
+
+  return (
+    <div
+      role="group"
+      aria-label={`${weekday} ${date}, ${jobs.length} scheduled`}
+      onClick={() => onSelectDate(date)}
+      className={cn(
+        "flex h-full min-w-0 cursor-pointer flex-col rounded-xl border px-1.5 py-1.5 text-left transition-colors",
+        view === "week" ? "min-h-64 px-2 py-2" : "min-h-28",
+        isSelected
+          ? "border-blue-500/40 bg-blue-500/10"
+          : isToday
+            ? "border-blue-500/25 bg-blue-500/[0.06]"
+            : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectDate(date);
+          }}
+          aria-pressed={isSelected}
+          aria-current={isToday ? "date" : undefined}
+          aria-controls="calendar-day-panel"
+          className={cn(
+            "rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
+            isToday ? "text-accent" : "text-foreground",
+          )}
+        >
+          {view === "week" ? (
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+              {weekday}
+            </span>
+          ) : null}
+          <span className={cn("font-semibold leading-none", view === "week" ? "text-lg" : "text-xs")}>
+            {dayNumber}
+          </span>
+        </button>
+        {jobs.length > 0 ? (
+          <span className="text-[10px] font-medium tabular-nums text-muted">{jobs.length}</span>
+        ) : null}
+      </div>
+
+      {jobs.length === 0 && view === "week" ? (
+        <p className="px-0.5 py-3 text-xs text-muted">Nothing scheduled</p>
+      ) : null}
+
+      {jobs.length > 0 ? (
+        <ul className={cn("mt-1.5 flex flex-col", view === "week" ? "gap-1.5" : "gap-1")}>
+          {jobs.map((job) => (
+            <li key={job.id} className="min-w-0">
+              <CalendarJobCard
+                job={job}
+                onDate={date}
+                density={view === "week" ? "comfortable" : "compact"}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {unassigned > 0 ? (
+        <p className="mt-1.5 text-[10px] font-medium leading-snug text-yellow-400">
+          {unassigned} unassigned
+        </p>
+      ) : null}
     </div>
   );
 }

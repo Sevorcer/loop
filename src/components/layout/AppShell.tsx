@@ -86,7 +86,7 @@ export default function AppShell({ children }: AppShellProps) {
           Only rendered when pinned. Shifts the main content column to the
           right so it doesn't sit under the fixed sidebar panel.           */}
       {layout.reservesLayoutSpace && (
-        <div className="hidden w-64 shrink-0 lg:block" aria-hidden="true" />
+        <div className="hidden w-64 shrink-0 lg:block print:hidden" aria-hidden="true" />
       )}
 
       {/* ── Desktop adaptive sidebar ────────────────────────────────────────
@@ -99,7 +99,7 @@ export default function AppShell({ children }: AppShellProps) {
         className={cn(
           "group/sidebar",
           "fixed inset-y-0 left-0 z-50",
-          "hidden lg:block",
+          "hidden lg:block print:hidden",
           HOT_ZONE_CLASS // hot-zone width; sidebar extends beyond via absolute positioning
         )}
       >
@@ -155,8 +155,8 @@ export default function AppShell({ children }: AppShellProps) {
         )}
       </div>
       {/* ── Main content ────────────────────────────────────────────────── */}
-      <div className="relative flex min-h-dvh min-w-0 flex-1 flex-col overflow-x-hidden bg-background text-foreground">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="relative flex min-h-dvh min-w-0 flex-1 flex-col overflow-x-hidden bg-background text-foreground print:overflow-visible">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden print:hidden">
           <div className="absolute left-[-120px] top-[-120px] h-72 w-72 rounded-full bg-red-600/10 blur-3xl" />
           <div className="absolute right-[-140px] top-[120px] h-80 w-80 rounded-full bg-blue-600/10 blur-3xl" />
           <div className="absolute bottom-[-160px] left-[25%] h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
@@ -169,7 +169,7 @@ export default function AppShell({ children }: AppShellProps) {
         />
 
         <main className="relative z-10 flex-1">
-          <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8 safe-area-content">
+          <div className="safe-area-content mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
             {children}
           </div>
         </main>
@@ -183,7 +183,7 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Floating Actions Stack — vertical column, bottom-right corner.
           Lifts above any sticky mobile action bar via the body flag. */}
       <div
-        className="floating-actions-stack fixed bottom-6 right-6 z-40 flex flex-col-reverse items-end gap-3 lg:bottom-8 lg:right-8"
+        className="floating-actions-stack fixed bottom-6 right-6 z-40 flex flex-col-reverse items-end gap-3 print:hidden lg:bottom-8 lg:right-8"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Report Feedback */}
@@ -232,7 +232,7 @@ export default function AppShell({ children }: AppShellProps) {
       {/* ── Mobile sidebar drawer ───────────────────────────────────────── */}
       <div
         className={[
-          "fixed inset-y-0 left-0 z-[70] w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 lg:hidden safe-area-drawer",
+          "safe-area-drawer fixed inset-y-0 left-0 z-[70] w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 print:hidden lg:hidden",
           isMobileNavOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
