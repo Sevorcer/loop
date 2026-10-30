@@ -133,7 +133,7 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
               Assign Contractor
             </p>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <select
                 value={selectedId}
                 onChange={(e) => {
@@ -141,7 +141,7 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
                   setError(null);
                   setSuccess(null);
                 }}
-                className="flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+                className="min-h-11 w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
               >
                 <option value="">Select contractor…</option>
                 {available.map((c) => (
@@ -155,7 +155,7 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
               <Button
                 onClick={() => void handleAssign()}
                 disabled={!selectedId}
-                className="gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700 disabled:opacity-50"
+                className="min-h-11 w-full gap-2 border border-red-500/20 bg-gradient-to-r from-red-500/80 to-blue-600 text-white hover:from-red-500 hover:to-blue-700 disabled:opacity-50 sm:w-auto"
               >
                 <UserPlus className="h-4 w-4" />
                 Assign

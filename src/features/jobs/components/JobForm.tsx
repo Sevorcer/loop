@@ -370,7 +370,7 @@ export function JobForm({
   const submitLabel = isCreateMode ? "Create Job" : "Save Changes";
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <SurfaceCard className="overflow-hidden">
         <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
@@ -394,9 +394,13 @@ export function JobForm({
         </div>
       </SurfaceCard>
 
-      <form noValidate onSubmit={handleSubmit}>
-        <SurfaceCard>
-          <div className="grid gap-6 p-6 lg:grid-cols-2">
+      <form
+        noValidate
+        onSubmit={handleSubmit}
+        className="min-w-0 [&_input]:max-w-full [&_select]:min-w-0 [&_select]:max-w-full [&_textarea]:max-w-full"
+      >
+        <SurfaceCard className="min-w-0">
+          <div className="grid min-w-0 gap-6 p-6 [&>*]:min-w-0 lg:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
                 Job title
@@ -603,7 +607,7 @@ export function JobForm({
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <label className="text-sm font-medium text-slate-200">
                 Location
                 <RequiredStar />
@@ -612,12 +616,12 @@ export function JobForm({
                 value={form.location}
                 onChange={(e) => updateField("location", e.target.value)}
                 placeholder="1450 Northside Blvd, Suite 100"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
+                className="w-full min-w-0 max-w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
                 aria-required="true"
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <label className="text-sm font-medium text-slate-200">Job Type</label>
               <select
                 value={form.type}
@@ -707,20 +711,20 @@ export function JobForm({
                 {error}
               </p>
             ) : (
-              <div />
+              <div className="hidden sm:block" />
             )}
-            <div className="flex items-center justify-end gap-3">
-              <Link href={cancelHref}>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <Link href={cancelHref} className="sm:w-auto">
                 <Button
                   type="button"
                   variant="ghost"
-                  className="text-slate-300 hover:text-white"
+                  className="min-h-11 w-full text-slate-300 hover:text-white sm:w-auto"
                 >
                   Cancel
                 </Button>
               </Link>
 
-              <Button type="submit" className="gap-2" disabled={isSaving}>
+              <Button type="submit" className="min-h-11 w-full gap-2 sm:w-auto" disabled={isSaving}>
                 <FormBadgeIcon className="h-4 w-4" />
                 {isSaving ? "Saving..." : submitLabel}
               </Button>

@@ -76,17 +76,17 @@ export function CrewDayBoard({ initialSnapshot }: CrewDayBoardProps) {
   return (
     <div className="space-y-4">
       {/* ── Date Navigation ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={() => setSelectedDate((d) => shiftDate(d, -1))}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-400 transition-colors hover:border-white/20 hover:text-white"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-400 transition-colors hover:border-white/20 hover:text-white md:h-8 md:w-8"
           aria-label="Previous day"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <CalendarDays className="h-4 w-4 text-slate-500" />
           <span className="text-sm font-medium text-white">
             {formatDayLabel(selectedDate)}
@@ -110,7 +110,7 @@ export function CrewDayBoard({ initialSnapshot }: CrewDayBoardProps) {
         <button
           type="button"
           onClick={() => setSelectedDate((d) => shiftDate(d, 1))}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-400 transition-colors hover:border-white/20 hover:text-white"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-400 transition-colors hover:border-white/20 hover:text-white md:h-8 md:w-8"
           aria-label="Next day"
         >
           <ChevronRight className="h-4 w-4" />
@@ -120,7 +120,7 @@ export function CrewDayBoard({ initialSnapshot }: CrewDayBoardProps) {
           <button
             type="button"
             onClick={() => setSelectedDate(today)}
-            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 transition-colors hover:border-white/20 hover:text-white"
+            className="inline-flex min-h-11 items-center rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 transition-colors hover:border-white/20 hover:text-white md:min-h-0"
           >
             Back to Today
           </button>

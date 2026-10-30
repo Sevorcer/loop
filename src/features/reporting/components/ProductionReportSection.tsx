@@ -293,7 +293,22 @@ function DataTable({
 }) {
   if (rows.length === 0) return <p className="text-sm text-muted">{emptyMessage}</p>;
   return (
-    <div className="overflow-x-auto">
+    <div className="min-w-0">
+      <div className="space-y-3 md:hidden">
+        {rows.map((cells, rowIndex) => (
+          <div key={rowIndex} className="min-w-0 rounded-xl border border-default p-3">
+            {cells.map((cell, cellIndex) => (
+              <div key={cellIndex} className="flex min-w-0 items-start justify-between gap-3 py-1">
+                <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                  {headers[cellIndex]}
+                </span>
+                <span className="min-w-0 break-words text-right text-sm text-foreground">{cell}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead>
           <tr className="border-b border-default">
@@ -316,6 +331,7 @@ function DataTable({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

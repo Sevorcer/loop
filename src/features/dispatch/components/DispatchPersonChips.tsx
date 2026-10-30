@@ -68,7 +68,7 @@ export function DispatchPersonChips({
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         {people.map((person) => {
           const legacy = isLegacyAssignee(person);
           const off = timeOff.find((entry) => entry.userId === person.id);
@@ -83,7 +83,7 @@ export function DispatchPersonChips({
                 event.dataTransfer.setData("text/plain", payload);
                 event.dataTransfer.effectAllowed = "move";
               }}
-              className={`inline-flex max-w-full flex-wrap items-center gap-1 rounded-full border px-2 py-1 text-xs ${
+              className={`flex w-full min-w-0 flex-col items-stretch gap-2 rounded-2xl border px-3 py-2 text-xs sm:inline-flex sm:w-auto sm:max-w-full sm:flex-row sm:flex-wrap sm:items-center sm:rounded-full sm:px-2 sm:py-1 ${
                 off
                   ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-100"
                   : legacy
@@ -113,7 +113,7 @@ export function DispatchPersonChips({
                         event.target.value = "";
                       }
                     }}
-                    className="max-w-[9rem] rounded-md border border-white/10 bg-slate-950 px-1 py-0.5 text-[11px] text-slate-300"
+                    className="min-h-11 w-full min-w-0 max-w-full rounded-md border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 sm:min-h-0 sm:w-auto sm:max-w-[9rem] sm:px-1 sm:py-0.5 sm:text-[11px]"
                     aria-label={`Replace ${person.name}`}
                   >
                     <option value="">Replace with…</option>
@@ -128,7 +128,7 @@ export function DispatchPersonChips({
                   <button
                     type="button"
                     onClick={() => onRemovePerson(person.id)}
-                    className="rounded-full p-0.5 text-slate-400 hover:bg-white/10 hover:text-white"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center self-start rounded-full text-slate-400 hover:bg-white/10 hover:text-white sm:min-h-0 sm:min-w-0 sm:self-auto sm:p-0.5"
                     aria-label={`Remove ${person.name}`}
                   >
                     <X className="h-3 w-3" />
@@ -140,8 +140,8 @@ export function DispatchPersonChips({
         })}
 
         {canAssign ? (
-          <span className="inline-flex items-center gap-1">
-            <UserPlus className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+          <span className="flex w-full min-w-0 items-center gap-1 sm:w-auto">
+            <UserPlus className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
             <label className="sr-only" htmlFor={`add-${planId}`}>
               Add a person
             </label>
@@ -154,7 +154,7 @@ export function DispatchPersonChips({
                   event.target.value = "";
                 }
               }}
-              className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-emerald-500/40"
+              className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-emerald-500/40 sm:min-h-0 sm:w-auto"
               aria-label="Add a person"
             >
               <option value="">Add a person…</option>

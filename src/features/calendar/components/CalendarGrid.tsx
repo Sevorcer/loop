@@ -16,6 +16,7 @@ import {
 } from "../utils/calendarSchedule";
 import { TaskCard, TimeOffCard } from "./CalendarEntryCards";
 import { CalendarJobCard, JOB_TYPE_DOT } from "./CalendarJobCard";
+import { CalendarPhone } from "./CalendarPhone";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -90,7 +91,7 @@ export function CalendarGrid({
                 variant="ghost"
                 size="sm"
                 onClick={onAdd}
-                className="h-8 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-300 hover:bg-white/10"
+                className="h-8 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-300 hover:bg-white/10 max-md:h-11"
               >
                 + Add
               </Button>
@@ -107,7 +108,7 @@ export function CalendarGrid({
                 aria-pressed={view === mode}
                 onClick={() => onViewChange(mode)}
                 className={cn(
-                  "rounded-lg px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
+                  "rounded-lg px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] max-md:min-h-11 max-md:px-4",
                   view === mode ? "bg-accent" : "text-muted hover:text-foreground",
                 )}
               >
@@ -120,7 +121,7 @@ export function CalendarGrid({
               variant="ghost"
               size="sm"
               onClick={onToday}
-              className="h-8 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-300 hover:bg-white/10"
+              className="h-8 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-300 hover:bg-white/10 max-md:h-11"
             >
               Today
             </Button>
@@ -130,7 +131,7 @@ export function CalendarGrid({
             size="icon"
             onClick={onPrev}
             aria-label={`Previous ${periodLabel}`}
-            className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white"
+            className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white max-md:h-11 max-md:w-11"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -139,7 +140,7 @@ export function CalendarGrid({
             size="icon"
             onClick={onNext}
             aria-label={`Next ${periodLabel}`}
-            className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white"
+            className="h-8 w-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white max-md:h-11 max-md:w-11"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -166,11 +167,18 @@ export function CalendarGrid({
         </span>
       </div>
 
-      <p className="mb-2 text-[11px] text-muted sm:hidden print:hidden">
-        Swipe sideways to read every job.
-      </p>
+      <CalendarPhone
+        view={view}
+        weeks={weeks}
+        itemsByDate={itemsByDate}
+        selectedDate={selectedDate}
+        today={today}
+        onSelectDate={onSelectDate}
+        onOpenTimeOff={onOpenTimeOff}
+        onOpenTask={onOpenTask}
+      />
 
-      <div className="overflow-x-auto print:overflow-visible">
+      <div className="hidden min-w-0 overflow-x-auto md:block print:overflow-visible">
         <div className="min-w-[62rem] print:min-w-0">
           {view === "month" ? (
             <div className="mb-1 grid grid-cols-7 gap-2">

@@ -139,9 +139,9 @@ export function DispatchBoardCard({
   const isCompleted = plan.dispatchStatus === "completed";
 
   return (
-    <SurfaceCard className={isCompleted ? "opacity-70" : "group transition-all duration-200 hover:border-white/20"}>
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
+    <SurfaceCard className={isCompleted ? "min-w-0 max-w-full opacity-70" : "group min-w-0 max-w-full transition-all duration-200 hover:border-white/20"}>
+      <div className="min-w-0 p-4 sm:p-5">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-mono text-slate-500">
@@ -170,7 +170,7 @@ export function DispatchBoardCard({
 
             <div className="mt-2">
               {plan.jobTitle && (
-                <p className="truncate text-sm font-semibold text-white" title={plan.jobTitle}>
+                <p className="break-words text-sm font-semibold text-white sm:truncate" title={plan.jobTitle}>
                   {plan.jobTitle}
                 </p>
               )}
@@ -181,7 +181,7 @@ export function DispatchBoardCard({
             </div>
           </div>
 
-          <div className="flex-shrink-0 text-right">
+          <div className="shrink-0 text-left sm:text-right">
             <p className="text-xs font-medium text-slate-300">
               {formatTargetDate(plan.targetDate)}
             </p>
@@ -192,7 +192,7 @@ export function DispatchBoardCard({
         </div>
 
         {/* Readiness indicators */}
-        <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        <div className="mt-4 grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-4">
           <ReadinessChip
             label="Materials"
             state={plan.dispatchability.materialReadiness.state}
@@ -223,7 +223,7 @@ export function DispatchBoardCard({
           onMovePerson={(fromPlanId, personId) => onMovePerson?.(fromPlanId, plan.id, personId)}
         />
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/5 pt-4">
+        <div className="mt-4 flex min-w-0 flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
 
           {blockingConstraints.length > 0 && (
             <span className="ml-auto text-xs text-red-400">
@@ -241,8 +241,8 @@ export function DispatchBoardCard({
           )}
 
           {canSchedule && onSchedulePlan ? (
-            <div className="flex items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+            <div className="flex min-w-0 items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-500" />
               <input
                 type="date"
                 defaultValue={plan.targetDate}
@@ -252,7 +252,7 @@ export function DispatchBoardCard({
                     onSchedulePlan(plan.id, e.target.value);
                   }
                 }}
-                className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-blue-500/40"
+                className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-slate-300 outline-none focus:border-blue-500/40 sm:min-h-0 sm:w-auto"
                 aria-label={plan.dispatchStatus === "scheduled" ? "Reschedule date" : "Schedule date"}
               />
             </div>
@@ -261,7 +261,7 @@ export function DispatchBoardCard({
           {plan.jobId && (
             <Link
               href={ROUTE_BUILDERS.JOB_DETAIL(plan.jobId)}
-              className="ml-auto flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-blue-300"
+              className="inline-flex min-h-11 items-center gap-1 self-start text-xs text-slate-500 transition-colors hover:text-blue-300 sm:ml-auto sm:min-h-0"
               title="Open job detail"
             >
               <ExternalLink className="h-3 w-3" />
@@ -297,7 +297,7 @@ function ReadinessChip({
 
   return (
     <div
-      className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${styles}`}
+      className={`flex min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${styles}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dot}`} />
       <span className="truncate">{label}</span>

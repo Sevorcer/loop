@@ -55,7 +55,7 @@ export function SettingsSidebar({ onNavigate }: SettingsSidebarProps) {
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
-                  "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+                  "group relative flex min-h-11 items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 lg:min-h-0",
                   isActive
                     ? "bg-accent-soft border border-accent-soft text-white"
                     : "text-slate-400 hover:bg-white/5 hover:text-slate-200"

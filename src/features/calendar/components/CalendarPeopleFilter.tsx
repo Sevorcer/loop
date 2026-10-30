@@ -43,14 +43,14 @@ export function CalendarPeopleFilter({
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3 sm:p-4">
+    <div className="min-w-0 space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">People</p>
         {active ? (
           <button
             type="button"
             onClick={() => onChange([])}
-            className="inline-flex min-h-9 items-center gap-1 rounded-full border border-white/15 px-3 text-xs text-foreground hover:bg-white/10"
+            className="inline-flex min-h-11 items-center gap-1 rounded-full border border-white/15 px-3 text-xs text-foreground hover:bg-white/10 md:min-h-9"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
             Clear
@@ -66,35 +66,45 @@ export function CalendarPeopleFilter({
         <p className="text-sm text-muted">Showing everyone.</p>
       )}
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter calendar by person">
-        <button
-          type="button"
-          aria-pressed={!active}
-          onClick={() => onChange([])}
-          className={`min-h-10 rounded-full border px-3 text-sm ${
-            !active ? "border-white/30 bg-white/10 text-foreground" : "border-white/10 text-muted"
-          }`}
+      <div className="relative min-w-0">
+        <div
+          className="flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:none] md:flex-wrap md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden"
+          role="group"
+          aria-label="Filter calendar by person"
         >
-          All
-        </button>
-        {people.map((person) => {
-          const pressed = selected.has(person.id);
-          return (
-            <button
-              key={person.id}
-              type="button"
-              aria-pressed={pressed}
-              onClick={() => toggle(person.id)}
-              className={`min-h-10 max-w-full rounded-full border px-3 text-left text-sm ${
-                pressed
-                  ? "border-white/30 bg-white/10 text-foreground"
-                  : "border-white/10 text-muted hover:text-foreground"
-              }`}
-            >
-              {person.name}
-            </button>
-          );
-        })}
+          <button
+            type="button"
+            aria-pressed={!active}
+            onClick={() => onChange([])}
+            className={`min-h-11 shrink-0 rounded-full border px-3 text-sm md:min-h-10 ${
+              !active ? "border-white/30 bg-white/10 text-foreground" : "border-white/10 text-muted"
+            }`}
+          >
+            All
+          </button>
+          {people.map((person) => {
+            const pressed = selected.has(person.id);
+            return (
+              <button
+                key={person.id}
+                type="button"
+                aria-pressed={pressed}
+                onClick={() => toggle(person.id)}
+                className={`min-h-11 shrink-0 whitespace-nowrap rounded-full border px-3 text-left text-sm md:min-h-10 md:max-w-full md:shrink md:whitespace-normal ${
+                  pressed
+                    ? "border-white/30 bg-white/10 text-foreground"
+                    : "border-white/10 text-muted hover:text-foreground"
+                }`}
+              >
+                {person.name}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent md:hidden"
+        />
       </div>
 
       {groups.length > 0 || selectedIds.length > 1 ? (
@@ -102,12 +112,12 @@ export function CalendarPeopleFilter({
           {groups.map((group) => (
             <span
               key={group.id}
-              className="inline-flex min-h-10 items-center rounded-full border border-white/10"
+              className="inline-flex min-h-11 items-center rounded-full border border-white/10 md:min-h-10"
             >
               <button
                 type="button"
                 onClick={() => onApplyGroup(group.personIds)}
-                className="px-3 text-sm text-foreground"
+                className="inline-flex min-h-11 items-center px-3 text-sm text-foreground md:min-h-10"
               >
                 {group.name}
               </button>
@@ -119,7 +129,7 @@ export function CalendarPeopleFilter({
                   setGroupName(group.name);
                   setNaming(true);
                 }}
-                className="px-2 text-sm text-muted hover:text-foreground"
+                className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-foreground md:min-h-10"
                 aria-label={`Edit group ${group.name}`}
               >
                 Edit
@@ -127,7 +137,7 @@ export function CalendarPeopleFilter({
               <button
                 type="button"
                 onClick={() => onDeleteGroup(group.id)}
-                className="px-2 text-muted hover:text-foreground"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted hover:text-foreground md:min-h-0 md:min-w-0 md:px-2"
                 aria-label={`Remove group ${group.name}`}
               >
                 <X className="h-3.5 w-3.5" />
@@ -142,7 +152,7 @@ export function CalendarPeopleFilter({
                 setGroupName(label);
                 setNaming(true);
               }}
-              className="min-h-10 rounded-full border border-dashed border-white/15 px-3 text-sm text-muted hover:text-foreground"
+              className="min-h-11 rounded-full border border-dashed border-white/15 px-3 text-sm text-muted hover:text-foreground md:min-h-10"
             >
               Save group
             </button>
@@ -167,9 +177,9 @@ export function CalendarPeopleFilter({
                 id="calendar-group-name"
                 value={groupName}
                 onChange={(event) => setGroupName(event.target.value)}
-                className="min-h-10 min-w-[10rem] flex-1 rounded-xl border border-white/10 bg-transparent px-3 text-sm text-foreground"
+                className="min-h-11 w-full min-w-0 max-w-full flex-1 rounded-xl border border-white/10 bg-transparent px-3 text-sm text-foreground md:min-h-10 md:min-w-[10rem]"
               />
-              <button type="submit" className="min-h-10 rounded-full border border-white/15 px-3 text-sm">
+              <button type="submit" className="min-h-11 rounded-full border border-white/15 px-3 text-sm md:min-h-10">
                 Save
               </button>
             </form>

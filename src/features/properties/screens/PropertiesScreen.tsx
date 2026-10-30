@@ -41,8 +41,8 @@ export function PropertiesScreen() {
         </div>
       </SurfaceCard>
 
-      <SurfaceCard className="overflow-hidden">
-        <div className="border-b border-white/10 px-4 py-3 sm:px-6 sm:py-5">
+      <SurfaceCard className="overflow-hidden max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <div className="border-b border-white/10 px-0 py-3 max-md:border-0 md:px-6 md:py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/15 to-cyan-500/10 ring-1 ring-white/10 sm:h-11 sm:w-11 sm:rounded-2xl">
               <ShieldCheck className="h-4 w-4 text-blue-300 sm:h-5 sm:w-5" />
@@ -60,7 +60,7 @@ export function PropertiesScreen() {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6">
+        <div className="p-0 md:p-6">
           <PropertyTable />
         </div>
       </SurfaceCard>

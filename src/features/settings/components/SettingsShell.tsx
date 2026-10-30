@@ -80,7 +80,7 @@ export function SettingsShell({ children }: SettingsShellProps) {
             size="icon"
             aria-label="Open settings navigation"
             onClick={() => setIsMobileNavOpen(true)}
-            className="h-8 w-8 shrink-0"
+            className="h-11 w-11 shrink-0"
           >
             <PanelLeft size={16} />
           </Button>
