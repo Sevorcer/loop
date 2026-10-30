@@ -9,7 +9,7 @@ export function InProgressJobsWidget({ jobs }: { jobs: Job[] }) {
       jobs={jobs}
       viewAllHref={ACTIONABLE_VIEWS.inProgress}
       emptyTitle="No jobs in progress"
-      emptyDescription="No crews are currently working in the field."
+      emptyDescription="No one is currently working in the field."
     />
   );
 }

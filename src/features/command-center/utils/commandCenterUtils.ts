@@ -12,13 +12,14 @@ import type { Job } from "@/features/jobs/types/job";
 import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
 import { normalizeJobStatus as normalizeSharedJobStatus, isOpenStatus } from "@/lib/jobs/status";
 import { COMMAND_CENTER_KPI_DEFINITIONS } from "@/lib/operationsMetricDefinitions";
+import { formatTeamLabel, splitTeamNames } from "@/lib/teamLabel";
 import type {
   CommandCenterKPIs,
   CommandCenterSnapshot,
-  CrewWorkloadEntry,
   NormalizedJobStatus,
   ProblemJob,
   ProblemReason,
+  WorkloadEntry,
 } from "../types/commandCenter";
 
 // ------------------------------------------------------------------
@@ -74,7 +75,9 @@ export interface KPIDefinition {
    */
   href: string;
   /** Derivation logic run against the raw snapshot data. */
-  compute: (snapshot: Omit<CommandCenterSnapshot, "kpis" | "crewWorkload" | "problemJobs">) => number | null;
+  compute: (
+    snapshot: Omit<CommandCenterSnapshot, "kpis" | "personWorkload" | "teamWorkload" | "problemJobs">,
+  ) => number | null;
 }
 
 export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
@@ -92,15 +95,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.href,
-    compute: ({ inProgress }) => {
-      const names = new Set<string>();
-      for (const job of inProgress) {
-        if (job.assignedTo && job.assignedTo.trim() !== "") {
-          names.add(job.assignedTo.trim());
-        }
-      }
-      return names.size;
-    },
+    compute: ({ inProgress }) => countPeople(inProgress),
   },
   {
     key: "waitingOnInspection",
@@ -195,7 +190,7 @@ function computeAvgCompletionHours(
 // ------------------------------------------------------------------
 
 export function computeKPIs(
-  snapshot: Omit<CommandCenterSnapshot, "kpis" | "crewWorkload" | "problemJobs">,
+  snapshot: Omit<CommandCenterSnapshot, "kpis" | "personWorkload" | "teamWorkload" | "problemJobs">,
 ): CommandCenterKPIs {
   const result = {} as Record<string, number | null>;
   for (const def of KPI_DEFINITIONS) {
@@ -205,51 +200,95 @@ export function computeKPIs(
 }
 
 // ------------------------------------------------------------------
-// Crew Workload Aggregation
-// Groups jobs by assigned_to (technician name).
-// at-risk = late OR on-hold.
+// Workload
+// People are counted individually. Teams are the set of people on one job.
+// at-risk = late OR on-hold. The same job id is counted once.
 // ------------------------------------------------------------------
 
-export function aggregateCrewWorkload(
-  allOpenJobs: Job[],
-  today: string,
-): CrewWorkloadEntry[] {
-  const map = new Map<string, CrewWorkloadEntry>();
+interface WorkPerson {
+  key: string;
+  label: string;
+}
 
-  for (const job of allOpenJobs) {
-    const tech = job.assignedTo?.trim();
-    if (!tech) continue;
-
-    if (!map.has(tech)) {
-      map.set(tech, {
-        technicianName: tech,
-        assignedCount: 0,
-        inProgressCount: 0,
-        atRiskCount: 0,
-      });
-    }
-
-    const entry = map.get(tech)!;
-    entry.assignedCount += 1;
-
-    if (isInProgress(job)) {
-      entry.inProgressCount += 1;
-    }
-
-    const isLate = isOpenJob(job) && !!job.scheduledFor && job.scheduledFor < today;
-    const isHeld = isOnHold(job);
-
-    if (isLate || isHeld) {
-      entry.atRiskCount += 1;
-    }
+export function workloadPeople(job: Job): WorkPerson[] {
+  const assignees = job.assignees ?? [];
+  const fromAssignees: WorkPerson[] = [];
+  const seen = new Set<string>();
+  for (const person of assignees) {
+    const label = person.name.trim();
+    const key = person.id || label.toLowerCase();
+    if (!label || seen.has(key)) continue;
+    seen.add(key);
+    fromAssignees.push({ key, label });
   }
+  if (fromAssignees.length > 0) return fromAssignees;
+  return splitTeamNames(job.assignedTo).map((name) => ({
+    key: name.toLowerCase(),
+    label: name,
+  }));
+}
 
-  return Array.from(map.values()).sort(
-    (a, b) =>
-      b.atRiskCount - a.atRiskCount ||
-      b.assignedCount - a.assignedCount ||
-      a.technicianName.localeCompare(b.technicianName, "en"),
+function uniqueJobs(jobs: readonly Job[]): Job[] {
+  return [...new Map(jobs.map((job) => [job.id, job])).values()];
+}
+
+function countPeople(jobs: readonly Job[]): number {
+  const people = new Set<string>();
+  for (const job of uniqueJobs(jobs)) {
+    for (const person of workloadPeople(job)) people.add(person.key);
+  }
+  return people.size;
+}
+
+function bump(map: Map<string, WorkloadEntry>, person: WorkPerson, job: Job, today: string): void {
+  const entry = map.get(person.key) ?? {
+    key: person.key,
+    label: person.label,
+    assignedCount: 0,
+    inProgressCount: 0,
+    atRiskCount: 0,
+  };
+  entry.assignedCount += 1;
+  if (isInProgress(job)) entry.inProgressCount += 1;
+  const isLate = isOpenJob(job) && !!job.scheduledFor && job.scheduledFor < today;
+  if (isLate || isOnHold(job)) entry.atRiskCount += 1;
+  map.set(person.key, entry);
+}
+
+function sortWorkload(entries: WorkloadEntry[]): WorkloadEntry[] {
+  return entries.sort(
+    (left, right) =>
+      right.atRiskCount - left.atRiskCount ||
+      right.assignedCount - left.assignedCount ||
+      left.label.localeCompare(right.label, "en"),
   );
+}
+
+/** One row per person on an open job. A shared job counts for each person. */
+export function aggregatePersonWorkload(jobs: readonly Job[], today: string): WorkloadEntry[] {
+  const map = new Map<string, WorkloadEntry>();
+  for (const job of uniqueJobs(jobs)) {
+    for (const person of workloadPeople(job)) bump(map, person, job, today);
+  }
+  return sortWorkload([...map.values()]);
+}
+
+/** One row per set of people assigned to the same job. */
+export function aggregateTeamWorkload(jobs: readonly Job[], today: string): WorkloadEntry[] {
+  const map = new Map<string, WorkloadEntry>();
+  for (const job of uniqueJobs(jobs)) {
+    const people = workloadPeople(job);
+    if (people.length === 0) continue;
+    const label = formatTeamLabel(people.map((person) => person.label));
+    const key = people.map((person) => person.key).sort().join("|");
+    bump(map, { key, label }, job, today);
+  }
+  return sortWorkload([...map.values()]);
+}
+
+/** Person workload. The name is kept for existing imports. */
+export function aggregateCrewWorkload(jobs: readonly Job[], today: string): WorkloadEntry[] {
+  return aggregatePersonWorkload(jobs, today);
 }
 
 // ------------------------------------------------------------------

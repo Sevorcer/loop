@@ -6,7 +6,8 @@ import type { CommandCenterSnapshot } from "@/features/command-center/types/comm
 import { getStatusVariants } from "@/lib/jobs/status";
 import {
   computeKPIs,
-  aggregateCrewWorkload,
+  aggregatePersonWorkload,
+  aggregateTeamWorkload,
   buildProblemJobs,
 } from "@/features/command-center/utils/commandCenterUtils";
 
@@ -335,14 +336,18 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     ...late,
   ];
 
+  await attachAssignees(supabase, orgId, allOpenJobs);
+
   const kpis = computeKPIs(rawSnapshot);
-  const crewWorkload = aggregateCrewWorkload(allOpenJobs, today);
+  const personWorkload = aggregatePersonWorkload(allOpenJobs, today);
+  const teamWorkload = aggregateTeamWorkload(allOpenJobs, today);
   const problemJobs = buildProblemJobs(late, unassigned, onHold);
 
   return {
     ...rawSnapshot,
     kpis,
-    crewWorkload,
+    personWorkload,
+    teamWorkload,
     problemJobs,
   };
 }
@@ -374,7 +379,47 @@ export function getEmptyCommandCenterSnapshot(): CommandCenterSnapshot {
       jobsRunningLate: 0,
       avgCompletionHours: null,
     },
-    crewWorkload: [],
+    personWorkload: [],
+    teamWorkload: [],
     problemJobs: [],
   };
+}
+
+async function attachAssignees(
+  supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"],
+  orgId: string,
+  jobs: Job[],
+): Promise<void> {
+  const ids = [...new Set(jobs.map((job) => job.id))];
+  if (ids.length === 0) return;
+  const { data, error } = await supabase
+    .from("job_assignees")
+    .select("job_id,user_id")
+    .eq("org_id", orgId)
+    .in("job_id", ids);
+  if (error) {
+    const message = error.message ?? "";
+    if (error.code === "42P01" || error.code === "PGRST205" || message.includes("job_assignees")) return;
+    throw new Error(error.message);
+  }
+  const rows = (data ?? []) as Array<{ job_id: string; user_id: string }>;
+  const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))];
+  const names = new Map<string, string>();
+  if (userIds.length > 0) {
+    const profiles = await supabase.from("user_profiles").select("id,full_name,email").in("id", userIds);
+    if (profiles.error) throw new Error(profiles.error.message);
+    for (const profile of (profiles.data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) {
+      names.set(profile.id, (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member");
+    }
+  }
+  const byJob = new Map<string, { id: string; name: string }[]>();
+  for (const row of rows) {
+    const list = byJob.get(row.job_id) ?? [];
+    list.push({ id: row.user_id, name: names.get(row.user_id) ?? "Team member" });
+    byJob.set(row.job_id, list);
+  }
+  for (const job of jobs) {
+    const people = byJob.get(job.id);
+    if (people && people.length > 0) job.assignees = people;
+  }
 }

@@ -29,6 +29,8 @@ describe("technician route guard", () => {
     expect(isTechDeniedApiPath("/api/dispatch-plans/plan-1")).toBe(true);
     expect(isTechDeniedApiPath("/api/daily-plans")).toBe(true);
     expect(isTechDeniedApiPath("/api/customers")).toBe(true);
+    expect(isTechDeniedApiPath("/api/reports")).toBe(true);
+    expect(isTechDeniedApiPath("/api/reports/production")).toBe(true);
     expect(isTechDeniedApiPath("/api/jobs")).toBe(false);
     expect(isTechDeniedApiPath("/api/jobs/job-1")).toBe(false);
   });

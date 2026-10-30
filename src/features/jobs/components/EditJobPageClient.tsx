@@ -11,15 +11,20 @@ import { listFieldTechnicians } from "@/services/profileDirectory";
 
 import { editJobIdentityValues } from "../utils/editJobInitialValues";
 import type { Job } from "../types/job";
+import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
+
 import { JobForm } from "./JobForm";
+import { JobPriceEditor } from "./JobPriceEditor";
 
 interface EditJobPageClientProps {
   job: Job;
+  priceVisible?: boolean;
+  priceCents?: number | null;
 }
 
 import { jobToFormScheduling } from "./JobForm";
 
-function EditJobFormContent({ job }: EditJobPageClientProps) {
+function EditJobFormContent({ job, priceVisible = false, priceCents = null }: EditJobPageClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
 
@@ -51,6 +56,15 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
   const schedulingValues = jobToFormScheduling(job);
 
   return (
+    <div className="space-y-4">
+      {priceVisible && canSeeJobRevenue(role) ? (
+        <JobPriceEditor
+          key={`${job.id}:${priceCents ?? "none"}`}
+          jobId={job.id}
+          status={job.status}
+          initialCents={priceCents}
+        />
+      ) : null}
     <JobForm
       mode="edit"
       role={role ?? undefined}
@@ -87,17 +101,18 @@ function EditJobFormContent({ job }: EditJobPageClientProps) {
         router.push(`/jobs/${job.id}`);
       }}
     />
+    </div>
   );
 }
 
-export function EditJobPageClient({ job }: EditJobPageClientProps) {
+export function EditJobPageClient({ job, priceVisible = false, priceCents = null }: EditJobPageClientProps) {
   return (
     <RoutePermissionGuard
       table="jobs"
       action="update"
       deniedDescription="You don't have permission to edit jobs."
     >
-      <EditJobFormContent job={job} />
+      <EditJobFormContent job={job} priceVisible={priceVisible} priceCents={priceCents} />
     </RoutePermissionGuard>
   );
 }

@@ -45,7 +45,8 @@ export async function CommandCenterScreen() {
     callbacks,
     unassigned,
     late,
-    crewWorkload,
+    personWorkload,
+    teamWorkload,
     problemJobs,
   } = snapshot;
 
@@ -54,7 +55,7 @@ export async function CommandCenterScreen() {
       {/* Page header */}
       <PageHeader
         title="Command Center"
-        description="Operational health at a glance — risk, crew load, and intervention priorities for today."
+        description="Operational health at a glance — risk, workload, and intervention priorities for today."
       />
 
       {/* Error banner — non-blocking, screen still renders */}
@@ -80,7 +81,7 @@ export async function CommandCenterScreen() {
       </div>
 
       {/* 4 — Crew Workload (full-width for table readability) */}
-      <CrewWorkloadWidget crewWorkload={crewWorkload} />
+      <CrewWorkloadWidget personWorkload={personWorkload} teamWorkload={teamWorkload} />
 
       {/* 5 — Waiting queues: On Hold, Inspections */}
       <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">

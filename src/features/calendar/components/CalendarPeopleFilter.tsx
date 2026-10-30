@@ -14,7 +14,7 @@ interface CalendarPeopleFilterProps {
   selectedIds: string[];
   groups: CalendarQuickGroup[];
   onChange: (personIds: string[]) => void;
-  onSaveGroup: (name: string, personIds: string[]) => void;
+  onSaveGroup: (name: string, personIds: string[], groupId?: string) => void;
   onApplyGroup: (personIds: string[]) => void;
   onDeleteGroup: (groupId: string) => void;
 }
@@ -30,6 +30,7 @@ export function CalendarPeopleFilter({
 }: CalendarPeopleFilterProps) {
   const [groupName, setGroupName] = useState("");
   const [naming, setNaming] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const selected = new Set(selectedIds);
   const active = selectedIds.length > 0;
   const label = calendarPeopleFilterLabel(people, selectedIds);
@@ -112,6 +113,19 @@ export function CalendarPeopleFilter({
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  onApplyGroup(group.personIds);
+                  setEditingId(group.id);
+                  setGroupName(group.name);
+                  setNaming(true);
+                }}
+                className="px-2 text-sm text-muted hover:text-foreground"
+                aria-label={`Edit group ${group.name}`}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
                 onClick={() => onDeleteGroup(group.id)}
                 className="px-2 text-muted hover:text-foreground"
                 aria-label={`Remove group ${group.name}`}
@@ -124,6 +138,7 @@ export function CalendarPeopleFilter({
             <button
               type="button"
               onClick={() => {
+                setEditingId(null);
                 setGroupName(label);
                 setNaming(true);
               }}
@@ -139,8 +154,9 @@ export function CalendarPeopleFilter({
                 event.preventDefault();
                 const name = groupName.trim();
                 if (!name) return;
-                onSaveGroup(name, selectedIds);
+                onSaveGroup(name, selectedIds, editingId ?? undefined);
                 setNaming(false);
+                setEditingId(null);
                 setGroupName("");
               }}
             >

@@ -129,6 +129,10 @@ export function mapRouteError(error: unknown) {
     return createApiErrorResponse("CONFLICT", message, 409);
   }
 
+  if (status === 503) {
+    return createApiErrorResponse(code ?? "SERVICE_UNAVAILABLE", message, 503);
+  }
+
   if (
     lowerMessage.includes("permission") ||
     lowerMessage.includes("forbidden") ||

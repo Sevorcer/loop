@@ -101,6 +101,28 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 > Tech updates are limited to `done_at` and `done_by` by `guard_tech_calendar_task_update`.
 
+### calendar_saved_groups
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+| INSERT | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+| UPDATE | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+| DELETE | ✓     | ✓       | ✓        | —    | ✓      | —     | —      |
+
+> Shared person filters for the calendar. A technician cannot read them. Each browser still remembers which people that user currently has selected.
+
+### job_financials
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓       | ✓        | assigned | ✓      | —     | —      |
+| INSERT | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
+| UPDATE | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
+| DELETE | ✓     | ✓       | ✓        | —        | ✓      | —     | —      |
+
+> Job price in cents. Owner, manager, dispatch, and office can read and change it for a job in their company. A technician can read it only on a job they are assigned to. Revenue reports stay with owner, manager, dispatch, and office. The job timeline records who changed the price and does not include the amount.
+
 ### job_notes
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |

@@ -56,7 +56,7 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   [ROUTES.COMPANY_BRAIN]: ["owner", "manager"],
 
   // Insights
-  [ROUTES.REPORTING]: ["owner", "manager"],
+  [ROUTES.REPORTING]: ["owner", "manager", "dispatch", "office"],
 
   // Feedback Inbox — manager/owner triage
   [ROUTES.OPS_FEEDBACK]: ["owner", "manager"],

@@ -109,7 +109,7 @@ describe("dispatch role", () => {
   });
 
   it("cannot see restricted management sections", () => {
-    expect(canSee("dispatch", ROUTES.REPORTING)).toBe(false);
+    expect(canSee("dispatch", ROUTES.REPORTING)).toBe(true);
     expect(canSee("dispatch", ROUTES.COMPANY_BRAIN)).toBe(false);
     expect(canSee("dispatch", ROUTES.SETTINGS)).toBe(false);
   });
@@ -146,8 +146,11 @@ describe("office role", () => {
     expect(canSee("office", ROUTES.INSTALLED_SYSTEMS)).toBe(true);
   });
 
+  it("can see production reports", () => {
+    expect(canSee("office", ROUTES.REPORTING)).toBe(true);
+  });
+
   it("cannot see management sections", () => {
-    expect(canSee("office", ROUTES.REPORTING)).toBe(false);
     expect(canSee("office", ROUTES.COMPANY_BRAIN)).toBe(false);
     expect(canSee("office", ROUTES.SETTINGS)).toBe(false);
   });

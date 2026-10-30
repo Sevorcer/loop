@@ -8,8 +8,11 @@ import type { Property } from "@/features/properties/types/property";
 import type { DispatchEvent, DispatchPlan } from "@/features/dispatch/types/dispatch";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { TimelineEventItem } from "@/lib/timeline";
+import { redactJobPriceActivity } from "@/features/jobs/utils/jobPrice";
+import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { listActivityByJobIds } from "@/repositories/jobs";
 import { loadDispatchSnapshot } from "@/services/dispatch";
+import { getCurrentOperator } from "@/services/currentOperator";
 
 function getDispatchEventTitle(type: string) {
   switch (type) {
@@ -35,10 +38,12 @@ async function buildJobEventFeed(jobIds: string[]) {
     return { activity: [], dispatchEvents: [] };
   }
 
-  const [activity, dispatchSnapshot] = await Promise.all([
+  const [activity, dispatchSnapshot, operator] = await Promise.all([
     listActivityByJobIds(jobIds),
     loadDispatchSnapshot(),
+    getCurrentOperator().catch(() => ({ name: "Team", appRole: null })),
   ]);
+  const visibleActivity = redactJobPriceActivity(activity, canSeeJobRevenue(operator.appRole));
 
   const jobIdSet = new Set(jobIds);
   const planById = new Map(dispatchSnapshot.plans.map((plan) => [plan.id, plan]));
@@ -52,7 +57,7 @@ async function buildJobEventFeed(jobIds: string[]) {
     dispatchEvents.push({ event, plan });
   }
 
-  return { activity, dispatchEvents };
+  return { activity: visibleActivity, dispatchEvents };
 }
 
 function buildJobScheduledEvents(

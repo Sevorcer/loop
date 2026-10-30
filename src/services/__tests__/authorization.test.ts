@@ -466,6 +466,38 @@ describe("privilege escalation — denied paths", () => {
     }
   });
 
+  it("lets the office share calendar groups and keeps technicians out", () => {
+    const editors: AppRole[] = ["owner", "manager", "dispatch", "office"];
+    const actions: TableAction[] = ["select", "insert", "update", "delete"];
+    for (const role of editors) {
+      expectAllowed(role, "calendar_saved_groups", actions);
+      expectAllowed(role, "calendar_saved_group_members", ["select", "insert", "delete"]);
+      expectDenied(role, "calendar_saved_group_members", ["update"]);
+    }
+    const blocked: AppRole[] = ["tech", "sales", "portal"];
+    for (const role of blocked) {
+      expectDenied(role, "calendar_saved_groups", actions);
+      expectDenied(role, "calendar_saved_group_members", actions);
+    }
+  });
+
+  it("lets owner, manager, dispatch, and office see job revenue and hides reports from technicians", () => {
+    const finance: AppRole[] = ["owner", "manager", "dispatch", "office"];
+    const actions: TableAction[] = ["select", "insert", "update", "delete"];
+    for (const role of finance) {
+      expectAllowed(role, "job_financials", actions);
+      expectAllowed(role, "job_financials_history", ["select", "insert"]);
+      expectDenied(role, "job_financials_history", ["update", "delete"]);
+    }
+    expectAllowed("tech", "job_financials", ["select"]);
+    expectDenied("tech", "job_financials", ["insert", "update", "delete"]);
+    expectDenied("tech", "job_financials_history", actions);
+    for (const role of ["sales", "portal"] as const) {
+      expectDenied(role, "job_financials", actions);
+      expectDenied(role, "job_financials_history", actions);
+    }
+  });
+
   it("portal cannot access internal tables even if stacked with other role logic", () => {
     // This test verifies the portal isolation rule is structurally enforced in
     // the permission matrix and is not bypassable by combining role checks.

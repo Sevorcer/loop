@@ -7,12 +7,13 @@ import {
   type ReactNode,
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CALENDAR_PEOPLE_GROUPS_KEY,
   CALENDAR_PEOPLE_STORAGE_KEY,
 } from "../utils/calendarPeopleFilter";
+import { resetGroupImportClaims } from "../utils/calendarGroupSync";
 import { CALENDAR_VIEW_STORAGE_KEY } from "../utils/calendarSchedule";
 
 vi.mock("next/navigation", () => ({
@@ -29,8 +30,11 @@ vi.mock("next/link", async () => {
   };
 });
 
+const authState = vi.hoisted(() => ({ role: "owner" }));
+const requestJson = vi.hoisted(() => vi.fn());
+
 vi.mock("@/features/auth", () => ({
-  useCurrentRole: () => ({ role: "owner", setDevRole: () => {} }),
+  useCurrentRole: () => ({ role: authState.role, setDevRole: () => {} }),
 }));
 
 vi.mock("@/features/jobs/state/JobsProvider", () => ({
@@ -47,7 +51,7 @@ vi.mock("@/lib/api/client", () => ({
       this.status = status;
     }
   },
-  requestJson: () => Promise.resolve({ timeOff: [], tasks: [], team: [] }),
+  requestJson: (...args: unknown[]) => requestJson(...args),
 }));
 
 import {
@@ -85,6 +89,27 @@ async function render(node: ReactElement) {
   return container;
 }
 
+beforeEach(() => {
+  authState.role = "owner";
+  requestJson.mockImplementation(async (url: string, options?: { method?: string; body?: { name?: string; personIds?: string[] } }) => {
+    const path = String(url);
+    if (path.includes("/api/calendar/groups")) {
+      if (options?.method === "POST") {
+        return {
+          group: {
+            id: "saved-group",
+            name: options.body?.name ?? "Group",
+            personIds: options.body?.personIds ?? [],
+          },
+        };
+      }
+      return { groups: [] };
+    }
+    if (path.includes("/api/calendar/team")) return { team: [] };
+    return { timeOff: [], tasks: [] };
+  });
+});
+
 afterEach(() => {
   while (roots.length > 0) {
     const root = roots.pop();
@@ -96,6 +121,8 @@ afterEach(() => {
   localStorage.removeItem(CALENDAR_PEOPLE_STORAGE_KEY);
   localStorage.removeItem(CALENDAR_PEOPLE_GROUPS_KEY);
   localStorage.removeItem(CALENDAR_VIEW_STORAGE_KEY);
+  resetGroupImportClaims();
+  authState.role = "owner";
 });
 
 describe("calendar snapshot readers", () => {
@@ -216,16 +243,50 @@ describe("calendar screen store render", () => {
     expect(container.textContent).toContain("Calendar");
   });
 
-  it("mounts the calendar with a saved person filter", async () => {
-    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(["brian", "sean"]));
+  it("mounts the calendar with a saved person filter and shares the local group", async () => {
+    localStorage.setItem(CALENDAR_PEOPLE_STORAGE_KEY, JSON.stringify(["brian", "alex"]));
     localStorage.setItem(
       CALENDAR_PEOPLE_GROUPS_KEY,
-      JSON.stringify([{ id: "g1", name: "Install crew", personIds: ["brian", "sean"] }]),
+      JSON.stringify([{ id: "g1", name: "Install crew", personIds: ["brian", "alex"] }]),
     );
 
     const container = await render(createElement(CalendarScreen));
 
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("Install crew");
+    });
     expect(container.textContent).toContain("Calendar");
-    expect(container.textContent).toContain("Install crew");
+    expect(localStorage.getItem(CALENDAR_PEOPLE_GROUPS_KEY)).toBeNull();
+    expect(requestJson).toHaveBeenCalledWith(
+      "/api/calendar/groups",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("shows a group stored for the office", async () => {
+    requestJson.mockImplementation(async (url: string) => {
+      const path = String(url);
+      if (path.includes("/api/calendar/groups")) {
+        return { groups: [{ id: "shared", name: "Morning route", personIds: ["alex"] }] };
+      }
+      if (path.includes("/api/calendar/team")) return { team: [] };
+      return { timeOff: [], tasks: [] };
+    });
+
+    const container = await render(createElement(CalendarScreen));
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("Morning route");
+    });
+  });
+
+  it("does not show the people filter to a technician", async () => {
+    authState.role = "tech";
+    const container = await render(createElement(CalendarScreen));
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("Calendar");
+    });
+    expect(container.textContent).not.toContain("Showing everyone");
+    expect(container.textContent).not.toContain("Save group");
   });
 });

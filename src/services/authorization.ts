@@ -53,6 +53,10 @@ export type CoreTable =
   | "job_callbacks"
   | "time_off"
   | "calendar_tasks"
+  | "calendar_saved_groups"
+  | "calendar_saved_group_members"
+  | "job_financials"
+  | "job_financials_history"
   | "portal_users"
   | "portal_memberships"
   // Sprint 27 — platform service tables
@@ -187,6 +191,36 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
     update: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
     delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  calendar_saved_groups: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  calendar_saved_group_members: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  // Dispatch matches office. A technician may read a price only on an
+  // assigned job; row security enforces that. Sales and portal cannot.
+  job_financials: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+  },
+
+  job_financials_history: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
   },
 
   portal_users: {

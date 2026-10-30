@@ -32,6 +32,13 @@ import {
   type CalendarQuickGroup,
 } from "../utils/calendarPeopleFilter";
 import {
+  clearLocalCalendarGroups,
+  mergeCalendarGroups,
+  readLocalCalendarGroups,
+  releaseGroupImport,
+  takeGroupsToImport,
+} from "../utils/calendarGroupSync";
+import {
   CALENDAR_VIEW_STORAGE_KEY,
   calendarJobHeading,
   calendarJobSubtitle,
@@ -291,20 +298,14 @@ export function CalendarScreen() {
     readStoredPeople,
     readPeopleServer,
   );
-  const groupsSnapshot = useSyncExternalStore(
-    subscribeCalendarPeople,
-    readStoredGroups,
-    readGroupsServer,
-  );
-  const peopleReady = peopleSnapshot !== CALENDAR_PEOPLE_PENDING && groupsSnapshot !== CALENDAR_PEOPLE_PENDING;
+  const peopleReady = peopleSnapshot !== CALENDAR_PEOPLE_PENDING;
   const selectedPeople = useMemo(
     () => (peopleSnapshot === CALENDAR_PEOPLE_PENDING ? [] : peopleSnapshot),
     [peopleSnapshot],
   );
-  const savedGroups = useMemo(
-    () => (groupsSnapshot === CALENDAR_PEOPLE_PENDING ? [] : groupsSnapshot),
-    [groupsSnapshot],
-  );
+  const [savedGroups, setSavedGroups] = useState<CalendarQuickGroup[]>([]);
+  const [groupsReady, setGroupsReady] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
 
   const directory = useMemo(() => {
     const byId = new Map<string, string>();
@@ -363,6 +364,122 @@ export function CalendarScreen() {
     }
     emitCalendarPeople();
   }, []);
+
+  useEffect(() => {
+    if (!office || !role) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await requestJson<{ groups?: CalendarQuickGroup[] }>("/api/calendar/groups", {
+          role,
+          cache: "no-store",
+        });
+        const remote = Array.isArray(data.groups) ? data.groups : [];
+        const pending = takeGroupsToImport(readLocalCalendarGroups(), remote);
+        const created: CalendarQuickGroup[] = [];
+        let failed = false;
+        for (const group of pending) {
+          try {
+            const saved = await requestJson<{ group?: CalendarQuickGroup }>("/api/calendar/groups", {
+              method: "POST",
+              role,
+              cache: "no-store",
+              body: { name: group.name, personIds: group.personIds },
+            });
+            if (saved.group?.id && saved.group.name) {
+              created.push(saved.group);
+            } else {
+              failed = true;
+              releaseGroupImport(group);
+            }
+          } catch {
+            failed = true;
+            releaseGroupImport(group);
+          }
+        }
+        if (!failed) {
+          rememberedGroups = null;
+          cachedGroupsRaw = undefined;
+          clearLocalCalendarGroups();
+          emitCalendarPeople();
+        }
+        if (cancelled) return;
+        setSavedGroups(
+          mergeCalendarGroups([...remote, ...created, ...(failed ? readLocalCalendarGroups() : [])]),
+        );
+        setGroupError(
+          failed ? "A saved group could not be shared yet. It is still in this browser." : null,
+        );
+      } catch (error) {
+        if (cancelled) return;
+        setSavedGroups(readLocalCalendarGroups());
+        if (!(error instanceof ApiRequestError) || (error.status !== 401 && error.status !== 403)) {
+          setGroupError("Shared groups could not be loaded. Showing groups saved in this browser.");
+        }
+      } finally {
+        if (!cancelled) setGroupsReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [office, role]);
+
+  const persistGroup = useCallback(
+    async (name: string, personIds: string[], groupId?: string) => {
+      if (!role) return;
+      const existing = groupId
+        ? savedGroups.find((group) => group.id === groupId)
+        : savedGroups.find((group) => group.name.trim().toLowerCase() === name.trim().toLowerCase());
+      try {
+        const saved = await requestJson<{ group: CalendarQuickGroup }>(
+          existing ? `/api/calendar/groups/${existing.id}` : "/api/calendar/groups",
+          {
+            method: existing ? "PATCH" : "POST",
+            role,
+            body: { name, personIds },
+          },
+        );
+        setSavedGroups((current) =>
+          mergeCalendarGroups([
+            ...current.filter((group) => group.id !== saved.group.id),
+            saved.group,
+          ]),
+        );
+        setGroupError(null);
+      } catch (error) {
+        if (error instanceof ApiRequestError && error.status === 503) {
+          const fallback: CalendarQuickGroup = {
+            id: existing?.id ?? `${Date.now()}`,
+            name,
+            personIds,
+          };
+          const next = mergeCalendarGroups([
+            ...savedGroups.filter((group) => group.id !== fallback.id),
+            fallback,
+          ]);
+          rememberGroups(next);
+          setSavedGroups(next);
+        }
+        setGroupError(error instanceof Error ? error.message : "The group could not be saved.");
+      }
+    },
+    [rememberGroups, role, savedGroups],
+  );
+
+  const removeGroup = useCallback(
+    async (groupId: string) => {
+      if (!role) return;
+      try {
+        await requestJson(`/api/calendar/groups/${groupId}`, { method: "DELETE", role });
+        setSavedGroups((current) => current.filter((group) => group.id !== groupId));
+        setGroupError(null);
+      } catch (error) {
+        setGroupError(error instanceof Error ? error.message : "The group could not be removed.");
+      }
+    },
+    [role],
+  );
 
   const reloadEntries = useCallback(async () => {
     if (!role) return;
@@ -513,7 +630,7 @@ export function CalendarScreen() {
         />
       </div>
 
-      {!hydrated || !viewReady || (office && !peopleReady) ? (
+      {!hydrated || !viewReady || !peopleReady || (office && role && !groupsReady) ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
           Loading calendar…
         </div>
@@ -526,17 +643,15 @@ export function CalendarScreen() {
               groups={savedGroups}
               onChange={rememberPeople}
               onApplyGroup={rememberPeople}
-              onSaveGroup={(name, personIds) => {
-                rememberGroups([
-                  ...savedGroups.filter((group) => group.name !== name),
-                  { id: `${Date.now()}`, name, personIds },
-                ]);
+              onSaveGroup={(name, personIds, groupId) => {
+                void persistGroup(name, personIds, groupId);
               }}
               onDeleteGroup={(groupId) => {
-                rememberGroups(savedGroups.filter((group) => group.id !== groupId));
+                void removeGroup(groupId);
               }}
             />
           ) : null}
+          {office && groupError ? <p className="text-sm text-muted">{groupError}</p> : null}
           <CalendarGrid
             view={view}
             month={month}
