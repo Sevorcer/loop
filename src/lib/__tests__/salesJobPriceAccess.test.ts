@@ -115,7 +115,14 @@ describe("sales entering a price", () => {
     const operator = await import("@/services/currentOperator");
 
     vi.spyOn(jobs, "getJobById").mockResolvedValue({ id: "job-1" } as never);
-    vi.spyOn(jobs, "createJobActivity").mockResolvedValue({} as never);
+    vi.spyOn(jobs, "createJobActivity").mockResolvedValue({
+      id: "activity-sales",
+      jobId: "job-1",
+      type: "price",
+      title: "Job price updated",
+      description: "Priya Shah set the job price.",
+      timestamp: "2026-10-30T18:00:00.000Z",
+    } as never);
     vi.spyOn(prices, "readJobPrice").mockResolvedValue(null);
     const write = vi.spyOn(prices, "writeJobPrice").mockResolvedValue();
     vi.spyOn(operator, "getCurrentOperator").mockResolvedValue({
@@ -125,7 +132,9 @@ describe("sales entering a price", () => {
 
     const saved = await setJobPriceForRole("sales", "job-1", 240000, "sales-user");
 
-    expect(saved).toBe(240000);
+    expect(saved.revenueCents).toBe(240000);
+    expect(saved.activity?.title).toBe("Job price updated");
+    expect(saved.activity?.description).not.toMatch(/\$|\d/);
     expect(write).toHaveBeenCalledWith("job-1", 240000, "sales-user", null);
     const activity = vi.mocked(jobs.createJobActivity).mock.calls[0]?.[0];
     expect(activity?.type).toBe("price");

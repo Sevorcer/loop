@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ClipboardPlus, FilePenLine } from "lucide-react";
 import Link from "next/link";
 
@@ -165,6 +165,7 @@ interface JobFormProps {
   propertyOptions?: JobPropertyOption[];
   technicianOptions?: string[]; technicianProfiles?: { id: string; name: string }[];
   onSubmit: (values: JobFormValues) => Promise<void> | void; onCreateCustomer?: (name: string) => Promise<{ id: string; name: string }>; onCreateProperty?: (input: PropertyDraft & { customerId?: string }) => Promise<{ id: string; name: string }>;
+  priceFields?: ReactNode;
   onCustomerSearch?: (text: string) => void; onPropertySearch?: (text: string, customerId?: string) => void;
   onCustomerSelected?: (customerId: string) => void;
 }
@@ -187,6 +188,7 @@ export function JobForm({
   propertyOptions = [],
   technicianOptions = [], technicianProfiles = [], onCreateCustomer, onCreateProperty,
   onSubmit, onCustomerSearch, onPropertySearch, onCustomerSelected,
+  priceFields,
 }: JobFormProps) {
   const [form, setForm] = useState<JobFormValues>({
     ...defaultJobFormValues,
@@ -652,6 +654,8 @@ export function JobForm({
                 ))}
               </select>
             </div>
+
+            {priceFields ? <div className="space-y-2 lg:col-span-2">{priceFields}</div> : null}
 
             {form.type === "Install" ? (
               <div className="space-y-2 lg:col-span-2">

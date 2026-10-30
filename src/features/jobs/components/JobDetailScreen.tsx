@@ -77,6 +77,7 @@ interface JobDetailScreenProps {
   notes: JobNote[];
   callbackContext?: JobCallbackContext;
   onUpdateStatus: (status: JobStatus) => Promise<void>;
+  onPriceRecorded?: (activity: JobActivity) => void;
   onAddNote: (note: string) => Promise<void>;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
   priceVisible?: boolean;
@@ -89,6 +90,7 @@ export function JobDetailScreen({
   notes,
   callbackContext = EMPTY_JOB_CALLBACK_CONTEXT,
   onUpdateStatus,
+  onPriceRecorded,
   onAddNote,
   onUpdateQaChecklist,
   priceVisible = false,
@@ -259,6 +261,7 @@ export function JobDetailScreen({
               status={job.status}
               initialCents={priceCents}
               readOnly={!canSeeJobRevenue(role)}
+              onRecorded={onPriceRecorded}
             />
           ) : null}
           <SurfaceCard>

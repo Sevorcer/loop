@@ -194,26 +194,27 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
     );
   }
 
+  const priceFields = canSeeJobRevenue(role) ? (
+    <label className="block space-y-2 text-sm text-slate-200" htmlFor="new-job-price">
+      <span className="font-medium">
+        Job price <span className="text-slate-500">(optional)</span>
+      </span>
+      <input
+        id="new-job-price"
+        inputMode="decimal"
+        value={priceDraft}
+        onChange={(event) => setPriceDraft(event.target.value)}
+        placeholder="0.00"
+        className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
+      />
+      <span className="block text-xs text-slate-500">Dollars and cents. You can change it later on the job.</span>
+    </label>
+  ) : null;
+
   return (
     <div className="space-y-4">
       {smartLoadError ? (
         <SurfaceCard className="p-4 text-sm text-amber-200">{smartLoadError}</SurfaceCard>
-      ) : null}
-      {canSeeJobRevenue(role) ? (
-        <SurfaceCard className="mx-auto max-w-3xl">
-          <label className="block space-y-2 p-6 text-sm text-slate-300" htmlFor="new-job-price">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Job price</span>
-            <input
-              id="new-job-price"
-              inputMode="decimal"
-              value={priceDraft}
-              onChange={(event) => setPriceDraft(event.target.value)}
-              placeholder="0.00"
-              className="block min-h-11 w-full rounded-xl border border-white/10 bg-transparent px-3 text-sm text-white"
-            />
-            <span className="block text-xs text-slate-500">Optional. Dollars and cents. You can change it later on the job.</span>
-          </label>
-        </SurfaceCard>
       ) : null}
       <JobForm
         mode="create"
@@ -222,6 +223,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
         customerOptions={customerOptions}
         propertyOptions={propertyOptions}
         technicianOptions={technicianOptions} technicianProfiles={technicianProfiles}
+        priceFields={priceFields}
         onSubmit={handleSubmit}
         onCreateCustomer={createCustomer}
         onCreateProperty={async (input) => {

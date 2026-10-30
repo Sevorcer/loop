@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import { JOB_PRICE_ACTIVITY_TYPE, jobPriceActivityCopy } from "@/features/jobs/utils/jobPrice";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { createJobActivity, getJobById } from "@/repositories/jobs";
@@ -29,12 +30,12 @@ export async function setJobPriceForRole(
   jobId: string,
   cents: number | null,
   userId: string | null,
-): Promise<number | null> {
+): Promise<{ revenueCents: number | null; activity: JobActivity | null }> {
   if (!canSeeJobRevenue(role)) throw denied();
   const job = await getJobById(jobId);
   if (!job) throw Object.assign(new Error("Job not found."), { status: 404 });
   const previous = await readJobPrice(jobId);
-  if (previous === cents) return cents;
+  if (previous === cents) return { revenueCents: cents, activity: null };
   await writeJobPrice(jobId, cents, userId, previous);
   let actorName = "Someone";
   try {
@@ -45,12 +46,12 @@ export async function setJobPriceForRole(
   }
   const kind = cents == null ? "cleared" : previous == null ? "set" : "changed";
   const copy = jobPriceActivityCopy(actorName, kind);
-  await createJobActivity({
+  const activity = await createJobActivity({
     jobId,
     actorId: userId ?? undefined,
     type: JOB_PRICE_ACTIVITY_TYPE,
     title: copy.title,
     description: copy.description,
   });
-  return cents;
+  return { revenueCents: cents, activity };
 }

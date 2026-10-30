@@ -9,11 +9,14 @@ import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 import { formatCentsAsUsd } from "@/lib/money";
 
+import type { JobActivity } from "../types/jobActivity";
+
 interface JobPriceEditorProps {
   jobId: string;
   status: string;
   initialCents: number | null;
   readOnly?: boolean;
+  onRecorded?: (activity: JobActivity) => void;
 }
 
 function draftFromCents(cents: number | null): string {
@@ -26,6 +29,7 @@ export function JobPriceFields({
   initialCents,
   role,
   readOnly = false,
+  onRecorded,
 }: JobPriceEditorProps & { role: string | null }) {
   const router = useRouter();
   const [cents, setCents] = useState(initialCents);
@@ -52,13 +56,17 @@ export function JobPriceFields({
     setSaving(true);
     setError(null);
     try {
-      const result = await requestJson<{ revenueCents: number | null }>(`/api/jobs/${jobId}/price`, {
-        method: "PUT",
-        role,
-        body: { amount: draft },
-      });
+      const result = await requestJson<{ revenueCents: number | null; activity?: JobActivity | null }>(
+        `/api/jobs/${jobId}/price`,
+        {
+          method: "PUT",
+          role,
+          body: { amount: draft },
+        },
+      );
       setCents(result.revenueCents);
       setDraft(draftFromCents(result.revenueCents));
+      if (result.activity) onRecorded?.(result.activity);
       pushToast(result.revenueCents == null ? "Job price cleared." : "Job price saved.", "success");
       router.refresh();
     } catch (err: unknown) {
@@ -109,7 +117,13 @@ export function JobPriceFields({
   );
 }
 
-export function JobPriceEditor({ jobId, status, initialCents, readOnly = false }: JobPriceEditorProps) {
+export function JobPriceEditor({
+  jobId,
+  status,
+  initialCents,
+  readOnly = false,
+  onRecorded,
+}: JobPriceEditorProps) {
   const { role } = useCurrentRole();
   return (
     <JobPriceFields
@@ -118,6 +132,7 @@ export function JobPriceEditor({ jobId, status, initialCents, readOnly = false }
       initialCents={initialCents}
       role={role}
       readOnly={readOnly}
+      onRecorded={onRecorded}
     />
   );
 }

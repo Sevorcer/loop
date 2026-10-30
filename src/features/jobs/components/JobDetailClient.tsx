@@ -13,6 +13,7 @@ import type { JobCallbackContext } from "../types/jobCallback";
 import type { JobNote } from "../types/jobNote";
 import type { RequiredQaChecklist } from "../utils/jobCompletionChecklist";
 import { JOB_NOTE_SAVED_TOAST } from "../utils/jobNotes";
+import { mergeRecordedActivity } from "../utils/jobWorkspace";
 import { JobDetailScreen } from "./JobDetailScreen";
 
 interface JobDetailClientProps {
@@ -34,30 +35,29 @@ export function JobDetailClient({
 }: JobDetailClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
-  const [optimisticStatus, setOptimisticStatus] = useState<JobStatus | null>(null);
+  const [confirmedStatus, setConfirmedStatus] = useState<JobStatus | null>(null);
+  const [recordedActivity, setRecordedActivity] = useState<JobActivity[]>([]);
+  const activityItems = mergeRecordedActivity(recordedActivity, activity, job.id);
   const liveJob: Job = {
     ...job,
-    status: optimisticStatus && optimisticStatus !== job.status ? optimisticStatus : job.status,
+    status: confirmedStatus && confirmedStatus !== job.status ? confirmedStatus : job.status,
   };
 
   async function handleUpdateStatus(status: JobStatus) {
-    setOptimisticStatus(status);
-    try {
-      await requestJson(`/api/jobs/${job.id}`, {
-        method: "PATCH",
-        role,
-        body: { action: "status", status },
-      });
-      pushToast(`Job moved to ${status}.`, "success");
-      router.refresh();
-    } catch (error) {
-      setOptimisticStatus(null);
-      pushToast(
-        error instanceof Error ? error.message : "Couldn't update the job status.",
-        "error",
-      );
-      throw error;
-    }
+    await requestJson(`/api/jobs/${job.id}`, {
+      method: "PATCH",
+      role,
+      body: { action: "status", status },
+    });
+    setConfirmedStatus(status);
+    pushToast(`Job moved to ${status}.`, "success");
+    router.refresh();
+  }
+
+  function handlePriceRecorded(entry: JobActivity) {
+    setRecordedActivity((current) =>
+      current.some((item) => item.id === entry.id) ? current : [entry, ...current],
+    );
   }
 
   async function handleAddNote(note: string) {
@@ -93,10 +93,11 @@ export function JobDetailClient({
   return (
     <JobDetailScreen
       job={liveJob}
-      activity={activity}
+      activity={activityItems}
       notes={notes}
       callbackContext={callbackContext}
       onUpdateStatus={handleUpdateStatus}
+      onPriceRecorded={handlePriceRecorded}
       onAddNote={handleAddNote}
       onUpdateQaChecklist={handleUpdateQaChecklist}
       priceVisible={priceVisible}

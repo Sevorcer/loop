@@ -46,8 +46,8 @@ export async function PUT(request: Request, context: RouteContext) {
         { status: 400 },
       );
     }
-    const revenueCents = await setJobPriceForRole(guard.ctx.role, id, parsed.cents, guard.ctx.userId || null);
-    return NextResponse.json({ revenueCents });
+    const saved = await setJobPriceForRole(guard.ctx.role, id, parsed.cents, guard.ctx.userId || null);
+    return NextResponse.json(saved);
   } catch (error) {
     return mapRouteError(error);
   }

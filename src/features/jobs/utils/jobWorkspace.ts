@@ -18,6 +18,17 @@ export function getJobStatusIntent(status: JobStatus): string {
   return JOB_STATUS_INTENTS[status];
 }
 
+/** Keep a price line that was just saved if a refresh has not returned it yet. */
+export function mergeRecordedActivity(
+  current: readonly JobActivity[],
+  incoming: readonly JobActivity[],
+  jobId: string,
+): JobActivity[] {
+  const incomingIds = new Set(incoming.map((item) => item.id));
+  const pending = current.filter((item) => item.jobId === jobId && !incomingIds.has(item.id));
+  return [...pending, ...incoming];
+}
+
 export function sortJobActivity(activity: JobActivity[]): JobActivity[] {
   return [...activity].sort((left, right) => {
     const timestampDelta =

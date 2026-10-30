@@ -263,6 +263,75 @@ describe("calendar screen store render", () => {
     );
   });
 
+  it("shows the shared group controls before anyone is selected", async () => {
+    const container = await render(createElement(CalendarScreen));
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("Shared groups");
+    });
+    expect(container.textContent).toContain("save a group");
+    expect(container.querySelector("[data-calendar-shared-groups]")).not.toBeNull();
+  });
+
+  it("saves the selected people as a shared group", async () => {
+    requestJson.mockImplementation(async (url: string, options?: { method?: string; body?: { name?: string; personIds?: string[] } }) => {
+      const path = String(url);
+      if (path.includes("/api/calendar/team")) {
+        return {
+          team: [
+            { id: "antonio", name: "Antonio Vilchez" },
+            { id: "brian", name: "Brian Ramirez" },
+          ],
+        };
+      }
+      if (path.includes("/api/calendar/groups") && options?.method === "POST") {
+        return {
+          group: {
+            id: "saved-group",
+            name: options.body?.name ?? "Group",
+            personIds: options.body?.personIds ?? [],
+          },
+        };
+      }
+      if (path.includes("/api/calendar/groups")) return { groups: [] };
+      return { timeOff: [], tasks: [] };
+    });
+
+    const container = await render(createElement(CalendarScreen));
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("Antonio Vilchez");
+    });
+
+    const buttonNamed = (name: string) =>
+      [...container.querySelectorAll("button")].find((button) => button.textContent === name);
+
+    await act(async () => {
+      buttonNamed("Antonio Vilchez")?.click();
+    });
+    await act(async () => {
+      buttonNamed("Brian Ramirez")?.click();
+    });
+    await act(async () => {
+      buttonNamed("Save group")?.click();
+    });
+    await act(async () => {
+      container.querySelector("form")?.requestSubmit();
+    });
+
+    await vi.waitFor(() => {
+      expect(requestJson).toHaveBeenCalledWith(
+        "/api/calendar/groups",
+        expect.objectContaining({
+          method: "POST",
+          body: {
+            name: "Antonio Vilchez + Brian Ramirez",
+            personIds: ["antonio", "brian"],
+          },
+        }),
+      );
+    });
+    expect(container.textContent).toContain("Antonio Vilchez + Brian Ramirez");
+  });
+
   it("shows a group stored for the office", async () => {
     requestJson.mockImplementation(async (url: string) => {
       const path = String(url);
@@ -287,6 +356,7 @@ describe("calendar screen store render", () => {
       expect(container.textContent).toContain("Calendar");
     });
     expect(container.textContent).not.toContain("Showing everyone");
+    expect(container.textContent).not.toContain("Shared groups");
     expect(container.textContent).not.toContain("Save group");
   });
 });
