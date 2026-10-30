@@ -7,6 +7,7 @@ import { useMobileActionBarFlag } from "@/components/mobile/useMobileActionBarFl
 
 import type { Job, JobStatus } from "../types/job";
 import { buildDirectionsUrl, getPrimaryAdvance } from "../utils/jobMobileActions";
+import { JobStatusFailure } from "./JobStatusActions";
 
 interface JobMobileActionBarProps {
   job: Job;
@@ -49,7 +50,9 @@ export function JobMobileActionBar({ job, onUpdateStatus }: JobMobileActionBarPr
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       {error ? (
-        <p className="border-b border-red-500/20 px-4 py-2 text-xs text-red-300">{error}</p>
+        <div className="px-3 pt-3">
+          <JobStatusFailure message={error} />
+        </div>
       ) : null}
       <div className="flex items-stretch gap-2 p-3">
         {advance ? (

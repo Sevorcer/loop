@@ -4,6 +4,7 @@ import type { JobActivity } from "../types/jobActivity";
 import type { JobStatus } from "../types/job";
 import {
   getJobStatusIntent,
+  mergeRecordedActivity,
   sortJobActivity,
   canTransitionStatus,
   getValidNextStatuses,
@@ -34,6 +35,29 @@ describe("jobWorkspace", () => {
       "a-newer",
       "a-older",
     ]);
+  });
+
+  it("keeps a just-saved price line until the refreshed list includes it", () => {
+    const recorded: JobActivity = {
+      id: "price-1",
+      jobId: "job-1",
+      type: "price",
+      title: "Job price updated",
+      description: "Alex Nguyen set the job price.",
+      timestamp: "2026-10-30T18:00:00.000Z",
+    };
+    const older: JobActivity = {
+      id: "created-1",
+      jobId: "job-1",
+      type: "created",
+      title: "Job created",
+      description: "Created",
+      timestamp: "2026-10-30T17:00:00.000Z",
+    };
+    const staleRefresh = mergeRecordedActivity([recorded, older], [older], "job-1");
+    expect(staleRefresh.map((item) => item.id)).toEqual(["price-1", "created-1"]);
+    const caughtUp = mergeRecordedActivity(staleRefresh, [recorded, older], "job-1");
+    expect(caughtUp.map((item) => item.id)).toEqual(["price-1", "created-1"]);
   });
 
   it("returns stable ordering when timestamps match", () => {

@@ -97,85 +97,93 @@ export function CalendarPeopleFilter({
         })}
       </div>
 
-      {groups.length > 0 || selectedIds.length > 1 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {groups.map((group) => (
-            <span
-              key={group.id}
-              className="inline-flex min-h-10 items-center rounded-full border border-white/10"
-            >
-              <button
-                type="button"
-                onClick={() => onApplyGroup(group.personIds)}
-                className="px-3 text-sm text-foreground"
+      <div className="space-y-2 border-t border-white/10 pt-3" data-calendar-shared-groups="">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Shared groups</p>
+        <p className="text-sm text-muted">
+          {groups.length === 0
+            ? "No shared groups yet. Select people and save a group. Everyone in the office sees it."
+            : "These groups are shared with the office and stay after a reload."}
+        </p>
+        {groups.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {groups.map((group) => (
+              <span
+                key={group.id}
+                className="inline-flex min-h-10 items-center rounded-full border border-white/10"
               >
-                {group.name}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onApplyGroup(group.personIds);
-                  setEditingId(group.id);
-                  setGroupName(group.name);
-                  setNaming(true);
-                }}
-                className="px-2 text-sm text-muted hover:text-foreground"
-                aria-label={`Edit group ${group.name}`}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => onDeleteGroup(group.id)}
-                className="px-2 text-muted hover:text-foreground"
-                aria-label={`Remove group ${group.name}`}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          ))}
-          {selectedIds.length > 1 && !naming ? (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingId(null);
-                setGroupName(label);
-                setNaming(true);
-              }}
-              className="min-h-10 rounded-full border border-dashed border-white/15 px-3 text-sm text-muted hover:text-foreground"
-            >
-              Save group
+                <button
+                  type="button"
+                  onClick={() => onApplyGroup(group.personIds)}
+                  className="px-3 text-sm text-foreground"
+                >
+                  {group.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApplyGroup(group.personIds);
+                    setEditingId(group.id);
+                    setGroupName(group.name);
+                    setNaming(true);
+                  }}
+                  className="px-2 text-sm text-muted hover:text-foreground"
+                  aria-label={`Edit group ${group.name}`}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDeleteGroup(group.id)}
+                  className="px-2 text-muted hover:text-foreground"
+                  aria-label={`Remove group ${group.name}`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {selectedIds.length > 0 && !naming ? (
+          <button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setGroupName(label === "All" ? "" : label);
+              setNaming(true);
+            }}
+            className="min-h-10 rounded-full border border-dashed border-white/15 px-3 text-sm text-muted hover:text-foreground"
+          >
+            Save group
+          </button>
+        ) : null}
+        {naming ? (
+          <form
+            className="flex min-w-0 flex-wrap items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = groupName.trim();
+              if (!name || selectedIds.length === 0) return;
+              onSaveGroup(name, selectedIds, editingId ?? undefined);
+              setNaming(false);
+              setEditingId(null);
+              setGroupName("");
+            }}
+          >
+            <label className="sr-only" htmlFor="calendar-group-name">
+              Group name
+            </label>
+            <input
+              id="calendar-group-name"
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              className="min-h-10 min-w-[10rem] flex-1 rounded-xl border border-white/10 bg-transparent px-3 text-sm text-foreground"
+            />
+            <button type="submit" className="min-h-10 rounded-full border border-white/15 px-3 text-sm">
+              Save
             </button>
-          ) : null}
-          {naming ? (
-            <form
-              className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const name = groupName.trim();
-                if (!name) return;
-                onSaveGroup(name, selectedIds, editingId ?? undefined);
-                setNaming(false);
-                setEditingId(null);
-                setGroupName("");
-              }}
-            >
-              <label className="sr-only" htmlFor="calendar-group-name">
-                Group name
-              </label>
-              <input
-                id="calendar-group-name"
-                value={groupName}
-                onChange={(event) => setGroupName(event.target.value)}
-                className="min-h-10 min-w-[10rem] flex-1 rounded-xl border border-white/10 bg-transparent px-3 text-sm text-foreground"
-              />
-              <button type="submit" className="min-h-10 rounded-full border border-white/15 px-3 text-sm">
-                Save
-              </button>
-            </form>
-          ) : null}
-        </div>
-      ) : null}
+          </form>
+        ) : null}
+      </div>
     </div>
   );
 }

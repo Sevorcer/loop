@@ -16,7 +16,39 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 
 import type { JobStatus } from "../types/job";
+import { completionBlockers } from "../utils/jobCompletionChecklist";
 import { getJobStatusIntent, getValidNextStatuses } from "../utils/jobWorkspace";
+
+export function JobStatusFailure({ message }: { message: string }) {
+  const missing = completionBlockers(message);
+  const blocked = missing.length > 0 || message.toLowerCase().includes("cannot complete");
+  return (
+    <div
+      role="alert"
+      className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-3 text-sm text-red-200"
+    >
+      {blocked ? (
+        <>
+          <p className="font-medium text-red-100">This job was not marked complete. The status did not change.</p>
+          {missing.length > 0 ? (
+            <>
+              <p className="mt-2">Still needed:</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {missing.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="mt-2">{message}</p>
+          )}
+        </>
+      ) : (
+        <p>{message}</p>
+      )}
+    </div>
+  );
+}
 
 function getStatusVariant(status: JobStatus) {
   if (status === "Completed") return "success" as const;
@@ -92,11 +124,7 @@ export function JobStatusActions({
 
         <p className="mt-4 text-sm leading-6 text-slate-400">{helperText}</p>
 
-        {error && (
-          <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {error}
-          </p>
-        )}
+        {error ? <JobStatusFailure message={error} /> : null}
         {success && !error ? (
           <p className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
             {success}
