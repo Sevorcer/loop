@@ -142,26 +142,7 @@ export function assembleDispatchSnapshot(
   // Dedupe: when multiple plans exist for the same job + target date, keep
   // only the most recently updated one.
   const dedupedPlans = dedupeDispatchPlans(knownPlans);
-  const metrics = {
-    totalPlans: dedupedPlans.length,
-    readyToSchedule: dedupedPlans.filter(
-      (p) => p.dispatchStatus === "ready_to_schedule"
-    ).length,
-    scheduled: dedupedPlans.filter((p) => p.dispatchStatus === "scheduled").length,
-    inProgress: dedupedPlans.filter((p) => p.dispatchStatus === "in_progress").length,
-    awaitingMaterials: dedupedPlans.filter(
-      (p) => p.dispatchStatus === "awaiting_materials"
-    ).length,
-    awaitingTechnicalReadiness: dedupedPlans.filter(
-      (p) => p.dispatchStatus === "awaiting_technical_readiness"
-    ).length,
-    awaitingCustomer: dedupedPlans.filter(
-      (p) => p.dispatchStatus === "awaiting_customer_confirmation"
-    ).length,
-    awaitingCrew: dedupedPlans.filter(
-      (p) => p.dispatchStatus === "awaiting_crew_availability"
-    ).length,
-  };
+  const metrics = dispatchMetricsForPlans(dedupedPlans);
 
   return {
     dispatchPlans: dedupedPlans,
@@ -170,6 +151,25 @@ export function assembleDispatchSnapshot(
     dispatchEvents,
     crews,
     metrics,
+  };
+}
+
+export function dispatchMetricsForPlans(
+  plans: DispatchPlan[],
+): DispatchSnapshot["metrics"] {
+  return {
+    totalPlans: plans.length,
+    readyToSchedule: plans.filter((plan) => plan.dispatchStatus === "ready_to_schedule").length,
+    scheduled: plans.filter((plan) => plan.dispatchStatus === "scheduled").length,
+    inProgress: plans.filter((plan) => plan.dispatchStatus === "in_progress").length,
+    awaitingMaterials: plans.filter((plan) => plan.dispatchStatus === "awaiting_materials").length,
+    awaitingTechnicalReadiness: plans.filter(
+      (plan) => plan.dispatchStatus === "awaiting_technical_readiness",
+    ).length,
+    awaitingCustomer: plans.filter(
+      (plan) => plan.dispatchStatus === "awaiting_customer_confirmation",
+    ).length,
+    awaitingCrew: plans.filter((plan) => plan.dispatchStatus === "awaiting_crew_availability").length,
   };
 }
 

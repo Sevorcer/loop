@@ -9,23 +9,24 @@ import { requestJson } from "@/lib/api/client";
 
 import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
+import type { JobNote } from "../types/jobNote";
 import type { RequiredQaChecklist } from "../utils/jobCompletionChecklist";
+import { JOB_NOTE_SAVED_TOAST } from "../utils/jobNotes";
 import { JobDetailScreen } from "./JobDetailScreen";
 
 interface JobDetailClientProps {
   job: Job;
   activity: JobActivity[];
+  notes: JobNote[];
 }
 
-export function JobDetailClient({ job, activity }: JobDetailClientProps) {
+export function JobDetailClient({ job, activity, notes }: JobDetailClientProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const [optimisticStatus, setOptimisticStatus] = useState<JobStatus | null>(null);
-  const [optimisticNotes, setOptimisticNotes] = useState<string | null>(null);
   const liveJob: Job = {
     ...job,
     status: optimisticStatus && optimisticStatus !== job.status ? optimisticStatus : job.status,
-    notes: optimisticNotes && optimisticNotes !== job.notes ? optimisticNotes : job.notes,
   };
 
   async function handleUpdateStatus(status: JobStatus) {
@@ -48,19 +49,17 @@ export function JobDetailClient({ job, activity }: JobDetailClientProps) {
     }
   }
 
-  async function handleSaveNotes(notes: string) {
-    setOptimisticNotes(notes);
+  async function handleAddNote(note: string) {
     try {
       await requestJson(`/api/jobs/${job.id}`, {
         method: "PATCH",
         role,
-        body: { action: "notes", notes },
+        body: { action: "notes", notes: note },
       });
-      pushToast("Notes saved.", "success");
+      pushToast(JOB_NOTE_SAVED_TOAST, "success");
       router.refresh();
     } catch (error) {
-      setOptimisticNotes(null);
-      pushToast(error instanceof Error ? error.message : "Couldn't save notes.", "error");
+      pushToast(error instanceof Error ? error.message : "Couldn't save the note.", "error");
       throw error;
     }
   }
@@ -84,8 +83,9 @@ export function JobDetailClient({ job, activity }: JobDetailClientProps) {
     <JobDetailScreen
       job={liveJob}
       activity={activity}
+      notes={notes}
       onUpdateStatus={handleUpdateStatus}
-      onSaveNotes={handleSaveNotes}
+      onAddNote={handleAddNote}
       onUpdateQaChecklist={handleUpdateQaChecklist}
     />
   );

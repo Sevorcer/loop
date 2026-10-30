@@ -41,6 +41,27 @@ describe("detectCrewConflicts", () => {
     expect(detectCrewConflicts([block])).toEqual(new Set());
   });
 
+  it("does not treat two copies of the same job as a crew conflict", () => {
+    const b1 = makeBlock("b1", "Alpha", "2026-10-30", "14:00", "17:00");
+    const b2 = makeBlock("b2", "Alpha", "2026-10-30", "14:00", "17:00");
+    b1.jobId = "job-1020";
+    b2.jobId = "job-1020";
+
+    const conflicts = detectCrewConflicts([b1, b2]);
+    expect(conflicts.size).toBe(0);
+  });
+
+  it("still flags two different jobs that overlap on the same crew", () => {
+    const b1 = makeBlock("b1", "Alpha", "2026-10-30", "14:00", "17:00");
+    const b2 = makeBlock("b2", "Alpha", "2026-10-30", "15:00", "18:00");
+    b1.jobId = "job-1020";
+    b2.jobId = "job-1021";
+
+    const conflicts = detectCrewConflicts([b1, b2]);
+    expect(conflicts.has("b1")).toBe(true);
+    expect(conflicts.has("b2")).toBe(true);
+  });
+
   it("detects overlapping blocks for the same crew on the same day", () => {
     const b1 = makeBlock("b1", "Alpha", "2026-07-25", "07:00", "11:00");
     const b2 = makeBlock("b2", "Alpha", "2026-07-25", "09:00", "14:00");

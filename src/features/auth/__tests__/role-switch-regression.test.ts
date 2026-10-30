@@ -287,7 +287,7 @@ describe("role-switch: owner → sales", () => {
 
 describe("role-switch: owner → portal", () => {
   it("loses all access to internal operational tables", () => {
-    const tables: CoreTable[] = ["customers", "properties", "contractors", "jobs", "job_activity"];
+    const tables: CoreTable[] = ["customers", "properties", "contractors", "jobs", "job_activity", "job_notes"];
     const actions: TableAction[] = ["select", "insert", "update", "delete"];
     for (const table of tables) {
       for (const action of actions) {

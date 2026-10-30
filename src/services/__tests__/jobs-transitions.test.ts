@@ -76,6 +76,11 @@ vi.mock("@/services/installedSystems", () => ({
   getInstalledSystemsSnapshot: getInstalledSystemsSnapshotMock,
 }));
 
+vi.mock("@/repositories/jobNotes", () => ({
+  listJobNotes: vi.fn(async () => []),
+  insertJobNote: vi.fn(),
+}));
+
 import { updateJobStatus } from "@/services/jobs";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────

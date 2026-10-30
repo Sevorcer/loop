@@ -73,11 +73,22 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|
 | SELECT | ✓     | ✓       | ✓        | own  | ✓      | —     | —      |
-| INSERT | ✓     | ✓       | ✓        | own  | —      | —     | —      |
+| INSERT | ✓     | ✓       | ✓        | own  | ✓      | —     | —      |
 | UPDATE | —     | —       | —        | —    | —      | —     | —      |
 | DELETE | —     | —       | —        | —    | —      | —     | —      |
 
-> **Append-only:** `job_activity` is an immutable audit log. No role may UPDATE or DELETE rows.
+> **Append-only:** `job_activity` is an immutable audit log. No role may UPDATE or DELETE rows. Office may insert so a note they add is recorded on the timeline. Tech read and insert follow job assignment (`assigned_user_id` or `job_assignees`).
+
+### job_notes
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓       | ✓        | own  | ✓      | ✓     | —      |
+| INSERT | ✓     | ✓       | ✓        | own  | ✓      | —     | —      |
+| UPDATE | —     | —       | —        | —    | —      | —     | —      |
+| DELETE | —     | —       | —        | —    | —      | —     | —      |
+
+> **Append-only:** each note is its own row (author, role, timestamp). Techs insert only on jobs assigned to them. The legacy `jobs.notes` column is kept; new notes are not written by replacing it.
 
 ### portal_users
 

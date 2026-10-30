@@ -101,8 +101,10 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requirePermission(request, "jobs", "update");
-  if (!guard.ok) return guard.response;
+  // Authenticate before reading the body. Note adds use job_notes insert so
+  // office can add a note without a general job update.
+  const session = await requirePermission(request, "jobs", "select");
+  if (!session.ok) return session.response;
 
   let body: Record<string, unknown>;
   try {
@@ -111,9 +113,17 @@ export async function PATCH(
     return invalidJsonResponse();
   }
 
+  const action = String(body.action ?? "update");
+  const noteAction = action === "note" || action === "notes";
+  const guard = await requirePermission(
+    request,
+    noteAction ? "job_notes" : "jobs",
+    noteAction ? "insert" : "update",
+  );
+  if (!guard.ok) return guard.response;
+
   try {
     const { id } = await params;
-    const action = String(body.action ?? "update");
 
     if (guard.ctx.role === "tech" && (action === "update" || action === "contractor")) {
       return NextResponse.json(

@@ -37,6 +37,11 @@ export function detectCrewConflicts(blocks: ScheduleBlock[]): Set<string> {
         continue;
       }
 
+      // Copies of the same job are not a crew overlap.
+      if (a.jobId && b.jobId && a.jobId === b.jobId) {
+        continue;
+      }
+
       const aStart = parseTimeToMinutes(a.scheduledStartTime);
       const aEnd = parseTimeToMinutes(a.scheduledEndTime);
       const bStart = parseTimeToMinutes(b.scheduledStartTime);
