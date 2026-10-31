@@ -257,21 +257,11 @@
     }
   }
 
-  /* Keep the last controls clear of the phone floating actions.
-     The stack sits 1.5rem up, then two 3rem buttons and a 0.75rem gap,
-     and its own safe-area padding. Add that inset instead of taking the
-     max, or the buttons still cover the last field on a notched phone. */
+  /* Phones no longer reserve space for the corner buttons. Search and
+     feedback live in the slide-out menu, so the tall clearance is gone.
+     Job create/edit still keeps the save row clear of the phone edge and
+     home indicator. */
   @media (max-width: 639px) {
-    .safe-area-content {
-      padding-bottom: calc(12rem + env(safe-area-inset-bottom, 0px));
-    }
-
-    html {
-      scroll-padding-bottom: calc(12rem + env(safe-area-inset-bottom, 0px));
-    }
-
-    /* Job create/edit hides the corner buttons. Keep the save row clear of
-       the phone edge and home indicator without the taller button clearance. */
     .safe-area-content.safe-area-content--form {
       padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
     }

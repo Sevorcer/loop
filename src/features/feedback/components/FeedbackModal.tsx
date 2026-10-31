@@ -253,6 +253,7 @@ export function FeedbackModal({
               rows={3}
               maxLength={2000}
               required
+              autoFocus
               aria-required="true"
               aria-describedby={fieldErrors.intendedAction ? "fb-intended-error" : undefined}
               aria-invalid={Boolean(fieldErrors.intendedAction)}
