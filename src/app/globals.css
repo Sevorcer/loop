@@ -269,6 +269,16 @@
     html {
       scroll-padding-bottom: calc(12rem + env(safe-area-inset-bottom, 0px));
     }
+
+    /* Job create/edit hides the corner buttons. Keep the save row clear of
+       the phone edge and home indicator without the taller button clearance. */
+    .safe-area-content.safe-area-content--form {
+      padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    html:has(.safe-area-content--form) {
+      scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+    }
   }
 }
 
