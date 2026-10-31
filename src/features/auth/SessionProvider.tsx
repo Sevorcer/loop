@@ -25,7 +25,7 @@ import { useAuth } from "./state/AuthProvider";
 import {
   DEFAULT_APP_ROLE,
   readStoredDevRole,
-  resolveAuthUserRole,
+  resolveDisplayedRole,
 } from "./utils/appRole";
 
 // ---------------------------------------------------------------------------
@@ -70,8 +70,14 @@ function useDerivedSessionValue(): SessionContextValue {
       return null;
     }
 
-    // Fallback order: dev override → hydrated auth session/user metadata → owner.
-    return devRole ?? activeProfile?.role ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+    // Profile role wins over the sign-in token. user_metadata is not a role source.
+    return (
+      resolveDisplayedRole({
+        devRole,
+        profileRole: activeProfile?.role,
+        appMetadata: authUser?.app_metadata,
+      }) ?? DEFAULT_APP_ROLE
+    );
   }, [activeProfile, authUser, authUserId, devRole, isLoading]);
 
   const displayName =

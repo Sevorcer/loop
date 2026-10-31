@@ -10,7 +10,9 @@ import {
   AdminFormError,
   AdminFormActions,
 } from "@/features/admin/components/form";
+import { useCurrentRole } from "@/features/auth";
 import type { AppRole } from "@/services/authorization";
+import { canGrantOwnerRole } from "@/services/profileRoleGuard";
 import { OPERATIONAL_ROLES, ROLE_LABELS } from "../utils/permissionsMatrix";
 
 interface InviteUserDialogProps {
@@ -35,6 +37,10 @@ function formatErrorDetails(details: unknown): string | null {
 }
 
 export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) {
+  const { role: callerRole } = useCurrentRole();
+  const roleChoices = OPERATIONAL_ROLES.filter(
+    (choice) => choice !== "owner" || canGrantOwnerRole(callerRole),
+  );
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [appRole, setAppRole] = useState<AppRole>("office");
@@ -166,7 +172,7 @@ export function InviteUserDialog({ onClose, onInvited }: InviteUserDialogProps) 
               aria-invalid={roleErrors.length > 0}
               className="w-full rounded-atlas-md border border-default bg-surface-elevated px-3 py-2 text-sm text-primary focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
             >
-              {OPERATIONAL_ROLES.map((r) => (
+              {roleChoices.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_LABELS[r]}
                 </option>

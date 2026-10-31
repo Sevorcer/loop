@@ -17,10 +17,18 @@ import type { AppRole } from "@/services/authorization";
 // ---------------------------------------------------------------------------
 
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: null } });
+const mockProfile = vi.fn().mockResolvedValue({ data: null, error: null });
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(async () => ({
     auth: { getUser: mockGetUser },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: mockProfile,
+        }),
+      }),
+    }),
   })),
 }));
 
@@ -43,6 +51,7 @@ function makeRequest(role?: string, path = "http://localhost/api/test"): Request
 describe("resolveRequestRole", () => {
   beforeEach(() => {
     mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockProfile.mockResolvedValue({ data: null, error: null });
   });
 
   it("returns null when no role header is present", async () => {
@@ -77,25 +86,28 @@ describe("resolveRequestRole", () => {
     expect(await resolveRequestRole(makeRequest())).toBe("manager");
   });
 
-  it("falls back to user_metadata.app_role when app_metadata.app_role is absent", async () => {
+  it("falls back to app_metadata.role when the profile has no role", async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: { app_metadata: {}, user_metadata: { app_role: "tech" } } },
-    });
-    expect(await resolveRequestRole(makeRequest())).toBe("tech");
-  });
-
-  it("falls back to app_metadata.role when app_role fields are absent", async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { app_metadata: { role: "office" }, user_metadata: {} } },
+      data: { user: { id: "user-1", app_metadata: { role: "office" }, user_metadata: { role: "owner" } } },
     });
     expect(await resolveRequestRole(makeRequest())).toBe("office");
   });
 
-  it("falls back to user_metadata.role as last resort", async () => {
+  it("treats a technician profile as technician when user_metadata says owner", async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: { app_metadata: {}, user_metadata: { role: "sales" } } },
+      data: {
+        user: {
+          id: "tech-1",
+          app_metadata: { app_role: "owner" },
+          user_metadata: { role: "owner", app_role: "owner" },
+        },
+      },
     });
-    expect(await resolveRequestRole(makeRequest())).toBe("sales");
+    mockProfile.mockResolvedValue({ data: { app_role: "tech" }, error: null });
+
+    expect(await resolveRequestRole(makeRequest("owner"))).toBe("tech");
+    const permission = await requirePermission(makeRequest("owner"), "user_profiles", "update");
+    expect(permission.ok).toBe(false);
   });
 
   it("prefers Supabase session role over x-loop-role header", async () => {

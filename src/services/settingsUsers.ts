@@ -12,7 +12,12 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isAppRole } from "@/features/auth/utils/appRole";
 import type { AppRole } from "@/services/authorization";
+import {
+  refusalForOwnerInvite,
+  refusalForProfileRoleChange,
+} from "@/services/profileRoleGuard";
 import type {
   OrgUser,
   InviteUserPayload,
@@ -25,6 +30,42 @@ interface SupabaseErrorLike {
   details?: unknown;
   hint?: unknown;
   status?: number;
+}
+
+interface ProfileRow {
+  org_id?: string | null;
+  app_role?: string | null;
+}
+
+interface ProfileWriteResult {
+  error: SupabaseErrorLike | null;
+}
+
+interface ProfileReadResult {
+  data: ProfileRow | null;
+  error: SupabaseErrorLike | null;
+}
+
+/**
+ * The admin client is created without a generated Database type, so the
+ * table calls are checked against this narrow shape instead.
+ */
+interface ProfileAdmin {
+  from(table: "user_profiles"): {
+    upsert(values: Record<string, unknown>): PromiseLike<ProfileWriteResult>;
+    update(values: Record<string, unknown>): {
+      eq(column: string, value: string): PromiseLike<ProfileWriteResult>;
+    };
+    select(columns: string): {
+      eq(column: string, value: string): {
+        maybeSingle(): PromiseLike<ProfileReadResult>;
+      };
+    };
+  };
+}
+
+function profileAdmin(): ProfileAdmin {
+  return createSupabaseAdminClient() as unknown as ProfileAdmin;
 }
 
 function toSupabaseServiceError(
@@ -110,13 +151,36 @@ async function loadAuthUsersForProfiles(profileIds: string[]): Promise<Map<strin
 
 /** Resolve the org_id of the calling user (server context). */
 async function resolveCallerOrgId(userId: string): Promise<string | null> {
+  const caller = await readCallerAuthority(userId);
+  return caller.orgId;
+}
+
+/**
+ * Role and company from the caller's own profile row. This is read with
+ * their login, which cannot change app_role. Sign-in metadata is ignored.
+ */
+async function readCallerAuthority(userId: string): Promise<{
+  orgId: string | null;
+  role: AppRole | null;
+}> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("user_profiles")
-    .select("org_id")
+    .select("org_id, app_role")
     .eq("id", userId)
-    .single();
-  return data?.org_id ?? null;
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const row = data as { org_id?: string | null; app_role?: string | null } | null;
+  return {
+    orgId: row?.org_id ?? null,
+    role: isAppRole(row?.app_role) ? row.app_role : null,
+  };
+}
+
+function assertCanManageStaff(role: AppRole | null): void {
+  if (role !== "owner" && role !== "manager") {
+    throw refused("Only an owner or manager can manage the team.");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -170,7 +234,17 @@ export async function inviteOrgUser(
   callerUserId: string,
   payload: InviteUserPayload
 ): Promise<OrgUser> {
-  const orgId = await resolveCallerOrgId(callerUserId);
+  const caller = await readCallerAuthority(callerUserId);
+  assertCanManageStaff(caller.role);
+  const inviteRefusal = refusalForOwnerInvite({
+    callerRole: caller.role,
+    appRole: payload.appRole,
+  });
+  if (inviteRefusal) {
+    throw refused(inviteRefusal);
+  }
+
+  const orgId = caller.orgId;
   if (!orgId) {
     throw new Error("Caller has no organization.");
   }
@@ -191,10 +265,10 @@ export async function inviteOrgUser(
 
   const userId = inviteData.user.id;
 
-  // Pre-create user_profiles row scoped to the org
-  const supabase = await createSupabaseServerClient();
+  // The service role writes the profile. A signed-in person cannot insert
+  // their own row or pick a role. The company always comes from the caller.
   const now = new Date().toISOString();
-  const { error: profileError } = await supabase.from("user_profiles").upsert({
+  const { error: profileError } = await profileAdmin().from("user_profiles").upsert({
     id: userId,
     org_id: orgId,
     full_name: payload.fullName,
@@ -218,34 +292,73 @@ export async function inviteOrgUser(
   };
 }
 
+function refused(message: string, status = 403): Error {
+  return Object.assign(new Error(message), { status, code: "FORBIDDEN" });
+}
+
 /**
- * Update a user's profile (full_name and/or role).
+ * Update a user's name and, for someone else, their role.
+ * A role change uses the service role because a login cannot write app_role.
+ * The company check happens here so that bypass cannot cross companies.
  */
 export async function updateOrgUser(
+  callerUserId: string,
   userId: string,
   payload: UpdateUserPayload
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-
-  const updates: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
-  if (payload.fullName !== undefined) updates.full_name = payload.fullName;
-  if (payload.role !== undefined) updates.app_role = payload.role;
-
-  const { error } = await supabase
+  const caller = await readCallerAuthority(callerUserId);
+  assertCanManageStaff(caller.role);
+  const callerOrgId = caller.orgId;
+  const admin = createSupabaseAdminClient();
+  const profiles = profileAdmin();
+  const { data: target, error: targetError } = await profiles
     .from("user_profiles")
-    .update(updates)
-    .eq("id", userId);
+    .select("org_id, app_role")
+    .eq("id", userId)
+    .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (targetError) throw new Error(targetError.message);
 
-  // Also update auth user metadata so role is reflected on next sign-in
-  if (payload.role !== undefined) {
-    const admin = createSupabaseAdminClient();
-    await admin.auth.admin.updateUserById(userId, {
-      app_metadata: { app_role: payload.role },
-    });
+  const row = target;
+  const refusal = refusalForProfileRoleChange({
+    callerId: callerUserId,
+    targetId: userId,
+    callerRole: caller.role,
+    sameCompany: Boolean(callerOrgId) && row?.org_id === callerOrgId,
+    currentRole: row?.app_role ?? null,
+    nextRole: payload.role,
+  });
+  if (refusal) throw refused(refusal);
+
+  const roleIsChanging = payload.role !== undefined && payload.role !== row?.app_role;
+  const editingSomeoneElse = userId !== callerUserId;
+  const updatedAt = new Date().toISOString();
+
+  if (roleIsChanging || (payload.fullName !== undefined && editingSomeoneElse)) {
+    const updates: Record<string, unknown> = {
+      updated_at: updatedAt,
+    };
+    if (payload.fullName !== undefined) updates.full_name = payload.fullName;
+    if (roleIsChanging) updates.app_role = payload.role;
+
+    const { error } = await profiles.from("user_profiles").update(updates).eq("id", userId);
+    if (error) throw new Error(error.message);
+
+    if (roleIsChanging) {
+      await admin.auth.admin.updateUserById(userId, {
+        app_metadata: { app_role: payload.role },
+      });
+    }
+    return;
+  }
+
+  if (payload.fullName !== undefined) {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ full_name: payload.fullName, updated_at: updatedAt })
+      .eq("id", userId);
+    if (error) throw new Error(error.message);
   }
 }
 

@@ -25,7 +25,8 @@ WITH expected_policies (policy_name) AS (
     ('user_profiles: internal roles can read own org'),
     ('user_profiles: user reads own row'),
     ('user_profiles: owner can insert'),
-    ('user_profiles: owner can update'),
+    -- 'user_profiles: owner can update' was removed by 20261031100000.
+    -- Role changes use the service role. Name edits use a narrower policy.
     ('user_profiles: owner can delete'),
     ('customers: read for internal operational roles'),
     ('customers: insert for owner/manager/office/sales'),
@@ -126,7 +127,18 @@ WITH expected_policies (policy_name) AS (
 
     -- ── 20260724000001_db_health_checks ──────────────────────────────────────
     ('runs_select_owner_manager'),
-    ('results_select_owner_manager')
+    ('results_select_owner_manager'),
+
+    -- ── 20261031100000_lock_roles_and_staff_writes ───────────────────────────
+    ('user_profiles: user updates own name'),
+    ('user_profiles: manager can insert'),
+    ('user_profiles: manager can update'),
+    ('job_tasks: update for office roles'),
+    ('job_tasks: delete for office roles'),
+    ('job_tasks: tech updates tasks on assigned jobs'),
+    ('dispatch_plans: tech updates assigned job status'),
+    ('installed_systems: tech inserts field equipment'),
+    ('installed_systems: tech updates field equipment')
 )
 SELECT
   e.policy_name,

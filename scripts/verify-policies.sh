@@ -72,22 +72,36 @@ fi
 
 _section "Step 1 — Parse expected policies from migration files"
 
-# Extract quoted policy names: CREATE POLICY "name"
-# Extract unquoted policy names: CREATE POLICY name (word chars only, no quote follows)
-mapfile -t EXPECTED_POLICIES < <(
-  grep -rh 'CREATE POLICY' "$MIGRATIONS_DIR"/*.sql 2>/dev/null \
-    | sed -E 's/.*CREATE[[:space:]]+POLICY[[:space:]]+"([^"]+)".*/\1/' \
-    | grep -v 'CREATE POLICY' \
-    | sort -u
-  grep -rh 'CREATE POLICY' "$MIGRATIONS_DIR"/*.sql 2>/dev/null \
-    | grep -v '"' \
-    | sed -E 's/.*CREATE[[:space:]]+POLICY[[:space:]]+([a-zA-Z0-9_]+).*/\1/' \
-    | grep -v 'CREATE' \
-    | sort -u
-)
+# A policy is expected only if the latest non-comment statement still creates
+# it. Later migrations may DROP a policy that an earlier file created.
+declare -A POLICY_NET=()
+mapfile -t MIGRATION_FILES < <(find "$MIGRATIONS_DIR" -maxdepth 1 -name '*.sql' | sort)
+for FILE in "${MIGRATION_FILES[@]}"; do
+  while IFS= read -r LINE || [ -n "$LINE" ]; do
+    TRIMMED="${LINE#"${LINE%%[![:space:]]*}"}"
+    if [[ -z "$TRIMMED" || "$TRIMMED" == --* ]]; then
+      continue
+    fi
+    if [[ "$TRIMMED" =~ ^DROP[[:space:]]+POLICY[[:space:]]+(IF[[:space:]]+EXISTS[[:space:]]+)?\"([^\"]+)\" ]]; then
+      unset "POLICY_NET[${BASH_REMATCH[2]}]"
+      continue
+    fi
+    if [[ "$TRIMMED" =~ ^DROP[[:space:]]+POLICY[[:space:]]+(IF[[:space:]]+EXISTS[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*) ]]; then
+      unset "POLICY_NET[${BASH_REMATCH[2]}]"
+      continue
+    fi
+    if [[ "$TRIMMED" =~ ^CREATE[[:space:]]+POLICY[[:space:]]+(IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+)?\"([^\"]+)\" ]]; then
+      POLICY_NET["${BASH_REMATCH[2]}"]=1
+      continue
+    fi
+    if [[ "$TRIMMED" =~ ^CREATE[[:space:]]+POLICY[[:space:]]+(IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*) ]]; then
+      POLICY_NET["${BASH_REMATCH[2]}"]=1
+      continue
+    fi
+  done < "$FILE"
+done
 
-# Deduplicate and sort the final list.
-mapfile -t EXPECTED_POLICIES < <(printf '%s\n' "${EXPECTED_POLICIES[@]}" | sort -u)
+mapfile -t EXPECTED_POLICIES < <(printf '%s\n' "${!POLICY_NET[@]}" | sort)
 
 EXPECTED_COUNT=${#EXPECTED_POLICIES[@]}
 echo ""
