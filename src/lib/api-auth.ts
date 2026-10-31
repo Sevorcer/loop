@@ -18,6 +18,7 @@ import {
 import { resolveAuthRefresh } from "@/lib/auth/refreshResolver";
 import { rememberRequestAuth } from "@/lib/auth/requestAuth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { resolveAuthoritativeRole } from "@/features/auth/utils/appRole";
 import { hasPermission } from "@/services/authorization";
 import type { AppRole, CoreTable, TableAction } from "@/services/authorization";
 
@@ -65,25 +66,45 @@ type ResolvedAuthResult =
   | { ok: true; auth: ResolvedAuth }
   | { ok: false; reason: UnauthorizedReason };
 
-function extractRoleFromUser(user: {
-  id?: string;
-  app_metadata?: Record<string, unknown> | null;
-  user_metadata?: Record<string, unknown> | null;
-}): AppRole | null {
-  const candidates: unknown[] = [
-    user.app_metadata?.app_role,
-    user.user_metadata?.app_role,
-    user.app_metadata?.role,
-    user.user_metadata?.role,
-  ];
-
+function lockedRoleFromAppMetadata(
+  appMetadata: Record<string, unknown> | null | undefined,
+): AppRole | null {
+  const candidates: unknown[] = [appMetadata?.app_role, appMetadata?.role];
   for (const candidate of candidates) {
     if (typeof candidate === "string" && isAppRole(candidate)) {
       return candidate;
     }
   }
-
   return null;
+}
+
+interface ProfileLookup {
+  from(table: "user_profiles"): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        maybeSingle(): PromiseLike<{
+          data: { app_role?: string | null } | null;
+          error: { message?: string } | null;
+        }>;
+      };
+    };
+  };
+}
+
+async function lookupProfileRole(supabase: unknown, userId: string): Promise<AppRole | null> {
+  const lookup = supabase as ProfileLookup;
+  if (typeof lookup?.from !== "function") return null;
+  try {
+    const { data, error } = await lookup
+      .from("user_profiles")
+      .select("app_role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) return null;
+    return typeof data?.app_role === "string" && isAppRole(data.app_role) ? data.app_role : null;
+  } catch {
+    return null;
+  }
 }
 
 async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult> {
@@ -122,7 +143,11 @@ async function resolveRequestAuth(request: Request): Promise<ResolvedAuthResult>
     const user = resolved.user;
     if (resolved.status === "authenticated" && user) {
       if (user.id) rememberRequestAuth({ supabase, userId: user.id });
-      const extractedRole = extractRoleFromUser(user);
+      const profileRole = user.id ? await lookupProfileRole(supabase, user.id) : null;
+      const extractedRole = resolveAuthoritativeRole(
+        profileRole,
+        lockedRoleFromAppMetadata(user.app_metadata),
+      );
       if (extractedRole) {
         return { ok: true, auth: { role: extractedRole, userId: user.id ?? "" } };
       }

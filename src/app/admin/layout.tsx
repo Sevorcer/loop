@@ -17,7 +17,8 @@ import { AdminShell } from "@/features/admin";
 import { redirectTechFromOfficePath } from "@/lib/auth/requireRouteRole";
 import { ADMIN_BASE, ROUTES } from "@/lib/routes";
 import { getAuthSession } from "@/lib/auth/session";
-import { canAccessAdminArea, resolveAdminAreaRole, type AppRole } from "@/services/authorization";
+import { resolveAuthoritativeRole } from "@/features/auth/utils/appRole";
+import { canAccessAdminArea, type AppRole } from "@/services/authorization";
 import { getCurrentOperator } from "@/services/currentOperator";
 
 import { AdminRoleGuard } from "./AdminRoleGuard";
@@ -32,32 +33,16 @@ const VALID_ROLES: ReadonlySet<string> = new Set<AppRole>([
   "portal",
 ]);
 
-/**
- * Role stored on the sign-in token. Used only when the profile row has no
- * app_role. Order matches src/lib/api-auth.ts.
- */
-function resolveMetadataRole(
-  user:
-    | {
-        app_metadata?: Record<string, unknown> | null;
-        user_metadata?: Record<string, unknown> | null;
-      }
-    | null
-    | undefined,
+/** Locked token role. user_metadata is editable and is not a role source. */
+function lockedRole(
+  appMetadata: Record<string, unknown> | null | undefined,
 ): AppRole | null {
-  const candidates: unknown[] = [
-    user?.app_metadata?.app_role,
-    user?.user_metadata?.app_role,
-    user?.app_metadata?.role,
-    user?.user_metadata?.role,
-  ];
-
+  const candidates: unknown[] = [appMetadata?.app_role, appMetadata?.role];
   for (const candidate of candidates) {
     if (typeof candidate === "string" && VALID_ROLES.has(candidate)) {
       return candidate as AppRole;
     }
   }
-
   return null;
 }
 
@@ -70,7 +55,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   // against the profile before any admin UI is rendered.
   if (authSession) {
     const operator = await getCurrentOperator();
-    const role = resolveAdminAreaRole(operator.appRole, resolveMetadataRole(authSession.user));
+    const role = resolveAuthoritativeRole(
+      operator.appRole,
+      lockedRole(authSession.user?.app_metadata),
+    );
     if (!canAccessAdminArea(role)) {
       redirect(ROUTES.JOBS);
     }

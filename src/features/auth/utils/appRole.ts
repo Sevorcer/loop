@@ -37,20 +37,40 @@ function extractRoleFromMetadata(metadata: unknown): AppRole | null {
 }
 
 /**
- * Resolves the application role from Supabase user metadata.
+ * Role used for access decisions.
  *
- * Fallback order:
- * 1. `app_metadata.role`
- * 2. `app_metadata.app_role`
- * 3. `user_metadata.role`
- * 4. `user_metadata.app_role`
+ * The profile row wins. `app_metadata` is only a fallback when the profile
+ * has no role. `user_metadata` is editable by the signed-in person and is
+ * never consulted.
  */
-export function resolveAuthUserRole(
-  user: Pick<AuthUser, "app_metadata" | "user_metadata"> | null | undefined
+export function resolveAuthoritativeRole(
+  profileRole: string | null | undefined,
+  lockedRole: string | null | undefined,
 ): AppRole | null {
-  return (
-    extractRoleFromMetadata(user?.app_metadata) ??
-    extractRoleFromMetadata(user?.user_metadata)
+  if (isAppRole(profileRole)) return profileRole;
+  return isAppRole(lockedRole) ? lockedRole : null;
+}
+
+/** Locked role on the sign-in token. Ignores user-editable metadata. */
+export function resolveAuthUserRole(
+  user: Pick<AuthUser, "app_metadata" | "user_metadata"> | null | undefined,
+): AppRole | null {
+  return extractRoleFromMetadata(user?.app_metadata);
+}
+
+/**
+ * Role shown in the app and used to hide owner-only controls.
+ * A dev override is explicit. Otherwise this is the same rule as the API.
+ */
+export function resolveDisplayedRole(input: {
+  profileRole?: string | null;
+  appMetadata?: unknown;
+  devRole?: AppRole | null;
+}): AppRole | null {
+  if (input.devRole) return input.devRole;
+  return resolveAuthoritativeRole(
+    input.profileRole,
+    extractRoleFromMetadata(input.appMetadata),
   );
 }
 

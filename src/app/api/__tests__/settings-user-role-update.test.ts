@@ -40,7 +40,7 @@ describe("PATCH /api/settings/users/[id] role change", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(updateOrgUserMock).toHaveBeenCalledWith("owner-1", "owner", "tech-1", {
+    expect(updateOrgUserMock).toHaveBeenCalledWith("owner-1", "tech-1", {
       fullName: "Alex",
       role: "office",
     });

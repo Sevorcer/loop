@@ -12,6 +12,7 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isAppRole } from "@/features/auth/utils/appRole";
 import type { AppRole } from "@/services/authorization";
 import {
   refusalForOwnerInvite,
@@ -150,13 +151,36 @@ async function loadAuthUsersForProfiles(profileIds: string[]): Promise<Map<strin
 
 /** Resolve the org_id of the calling user (server context). */
 async function resolveCallerOrgId(userId: string): Promise<string | null> {
+  const caller = await readCallerAuthority(userId);
+  return caller.orgId;
+}
+
+/**
+ * Role and company from the caller's own profile row. This is read with
+ * their login, which cannot change app_role. Sign-in metadata is ignored.
+ */
+async function readCallerAuthority(userId: string): Promise<{
+  orgId: string | null;
+  role: AppRole | null;
+}> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("user_profiles")
-    .select("org_id")
+    .select("org_id, app_role")
     .eq("id", userId)
-    .single();
-  return data?.org_id ?? null;
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const row = data as { org_id?: string | null; app_role?: string | null } | null;
+  return {
+    orgId: row?.org_id ?? null,
+    role: isAppRole(row?.app_role) ? row.app_role : null,
+  };
+}
+
+function assertCanManageStaff(role: AppRole | null): void {
+  if (role !== "owner" && role !== "manager") {
+    throw refused("Only an owner or manager can manage the team.");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -208,18 +232,19 @@ export async function listOrgUsers(callerUserId: string): Promise<OrgUser[]> {
  */
 export async function inviteOrgUser(
   callerUserId: string,
-  callerRole: string | null,
   payload: InviteUserPayload
 ): Promise<OrgUser> {
+  const caller = await readCallerAuthority(callerUserId);
+  assertCanManageStaff(caller.role);
   const inviteRefusal = refusalForOwnerInvite({
-    callerRole,
+    callerRole: caller.role,
     appRole: payload.appRole,
   });
   if (inviteRefusal) {
     throw refused(inviteRefusal);
   }
 
-  const orgId = await resolveCallerOrgId(callerUserId);
+  const orgId = caller.orgId;
   if (!orgId) {
     throw new Error("Caller has no organization.");
   }
@@ -278,11 +303,12 @@ function refused(message: string, status = 403): Error {
  */
 export async function updateOrgUser(
   callerUserId: string,
-  callerRole: string | null,
   userId: string,
   payload: UpdateUserPayload
 ): Promise<void> {
-  const callerOrgId = await resolveCallerOrgId(callerUserId);
+  const caller = await readCallerAuthority(callerUserId);
+  assertCanManageStaff(caller.role);
+  const callerOrgId = caller.orgId;
   const admin = createSupabaseAdminClient();
   const profiles = profileAdmin();
   const { data: target, error: targetError } = await profiles
@@ -297,7 +323,7 @@ export async function updateOrgUser(
   const refusal = refusalForProfileRoleChange({
     callerId: callerUserId,
     targetId: userId,
-    callerRole,
+    callerRole: caller.role,
     sameCompany: Boolean(callerOrgId) && row?.org_id === callerOrgId,
     currentRole: row?.app_role ?? null,
     nextRole: payload.role,

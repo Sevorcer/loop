@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await inviteOrgUser(guard.ctx.userId, guard.ctx.role, parsed.data);
+    const user = await inviteOrgUser(guard.ctx.userId, parsed.data);
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
     logWriteFailure({ route: "/api/settings/users", operation: "create_user", request }, error);

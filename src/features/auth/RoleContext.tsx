@@ -27,7 +27,7 @@ import {
   DEV_ROLE_KEY,
   DEFAULT_APP_ROLE,
   readStoredDevRole,
-  resolveAuthUserRole,
+  resolveDisplayedRole,
 } from "./utils/appRole";
 
 // ---------------------------------------------------------------------------
@@ -63,7 +63,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    return devRoleOverride ?? sessionRole ?? resolveAuthUserRole(authUser) ?? DEFAULT_APP_ROLE;
+    return (
+      resolveDisplayedRole({
+        devRole: devRoleOverride,
+        profileRole: sessionRole,
+        appMetadata: authUser?.app_metadata,
+      }) ?? DEFAULT_APP_ROLE
+    );
   }, [authUser, devRoleOverride, isLoading, sessionRole, sessionLoading]);
 
   const setDevRole = useCallback((next: AppRole) => {

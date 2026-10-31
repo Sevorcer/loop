@@ -111,7 +111,7 @@ describe("POST /api/settings/users", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(inviteOrgUserMock).toHaveBeenCalledWith("user-1", "owner", {
+    expect(inviteOrgUserMock).toHaveBeenCalledWith("user-1", {
       email: "alex@example.com",
       fullName: "Alex Dispatcher",
       appRole: "dispatch",
