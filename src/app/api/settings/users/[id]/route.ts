@@ -38,7 +38,7 @@ export async function PATCH(request: Request, { params }: Params) {
       profileUpdate.role = body.role as AppRole;
 
     if (profileUpdate.fullName !== undefined || profileUpdate.role !== undefined) {
-      await updateOrgUser(id, profileUpdate);
+      await updateOrgUser(guard.ctx.userId, id, profileUpdate);
     }
 
     return NextResponse.json({ ok: true });

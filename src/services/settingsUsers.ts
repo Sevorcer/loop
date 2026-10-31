@@ -13,6 +13,7 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/services/authorization";
+import { refusalForProfileRoleChange } from "@/services/profileRoleGuard";
 import type {
   OrgUser,
   InviteUserPayload,
@@ -25,6 +26,42 @@ interface SupabaseErrorLike {
   details?: unknown;
   hint?: unknown;
   status?: number;
+}
+
+interface ProfileRow {
+  org_id?: string | null;
+  app_role?: string | null;
+}
+
+interface ProfileWriteResult {
+  error: SupabaseErrorLike | null;
+}
+
+interface ProfileReadResult {
+  data: ProfileRow | null;
+  error: SupabaseErrorLike | null;
+}
+
+/**
+ * The admin client is created without a generated Database type, so the
+ * table calls are checked against this narrow shape instead.
+ */
+interface ProfileAdmin {
+  from(table: "user_profiles"): {
+    upsert(values: Record<string, unknown>): PromiseLike<ProfileWriteResult>;
+    update(values: Record<string, unknown>): {
+      eq(column: string, value: string): PromiseLike<ProfileWriteResult>;
+    };
+    select(columns: string): {
+      eq(column: string, value: string): {
+        maybeSingle(): PromiseLike<ProfileReadResult>;
+      };
+    };
+  };
+}
+
+function profileAdmin(): ProfileAdmin {
+  return createSupabaseAdminClient() as unknown as ProfileAdmin;
 }
 
 function toSupabaseServiceError(
@@ -191,10 +228,10 @@ export async function inviteOrgUser(
 
   const userId = inviteData.user.id;
 
-  // Pre-create user_profiles row scoped to the org
-  const supabase = await createSupabaseServerClient();
+  // The service role writes the profile. A signed-in person cannot insert
+  // their own row or pick a role. The company always comes from the caller.
   const now = new Date().toISOString();
-  const { error: profileError } = await supabase.from("user_profiles").upsert({
+  const { error: profileError } = await profileAdmin().from("user_profiles").upsert({
     id: userId,
     org_id: orgId,
     full_name: payload.fullName,
@@ -218,34 +255,67 @@ export async function inviteOrgUser(
   };
 }
 
+function refused(message: string, status = 403): Error {
+  return Object.assign(new Error(message), { status, code: "FORBIDDEN" });
+}
+
 /**
- * Update a user's profile (full_name and/or role).
+ * Update a user's name and, for someone else, their role.
+ * A role change uses the service role because a login cannot write app_role.
+ * The company check happens here so that bypass cannot cross companies.
  */
 export async function updateOrgUser(
+  callerUserId: string,
   userId: string,
   payload: UpdateUserPayload
 ): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-
-  const updates: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
-  if (payload.fullName !== undefined) updates.full_name = payload.fullName;
-  if (payload.role !== undefined) updates.app_role = payload.role;
-
-  const { error } = await supabase
+  const callerOrgId = await resolveCallerOrgId(callerUserId);
+  const admin = createSupabaseAdminClient();
+  const profiles = profileAdmin();
+  const { data: target, error: targetError } = await profiles
     .from("user_profiles")
-    .update(updates)
-    .eq("id", userId);
+    .select("org_id, app_role")
+    .eq("id", userId)
+    .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (targetError) throw new Error(targetError.message);
 
-  // Also update auth user metadata so role is reflected on next sign-in
-  if (payload.role !== undefined) {
-    const admin = createSupabaseAdminClient();
+  const row = target;
+  const refusal = refusalForProfileRoleChange({
+    callerId: callerUserId,
+    targetId: userId,
+    sameCompany: Boolean(callerOrgId) && row?.org_id === callerOrgId,
+    currentRole: row?.app_role ?? null,
+    nextRole: payload.role,
+  });
+  if (refusal) throw refused(refusal);
+
+  const roleIsChanging = payload.role !== undefined && payload.role !== row?.app_role;
+  const updatedAt = new Date().toISOString();
+
+  if (roleIsChanging) {
+    const updates: Record<string, unknown> = {
+      updated_at: updatedAt,
+      app_role: payload.role,
+    };
+    if (payload.fullName !== undefined) updates.full_name = payload.fullName;
+
+    const { error } = await profiles.from("user_profiles").update(updates).eq("id", userId);
+    if (error) throw new Error(error.message);
+
     await admin.auth.admin.updateUserById(userId, {
       app_metadata: { app_role: payload.role },
     });
+    return;
+  }
+
+  if (payload.fullName !== undefined) {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ full_name: payload.fullName, updated_at: updatedAt })
+      .eq("id", userId);
+    if (error) throw new Error(error.message);
   }
 }
 

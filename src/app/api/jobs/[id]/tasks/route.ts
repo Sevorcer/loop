@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
 import {
+  createApiErrorResponse,
   invalidJsonResponse,
   mapRouteError,
   readJsonObject,
 } from "@/lib/api/routeErrors";
+import { canCheckJobTask, canManageJobChecklist } from "@/features/jobs/utils/jobChecklistAccess";
 import {
   applyInstallChecklistTemplate,
   createJobTask,
@@ -35,8 +37,15 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requirePermission(request, "jobs", "update");
+  const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
+  if (!canManageJobChecklist(guard.ctx.role)) {
+    return createApiErrorResponse(
+      "FORBIDDEN",
+      "Only office staff can add checklist items.",
+      403,
+    );
+  }
 
   try {
     const { id } = await params;
@@ -64,8 +73,15 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requirePermission(request, "jobs", "update");
+  const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
+  if (!canCheckJobTask(guard.ctx.role)) {
+    return createApiErrorResponse(
+      "FORBIDDEN",
+      "You cannot update checklist items.",
+      403,
+    );
+  }
 
   try {
     const { id } = await params;
@@ -102,8 +118,15 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requirePermission(request, "jobs", "update");
+  const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
+  if (!canManageJobChecklist(guard.ctx.role)) {
+    return createApiErrorResponse(
+      "FORBIDDEN",
+      "Only office staff can remove checklist items.",
+      403,
+    );
+  }
 
   try {
     const { id } = await params;

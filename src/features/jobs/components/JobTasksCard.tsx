@@ -9,6 +9,7 @@ import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
 import type { JobTask } from "@/repositories/jobTasks";
+import { canManageJobChecklist } from "@/features/jobs/utils/jobChecklistAccess";
 
 /**
  * Office checklist card (round-2 feedback: "checklist sidebar on install
@@ -25,6 +26,7 @@ export function JobTasksCard({
   jobType: string;
 }) {
   const { role } = useCurrentRole();
+  const canManageChecklist = canManageJobChecklist(role);
   const [tasks, setTasks] = useState<JobTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -161,7 +163,7 @@ export function JobTasksCard({
   }
 
   return (
-    <div className="space-y-6"><SurfaceCard><div className="p-6"><div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 ring-1 ring-blue-500/30"><ClipboardList className="h-5 w-5 text-blue-300" /></div><div className="min-w-0"><h2 className="text-lg font-semibold text-white">Job Checklist</h2><p className="mt-1 text-sm text-slate-400">Day-by-day work for this job — the field list for the crew.</p></div>{fieldTasks.length > 0 ? (<span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">{fieldDoneCount} of {fieldTasks.length} done</span>) : null}</div>{loading ? (<div className="mt-4 flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Loading checklist…</div>) : fieldTasks.length === 0 ? (<div className="mt-4 space-y-3"><p className="text-sm text-slate-400">No checklist items yet.</p></div>) : (<ul className="mt-3 space-y-1.5">{fieldTasks.map((task) => (<li key={task.id} className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"><input type="checkbox" checked={task.isDone} onChange={() => void toggleTask(task)} aria-label={task.label} className="h-4 w-4 shrink-0" /><span className={task.isDone ? "min-w-0 flex-1 truncate text-sm text-slate-500 line-through" : "min-w-0 flex-1 truncate text-sm text-slate-200"} title={task.label}>{task.label}</span><button type="button" onClick={() => void removeTask(task)} aria-label={`Remove ${task.label}`} className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"><Trash2 className="h-3.5 w-3.5" /></button></li>))}</ul>)}<div className="mt-3 flex items-center gap-2"><input type="text" value={newLabel} onChange={(event) => setNewLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addTask(); } }} placeholder="Add a checklist item…" maxLength={200} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-blue-500/40" /><Button variant="secondary" onClick={() => void addTask()} disabled={working || !newLabel.trim()} className="shrink-0 gap-1.5"><Plus className="h-4 w-4" />Add</Button></div></div></SurfaceCard><SurfaceCard>
+    <div className="space-y-6"><SurfaceCard><div className="p-6"><div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 ring-1 ring-blue-500/30"><ClipboardList className="h-5 w-5 text-blue-300" /></div><div className="min-w-0"><h2 className="text-lg font-semibold text-white">Job Checklist</h2><p className="mt-1 text-sm text-slate-400">Day-by-day work for this job — the field list for the crew.</p></div>{fieldTasks.length > 0 ? (<span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">{fieldDoneCount} of {fieldTasks.length} done</span>) : null}</div>{loading ? (<div className="mt-4 flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Loading checklist…</div>) : fieldTasks.length === 0 ? (<div className="mt-4 space-y-3"><p className="text-sm text-slate-400">No checklist items yet.</p></div>) : (<ul className="mt-3 space-y-1.5">{fieldTasks.map((task) => (<li key={task.id} className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"><input type="checkbox" checked={task.isDone} onChange={() => void toggleTask(task)} aria-label={task.label} className="h-4 w-4 shrink-0" /><span className={task.isDone ? "min-w-0 flex-1 truncate text-sm text-slate-500 line-through" : "min-w-0 flex-1 truncate text-sm text-slate-200"} title={task.label}>{task.label}</span>{canManageChecklist ? (<button type="button" onClick={() => void removeTask(task)} aria-label={`Remove ${task.label}`} className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"><Trash2 className="h-3.5 w-3.5" /></button>) : null}</li>))}</ul>)}{canManageChecklist ? (<div className="mt-3 flex items-center gap-2"><input type="text" value={newLabel} onChange={(event) => setNewLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addTask(); } }} placeholder="Add a checklist item…" maxLength={200} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-blue-500/40" /><Button variant="secondary" onClick={() => void addTask()} disabled={working || !newLabel.trim()} className="shrink-0 gap-1.5"><Plus className="h-4 w-4" />Add</Button></div>) : null}</div></SurfaceCard><SurfaceCard>
       <div className="p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 ring-1 ring-blue-500/30">
@@ -194,7 +196,7 @@ export function JobTasksCard({
         ) : officeTasks.length === 0 ? (
           <div className="mt-4 space-y-3">
             <p className="text-sm text-slate-400">No checklist items yet.</p>
-            {jobType === "Install" ? (
+            {jobType === "Install" && canManageChecklist ? (
               <Button
                 variant="secondary"
                 onClick={() => void addTemplate()}
@@ -230,20 +232,22 @@ export function JobTasksCard({
                 >
                   {task.label}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => void removeTask(task)}
-                  aria-label={`Remove ${task.label}`}
-                  className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {canManageChecklist ? (
+                  <button
+                    type="button"
+                    onClick={() => void removeTask(task)}
+                    aria-label={`Remove ${task.label}`}
+                    className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
 
-        {/* Add custom item */}
+        {canManageChecklist ? (
         <div className="mt-3 flex items-center gap-2">
           <input
             type="text"
@@ -269,6 +273,7 @@ export function JobTasksCard({
             Add
           </Button>
         </div>
+        ) : null}
       </div>
     </SurfaceCard></div>
   );
