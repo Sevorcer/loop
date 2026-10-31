@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   flexRender,
@@ -28,6 +29,11 @@ interface DataTableProps<TData> {
   data: TData[];
   onRowClick?: (row: TData) => void;
   /**
+   * Phone cards render this as a real anchor so the whole card is tappable
+   * and keyboard-activatable. Desktop rows keep onRowClick.
+   */
+  getRowHref?: (row: TData) => string;
+  /**
    * When true, the table renders all rows with no internal pagination and no
    * footer — the parent owns pagination (e.g. CustomerTable, VehicleAlertTable).
    * Defaults to false (internal pagination, 5 rows per page).
@@ -52,6 +58,7 @@ export function DataTable<TData>({
   columns,
   data,
   onRowClick,
+  getRowHref,
   disableInternalPagination = false,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -148,34 +155,15 @@ export function DataTable<TData>({
                 mobileCells[0];
 
               const detailCells = mobileCells.filter((cell) => cell.id !== primaryCell?.id);
+              const rowHref = getRowHref?.(row.original);
+              const cardClass = [
+                "relative z-[1] block min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4",
+                "outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
+                rowHref || onRowClick ? "cursor-pointer transition-colors hover:bg-white/[0.05]" : "",
+              ].join(" ");
 
-              return (
-                <div
-                  key={row.id}
-                  className={[
-                    "rounded-2xl border border-white/10 bg-white/[0.03] p-4",
-                    onRowClick ? "cursor-pointer transition-colors hover:bg-white/[0.05]" : "",
-                  ].join(" ")}
-                  onClick={() => handleRowClick(row)}
-                  onKeyDown={(event) => {
-                    if (!onRowClick) {
-                      return;
-                    }
-
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleRowClick(row);
-                      return;
-                    }
-
-                    if (event.key === " ") {
-                      event.preventDefault();
-                      handleRowClick(row);
-                    }
-                  }}
-                  role={onRowClick ? "button" : undefined}
-                  tabIndex={onRowClick ? 0 : undefined}
-                >
+              const cardBody = (
+                <>
                   {primaryCell ? (
                     <div className="min-w-0">
                       {flexRender(primaryCell.column.columnDef.cell, primaryCell.getContext())}
@@ -185,17 +173,47 @@ export function DataTable<TData>({
                   {detailCells.length > 0 ? (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {detailCells.map((cell) => (
-                        <div key={cell.id} className="space-y-1">
+                        <div key={cell.id} className="min-w-0 space-y-1">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                             {getMobileLabel(cell)}
                           </p>
-                          <div className="text-sm text-primary">
+                          <div className="min-w-0 text-sm text-primary">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : null}
+                </>
+              );
+
+              if (rowHref) {
+                return (
+                  <Link key={row.id} href={rowHref} className={cardClass}>
+                    {cardBody}
+                  </Link>
+                );
+              }
+
+              return (
+                <div
+                  key={row.id}
+                  className={cardClass}
+                  onClick={() => handleRowClick(row)}
+                  onKeyDown={(event) => {
+                    if (!onRowClick) {
+                      return;
+                    }
+
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleRowClick(row);
+                    }
+                  }}
+                  role={onRowClick ? "button" : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
+                >
+                  {cardBody}
                 </div>
               );
             })

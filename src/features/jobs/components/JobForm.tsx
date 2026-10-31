@@ -418,7 +418,7 @@ export function JobForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
+              <label htmlFor="job-form-customer" className="text-sm font-medium text-slate-200">
                 Customer
                 {!isTech ? <RequiredStar /> : null}
               </label>
@@ -427,11 +427,11 @@ export function JobForm({
                   silently unlink the job. Name-valued options match the F6
                   pattern; the existing handleCustomerInput resolution and
                   property scoping are unchanged. */}
-              <RecordCombobox label="Customer Name" disabled={isTech} options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); onCustomerSearch?.(text); }} required />
+              <RecordCombobox id="job-form-customer" showLabel={false} label="Customer Name" disabled={isTech} options={customerOptions} value={form.customerName} onSelect={(name, id) => { setForm((p) => ({ ...p, customerName: name, customerId: id, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: id ?? undefined, propertyId: undefined })); }} onCreateNew={(name) => { setForm((p) => ({ ...p, customerName: name, customerId: null, createNewCustomer: true })); setSelection((p) => ({ ...p, customerId: undefined, propertyId: undefined })); setForm((p) => ({ ...p, propertyName: "", propertyId: null, createNewProperty: false })); }} onQueryChange={(text) => { setForm((p) => ({ ...p, customerName: text, customerId: null, createNewCustomer: false })); setSelection((p) => ({ ...p, customerId: undefined })); onCustomerSearch?.(text); }} required />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
+              <label htmlFor="job-form-property" className="text-sm font-medium text-slate-200">
                 Property
                 {!isTech ? <RequiredStar /> : null}
               </label>
@@ -439,6 +439,8 @@ export function JobForm({
                   scoped to the selected customer (same getScopedProperties
                   behavior as before); only real linked records can be picked. */}
               <RecordCombobox
+                id="job-form-property"
+                showLabel={false}
                 label="Property"
                 disabled={isTech || form.customerName.trim().length === 0}
                 options={propertyRecords}

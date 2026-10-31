@@ -32,10 +32,10 @@ export function KPICard({
   trend,
 }: KPICardProps) {
   const card = (
-    <Card className="hover-lift">
-      <CardContent className="space-y-5 pt-6" title={helpText}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
+    <Card className="hover-lift min-w-0">
+      <CardContent className="space-y-5 px-4 pt-5 sm:px-6 sm:pt-6" title={helpText}>
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
             <p className="text-muted text-xs font-semibold uppercase tracking-[0.18em]">
               {title}
               {helpText ? (
@@ -48,7 +48,7 @@ export function KPICard({
               ) : null}
             </p>
 
-            <h3 className="text-primary text-3xl font-bold tracking-tight sm:text-4xl">
+            <h3 className="text-primary max-w-full text-3xl font-bold tracking-tight max-sm:text-balance max-sm:break-words max-sm:text-xl max-sm:leading-tight sm:text-4xl">
               {value}
             </h3>
           </div>

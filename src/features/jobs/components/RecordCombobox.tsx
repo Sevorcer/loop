@@ -16,7 +16,10 @@ export interface RecordOption {
 }
 
 interface RecordComboboxProps {
+  id?: string;
   label: string;
+  /** Hide the built-in label when the parent already labels this field. */
+  showLabel?: boolean;
   options: RecordOption[];
   value: string;
   onSelect: (name: string, id: string | null) => void;
@@ -35,7 +38,9 @@ type Row =
   | { kind: "create"; name: string };
 
 export function RecordCombobox({
+  id,
   label,
+  showLabel = true,
   options,
   value,
   onSelect,
@@ -162,12 +167,15 @@ export function RecordCombobox({
     : `+ Create new: ${trimmed}`;
 
   return (
-    <div ref={rootRef} className="relative">
-      <label className="mb-1.5 block text-sm font-medium text-white/80">
-        {label}
-        {required ? <span className="text-red-400"> *</span> : null}
-      </label>
+    <div ref={rootRef} className="relative min-w-0">
+      {showLabel ? (
+        <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-white/80">
+          {label}
+          {required ? <span className="text-red-400"> *</span> : null}
+        </label>
+      ) : null}
       <input
+        id={id}
         type="text"
         value={query}
         aria-required={required || undefined}

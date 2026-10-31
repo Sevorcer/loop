@@ -58,7 +58,49 @@ export function CrewWorkloadWidget({
         />
       ) : (
         <div className="min-w-0">
-          <table className="w-full table-fixed text-sm md:table-auto">
+          <ul className="space-y-2 md:hidden">
+            {rows.map((entry) => (
+              <li
+                key={entry.key}
+                className={
+                  entry.atRiskCount > 0
+                    ? "rounded-xl bg-danger/5 px-3 py-3"
+                    : "rounded-xl px-3 py-3"
+                }
+              >
+                <p className="text-sm font-medium text-primary">{entry.label}</p>
+                <dl className="mt-2 grid grid-cols-3 gap-2">
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                      Assigned
+                    </dt>
+                    <dd className="mt-1 text-sm text-muted">{entry.assignedCount}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                      In Progress
+                    </dt>
+                    <dd className="mt-1 text-sm">
+                      {entry.inProgressCount > 0 ? (
+                        <span className="font-medium text-warning">{entry.inProgressCount}</span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                      At Risk
+                    </dt>
+                    <dd className="mt-1">
+                      <AtRiskIndicator count={entry.atRiskCount} />
+                    </dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <table className="hidden w-full text-sm md:table">
             <thead>
               <tr className="border-b border-default">
                 <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-muted">
@@ -81,7 +123,7 @@ export function CrewWorkloadWidget({
                   key={entry.key}
                   className={entry.atRiskCount > 0 ? "bg-danger/5" : "hover:bg-surface-elevated"}
                 >
-                  <td className="break-words py-2.5 pr-4 font-medium text-primary">{entry.label}</td>
+                  <td className="py-2.5 pr-4 font-medium text-primary">{entry.label}</td>
                   <td className="py-2.5 px-3 text-right text-muted">{entry.assignedCount}</td>
                   <td className="py-2.5 px-3 text-right">
                     {entry.inProgressCount > 0 ? (
