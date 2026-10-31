@@ -22,22 +22,38 @@ describe("lock roles and staff writes", () => {
     expect(executable).not.toContain('CREATE POLICY "update own profile"');
   });
 
-  it("takes anon off user_profiles and leaves a person able to edit their name", () => {
-    expect(executable).toContain("REVOKE ALL ON TABLE public.user_profiles FROM anon");
-    expect(executable).toContain(
-      "GRANT UPDATE (full_name, updated_at) ON TABLE public.user_profiles TO authenticated",
+  it("takes table-level writes off user_profiles before the name-only column grant", () => {
+    const revokeAt = executable.indexOf(
+      "REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON TABLE public.user_profiles FROM authenticated;",
     );
-    expect(executable).not.toMatch(/GRANT\s+INSERT[\s\S]*user_profiles TO authenticated/i);
+    const grantAt = executable.indexOf(
+      "GRANT UPDATE (full_name, updated_at) ON TABLE public.user_profiles TO authenticated;",
+    );
+    expect(revokeAt).toBeGreaterThan(-1);
+    expect(grantAt).toBeGreaterThan(revokeAt);
+    expect(executable).toContain(
+      "REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON TABLE public.user_profiles FROM anon;",
+    );
+    expect(executable).toContain("GRANT SELECT ON TABLE public.user_profiles TO authenticated;");
+    expect(executable).not.toMatch(/GRANT\s+(SELECT,\s*)?DELETE ON TABLE public\.user_profiles TO authenticated/i);
     expect(executable).toContain('"user_profiles: user updates own name"');
     expect(executable).toContain('"user_profiles: manager can update"');
+    expect(executable).toContain('DROP POLICY IF EXISTS "user_profiles: owner can update"');
+    expect(executable).toContain('DROP POLICY IF EXISTS "job_tasks: delete for owner"');
   });
 
   it("refuses a self role change and removing the last owner", () => {
     expect(executable).toContain("Changing your own role is denied");
     expect(executable).toContain("Choosing your own role or company is denied");
-    expect(executable).toContain("Changing id, email, or company is denied");
+    expect(executable).toContain("Changing id or company is denied");
+    expect(executable).toContain("Changing email is denied");
+    expect(executable).toContain("Only an owner can grant or remove the owner role");
+    expect(executable).toContain("Only an owner can grant the owner role");
     expect(executable).toContain("Removing the last owner is denied");
     expect(executable).toContain("FOR UPDATE");
+    expect(executable).toContain(
+      "A technician can only record their own name on a checklist item",
+    );
   });
 
   it("limits assignee, task, dispatch, and equipment writes to office roles", () => {

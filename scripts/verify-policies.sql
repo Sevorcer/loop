@@ -25,7 +25,8 @@ WITH expected_policies (policy_name) AS (
     ('user_profiles: internal roles can read own org'),
     ('user_profiles: user reads own row'),
     ('user_profiles: owner can insert'),
-    ('user_profiles: owner can update'),
+    -- 'user_profiles: owner can update' was removed by 20261031100000.
+    -- Role changes use the service role. Name edits use a narrower policy.
     ('user_profiles: owner can delete'),
     ('customers: read for internal operational roles'),
     ('customers: insert for owner/manager/office/sales'),

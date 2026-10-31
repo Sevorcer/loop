@@ -31,7 +31,13 @@
 
 REVOKE ALL ON TABLE public.user_profiles FROM PUBLIC;
 REVOKE ALL ON TABLE public.user_profiles FROM anon;
-GRANT SELECT, DELETE ON TABLE public.user_profiles TO authenticated;
+REVOKE ALL ON TABLE public.user_profiles FROM authenticated;
+-- Table-level INSERT/UPDATE would make a later column grant a no-op.
+-- The signed-in app only writes full_name and updated_at. Nothing deletes
+-- a profile with the user's own login (deactivation bans the auth user).
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON TABLE public.user_profiles FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON TABLE public.user_profiles FROM anon;
+GRANT SELECT ON TABLE public.user_profiles TO authenticated;
 GRANT UPDATE (full_name, updated_at) ON TABLE public.user_profiles TO authenticated;
 GRANT ALL ON TABLE public.user_profiles TO service_role;
 
@@ -39,6 +45,9 @@ GRANT ALL ON TABLE public.user_profiles TO service_role;
 DROP POLICY IF EXISTS "insert own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "read own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "update own profile" ON public.user_profiles;
+-- Role changes go through the service role after the settings route checks
+-- the caller. This broad owner update policy is no longer the write path.
+DROP POLICY IF EXISTS "user_profiles: owner can update" ON public.user_profiles;
 
 DROP POLICY IF EXISTS "user_profiles: user updates own name" ON public.user_profiles;
 CREATE POLICY "user_profiles: user updates own name"
@@ -95,17 +104,31 @@ BEGIN
       RAISE EXCEPTION 'Adding a teammate is denied'
         USING ERRCODE = '42501';
     END IF;
+    IF (
+         NEW.app_role = 'owner'
+         OR (to_jsonb(NEW) ? 'role' AND (to_jsonb(NEW) ->> 'role') = 'owner')
+       )
+       AND public.current_app_role() IS DISTINCT FROM 'owner' THEN
+      RAISE EXCEPTION 'Only an owner can grant the owner role'
+        USING ERRCODE = '42501';
+    END IF;
     RETURN NEW;
   END IF;
 
   IF NEW.id IS DISTINCT FROM OLD.id
      OR NEW.org_id IS DISTINCT FROM OLD.org_id
-     OR (
-       to_jsonb(NEW) ? 'email'
-       AND (to_jsonb(NEW) -> 'email') IS DISTINCT FROM (to_jsonb(OLD) -> 'email')
-     )
   THEN
-    RAISE EXCEPTION 'Changing id, email, or company is denied'
+    RAISE EXCEPTION 'Changing id or company is denied'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- A logged-in person cannot change email. The service role (no auth.uid())
+  -- may, so a future change-email action is not blocked.
+  IF auth.uid() IS NOT NULL
+     AND to_jsonb(NEW) ? 'email'
+     AND (to_jsonb(NEW) -> 'email') IS DISTINCT FROM (to_jsonb(OLD) -> 'email')
+  THEN
+    RAISE EXCEPTION 'Changing email is denied'
       USING ERRCODE = '42501';
   END IF;
 
@@ -124,6 +147,23 @@ BEGIN
       IF public.current_app_role() NOT IN ('owner', 'manager')
          OR public.current_org_id() IS DISTINCT FROM OLD.org_id THEN
         RAISE EXCEPTION 'Changing another person''s role is denied'
+          USING ERRCODE = '42501';
+      END IF;
+      IF public.current_app_role() IS DISTINCT FROM 'owner'
+         AND (
+           (OLD.app_role = 'owner' AND NEW.app_role IS DISTINCT FROM 'owner')
+           OR (NEW.app_role = 'owner' AND OLD.app_role IS DISTINCT FROM 'owner')
+           OR (
+             to_jsonb(NEW) ? 'role'
+             AND (to_jsonb(NEW) -> 'role') IS DISTINCT FROM (to_jsonb(OLD) -> 'role')
+             AND (
+               (to_jsonb(OLD) ->> 'role') = 'owner'
+               OR (to_jsonb(NEW) ->> 'role') = 'owner'
+             )
+           )
+         )
+      THEN
+        RAISE EXCEPTION 'Only an owner can grant or remove the owner role'
           USING ERRCODE = '42501';
       END IF;
     END IF;
@@ -255,6 +295,7 @@ CREATE POLICY "job_tasks: update for office roles"
     AND org_id = current_org_id()
   );
 
+DROP POLICY IF EXISTS "job_tasks: delete for owner" ON public.job_tasks;
 DROP POLICY IF EXISTS "job_tasks: delete for office roles" ON public.job_tasks;
 CREATE POLICY "job_tasks: delete for office roles"
   ON public.job_tasks
@@ -295,6 +336,11 @@ BEGIN
      to_jsonb(OLD) - 'is_done' - 'completed_at' - 'completed_by' - 'updated_at'
   THEN
     RAISE EXCEPTION 'Technicians may only check a job task off'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF NEW.completed_by IS NOT NULL AND NEW.completed_by IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'A technician can only record their own name on a checklist item'
       USING ERRCODE = '42501';
   END IF;
 

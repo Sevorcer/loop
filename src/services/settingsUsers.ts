@@ -13,7 +13,10 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/services/authorization";
-import { refusalForProfileRoleChange } from "@/services/profileRoleGuard";
+import {
+  refusalForOwnerInvite,
+  refusalForProfileRoleChange,
+} from "@/services/profileRoleGuard";
 import type {
   OrgUser,
   InviteUserPayload,
@@ -205,8 +208,17 @@ export async function listOrgUsers(callerUserId: string): Promise<OrgUser[]> {
  */
 export async function inviteOrgUser(
   callerUserId: string,
+  callerRole: string | null,
   payload: InviteUserPayload
 ): Promise<OrgUser> {
+  const inviteRefusal = refusalForOwnerInvite({
+    callerRole,
+    appRole: payload.appRole,
+  });
+  if (inviteRefusal) {
+    throw refused(inviteRefusal);
+  }
+
   const orgId = await resolveCallerOrgId(callerUserId);
   if (!orgId) {
     throw new Error("Caller has no organization.");
@@ -266,6 +278,7 @@ function refused(message: string, status = 403): Error {
  */
 export async function updateOrgUser(
   callerUserId: string,
+  callerRole: string | null,
   userId: string,
   payload: UpdateUserPayload
 ): Promise<void> {
@@ -284,6 +297,7 @@ export async function updateOrgUser(
   const refusal = refusalForProfileRoleChange({
     callerId: callerUserId,
     targetId: userId,
+    callerRole,
     sameCompany: Boolean(callerOrgId) && row?.org_id === callerOrgId,
     currentRole: row?.app_role ?? null,
     nextRole: payload.role,
@@ -291,21 +305,24 @@ export async function updateOrgUser(
   if (refusal) throw refused(refusal);
 
   const roleIsChanging = payload.role !== undefined && payload.role !== row?.app_role;
+  const editingSomeoneElse = userId !== callerUserId;
   const updatedAt = new Date().toISOString();
 
-  if (roleIsChanging) {
+  if (roleIsChanging || (payload.fullName !== undefined && editingSomeoneElse)) {
     const updates: Record<string, unknown> = {
       updated_at: updatedAt,
-      app_role: payload.role,
     };
     if (payload.fullName !== undefined) updates.full_name = payload.fullName;
+    if (roleIsChanging) updates.app_role = payload.role;
 
     const { error } = await profiles.from("user_profiles").update(updates).eq("id", userId);
     if (error) throw new Error(error.message);
 
-    await admin.auth.admin.updateUserById(userId, {
-      app_metadata: { app_role: payload.role },
-    });
+    if (roleIsChanging) {
+      await admin.auth.admin.updateUserById(userId, {
+        app_metadata: { app_role: payload.role },
+      });
+    }
     return;
   }
 

@@ -9,7 +9,9 @@ import {
   AdminFormError,
   AdminFormActions,
 } from "@/features/admin/components/form";
+import { useCurrentRole } from "@/features/auth";
 import type { AppRole } from "@/services/authorization";
+import { canGrantOwnerRole } from "@/services/profileRoleGuard";
 import type { OrgUser } from "../types";
 import { OPERATIONAL_ROLES, ROLE_LABELS } from "../utils/permissionsMatrix";
 
@@ -20,6 +22,12 @@ interface EditUserDialogProps {
 }
 
 export function EditUserDialog({ user, onClose, onUpdated }: EditUserDialogProps) {
+  const { role: callerRole } = useCurrentRole();
+  const canGrantOwner = canGrantOwnerRole(callerRole);
+  const roleLocked = user.role === "owner" && !canGrantOwner;
+  const roleChoices = OPERATIONAL_ROLES.filter(
+    (choice) => canGrantOwner || choice !== "owner" || user.role === "owner",
+  );
   const [fullName, setFullName] = useState(user.fullName ?? "");
   const [role, setRole] = useState<AppRole>(user.role);
   const [formError, setFormError] = useState<string | null>(null);
@@ -45,10 +53,8 @@ export function EditUserDialog({ user, onClose, onUpdated }: EditUserDialogProps
         return;
       }
 
-      const body = await res.json().catch(() => ({}));
-      setFormError(
-        (body as { error?: string }).error ?? "Failed to update user. Please try again."
-      );
+      const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      setFormError(body.message ?? body.error ?? "Failed to update user. Please try again.");
     } catch {
       setFormError("Network error. Please check your connection and try again.");
     } finally {
@@ -106,16 +112,20 @@ export function EditUserDialog({ user, onClose, onUpdated }: EditUserDialogProps
           <AdminFieldWrapper label="Role" htmlFor="edit-role" required>
             <select
               id="edit-role"
-              value={role}
+              value={roleLocked ? user.role : role}
+              disabled={roleLocked}
               onChange={(e) => setRole(e.target.value as AppRole)}
-              className="w-full rounded-atlas-md border border-default bg-surface-elevated px-3 py-2 text-sm text-primary focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+              className="w-full rounded-atlas-md border border-default bg-surface-elevated px-3 py-2 text-sm text-primary focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] disabled:opacity-60"
             >
-              {OPERATIONAL_ROLES.map((r) => (
-                <option key={r} value={r}>
+              {roleChoices.map((r) => (
+                <option key={r} value={r} disabled={!canGrantOwner && r === "owner"}>
                   {ROLE_LABELS[r]}
                 </option>
               ))}
             </select>
+            {roleLocked ? (
+              <p className="text-xs text-muted">Only an owner can change the owner role.</p>
+            ) : null}
           </AdminFieldWrapper>
 
           <AdminFormActions

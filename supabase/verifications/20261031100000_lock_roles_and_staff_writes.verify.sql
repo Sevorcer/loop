@@ -35,14 +35,40 @@ DO $$ BEGIN
     'anon must not insert user_profiles';
   ASSERT NOT has_table_privilege('anon', 'public.user_profiles', 'UPDATE'),
     'anon must not update user_profiles';
+  ASSERT NOT EXISTS (
+    SELECT 1
+    FROM information_schema.role_table_grants
+    WHERE table_schema = 'public'
+      AND table_name = 'user_profiles'
+      AND grantee = 'authenticated'
+      AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER')
+  ), 'authenticated must not keep table-level write privileges on user_profiles';
+  ASSERT EXISTS (
+    SELECT 1
+    FROM information_schema.role_table_grants
+    WHERE table_schema = 'public'
+      AND table_name = 'user_profiles'
+      AND grantee = 'authenticated'
+      AND privilege_type = 'SELECT'
+  ), 'authenticated must still be able to read user_profiles';
   ASSERT NOT has_column_privilege('authenticated', 'public.user_profiles', 'app_role', 'UPDATE'),
     'a signed-in user must not have column update on app_role';
   ASSERT NOT has_column_privilege('authenticated', 'public.user_profiles', 'org_id', 'UPDATE'),
     'a signed-in user must not have column update on org_id';
   ASSERT has_column_privilege('authenticated', 'public.user_profiles', 'full_name', 'UPDATE'),
     'a signed-in user may still update full_name';
+  ASSERT has_column_privilege('authenticated', 'public.user_profiles', 'updated_at', 'UPDATE'),
+    'a signed-in user may still update updated_at';
   ASSERT NOT has_table_privilege('authenticated', 'public.user_profiles', 'INSERT'),
     'a signed-in user must not insert a profile directly';
+  ASSERT NOT has_table_privilege('authenticated', 'public.user_profiles', 'DELETE'),
+    'a signed-in user must not delete a profile directly';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_profiles'
+      AND policyname = 'user_profiles: owner can update'
+  ), 'the broad owner profile update policy must be gone';
 END; $$;
 
 DO $$ BEGIN
@@ -109,6 +135,13 @@ DO $$ BEGIN
     WHERE tgname = 'guard_tech_job_task_update'
       AND NOT tgisinternal
   ), 'technician task updates must be limited to checking the item off';
+
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'job_tasks'
+      AND policyname = 'job_tasks: delete for owner'
+  ), 'the old owner-only task delete policy must be gone';
 END; $$;
 
 DO $$ BEGIN
