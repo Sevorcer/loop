@@ -372,7 +372,7 @@ export function JobForm({
   const submitLabel = isCreateMode ? "Create Job" : "Save Changes";
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-6 pb-8 sm:pb-2">
       <SurfaceCard className="overflow-hidden">
         <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">

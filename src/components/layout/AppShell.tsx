@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Command, Menu, Search } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import { UniversalCommandBar } from "@/features/command-bar";
 import { FeedbackButton } from "@/features/feedback";
@@ -9,6 +10,7 @@ import { useAppearancePreferences } from "@/features/settings/hooks/useAppearanc
 import { Button } from "@/components/ui/button";
 import { ToastViewport } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { hidesFloatingActions } from "./floatingActions";
 import { computeSidebarLayout, readSidebarPinned, writeSidebarPinned } from "./sidebarState";
 
 import Sidebar from "./Sidebar";
@@ -32,6 +34,8 @@ export default function AppShell({ children }: AppShellProps) {
   const [isPinned, setIsPinned] = useState<boolean>(() => readSidebarPinned());
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const { preferences } = useAppearancePreferences();
+  const pathname = usePathname();
+  const hideFloatingActions = hidesFloatingActions(pathname);
 
   const desktopSidebarRef = useRef<HTMLDivElement>(null);
   const desktopTriggerRef = useRef<HTMLButtonElement>(null);
@@ -169,7 +173,12 @@ export default function AppShell({ children }: AppShellProps) {
         />
 
         <main className="relative z-10 flex-1">
-          <div className="safe-area-content mx-auto w-full min-w-0 max-w-[1600px] px-4 pt-4 sm:px-6 sm:py-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
+          <div
+            className={cn(
+              "safe-area-content mx-auto w-full min-w-0 max-w-[1600px] px-4 pt-4 sm:px-6 sm:py-6 lg:px-8 print:max-w-none print:px-0 print:py-0",
+              hideFloatingActions && "safe-area-content--form",
+            )}
+          >
             {children}
           </div>
         </main>
@@ -181,43 +190,46 @@ export default function AppShell({ children }: AppShellProps) {
       />
 
       {/* Floating Actions Stack — vertical column, bottom-right corner.
-          Lifts above any sticky mobile action bar via the body flag. */}
-      <div
-        className="floating-actions-stack fixed bottom-6 right-6 z-40 flex w-12 flex-col-reverse items-end gap-3 print:hidden lg:bottom-8 lg:right-8"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-      >
-        {/* Report Feedback */}
-        <FeedbackButton />
+          Lifts above any sticky mobile action bar via the body flag.
+          Hidden on job create/edit so it cannot cover the form while scrolling. */}
+      {hideFloatingActions ? null : (
+        <div
+          className="floating-actions-stack fixed bottom-6 right-6 z-40 flex w-12 flex-col-reverse items-end gap-3 print:hidden lg:bottom-8 lg:right-8"
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
+          {/* Report Feedback */}
+          <FeedbackButton />
 
-        {/* Ask Copilot — desktop */}
-        <div className="group relative hidden sm:block">
+          {/* Ask Copilot — desktop */}
+          <div className="group relative hidden sm:block">
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              onClick={() => setIsCommandBarOpen(true)}
+              aria-label="Open command bar"
+              className="h-10 w-10 rounded-full border border-white/15 bg-slate-900/90 text-slate-200 shadow-xl hover:bg-slate-800"
+            >
+              <Command className="h-4 w-4" />
+            </Button>
+            <span className="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-slate-900 px-2 py-1 text-xs text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+              Ask Copilot
+            </span>
+          </div>
+
+          {/* Ask Copilot — mobile */}
           <Button
             type="button"
             variant="secondary"
             size="icon"
             onClick={() => setIsCommandBarOpen(true)}
             aria-label="Open command bar"
-            className="h-10 w-10 rounded-full border border-white/15 bg-slate-900/90 text-slate-200 shadow-xl hover:bg-slate-800"
+            className="h-12 w-12 rounded-full border border-white/15 bg-slate-900/95 text-slate-100 shadow-xl sm:hidden"
           >
-            <Command className="h-4 w-4" />
+            <Search className="h-5 w-5" />
           </Button>
-          <span className="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-slate-900 px-2 py-1 text-xs text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-            Ask Copilot
-          </span>
         </div>
-
-        {/* Ask Copilot — mobile */}
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon"
-          onClick={() => setIsCommandBarOpen(true)}
-          aria-label="Open command bar"
-          className="h-12 w-12 rounded-full border border-white/15 bg-slate-900/95 text-slate-100 shadow-xl sm:hidden"
-        >
-          <Search className="h-5 w-5" />
-        </Button>
-      </div>
+      )}
 
       {/* ── Mobile backdrop ─────────────────────────────────────────────── */}
       {isMobileNavOpen ? (
