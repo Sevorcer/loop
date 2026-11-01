@@ -6,6 +6,10 @@ import { loadLinkedPropertyIds } from "./properties";
 import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
 
+const CUSTOMER_COLUMNS =
+  "id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at";
+const CUSTOMER_DETAIL_COLUMNS = `${CUSTOMER_COLUMNS},state,parent_customer_id`;
+
 interface CustomerRow {
   id: string;
   name: string;
@@ -22,6 +26,8 @@ interface CustomerRow {
   open_jobs: number;
   last_activity: string | null;
   created_at: string;
+  state?: string;
+  parent_customer_id?: string | null;
 }
 
 export interface CustomerWriteInput {
@@ -61,6 +67,7 @@ function mapCustomer(row: CustomerRow): Customer {
     city: row.city,
     street: row.street,
     zip: row.zip,
+    state: row.state ?? "",
     notes: row.notes,
     status: row.status,
     propertyCount: row.property_count,
@@ -99,22 +106,64 @@ export async function listCustomers(
   return ((data ?? []) as CustomerRow[]).map((row) => withLinkedPropertyCount(mapCustomer(row), linked));
 }
 
+function missingAccountColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "42703"
+    || (/column/i.test(error.message ?? "") && /parent_customer_id|state/i.test(error.message ?? ""));
+}
+
 export async function getCustomerById(id: string): Promise<Customer | null> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
+  const detail = await supabase
     .from("customers")
-    .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
+    .select(CUSTOMER_DETAIL_COLUMNS)
     .eq("org_id", orgId)
     .eq("id", id)
     .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
+  const fallback = detail.error && missingAccountColumn(detail.error)
+    ? await supabase
+      .from("customers")
+      .select(CUSTOMER_COLUMNS)
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .maybeSingle()
+    : detail;
+
+  if (fallback.error) {
+    throw new Error(fallback.error.message);
   }
 
-  if (!data) return null;
+  if (!fallback.data) return null;
+  const row = fallback.data as CustomerRow;
   const linked = await loadLinkedPropertyIds();
-  return withLinkedPropertyCount(mapCustomer(data as CustomerRow), linked);
+  const customer = withLinkedPropertyCount(mapCustomer(row), linked);
+  if (!detail.error && row.parent_customer_id) {
+    const parent = await supabase
+      .from("customers")
+      .select("id,name")
+      .eq("org_id", orgId)
+      .eq("id", row.parent_customer_id)
+      .maybeSingle();
+    if (parent.data) {
+      customer.parentCustomer = { id: parent.data.id as string, name: parent.data.name as string };
+    }
+  }
+  if (!detail.error) {
+    const children = await supabase
+      .from("customers")
+      .select("id,name")
+      .eq("org_id", orgId)
+      .eq("parent_customer_id", id)
+      .order("name");
+    if (!children.error) {
+      customer.childCustomers = ((children.data ?? []) as { id: string; name: string }[]).map((child) => ({
+        id: child.id,
+        name: child.name,
+      }));
+    }
+  }
+  return customer;
 }
 
 export async function createCustomer(input: CustomerWriteInput): Promise<Customer> {
