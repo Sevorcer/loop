@@ -43,6 +43,7 @@ describe("buildDirectionsUrl", () => {
 
   it("returns null for an empty location", () => {
     expect(buildDirectionsUrl("   ")).toBeNull();
+    expect(buildDirectionsUrl(", ")).toBeNull();
   });
 });
 

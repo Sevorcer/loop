@@ -1,3 +1,5 @@
+import { joinAddressParts } from "@/lib/address";
+
 import type { JobStatus } from "../types/job";
 import { getValidNextStatuses } from "./jobWorkspace";
 
@@ -36,7 +38,7 @@ export function getPrimaryAdvance(current: JobStatus): PrimaryAdvance | null {
  * so a tech can jump to turn-by-turn directions from the sticky action bar.
  */
 export function buildDirectionsUrl(location: string): string | null {
-  const query = location.trim();
+  const query = joinAddressParts([location]);
   if (!query) return null;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
@@ -49,10 +51,7 @@ export function buildCustomerDirectionsUrl(
   city?: string | null,
   zip?: string | null,
 ): string | null {
-  const query = [street, city, zip]
-    .map((part) => part?.trim())
-    .filter((part): part is string => Boolean(part))
-    .join(", ");
+  const query = joinAddressParts([street, city, zip]);
   if (!query) return null;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

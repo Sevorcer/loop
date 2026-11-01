@@ -1,4 +1,5 @@
 import type { JobPropertyOption } from "@/features/jobs/utils/smartJobCreation";
+import { joinAddressParts } from "@/lib/address";
 
 export interface RecordSearchOption {
   id: string;
@@ -46,10 +47,7 @@ export function propertiesMatchingQuery<
 export function propertyOptionDetail(
   property: Pick<JobPropertyOption, "address" | "city">,
 ): string {
-  const address = property.address?.trim() ?? "";
-  const city = property.city?.trim() ?? "";
-  if (address && city) return `${address}, ${city}`;
-  return address || city;
+  return joinAddressParts([property.address, property.city]);
 }
 
 export function missingPropertyDraftFields(draft: PropertyDraft): string[] {

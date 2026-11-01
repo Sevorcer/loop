@@ -9,6 +9,7 @@ import { AtlasTabs, AtlasTimeline, EmptyState, ErrorState, PermissionGuard, Stat
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { TimelineEventItem } from "@/lib/timeline";
+import { joinAddressParts } from "@/lib/address";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { formatDateOnly } from "@/lib/dates";
 
@@ -137,7 +138,7 @@ export function CustomerDetailTabs({
         id: `property-doc-${property.id}`,
         propertyId: property.id,
         title: `${property.name} service profile`,
-        description: `${property.address}, ${property.city}`,
+        description: joinAddressParts([property.address, property.city]),
       })),
       ...installedSystems.map((system) => ({
         id: `system-doc-${system.id}`,
@@ -318,7 +319,10 @@ export function CustomerDetailTabs({
           />
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
-            {properties.map((property) => (
+            {properties.map((property) => {
+              const addressLine = joinAddressParts([property.address, property.city]);
+              const primarySystem = property.primarySystem?.trim() ?? "";
+              return (
               <Card key={property.id} className="hover-lift h-full transition-atlas hover:border-primary/40">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
@@ -328,10 +332,9 @@ export function CustomerDetailTabs({
                 </CardHeader>
 
                 <CardContent className="space-y-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">{property.address}</p>
-                    <p className="text-muted-foreground">{property.city}</p>
-                  </div>
+                  {addressLine ? (
+                    <p className="text-muted-foreground">{addressLine}</p>
+                  ) : null}
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-muted-foreground">Status</span>
@@ -340,10 +343,12 @@ export function CustomerDetailTabs({
                     </StatusBadge>
                   </div>
 
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Primary System</span>
-                    <span className="font-medium">{property.primarySystem}</span>
-                  </div>
+                  {primarySystem ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-muted-foreground">Primary System</span>
+                      <span className="font-medium">{primarySystem}</span>
+                    </div>
+                  ) : null}
 
                   <div className="flex items-center justify-between gap-3 pt-2">
                     <Link href={ROUTE_BUILDERS.PROPERTY_DETAIL(property.id)}>
@@ -365,7 +370,8 @@ export function CustomerDetailTabs({
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )
       ) : null}
@@ -520,7 +526,9 @@ export function CustomerDetailTabs({
               {filteredDocs.map((doc) => (
                 <div key={doc.id} className="rounded-xl border bg-muted/20 p-4">
                   <p className="font-medium">{doc.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{doc.description}</p>
+                  {doc.description ? (
+                    <p className="mt-1 text-sm text-muted-foreground">{doc.description}</p>
+                  ) : null}
                 </div>
               ))}
             </CardContent>

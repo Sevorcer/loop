@@ -46,6 +46,7 @@ describe("property picker", () => {
   it("shows the address under the property name", () => {
     expect(propertyOptionDetail(properties[0])).toBe("1450 Northside Blvd, Seattle");
     expect(propertyOptionDetail({ address: "", city: "Salem" })).toBe("Salem");
+    expect(propertyOptionDetail({ address: " ", city: "," })).toBe("");
   });
 
   it("finds a property by the address shown in the picker", () => {

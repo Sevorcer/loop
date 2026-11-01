@@ -22,6 +22,7 @@ import { JobInstalledSystemsPanel } from "@/features/installed-systems/component
 import { useInstalledSystems } from "@/features/installed-systems/state/InstalledSystemsProvider";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { joinAddressParts } from "@/lib/address";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { formatTeamLabel } from "@/lib/teamLabel";
 
@@ -115,6 +116,7 @@ export function JobDetailScreen({
   // F20: prefer the real scheduled time over the legacy appointment-hour
   // field, which always falls back to 9 AM for jobs created by the new form.
   const appointmentDisplay = formatJobAppointmentDisplay(job);
+  const locationLabel = joinAddressParts([job.location]);
   const currentTeam = job.assignees && job.assignees.length > 0
     ? formatTeamLabel(job.assignees.map((assignee) => assignee.name))
     : job.assignedTo || "";
@@ -322,19 +324,17 @@ export function JobDetailScreen({
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Location
-                    </p>
-                    <p className="mt-1 text-sm text-slate-200">
-                      {job.location}
-                    </p>
-                    {job.location ? (
+                {locationLabel ? (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Location
+                      </p>
+                      <p className="mt-1 text-sm text-slate-200">{locationLabel}</p>
                       <div className="mt-2 flex gap-2">
                         <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.location)}`}
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationLabel)}`}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08]"
@@ -343,7 +343,7 @@ export function JobDetailScreen({
                           Google Maps
                         </a>
                         <a
-                          href={`https://maps.apple.com/?q=${encodeURIComponent(job.location)}`}
+                          href={`https://maps.apple.com/?q=${encodeURIComponent(locationLabel)}`}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08]"
@@ -352,9 +352,9 @@ export function JobDetailScreen({
                           Apple Maps
                         </a>
                       </div>
-                    ) : null}
+                    </div>
                   </div>
-                </div>
+                ) : null}
 
                 <div className="flex items-start gap-3">
                   <Briefcase className="mt-0.5 h-4 w-4 text-slate-400" />

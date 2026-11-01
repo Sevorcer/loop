@@ -131,32 +131,38 @@ export function MapViewCard({
           )}
         </div>
 
-        <div className="flex gap-2">
-          <a
-            href={navigationUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              "inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
-              "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            <Navigation className="h-4 w-4" />
-            Google Maps
-          </a>
-          <a
-            href={appleMapsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              "inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
-              "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            <Navigation className="h-4 w-4" />
-            Apple Maps
-          </a>
-        </div>
+        {navigationUrl || appleMapsUrl ? (
+          <div className="flex gap-2">
+            {navigationUrl ? (
+              <a
+                href={navigationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  "inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
+                  "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Navigation className="h-4 w-4" />
+                Google Maps
+              </a>
+            ) : null}
+            {appleMapsUrl ? (
+              <a
+                href={appleMapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  "inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
+                  "bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Navigation className="h-4 w-4" />
+                Apple Maps
+              </a>
+            ) : null}
+          </div>
+        ) : null}
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -208,20 +214,24 @@ export function MapViewCard({
                 Property imagery is not available. Contact your administrator to enable maps.
               </p>
 
-              <div className="mt-6 rounded-full border bg-background/60 px-4 py-2 text-sm text-muted-foreground">
-                {arrivalAddress}
-              </div>
+              {arrivalAddress ? (
+                <div className="mt-6 rounded-full border bg-background/60 px-4 py-2 text-sm text-muted-foreground">
+                  {arrivalAddress}
+                </div>
+              ) : null}
             </div>
           </div>
         )}
 
-        <div className="flex items-start gap-3 rounded-xl border bg-muted/10 p-4">
-          <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="font-medium">Arrival Address</p>
-            <p className="text-sm text-muted-foreground">{arrivalAddress}</p>
+        {arrivalAddress ? (
+          <div className="flex items-start gap-3 rounded-xl border bg-muted/10 p-4">
+            <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="font-medium">Arrival Address</p>
+              <p className="text-sm text-muted-foreground">{arrivalAddress}</p>
+            </div>
           </div>
-        </div>
+        ) : null}
       </CardContent>
     </Card>
   );
