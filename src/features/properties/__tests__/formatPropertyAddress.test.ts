@@ -24,7 +24,15 @@ describe("formatPropertyAddress", () => {
     ).toBe("Suite 100, 800 5th Ave, Seattle");
   });
 
-  it("works with empty strings without throwing", () => {
-    expect(formatPropertyAddress({ address: "", city: "" })).toBe(", ");
+  it("leaves out a blank street or city", () => {
+    expect(formatPropertyAddress({ address: "245 Maple Ave", city: "" })).toBe(
+      "245 Maple Ave",
+    );
+    expect(formatPropertyAddress({ address: " ", city: "Seattle" })).toBe("Seattle");
+  });
+
+  it("returns an empty string when both parts are blank", () => {
+    expect(formatPropertyAddress({ address: "", city: "" })).toBe("");
+    expect(formatPropertyAddress({ address: "  ", city: " , " })).toBe("");
   });
 });

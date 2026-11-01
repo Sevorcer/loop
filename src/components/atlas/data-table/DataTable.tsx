@@ -22,6 +22,8 @@ type MobileColumnMeta = {
   mobileLabel?: string;
   mobilePrimary?: boolean;
   mobileHidden?: boolean;
+  /** Phone cards skip this row when the cell value is blank. */
+  hideWhenBlank?: boolean;
 };
 
 interface DataTableProps<TData> {
@@ -154,7 +156,13 @@ export function DataTable<TData>({
                 mobileCells.find((cell) => getColumnMeta(cell.column.columnDef).mobilePrimary) ??
                 mobileCells[0];
 
-              const detailCells = mobileCells.filter((cell) => cell.id !== primaryCell?.id);
+              const detailCells = mobileCells.filter((cell) => {
+                if (cell.id === primaryCell?.id) return false;
+                const meta = getColumnMeta(cell.column.columnDef);
+                if (!meta.hideWhenBlank) return true;
+                const value = cell.getValue();
+                return typeof value === "string" && value.trim().length > 0;
+              });
               const rowHref = getRowHref?.(row.original);
               const cardClass = [
                 "relative z-[1] block min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4",

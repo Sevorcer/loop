@@ -54,6 +54,7 @@ import {
   listAllPortalPhotos,
 } from "@/repositories/portalProjects";
 
+import { joinAddressParts } from "@/lib/address";
 import { PORTAL_ROUTES, ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 import type { SearchRecord } from "./types";
 
@@ -80,16 +81,20 @@ function sanitizeTokenStrings(value: Array<string | null | undefined>) {
   }, []);
 }
 
+function filledLabels(values: Array<string | null | undefined>) {
+  return sanitizeTokenStrings(values);
+}
+
 export function getFallbackSearchRecords(): SearchRecord[] {
   const jobRecords: SearchRecord[] = mockJobs.map((job) => ({
     id: `job-${job.id}`,
     title: `${job.jobNumber} · ${job.title}`,
-    subtitle: `${job.propertyName} • ${job.customerName}`,
+    subtitle: joinAddressParts([job.propertyName, job.customerName], " • "),
     domain: "jobs",
     sourceLabel: "Jobs",
     href: ROUTE_BUILDERS.JOB_DETAIL(job.id),
     metadata: {
-      badges: [job.type, job.priority],
+      badges: filledLabels([job.type, job.priority]),
       status: job.status,
       timestamp: job.scheduledFor ?? undefined,
     },
@@ -109,12 +114,12 @@ export function getFallbackSearchRecords(): SearchRecord[] {
   const propertyRecords: SearchRecord[] = mockProperties.map((property) => ({
     id: `property-${property.id}`,
     title: property.name,
-    subtitle: `${property.address}, ${property.city}`,
+    subtitle: joinAddressParts([property.address, property.city]),
     domain: "properties",
     sourceLabel: "Properties",
     href: ROUTE_BUILDERS.PROPERTY_DETAIL(property.id),
     metadata: {
-      badges: [property.type, property.primarySystem],
+      badges: filledLabels([property.type, property.primarySystem]),
       status: property.status,
       timestamp: property.lastVisit,
     },
@@ -132,7 +137,10 @@ export function getFallbackSearchRecords(): SearchRecord[] {
   const customerRecords: SearchRecord[] = mockCustomers.map((customer) => ({
     id: `customer-${customer.id}`,
     title: customer.name,
-    subtitle: `${customer.primaryContact} • ${customer.city}`,
+    subtitle: joinAddressParts(
+      [customer.primaryContact, joinAddressParts([customer.street, customer.city, customer.zip])],
+      " • ",
+    ),
     domain: "customers",
     sourceLabel: "Customers",
     href: ROUTE_BUILDERS.CUSTOMER_DETAIL(customer.id),
@@ -145,7 +153,9 @@ export function getFallbackSearchRecords(): SearchRecord[] {
     tokens: sanitizeTokenStrings([
       customer.name,
       customer.primaryContact,
+      customer.street,
       customer.city,
+      customer.zip,
       customer.email,
       customer.phone,
     ]),
@@ -187,7 +197,7 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     sourceLabel: "Company Brain",
     href: ROUTE_BUILDERS.COMPANY_BRAIN_EDIT(item.id),
     metadata: {
-      badges: [item.knowledgeType, ...item.tags.slice(0, 2)],
+      badges: filledLabels([item.knowledgeType, ...item.tags.slice(0, 2)]),
       status: item.status,
       timestamp: item.updatedAt,
     },
@@ -238,7 +248,7 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     sourceLabel: "Installed Systems",
     href: ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id),
     metadata: {
-      badges: [system.manufacturer, system.modelNumber],
+      badges: filledLabels([system.manufacturer, system.modelNumber]),
       status: system.lifecycleStatus,
       timestamp: system.installDate,
     },
@@ -418,12 +428,12 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     ...jobs.map((job) => ({
       id: `job-${job.id}`,
       title: `${job.jobNumber} · ${job.title}`,
-      subtitle: `${job.propertyName} • ${job.customerName}`,
+      subtitle: joinAddressParts([job.propertyName, job.customerName], " • "),
       domain: "jobs" as const,
       sourceLabel: "Jobs",
       href: ROUTE_BUILDERS.JOB_DETAIL(job.id),
       metadata: {
-        badges: [job.type, job.priority],
+        badges: filledLabels([job.type, job.priority]),
         status: job.status,
         timestamp: job.scheduledFor ?? undefined,
       },
@@ -434,12 +444,12 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     ...properties.map((property) => ({
       id: `property-${property.id}`,
       title: property.name,
-      subtitle: `${property.address}, ${property.city}`,
+      subtitle: joinAddressParts([property.address, property.city]),
       domain: "properties" as const,
       sourceLabel: "Properties",
       href: ROUTE_BUILDERS.PROPERTY_DETAIL(property.id),
       metadata: {
-        badges: [property.type, property.primarySystem],
+        badges: filledLabels([property.type, property.primarySystem]),
         status: property.status,
         timestamp: property.lastVisit,
       },
@@ -450,7 +460,13 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     ...customers.map((customer) => ({
       id: `customer-${customer.id}`,
       title: customer.name,
-      subtitle: `${customer.primaryContact} • ${customer.city}`,
+      subtitle: joinAddressParts(
+        [
+          customer.primaryContact,
+          joinAddressParts([customer.street, customer.city, customer.zip]),
+        ],
+        " • ",
+      ),
       domain: "customers" as const,
       sourceLabel: "Customers",
       href: ROUTE_BUILDERS.CUSTOMER_DETAIL(customer.id),
@@ -460,7 +476,15 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
         timestamp: customer.lastActivity,
       },
       recordType: "entity" as const,
-      tokens: sanitizeTokenStrings([customer.name, customer.primaryContact, customer.city, customer.email, customer.phone]),
+      tokens: sanitizeTokenStrings([
+        customer.name,
+        customer.primaryContact,
+        customer.street,
+        customer.city,
+        customer.zip,
+        customer.email,
+        customer.phone,
+      ]),
       contextRefs: { customerId: customer.id },
     })),
     ...installedSystems.map((system) => ({
@@ -471,7 +495,7 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
       sourceLabel: "Installed Systems",
       href: ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id),
       metadata: {
-        badges: [system.manufacturer, system.modelNumber],
+        badges: filledLabels([system.manufacturer, system.modelNumber]),
         status: system.lifecycleStatus,
         timestamp: system.installDate,
       },
@@ -499,7 +523,7 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
       sourceLabel: "Company Brain",
       href: ROUTE_BUILDERS.COMPANY_BRAIN_EDIT(item.id),
       metadata: {
-        badges: [item.knowledgeType, ...item.tags.slice(0, 2)],
+        badges: filledLabels([item.knowledgeType, ...item.tags.slice(0, 2)]),
         status: item.status,
         timestamp: item.updatedAt,
       },

@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
 import type { TimelineEventItem } from "@/lib/timeline";
 import { formatDateOnly } from "@/lib/dates";
+import { joinAddressParts } from "@/lib/address";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
@@ -89,11 +90,11 @@ function getPropertyDetails(property: Property): PropertyDetails {
       "Property detail profile is active and ready for future field notes.",
       "No additional operational intelligence has been recorded yet.",
     ],
-    equipment: property.primarySystem
+    equipment: property.primarySystem?.trim()
       ? [
           {
             id: `${property.id}-equipment-primary`,
-            name: property.primarySystem,
+            name: property.primarySystem.trim(),
             kind: "Primary system",
             status:
               property.status === "Inactive" ? "Needs review" : "Operational",
@@ -742,7 +743,10 @@ function CustomerHubSection({
 
           <CardContent>
             <div className="grid gap-4 lg:grid-cols-2">
-              {siblingProperties.map((sibling) => (
+              {siblingProperties.map((sibling) => {
+                const addressLine = joinAddressParts([sibling.address, sibling.city]);
+                const primarySystem = sibling.primarySystem?.trim() ?? "";
+                return (
                 <Link
                   key={sibling.id}
                   href={ROUTE_BUILDERS.PROPERTY_DETAIL(sibling.id)}
@@ -752,24 +756,31 @@ function CustomerHubSection({
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
                         <p className="font-medium">{sibling.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {sibling.address}, {sibling.city}
-                        </p>
+                        {addressLine ? (
+                          <p className="text-sm text-muted-foreground">{addressLine}</p>
+                        ) : null}
                       </div>
                       <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
 
-                    <div className="mt-3 flex items-center gap-3 text-sm">
-                      <StatusBadge
-                        variant={sibling.status === "Active" ? "success" : "warning"}
-                      >
-                        {sibling.status}
-                      </StatusBadge>
-                      <span className="text-muted-foreground">{sibling.primarySystem}</span>
-                    </div>
+                    {sibling.status?.trim() || primarySystem ? (
+                      <div className="mt-3 flex items-center gap-3 text-sm">
+                        {sibling.status?.trim() ? (
+                          <StatusBadge
+                            variant={sibling.status === "Active" ? "success" : "warning"}
+                          >
+                            {sibling.status}
+                          </StatusBadge>
+                        ) : null}
+                        {primarySystem ? (
+                          <span className="text-muted-foreground">{primarySystem}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

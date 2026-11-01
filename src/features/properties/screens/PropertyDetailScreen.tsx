@@ -10,6 +10,7 @@ import {
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { joinAddressParts } from "@/lib/address";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import type { Job } from "@/features/jobs/types/job";
 import type { InstalledSystem } from "@/features/installed-systems/types/installedSystem";
@@ -58,15 +59,20 @@ export function PropertyDetailScreen({
 
   const { location } = property;
 
-  const rawAddress = formatPropertyAddress(property);
+  const addressLine =
+    formatPropertyAddress(property) || joinAddressParts([location?.formattedAddress]);
 
   const navigationUrl = location
     ? `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`;
+    : addressLine
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressLine)}`
+      : "";
 
   const appleMapsUrl = location
     ? `https://maps.apple.com/?q=${location.latitude},${location.longitude}`
-    : `https://maps.apple.com/?q=${encodeURIComponent(rawAddress)}`;
+    : addressLine
+      ? `https://maps.apple.com/?q=${encodeURIComponent(addressLine)}`
+      : "";
 
   // Read the Google Maps key server-side so it never reaches the browser
   // bundle as executable code. Support the existing embed-specific name for
@@ -85,13 +91,8 @@ export function PropertyDetailScreen({
       ? `https://www.google.com/maps/embed/v1/view?key=${mapsApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
       : null;
 
-  const hasAnyPropertyAddressField = [property.address, property.city].some((value) =>
-    Boolean(value?.trim())
-  );
-
-  const arrivalAddress = hasAnyPropertyAddressField
-    ? rawAddress
-    : location?.formattedAddress || rawAddress;
+  const propertyType = property.type?.trim() ?? "";
+  const customerName = property.customer?.trim() ?? "";
 
   return (
     <div className="space-y-6">
@@ -109,32 +110,38 @@ export function PropertyDetailScreen({
                   {property.name}
                 </h1>
 
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span>{rawAddress}</span>
-                </div>
+                {addressLine ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    <span>{addressLine}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge variant={statusVariant}>{property.status}</StatusBadge>
+              {property.status?.trim() ? (
+                <StatusBadge variant={statusVariant}>{property.status}</StatusBadge>
+              ) : null}
 
-              <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                {property.type}
-              </span>
+              {propertyType ? (
+                <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                  {propertyType}
+                </span>
+              ) : null}
 
-              {property.customerId ? (
+              {customerName && property.customerId ? (
                 <Link
                   href={ROUTE_BUILDERS.CUSTOMER_DETAIL(property.customerId)}
                   className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
                 >
-                  Customer: {property.customer}
+                  Customer: {customerName}
                 </Link>
-              ) : (
+              ) : customerName ? (
                 <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                  Customer: {property.customer}
+                  Customer: {customerName}
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -225,7 +232,7 @@ export function PropertyDetailScreen({
         aerialSrc={aerialSrc}
         navigationUrl={navigationUrl}
         appleMapsUrl={appleMapsUrl}
-        arrivalAddress={arrivalAddress}
+        arrivalAddress={addressLine}
         propertyName={property.name}
       />
 

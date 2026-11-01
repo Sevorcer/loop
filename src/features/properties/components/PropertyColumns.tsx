@@ -5,6 +5,7 @@ import { ArrowUpDown, Building2, MoreHorizontal } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
+import { joinAddressParts } from "@/lib/address";
 import { formatDateOnly } from "@/lib/dates";
 
 import type { Property } from "../types/property";
@@ -46,19 +47,17 @@ export const propertyColumns: ColumnDef<Property>[] = [
     ),
   },
   {
-    accessorKey: "address",
+    id: "address",
+    accessorFn: (property) => joinAddressParts([property.address, property.city]),
     meta: {
       mobileLabel: "Address",
+      hideWhenBlank: true,
     },
     header: "Address",
-    cell: ({ row }) => (
-      <div>
-        <div>{row.original.address}</div>
-        <div className="text-xs text-muted-foreground">
-          {row.original.city}
-        </div>
-      </div>
-    ),
+    cell: ({ getValue }) => {
+      const addressLine = getValue<string>();
+      return addressLine ? <div>{addressLine}</div> : null;
+    },
   },
   {
     accessorKey: "type",
@@ -90,13 +89,15 @@ export const propertyColumns: ColumnDef<Property>[] = [
     accessorKey: "primarySystem",
     meta: {
       mobileLabel: "Primary System",
+      hideWhenBlank: true,
     },
     header: "Primary System",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">
-        {row.original.primarySystem}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const system = row.original.primarySystem?.trim();
+      return system ? (
+        <span className="text-sm text-muted-foreground">{system}</span>
+      ) : null;
+    },
   },
   {
     accessorKey: "openJobs",

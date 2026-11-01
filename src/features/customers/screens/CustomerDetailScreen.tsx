@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PermissionGuard, PhoneLink, StatusBadge } from "@/components/atlas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { joinAddressParts } from "@/lib/address";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { formatDateOnly } from "@/lib/dates";
 
@@ -45,6 +46,10 @@ export function CustomerDetailScreen({
   initialTab,
   initialPropertyId,
 }: CustomerDetailScreenProps) {
+  const contactName = customer.primaryContact?.trim() ?? "";
+  const cityLabel = joinAddressParts([customer.city]);
+  const streetLine = joinAddressParts([customer.street, customer.zip]);
+
   const statusVariant =
     customer.status === "Active"
       ? "success"
@@ -98,21 +103,20 @@ export function CustomerDetailScreen({
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge variant={statusVariant}>{customer.status}</StatusBadge>
 
-              <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                Primary Contact: {customer.primaryContact}
-              </span>
-
-              <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                City: {customer.city}
-              </span>
-              {customer.street ? (
+              {contactName ? (
                 <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                  {customer.street}
-                  {customer.zip ? ` ${customer.zip}` : ""}
+                  Primary Contact: {contactName}
                 </span>
-              ) : customer.zip ? (
+              ) : null}
+
+              {cityLabel ? (
                 <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-                  ZIP: {customer.zip}
+                  City: {cityLabel}
+                </span>
+              ) : null}
+              {streetLine ? (
+                <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                  {streetLine}
                 </span>
               ) : null}
             </div>

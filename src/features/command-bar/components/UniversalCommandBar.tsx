@@ -5,8 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { ROUTES } from "@/lib/routes";
 import type { CopilotSearchItem, CopilotSearchResponse } from "@/features/copilot";
+import { joinAddressParts } from "@/lib/address";
+import { ROUTES } from "@/lib/routes";
 
 import { isCloseShortcut, isOpenShortcut } from "../utils/shortcut";
 
@@ -26,6 +27,20 @@ const SEARCH_FILTERS: Array<{ id: SearchFilterId; label: string; domain?: Copilo
   { id: "installed_systems", label: "Installed Systems", domain: "installed_systems" },
   { id: "company_brain", label: "Knowledge", domain: "company_brain" },
 ];
+
+function visibleSubtitle(subtitle: string | null | undefined): string {
+  return joinAddressParts([subtitle]);
+}
+
+function visibleChips(values: Array<string | null | undefined> | null | undefined): string[] {
+  if (!values) return [];
+  const chips: string[] = [];
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) chips.push(trimmed);
+  }
+  return chips;
+}
 
 const SUGGESTED: RecentEntry[] = [
   {
@@ -72,17 +87,20 @@ function RecentSection({
 
   return (
     <div className="space-y-2">
-      {entries.map((entry) => (
-        <button
-          key={entry.id}
-          type="button"
-          className="flex w-full flex-col items-start gap-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:bg-white/[0.06]"
-          onClick={() => onSelect(entry)}
-        >
-          <span className="text-sm font-medium text-white">{entry.title}</span>
-          <span className="text-xs text-slate-400">{entry.subtitle ?? entry.sourceLabel}</span>
-        </button>
-      ))}
+      {entries.map((entry) => {
+        const subtitle = visibleSubtitle(entry.subtitle);
+        return (
+          <button
+            key={entry.id}
+            type="button"
+            className="flex w-full flex-col items-start gap-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:bg-white/[0.06]"
+            onClick={() => onSelect(entry)}
+          >
+            <span className="text-sm font-medium text-white">{entry.title}</span>
+            {subtitle ? <span className="text-xs text-slate-400">{subtitle}</span> : null}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -352,6 +370,11 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
                         {group.items.map((item) => {
                           const itemIndex = filteredItems.findIndex((entry) => entry.id === item.id);
                           const isActive = itemIndex === activeResultIndex;
+                          const subtitle = visibleSubtitle(item.subtitle);
+                          const status = item.metadata?.status?.trim() ?? "";
+                          const timestamp = item.metadata?.timestamp?.trim() ?? "";
+                          const badges = visibleChips(item.metadata?.badges).slice(0, 2);
+                          const showChips = Boolean(status || timestamp || badges.length > 0);
 
                           return (
                             <button
@@ -367,24 +390,28 @@ export function UniversalCommandBar({ open, onOpenChange }: UniversalCommandBarP
                             >
                               <span className="space-y-1">
                                 <span className="block text-sm font-medium text-white">{item.title}</span>
-                                <span className="block text-xs text-slate-400">{item.subtitle ?? item.sourceLabel}</span>
-                                <span className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
-                                  {item.metadata?.status ? (
-                                    <span className="rounded-full border border-white/10 px-2 py-0.5">
-                                      {item.metadata?.status}
-                                    </span>
-                                  ) : null}
-                                  {item.metadata?.timestamp ? (
-                                    <span className="rounded-full border border-white/10 px-2 py-0.5">
-                                      {item.metadata?.timestamp}
-                                    </span>
-                                  ) : null}
-                                  {(item.metadata?.badges ?? []).slice(0, 2).map((badge) => (
-                                    <span key={`${item.id}-${badge}`} className="rounded-full border border-white/10 px-2 py-0.5">
-                                      {badge}
-                                    </span>
-                                  ))}
-                                </span>
+                                {subtitle ? (
+                                  <span className="block text-xs text-slate-400">{subtitle}</span>
+                                ) : null}
+                                {showChips ? (
+                                  <span className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
+                                    {status ? (
+                                      <span className="rounded-full border border-white/10 px-2 py-0.5">
+                                        {status}
+                                      </span>
+                                    ) : null}
+                                    {timestamp ? (
+                                      <span className="rounded-full border border-white/10 px-2 py-0.5">
+                                        {timestamp}
+                                      </span>
+                                    ) : null}
+                                    {badges.map((badge) => (
+                                      <span key={`${item.id}-${badge}`} className="rounded-full border border-white/10 px-2 py-0.5">
+                                        {badge}
+                                      </span>
+                                    ))}
+                                  </span>
+                                ) : null}
                               </span>
                               <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-400">
                                 {item.sourceLabel}
