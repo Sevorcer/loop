@@ -1,16 +1,22 @@
 import type { SfImportOptions } from "./constants";
-import type { ImportNote, ImportPlan, UnmatchedTechnician } from "./plan";
+import { staleOpenCutoff } from "./scope";
+import type { AliasedTechnician, ImportNote, ImportPlan, UnmatchedTechnician } from "./plan";
 
 const REASONS: Record<string, string> = {
   undated_open_job: "Open job with no date. Left in Service Fusion.",
-  stale_open_job: "Open job dated before the decision day. Left in Service Fusion.",
+  stale_open_job: "Open job dated more than the allowed number of days before the import. Left in Service Fusion.",
   out_of_scope_before_cutoff: "Dated before the 2-year cutoff.",
   no_activity_in_window: "No job, estimate, or invoice in the window.",
   customer_record_missing: "A job or invoice names this customer, but their record is not in the export.",
   customer_not_in_export: "The customer record is not in the export.",
-  parent_not_in_export: "The parent account is not in the export, so the link was left blank.",
+  parent_not_in_export: "Imported, parent link left blank. The parent account is not in the export.",
   same_name_as_existing_customer: "A customer already in Loop has this same name and was left as-is. The Service Fusion account was still added.",
-  ambiguous_parent_name: "More than one account has the parent name, so the link was left blank.",
+  ambiguous_parent_name: "Imported, parent link left blank. More than one account has the parent name.",
+  customer_link_missing: "The Loop customer in the link file was not found, so a new customer was used.",
+  customer_link_taken: "That Service Fusion id is already on a different Loop customer, so the link was not used.",
+  customer_link_conflict: "That Loop customer is already linked to a different Service Fusion id.",
+  customer_link_not_in_import: "The link file names a Service Fusion customer that is not in this import.",
+  equipment_customer_out_of_scope: "Equipment was left out because its customer is not in the import.",
   blank_street: "Location has no street, so no property was created for it.",
   unknown_sf_status: "Service Fusion status was not recognized. Saved as On Hold, and the original text was kept.",
   unknown_job_category: "Job category was not recognized. Saved as Service.",
@@ -79,6 +85,7 @@ const TABLE_ORDER = [
 export interface TableCount {
   insert: number;
   update: number;
+  link?: number;
 }
 
 export function summarizeImport(input: {
@@ -92,11 +99,12 @@ export function summarizeImport(input: {
   const lines: string[] = [];
   const verb = input.mode === "dry-run" ? "Would add" : "Added";
   const updateVerb = input.mode === "dry-run" ? "Would update" : "Updated";
+  const linkVerb = input.mode === "dry-run" ? "Would link" : "Linked";
   lines.push(input.mode === "dry-run" ? "Service Fusion import (dry run — nothing was written)" : "Service Fusion import");
   lines.push("");
   lines.push(`Records dated on or after ${input.options.cutoffDate} are included.`);
   lines.push(
-    `Open jobs with no date, and open jobs dated before ${input.options.staleOpenBefore}, stay in Service Fusion.`,
+    `Open jobs with no date, and open jobs dated before ${staleOpenCutoff(input.options)} (more than ${input.options.staleOpenDays} days before ${input.options.asOfDate}), stay in Service Fusion.`,
   );
   lines.push("An open job includes Service Fusion's Completed status when it is not invoiced yet.");
   lines.push(`Times are read as ${input.options.timeZone}.`);
@@ -106,14 +114,16 @@ export function summarizeImport(input: {
   const skips = [...input.plan.skips, ...(input.extraSkips ?? [])];
   for (const table of TABLE_ORDER) {
     const count = input.counts[table] ?? { insert: 0, update: 0 };
+    const linkCount = count.link ?? 0;
     const tableSkips = skips.filter((skip) => skip.table === table);
     const tableNotices = input.plan.notices.filter((notice) => notice.table === table);
-    if (count.insert === 0 && count.update === 0 && tableSkips.length === 0 && tableNotices.length === 0) {
+    if (count.insert === 0 && count.update === 0 && linkCount === 0 && tableSkips.length === 0 && tableNotices.length === 0) {
       continue;
     }
     lines.push(TABLE_LABELS[table] ?? table);
     lines.push(`  ${verb}: ${count.insert}`);
     lines.push(`  ${updateVerb}: ${count.update}`);
+    if (linkCount > 0) lines.push(`  ${linkVerb}: ${linkCount}`);
     if (tableSkips.length > 0) {
       lines.push(`  Not imported: ${tableSkips.length}`);
       lines.push(...detailLines(tableSkips));
@@ -132,6 +142,15 @@ export function summarizeImport(input: {
     lines.push("  No logins were created. Their names are saved on the job.");
     for (const tech of input.plan.unmatchedTechnicians) {
       lines.push(`  ${formatTech(tech)}`);
+    }
+  }
+  lines.push("");
+  lines.push("Technicians matched by a saved alias");
+  if (input.plan.aliasedTechnicians.length === 0) {
+    lines.push("  None.");
+  } else {
+    for (const tech of input.plan.aliasedTechnicians) {
+      lines.push(`  ${formatAlias(tech)}`);
     }
   }
   lines.push("");
@@ -158,6 +177,14 @@ function detailLines(notes: ImportNote[]): string[] {
     }
   }
   return lines;
+}
+
+function formatAlias(tech: AliasedTechnician): string {
+  const work = [
+    tech.jobs ? `${tech.jobs} job${tech.jobs === 1 ? "" : "s"}` : "",
+    tech.tasks ? `${tech.tasks} calendar item${tech.tasks === 1 ? "" : "s"}` : "",
+  ].filter(Boolean).join(", ");
+  return `${tech.sfName} → ${tech.loopName} — ${work || "no counted work"}.`;
 }
 
 function formatTech(tech: UnmatchedTechnician): string {

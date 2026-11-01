@@ -1,7 +1,8 @@
 import { joinAddressParts } from "../address";
 
 import { addressMatchKey, normalizeState } from "./address";
-import { SF_IMPORT_DEFAULTS, type SfImportOptions } from "./constants";
+import type { SfImportOptions } from "./constants";
+import { resolveImportOptions } from "./scope";
 import {
   asArray,
   asBoolean,
@@ -19,6 +20,7 @@ import { jobScopeDecision, parentRef, recordOnOrAfter } from "./scope";
 import { mapJobStatus, mapJobType, mapPriority, sfJobNumber } from "./status";
 import {
   type LoopProfile,
+  type MatchedTech,
   matchTechNames,
   personName,
   type TechRef,
@@ -245,6 +247,13 @@ export interface UnmatchedTechnician {
   ambiguous: boolean;
 }
 
+export interface AliasedTechnician {
+  sfName: string;
+  loopName: string;
+  jobs: number;
+  tasks: number;
+}
+
 export interface ImportPlan {
   options: SfImportOptions;
   customers: CustomerDraft[];
@@ -267,6 +276,7 @@ export interface ImportPlan {
   skips: ImportNote[];
   notices: ImportNote[];
   unmatchedTechnicians: UnmatchedTechnician[];
+  aliasedTechnicians: AliasedTechnician[];
 }
 
 export interface PlanInput {
@@ -287,7 +297,7 @@ interface PropertyBuild extends PropertyDraft {
 }
 
 export function buildImportPlan(input: PlanInput): ImportPlan {
-  const options: SfImportOptions = { ...SF_IMPORT_DEFAULTS, ...input.options };
+  const options: SfImportOptions = resolveImportOptions(input.options);
   const skips: ImportNote[] = [];
   const notices: ImportNote[] = [];
 
@@ -407,7 +417,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
         }
         continue;
       }
-      skips.push({ table: "customers", sfId: String(id), reason: resolved.reason });
+      notices.push({ table: "customers", sfId: String(id), reason: resolved.reason });
       parentOf.set(id, -1);
     }
     if (!grew) break;
@@ -481,6 +491,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
 
   const techDirectory = techDirectoryFrom(input.techs, includedJobs);
   const unmatched = new Map<string, UnmatchedTechnician>();
+  const aliased = new Map<string, AliasedTechnician>();
   const rememberUnmatched = (items: UnmatchedTech[], kind: "jobs" | "tasks") => {
     for (const item of items) {
       const key = `${item.ambiguous ? "a" : "u"}:${item.name.toLowerCase()}`;
@@ -492,6 +503,20 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
       };
       current[kind] += 1;
       unmatched.set(key, current);
+    }
+  };
+  const rememberAliased = (items: MatchedTech[], kind: "jobs" | "tasks") => {
+    for (const item of items) {
+      if (!item.aliased) continue;
+      const key = item.sfName.toLowerCase();
+      const current = aliased.get(key) ?? {
+        sfName: item.sfName,
+        loopName: item.fullName,
+        jobs: 0,
+        tasks: 0,
+      };
+      current[kind] += 1;
+      aliased.set(key, current);
     }
   };
 
@@ -533,6 +558,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
     const techs = techRefs(job.techs_assigned, techDirectory);
     const matchedTechs = matchTechNames(techs, input.profiles);
     rememberUnmatched(matchedTechs.unmatched, "jobs");
+    rememberAliased(matchedTechs.matched, "jobs");
     const lead = matchedTechs.matched[0];
     const number = sfJobNumber(asString(job.number), options.jobNumberPrefix) || `${options.jobNumberPrefix}${id}`;
     const description = asString(job.description);
@@ -697,7 +723,18 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
 
   const equipmentRows: EquipmentDraft[] = [];
   for (const group of input.equipment) {
-    if (!importedIds.has(group.customerSfId) || !customerById.has(group.customerSfId)) continue;
+    if (!importedIds.has(group.customerSfId) || !customerById.has(group.customerSfId)) {
+      group.items.forEach((item) => {
+        const record = asRecord(item);
+        const equipmentId = record ? asId(record.id) : null;
+        skips.push({
+          table: "installedSystems",
+          sfId: equipmentId == null ? String(group.customerSfId) : String(equipmentId),
+          reason: "equipment_customer_out_of_scope",
+        });
+      });
+      continue;
+    }
     const bucket = propertiesByCustomer.get(group.customerSfId) ?? new Map<string, PropertyBuild>();
     propertiesByCustomer.set(group.customerSfId, bucket);
     group.items.forEach((item, index) => {
@@ -735,6 +772,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
     const idRefs = refsFromIds(record.users_id, techDirectory, notices, id);
     const matched = matchTechNames(idRefs, input.profiles);
     rememberUnmatched(matched.unmatched, "tasks");
+    rememberAliased(matched.matched, "tasks");
 
     if (asBoolean(record.is_time_off)) {
       if (matched.matched.length === 0) {
@@ -808,6 +846,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
     skips,
     notices,
     unmatchedTechnicians: [...unmatched.values()].sort((left, right) => left.name.localeCompare(right.name)),
+    aliasedTechnicians: [...aliased.values()].sort((left, right) => left.sfName.localeCompare(right.sfName)),
   };
 }
 

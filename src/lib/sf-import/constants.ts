@@ -8,10 +8,11 @@
 export const SF_IMPORT_CUTOFF_DATE = "2024-11-01";
 
 /**
- * Open jobs with no date, and open jobs dated before this day, stay in
- * Service Fusion. This is the day the owner made that decision.
+ * Open jobs dated more than this many days before the import run stay in
+ * Service Fusion, along with open jobs that have no date. Open jobs inside
+ * this window, and future open jobs, are imported.
  */
-export const SF_STALE_OPEN_BEFORE = "2026-11-01";
+export const SF_STALE_OPEN_DAYS = 60;
 
 /** Legacy One Heating works in Pacific time. Service Fusion times are read in this zone. */
 export const SF_IMPORT_TIME_ZONE = "America/Los_Angeles";
@@ -20,17 +21,13 @@ export const SF_JOB_NUMBER_PREFIX = "SF-";
 
 export interface SfImportOptions {
   cutoffDate: string;
-  staleOpenBefore: string;
+  /** Open jobs older than this many days before asOfDate are left behind. */
+  staleOpenDays: number;
+  /** The import run date, YYYY-MM-DD, in the company timezone. */
+  asOfDate: string;
   timeZone: string;
   jobNumberPrefix: string;
 }
-
-export const SF_IMPORT_DEFAULTS: SfImportOptions = {
-  cutoffDate: SF_IMPORT_CUTOFF_DATE,
-  staleOpenBefore: SF_STALE_OPEN_BEFORE,
-  timeZone: SF_IMPORT_TIME_ZONE,
-  jobNumberPrefix: SF_JOB_NUMBER_PREFIX,
-};
 
 /**
  * Work is finished or called off in Service Fusion.

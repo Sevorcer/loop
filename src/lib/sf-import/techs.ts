@@ -12,7 +12,20 @@ export interface MatchedTech {
   sfId: number | null;
   userId: string;
   fullName: string;
+  /** The Service Fusion name that was matched. */
+  sfName: string;
+  /** True when a saved alias pointed this Service Fusion name at the Loop person. */
+  aliased: boolean;
 }
+
+/**
+ * Service Fusion names that do not match a Loop display name on their own.
+ * The value is the Loop profile name to use instead.
+ */
+export const SF_TECH_ALIASES: Readonly<Record<string, string>> = {
+  "Kameron K.": "Kameron Kuhn",
+  "Collin Qualkenbush": "Collin",
+};
 
 export interface UnmatchedTech {
   name: string;
@@ -41,7 +54,14 @@ export function personName(first: string, last: string): string {
 export function matchTechNames(
   techs: readonly TechRef[],
   profiles: readonly LoopProfile[],
+  aliases: Readonly<Record<string, string>> = SF_TECH_ALIASES,
 ): { matched: MatchedTech[]; unmatched: UnmatchedTech[] } {
+  const aliasByName = new Map<string, string>();
+  for (const [sfName, loopName] of Object.entries(aliases)) {
+    const key = normalizePersonName(sfName);
+    const target = loopName.trim();
+    if (key && target) aliasByName.set(key, target);
+  }
   const byName = new Map<string, LoopProfile[]>();
   for (const profile of profiles) {
     const key = normalizePersonName(profile.fullName);
@@ -60,7 +80,11 @@ export function matchTechNames(
     const display = tech.name.trim();
     const key = normalizePersonName(display);
     if (!key) continue;
-    const found = byName.get(key) ?? [];
+    const aliasTarget = aliasByName.get(key);
+    const aliasMatches = aliasTarget ? byName.get(normalizePersonName(aliasTarget)) ?? [] : [];
+    const directMatches = byName.get(key) ?? [];
+    const aliased = aliasMatches.length === 1;
+    const found = aliased ? aliasMatches : aliasMatches.length > 1 ? aliasMatches : directMatches;
     if (found.length === 1) {
       if (seenUsers.has(found[0].id)) continue;
       seenUsers.add(found[0].id);
@@ -68,6 +92,8 @@ export function matchTechNames(
         sfId: tech.sfId,
         userId: found[0].id,
         fullName: found[0].fullName,
+        sfName: display,
+        aliased,
       });
       continue;
     }

@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import pg from "pg";
 
+import type { ExistingLoopCustomer } from "../../src/lib/sf-import/linkCustomers";
 import type { LoopProfile } from "../../src/lib/sf-import/techs";
 
 const PAGE = 1000;
@@ -11,6 +12,7 @@ export interface ImportDatabase {
   listOrganizations(): Promise<{ id: string }[]>;
   loadProfiles(orgId: string): Promise<LoopProfile[]>;
   loadExistingNames(orgId: string): Promise<string[]>;
+  loadCustomers(orgId: string): Promise<ExistingLoopCustomer[] | null>;
   loadKeys(spec: KeySpec, orgId: string): Promise<Set<string> | null>;
   applyBatch(orgId: string, table: string, rows: unknown[]): Promise<void>;
 }
@@ -90,6 +92,22 @@ function openPostgres(connectionString: string): ImportDatabase {
         throw error;
       }
     },
+    async loadCustomers(orgId) {
+      await ready();
+      try {
+        const result = await client.query<{ id: string; sf_id: string | null }>(
+          "select id::text as id, sf_id::text as sf_id from public.customers where org_id = $1",
+          [orgId],
+        );
+        return result.rows.map((row) => ({
+          id: row.id,
+          sfId: row.sf_id == null ? null : Number(row.sf_id),
+        }));
+      } catch (error) {
+        if (isMissingColumn(error)) return null;
+        throw error;
+      }
+    },
     async loadKeys(spec, orgId) {
       await ready();
       try {
@@ -146,6 +164,18 @@ function openServiceRole(url: string, key: string): ImportDatabase {
         return rows.map((row) => (typeof row.name === "string" ? row.name : ""));
       } catch (error) {
         if (isMissingColumn(error)) return [];
+        throw error;
+      }
+    },
+    async loadCustomers(orgId) {
+      try {
+        const rows = await page(client, "customers", "id,sf_id", (query) => query.eq("org_id", orgId));
+        return rows.map((row) => ({
+          id: String(row.id),
+          sfId: row.sf_id == null ? null : Number(row.sf_id),
+        }));
+      } catch (error) {
+        if (isMissingColumn(error)) return null;
         throw error;
       }
     },

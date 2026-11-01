@@ -1,6 +1,29 @@
-import { SF_IMPORT_DEFAULTS, type SfImportOptions } from "./constants";
+import { addCalendarDays, todayInCompanyTimeZone } from "../timezone";
+
+import {
+  SF_IMPORT_CUTOFF_DATE,
+  SF_IMPORT_TIME_ZONE,
+  SF_JOB_NUMBER_PREFIX,
+  SF_STALE_OPEN_DAYS,
+  type SfImportOptions,
+} from "./constants";
 import { asString, dateOnly, normalizeLabel } from "./json";
 import { isSfJobClosed } from "./status";
+
+export function resolveImportOptions(partial?: Partial<SfImportOptions>): SfImportOptions {
+  return {
+    cutoffDate: partial?.cutoffDate ?? SF_IMPORT_CUTOFF_DATE,
+    staleOpenDays: partial?.staleOpenDays ?? SF_STALE_OPEN_DAYS,
+    asOfDate: partial?.asOfDate ?? todayInCompanyTimeZone(),
+    timeZone: partial?.timeZone ?? SF_IMPORT_TIME_ZONE,
+    jobNumberPrefix: partial?.jobNumberPrefix ?? SF_JOB_NUMBER_PREFIX,
+  };
+}
+
+/** The first day that is NOT more than staleOpenDays before the run date. */
+export function staleOpenCutoff(options: SfImportOptions): string {
+  return addCalendarDays(options.asOfDate, -options.staleOpenDays);
+}
 
 export type JobScope =
   | { include: true }
@@ -8,18 +31,21 @@ export type JobScope =
 
 /**
  * A job is in the window when its start date is on or after the cutoff.
- * Open jobs with no date, and open jobs dated before the decision day, stay in Service Fusion.
+ * Undated open jobs stay in Service Fusion. Open jobs dated more than
+ * staleOpenDays before the run date stay there too. Newer open jobs, and
+ * future open jobs, are imported.
  * "Open" includes the Service Fusion status Completed (work done, not invoiced yet).
  */
 export function jobScopeDecision(
   job: { status?: unknown; start_date?: unknown },
-  options: SfImportOptions = SF_IMPORT_DEFAULTS,
+  options: SfImportOptions = resolveImportOptions(),
 ): JobScope {
   const open = !isSfJobClosed(asString(job.status));
   const start = dateOnly(job.start_date);
+  const staleBefore = staleOpenCutoff(options);
 
   if (open && !start) return { include: false, reason: "undated_open_job" };
-  if (open && start && start < options.staleOpenBefore) {
+  if (open && start && start < staleBefore) {
     return { include: false, reason: "stale_open_job" };
   }
   if (!start || start < options.cutoffDate) {
@@ -69,8 +95,11 @@ export function assertImportOptions(options: SfImportOptions): void {
   if (!isIsoDate(options.cutoffDate)) {
     throw new Error("Cutoff must be a date like 2024-11-01.");
   }
-  if (!isIsoDate(options.staleOpenBefore)) {
-    throw new Error("The open-job date must be a date like 2026-11-01.");
+  if (!isIsoDate(options.asOfDate)) {
+    throw new Error("The import date must be a date like 2026-11-01.");
+  }
+  if (!Number.isInteger(options.staleOpenDays) || options.staleOpenDays < 0) {
+    throw new Error("The open-job window must be a number of days, 0 or more.");
   }
   if (normalizeLabel(options.jobNumberPrefix).length === 0) {
     throw new Error("Job number prefix cannot be blank.");

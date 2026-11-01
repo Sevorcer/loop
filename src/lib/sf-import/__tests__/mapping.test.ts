@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { addressMatchKey, normalizeStreet, normalizeZip } from "../address";
-import { SF_IMPORT_DEFAULTS } from "../constants";
 import { dollarsToCents } from "../money";
+import { classifyCustomerRows, parseCustomerLinkCsv } from "../linkCustomers";
 import { buildImportPlan } from "../plan";
 import { summarizeImport } from "../report";
-import { jobScopeDecision } from "../scope";
+import { jobScopeDecision, resolveImportOptions } from "../scope";
 import { scheduleJob } from "../schedule";
 import { mapJobStatus, mapJobType, sfJobNumber } from "../status";
 import { matchTechNames } from "../techs";
@@ -87,13 +87,38 @@ describe("technician matching", () => {
       [profiles[0], profiles[2]],
     );
     expect(unique.matched).toEqual([
-      { sfId: 1, userId: "u3", fullName: "Ethan Qualkenbush" },
+      {
+        sfId: 1,
+        userId: "u3",
+        fullName: "Ethan Qualkenbush",
+        sfName: "Ethan Qualkenbush",
+        aliased: false,
+      },
     ]);
     expect(unique.unmatched).toEqual([{ name: "Kameron K.", ambiguous: false }]);
 
     const ambiguous = matchTechNames([{ sfId: 9, name: "Casey Belson" }], profiles);
     expect(ambiguous.matched).toEqual([]);
     expect(ambiguous.unmatched).toEqual([{ name: "Casey Belson", ambiguous: true }]);
+  });
+
+  it("uses the saved alias when the Service Fusion name is a short form", () => {
+    const result = matchTechNames(
+      [
+        { sfId: 1, name: "Kameron K." },
+        { sfId: 2, name: "Collin Qualkenbush" },
+      ],
+      [
+        { id: "kuhn", fullName: "Kameron Kuhn" },
+        { id: "collin", fullName: "Collin" },
+        { id: "other", fullName: "Kameron K" },
+      ],
+    );
+    expect(result.matched).toEqual([
+      { sfId: 1, userId: "kuhn", fullName: "Kameron Kuhn", sfName: "Kameron K.", aliased: true },
+      { sfId: 2, userId: "collin", fullName: "Collin", sfName: "Collin Qualkenbush", aliased: true },
+    ]);
+    expect(result.unmatched).toEqual([]);
   });
 
   it("treats a trailing initial period as the same name", () => {
@@ -106,9 +131,9 @@ describe("technician matching", () => {
 });
 
 describe("scope filter", () => {
-  const options = SF_IMPORT_DEFAULTS;
+  const options = resolveImportOptions({ asOfDate: "2026-11-01", staleOpenDays: 60 });
 
-  it("keeps finished work inside the window and leaves stale open jobs behind", () => {
+  it("keeps recent open jobs and leaves undated or older open jobs behind", () => {
     expect(jobScopeDecision({ status: "Paid in Full", start_date: "2025-01-15" }, options).include).toBe(true);
     expect(jobScopeDecision({ status: "No Charge", start_date: "2024-11-01" }, options).include).toBe(true);
     expect(jobScopeDecision({ status: "Paid in Full", start_date: "2024-10-31" }, options)).toEqual({
@@ -119,7 +144,9 @@ describe("scope filter", () => {
       include: false,
       reason: "undated_open_job",
     });
-    expect(jobScopeDecision({ status: "Scheduled - Service", start_date: "2026-10-31" }, options)).toEqual({
+    expect(jobScopeDecision({ status: "Scheduled - Service", start_date: "2026-10-31" }, options).include).toBe(true);
+    expect(jobScopeDecision({ status: "Scheduled", start_date: "2026-09-02" }, options).include).toBe(true);
+    expect(jobScopeDecision({ status: "Scheduled", start_date: "2026-09-01" }, options)).toEqual({
       include: false,
       reason: "stale_open_job",
     });
@@ -238,6 +265,14 @@ describe("import plan", () => {
           category: "Install",
         },
         {
+          id: 104,
+          number: "4",
+          customer_id: 2,
+          status: "Unscheduled",
+          start_date: "2026-08-01",
+          category: "Install",
+        },
+        {
           id: 103,
           number: "3",
           customer_id: 2,
@@ -285,10 +320,14 @@ describe("import plan", () => {
           notes: "Original",
           custom_fields: [{ name: "Filter Size(s)", value: "16x25" }],
         }],
+      }, {
+        customerSfId: 3,
+        items: [{ id: 99, type: "Coil", make: "Trane" }],
       }],
       calendarTasks: [],
       techs: [{ id: 12, first_name: "Casey", last_name: "Belson" }],
       profiles: [{ id: "user-casey", fullName: "Casey Belson" }],
+      options: { asOfDate: "2026-11-01", staleOpenDays: 60 },
     });
 
     expect(plan.customers.map((customer) => customer.sf_id).sort()).toEqual([1, 2]);
@@ -319,10 +358,11 @@ describe("import plan", () => {
     expect(plan.installedSystems[0]?.system_name).toBe("Gas Furnace – Carrier");
     expect(plan.installedSystems[0]?.match_state).toBe("unmatched");
     expect(plan.installedSystems[0]?.notes).toContain("Filter Size(s): 16x25");
-    expect(plan.jobs.map((job) => job.sf_id).sort()).toEqual([100, 103]);
+    expect(plan.jobs.map((job) => job.sf_id).sort()).toEqual([100, 102, 103]);
     expect(plan.jobFinancials.find((row) => row.job_sf_id === 103)).toBeUndefined();
     expect(plan.skips.some((skip) => skip.reason === "undated_open_job" && skip.sfId === "101")).toBe(true);
-    expect(plan.skips.some((skip) => skip.reason === "stale_open_job" && skip.sfId === "102")).toBe(true);
+    expect(plan.skips.some((skip) => skip.reason === "stale_open_job" && skip.sfId === "104")).toBe(true);
+    expect(plan.skips.some((skip) => skip.reason === "equipment_customer_out_of_scope" && skip.sfId === "99")).toBe(true);
     expect(plan.unmatchedTechnicians[0]?.name).toBe("Kameron K.");
 
     const summary = summarizeImport({
@@ -336,6 +376,82 @@ describe("import plan", () => {
     expect(summary).not.toContain("ada@example.test");
     expect(summary).not.toContain("office@acme.test");
     expect(summary).toContain("Kameron K.");
+  });
+});
+
+describe("parent link left blank", () => {
+  it("imports the customer and reports the missing parent as a note", () => {
+    const plan = buildImportPlan({
+      customers: [{
+        id: 8,
+        customer_name: "Site",
+        parent_customer: "Not In Export",
+        contacts: [],
+        locations: [],
+      }],
+      jobs: [{
+        id: 80,
+        number: "8",
+        customer_id: 8,
+        status: "Paid in Full",
+        start_date: "2025-03-01",
+        category: "Install",
+      }],
+      estimates: [],
+      invoices: [],
+      equipment: [],
+      calendarTasks: [],
+      techs: [],
+      profiles: [],
+      options: { asOfDate: "2026-11-01" },
+    });
+    expect(plan.customers.map((customer) => customer.sf_id)).toContain(8);
+    expect(plan.notices.some((note) => note.sfId === "8" && note.reason === "parent_not_in_export")).toBe(true);
+    const summary = summarizeImport({
+      mode: "dry-run",
+      options: plan.options,
+      plan,
+      counts: { customers: { insert: 1, update: 0 } },
+      databaseNote: "No database connection.",
+    });
+    expect(summary).toContain("Imported, parent link left blank");
+    expect(summary).not.toContain("Not imported: 1\n    Imported, parent link left blank");
+  });
+});
+
+describe("customer link file", () => {
+  it("reads the two id columns and counts a link instead of a new customer", () => {
+    const links = parseCustomerLinkCsv("loop_customer_id,sf_customer_id\n11111111-1111-1111-1111-111111111111,2\n");
+    expect(links).toEqual([{
+      loopCustomerId: "11111111-1111-1111-1111-111111111111",
+      sfCustomerId: 2,
+    }]);
+    const classified = classifyCustomerRows(
+      [2, 9],
+      links,
+      [{ id: "11111111-1111-1111-1111-111111111111", sfId: null }],
+    );
+    expect(classified.counts).toEqual({ insert: 1, update: 0, link: 1 });
+    expect(classified.ready).toEqual(links);
+
+    const summary = summarizeImport({
+      mode: "dry-run",
+      options: resolveImportOptions({ asOfDate: "2026-11-01" }),
+      plan: buildImportPlan({
+        customers: [],
+        jobs: [],
+        estimates: [],
+        invoices: [],
+        equipment: [],
+        calendarTasks: [],
+        techs: [],
+        profiles: [],
+        options: { asOfDate: "2026-11-01" },
+      }),
+      counts: { customers: classified.counts },
+      databaseNote: "No database connection.",
+    });
+    expect(summary).toContain("Would link: 1");
   });
 });
 

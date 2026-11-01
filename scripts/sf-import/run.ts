@@ -1,8 +1,11 @@
-import { SF_IMPORT_DEFAULTS, type SfImportOptions } from "../../src/lib/sf-import/constants";
+import { readFile } from "node:fs/promises";
+
+import { SF_IMPORT_CUTOFF_DATE, SF_STALE_OPEN_DAYS, type SfImportOptions } from "../../src/lib/sf-import/constants";
 import { normalizeName } from "../../src/lib/sf-import/json";
+import { classifyCustomerRows, parseCustomerLinkCsv, type CustomerLink } from "../../src/lib/sf-import/linkCustomers";
 import { buildImportPlan, type ImportNote, type ImportPlan } from "../../src/lib/sf-import/plan";
 import { summarizeImport, type TableCount } from "../../src/lib/sf-import/report";
-import { assertImportOptions } from "../../src/lib/sf-import/scope";
+import { assertImportOptions, resolveImportOptions } from "../../src/lib/sf-import/scope";
 
 import {
   databaseAvailable,
@@ -31,8 +34,11 @@ Options:
   --dir <folder>              Export folder (required)
   --dry-run                   Count rows and write nothing
   --org-id <uuid>             Company to import into. Required only if Loop has more than one.
-  --cutoff <YYYY-MM-DD>       Include records on or after this day. Default ${SF_IMPORT_DEFAULTS.cutoffDate}.
-  --stale-open-before <date>  Leave open jobs dated before this day. Default ${SF_IMPORT_DEFAULTS.staleOpenBefore}.
+  --cutoff <YYYY-MM-DD>       Include records on or after this day. Default ${SF_IMPORT_CUTOFF_DATE}.
+  --as-of <YYYY-MM-DD>        Treat this as the import date. Default is today.
+  --stale-open-days <number>  Leave open jobs older than this many days. Default ${SF_STALE_OPEN_DAYS}.
+  --link-customers <file.csv> Adopt existing Loop customers instead of creating duplicates.
+                              Columns: loop_customer_id, sf_customer_id
   --batch-size <number>       Rows per database transaction. Default 200.
 `;
 
@@ -192,11 +198,12 @@ async function main() {
     return;
   }
 
-  const options: SfImportOptions = {
-    ...SF_IMPORT_DEFAULTS,
+  const options: SfImportOptions = resolveImportOptions({
     ...(args.cutoff ? { cutoffDate: args.cutoff } : {}),
-    ...(args.stale ? { staleOpenBefore: args.stale } : {}),
-  };
+    ...(args.asOf ? { asOfDate: args.asOf } : {}),
+    ...(args.staleDays != null ? { staleOpenDays: args.staleDays } : {}),
+  });
+  const customerLinks = args.linkFile ? parseCustomerLinkCsv(await readFile(args.linkFile, "utf8")) : [];
   assertImportOptions(options);
 
   const bundle = await readExport(args.dir);
@@ -242,7 +249,9 @@ async function main() {
     if (database && orgId) {
       const names = await database.loadExistingNames(orgId);
       const existing = new Set(names.map((name) => normalizeName(name)).filter(Boolean));
+      const linkedSfIds = new Set(customerLinks.map((link) => link.sfCustomerId));
       for (const customer of plan.customers) {
+        if (linkedSfIds.has(customer.sf_id)) continue;
         if (existing.has(normalizeName(customer.name))) {
           plan.notices.push({
             table: "customers",
@@ -258,17 +267,18 @@ async function main() {
       extraSkips.push({ table: "jobs", sfId: "", reason: "jobs_open_old_left_in_service_fusion" });
     }
 
-    const counts = await classify(plan, database, orgId);
+    const classified = await classify(plan, database, orgId, customerLinks);
+    plan.notices.push(...classified.notices);
     let rejected = 0;
     if (!args.dryRun && database && orgId) {
-      rejected = await writePlan(database, orgId, plan, args.batchSize, extraSkips);
+      rejected = await writePlan(database, orgId, plan, classified.readyLinks, args.batchSize, extraSkips);
     }
 
     process.stdout.write(`${summarizeImport({
       mode: args.dryRun ? "dry-run" : "import",
       options,
       plan,
-      counts,
+      counts: classified.counts,
       databaseNote,
       extraSkips,
     })}\n`);
@@ -283,10 +293,19 @@ async function classify(
   plan: ImportPlan,
   database: ImportDatabase | null,
   orgId: string,
-): Promise<Record<string, TableCount>> {
+  links: CustomerLink[],
+): Promise<{ counts: Record<string, TableCount>; readyLinks: CustomerLink[]; notices: ImportNote[] }> {
   const counts: Record<string, TableCount> = {};
   const rowsByTable = planRows(plan);
+  const existingCustomers = database && orgId ? await database.loadCustomers(orgId) : null;
+  const customerClass = classifyCustomerRows(
+    plan.customers.map((customer) => customer.sf_id),
+    links,
+    existingCustomers,
+  );
+  counts.customers = customerClass.counts;
   for (const [table, rows] of Object.entries(rowsByTable)) {
+    if (table === "customers") continue;
     const spec = TABLE_KEYS[table];
     if (spec === "parents") {
       counts[table] = { insert: 0, update: rows.length };
@@ -310,17 +329,24 @@ async function classify(
     }
     counts[table] = { insert, update };
   }
-  return counts;
+  return { counts, readyLinks: customerClass.ready, notices: customerClass.notices };
 }
 
 async function writePlan(
   database: ImportDatabase,
   orgId: string,
   plan: ImportPlan,
+  readyLinks: CustomerLink[],
   batchSize: number,
   extraSkips: ImportNote[],
 ): Promise<number> {
-  let rejected = 0;
+  let rejected = await writeBatch(
+    database,
+    orgId,
+    "customer_links",
+    readyLinks.map((link) => ({ loop_customer_id: link.loopCustomerId, sf_id: link.sfCustomerId })),
+    extraSkips,
+  );
   const tables = planRows(plan);
   const order = [
     "customers",
@@ -372,9 +398,9 @@ async function writeBatch(
     await database.applyBatch(orgId, sqlTable(table), rows);
     return 0;
   } catch (error) {
-    if (isMissingFunction(error)) {
+    if (isMissingFunction(error) || /unknown import table/i.test(safeDbMessage(error))) {
       throw new Error(
-        "The import tables are not in the database yet. Apply supabase/migrations/20261101180000_sf_import_prep.sql first.",
+        "The import tables are not up to date. Apply the Service Fusion migrations, including 20261101193000_sf_import_followups.sql, before a real import.",
       );
     }
     if (rows.length === 1) {
@@ -412,6 +438,7 @@ function planRows(plan: ImportPlan): Record<string, unknown[]> {
 }
 
 function sqlTable(table: string): string {
+  if (table === "customer_links") return "customer_links";
   if (table === "customerParents") return "customer_parents";
   if (table === "customerContacts") return "customer_contacts";
   if (table === "jobFinancials") return "job_financials";
@@ -450,7 +477,9 @@ function parseArgs(argv: string[]) {
     dryRun: false,
     orgId: "",
     cutoff: "",
-    stale: "",
+    asOf: "",
+    staleDays: null as number | null,
+    linkFile: "",
     batchSize: 200,
     help: false,
   };
@@ -461,7 +490,9 @@ function parseArgs(argv: string[]) {
     else if (arg === "--dir") args.dir = argv[++index] ?? "";
     else if (arg === "--org-id") args.orgId = argv[++index] ?? "";
     else if (arg === "--cutoff") args.cutoff = argv[++index] ?? "";
-    else if (arg === "--stale-open-before") args.stale = argv[++index] ?? "";
+    else if (arg === "--as-of") args.asOf = argv[++index] ?? "";
+    else if (arg === "--stale-open-days") args.staleDays = Number(argv[++index] ?? "");
+    else if (arg === "--link-customers") args.linkFile = argv[++index] ?? "";
     else if (arg === "--batch-size") args.batchSize = Number(argv[++index] ?? "200");
     else throw new Error(`Unknown option ${arg}. Run with --help.`);
   }
