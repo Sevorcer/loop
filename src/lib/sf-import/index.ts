@@ -7,6 +7,7 @@ export {
 export type { SfImportOptions } from "./constants";
 export { resolveImportOptions, jobScopeDecision, parentRef, staleOpenCutoff } from "./scope";
 export { addressMatchKey, normalizeState, normalizeStreet, normalizeZip } from "./address";
+export { laterCalendarDate } from "./dates";
 export { dollarsToCents } from "./money";
 export { buildImportPlan } from "./plan";
 export type { ImportPlan, PlanInput } from "./plan";

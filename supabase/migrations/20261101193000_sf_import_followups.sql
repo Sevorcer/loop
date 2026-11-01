@@ -73,7 +73,11 @@ BEGIN
       zip = CASE WHEN btrim(EXCLUDED.zip) = '' THEN customers.zip ELSE EXCLUDED.zip END,
       status = CASE WHEN btrim(EXCLUDED.status) = '' THEN customers.status ELSE EXCLUDED.status END,
       notes = CASE WHEN btrim(EXCLUDED.notes) = '' THEN customers.notes ELSE EXCLUDED.notes END,
-      last_activity = COALESCE(EXCLUDED.last_activity, customers.last_activity),
+      last_activity = COALESCE(
+        GREATEST(customers.last_activity, EXCLUDED.last_activity),
+        customers.last_activity,
+        EXCLUDED.last_activity
+      ),
       updated_at = now();
   ELSIF table_name = 'customer_links' THEN
     UPDATE public.customers AS existing
@@ -525,11 +529,23 @@ BEGIN
             AND job.org_id = property.org_id
             AND job.status NOT IN ('Completed', 'Cancelled')
         ),
-        last_visit = (
-          SELECT max(job.scheduled_for)
-          FROM public.jobs job
-          WHERE job.property_id = property.id
-            AND job.org_id = property.org_id
+        last_visit = COALESCE(
+          GREATEST(
+            property.last_visit,
+            (
+              SELECT max(job.scheduled_for)
+              FROM public.jobs job
+              WHERE job.property_id = property.id
+                AND job.org_id = property.org_id
+            )
+          ),
+          property.last_visit,
+          (
+            SELECT max(job.scheduled_for)
+            FROM public.jobs job
+            WHERE job.property_id = property.id
+              AND job.org_id = property.org_id
+          )
         ),
         updated_at = now()
     WHERE property.org_id = company_id
