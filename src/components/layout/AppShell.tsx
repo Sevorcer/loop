@@ -1,19 +1,19 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Command, Menu, Search } from "lucide-react";
+import { Command, Menu, MessageSquarePlus, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { UniversalCommandBar } from "@/features/command-bar";
-import { FeedbackButton } from "@/features/feedback";
+import { FeedbackButton, FeedbackModal } from "@/features/feedback";
 import { useAppearancePreferences } from "@/features/settings/hooks/useAppearancePreferences";
 import { Button } from "@/components/ui/button";
 import { ToastViewport } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { hidesFloatingActions } from "./floatingActions";
+import { CORNER_ACTIONS_VISIBILITY_CLASS, hidesFloatingActions } from "./floatingActions";
 import { computeSidebarLayout, readSidebarPinned, writeSidebarPinned } from "./sidebarState";
 
-import Sidebar from "./Sidebar";
+import Sidebar, { type SidebarPhoneAction } from "./Sidebar";
 import Header from "./Header";
 
 // Width of the left-edge hot zone strip that triggers the sidebar hover.
@@ -28,6 +28,7 @@ type AppShellProps = {
 export default function AppShell({ children }: AppShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   // Desktop sidebar state — initialized synchronously from localStorage to
   // avoid a visible layout shift on first paint.
@@ -60,6 +61,30 @@ export default function AppShell({ children }: AppShellProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMobileNavOpen]);
 
+  function openSearch() {
+    setIsMobileNavOpen(false);
+    setIsCommandBarOpen(true);
+  }
+
+  function openFeedback() {
+    setIsMobileNavOpen(false);
+    setIsFeedbackOpen(true);
+  }
+
+  const phoneActions: readonly SidebarPhoneAction[] = [
+    {
+      label: "Search",
+      icon: Search,
+      keyShortcuts: "Control+K Meta+K",
+      onSelect: openSearch,
+    },
+    {
+      label: "Send feedback",
+      icon: MessageSquarePlus,
+      onSelect: openFeedback,
+    },
+  ];
+
   // ESC → close keyboard-opened desktop sidebar (when not pinned)
   useEffect(() => {
     if (!isKeyboardOpen || isPinned) return;
@@ -81,6 +106,7 @@ export default function AppShell({ children }: AppShellProps) {
   }
 
   const layout = computeSidebarLayout({ isPinned, isKeyboardOpen });
+  const phoneMenuCoversPage = isMobileNavOpen && !isCommandBarOpen && !isFeedbackOpen;
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
@@ -169,7 +195,7 @@ export default function AppShell({ children }: AppShellProps) {
         <Header
           isMobileNavOpen={isMobileNavOpen}
           onMenuToggle={() => setIsMobileNavOpen((open) => !open)}
-          onOpenCommandBar={() => setIsCommandBarOpen(true)}
+          onOpenCommandBar={openSearch}
         />
 
         <main className="relative z-10 flex-1">
@@ -186,19 +212,28 @@ export default function AppShell({ children }: AppShellProps) {
 
       <UniversalCommandBar
         open={isCommandBarOpen}
-        onOpenChange={setIsCommandBarOpen}
+        onOpenChange={(open) => {
+          setIsCommandBarOpen(open);
+          // Ctrl/Cmd+K opens search from inside the command bar. Close the
+          // phone menu in that same turn so the drawer cannot cover it.
+          if (open) setIsMobileNavOpen(false);
+        }}
       />
 
       {/* Floating Actions Stack — vertical column, bottom-right corner.
           Lifts above any sticky mobile action bar via the body flag.
-          Hidden on job create/edit so it cannot cover the form while scrolling. */}
+          Hidden on phones (the slide-out menu carries Search and Send
+          feedback there) and on job create/edit so it cannot cover the form. */}
       {hideFloatingActions ? null : (
         <div
-          className="floating-actions-stack fixed bottom-6 right-6 z-40 flex w-12 flex-col-reverse items-end gap-3 print:hidden lg:bottom-8 lg:right-8"
+          className={cn(
+            "floating-actions-stack fixed bottom-6 right-6 z-40 w-12 flex-col-reverse items-end gap-3 print:hidden lg:bottom-8 lg:right-8",
+            CORNER_ACTIONS_VISIBILITY_CLASS,
+          )}
           style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           {/* Report Feedback */}
-          <FeedbackButton />
+          <FeedbackButton onOpen={openFeedback} />
 
           {/* Ask Copilot — desktop */}
           <div className="group relative hidden sm:block">
@@ -206,7 +241,7 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               variant="secondary"
               size="icon"
-              onClick={() => setIsCommandBarOpen(true)}
+              onClick={openSearch}
               aria-label="Open command bar"
               className="h-10 w-10 rounded-full border border-white/15 bg-slate-900/90 text-slate-200 shadow-xl hover:bg-slate-800"
             >
@@ -216,20 +251,12 @@ export default function AppShell({ children }: AppShellProps) {
               Ask Copilot
             </span>
           </div>
-
-          {/* Ask Copilot — mobile */}
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            onClick={() => setIsCommandBarOpen(true)}
-            aria-label="Open command bar"
-            className="h-12 w-12 rounded-full border border-white/15 bg-slate-900/95 text-slate-100 shadow-xl sm:hidden"
-          >
-            <Search className="h-5 w-5" />
-          </Button>
         </div>
       )}
+
+      {isFeedbackOpen ? (
+        <FeedbackModal onClose={() => setIsFeedbackOpen(false)} />
+      ) : null}
 
       {/* ── Mobile backdrop ─────────────────────────────────────────────── */}
       {isMobileNavOpen ? (
@@ -244,8 +271,12 @@ export default function AppShell({ children }: AppShellProps) {
       {/* ── Mobile sidebar drawer ───────────────────────────────────────── */}
       <div
         className={[
-          "safe-area-drawer fixed inset-y-0 left-0 z-[70] w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 print:hidden lg:hidden",
-          isMobileNavOpen ? "translate-x-0" : "pointer-events-none -translate-x-full",
+          "safe-area-drawer fixed inset-y-0 left-0 w-72 max-w-[calc(100vw-3rem)] transition-transform duration-200 print:hidden lg:hidden",
+          // Drop below search and feedback while those dialogs are open so
+          // the drawer cannot cover them during its close animation.
+          phoneMenuCoversPage
+            ? "z-[70] translate-x-0"
+            : "z-30 pointer-events-none -translate-x-full",
         ].join(" ")}
         inert={isMobileNavOpen ? undefined : true}
       >
@@ -253,6 +284,7 @@ export default function AppShell({ children }: AppShellProps) {
           id="mobile-navigation"
           onNavigate={() => setIsMobileNavOpen(false)}
           navOverride={preferences.sidebarNavOverride}
+          phoneActions={phoneActions}
           // Pin control is desktop-only; omit onPinToggle to hide the button.
         />
       </div>
