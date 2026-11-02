@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { createApiErrorResponse, invalidJsonResponse, mapRepositoryError, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { emitAuditEvent } from "@/lib/audit";
+import { getCurrentOperator } from "@/services/currentOperator";
 import { getInstalledSystemById } from "@/repositories/installedSystems";
 import {
   deleteInstalledSystem,
@@ -68,9 +69,23 @@ export async function PATCH(
     if (typeof body.modelNumber === "string") patch.modelNumber = body.modelNumber.trim();
     if (typeof body.warrantyExpiry === "string") patch.warrantyExpiry = body.warrantyExpiry.trim();
     if (typeof body.warrantyRegistered === "boolean") {
+      // Warranty registration is office-only (per Collin, 2026-10-02). The DB
+      // trigger guard_tech_installed_system_warranty enforces this at the data
+      // layer; reject it here too so a technician gets a clear 403 instead of a
+      // raw database error.
+      if (guard.ctx.role === "tech") {
+        return createApiErrorResponse(
+          "FORBIDDEN",
+          "Technicians cannot change warranty registration.",
+          403,
+        );
+      }
       patch.warrantyRegistered = body.warrantyRegistered;
       if (body.warrantyRegistered) {
         patch.warrantyRegisteredAt = new Date().toISOString();
+        // Record who marked it registered (the field was never set before).
+        const operator = await getCurrentOperator();
+        patch.warrantyRegisteredBy = operator.name;
       } else {
         patch.warrantyRegisteredAt = undefined;
         patch.warrantyRegisteredBy = undefined;
