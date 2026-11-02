@@ -36,10 +36,14 @@ import {
   missingJobFormFields,
 } from "@/features/jobs/utils/jobFormSubmit";
 
-import type { JobAppointmentHour, JobPriority, JobType } from "../types/job"; import { RecordCombobox } from "./RecordCombobox";
+import type { JobAppointmentHour, JobCloseoutMode, JobPriority, JobType } from "../types/job"; import { RecordCombobox } from "./RecordCombobox";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
+const closeoutModes: Array<{ value: JobCloseoutMode; label: string }> = [
+  { value: "full", label: "Full closeout" },
+  { value: "visit", label: "Visit closeout" },
+];
 
 export interface JobFormValues {
   estimateId?: string;
@@ -64,6 +68,7 @@ export interface JobFormValues {
   scheduledFor?: string | null;
   type: JobType;
   priority: JobPriority;
+  closeoutMode: JobCloseoutMode;
   location: string;
   summary: string;
   notes: string;
@@ -82,6 +87,7 @@ export const defaultJobFormValues: JobFormValues = {
   arrivalWindowEndAt: "",
   type: "Service",
   priority: "Medium",
+  closeoutMode: "full",
   location: "",
   summary: "",
   notes: "",
@@ -655,6 +661,27 @@ export function JobForm({
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">Closeout</label>
+              <select
+                value={form.closeoutMode}
+                disabled={isTech}
+                onChange={(e) => updateField("closeoutMode", e.target.value as JobCloseoutMode)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+              >
+                {closeoutModes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs leading-5 text-slate-500">
+                Visit closeout completes with a job note only — for single-visit
+                jobs like inspection finals. Full closeout also requires a photo,
+                installed systems, and the QA items.
+              </p>
             </div>
 
             {priceFields ? <div className="space-y-2 lg:col-span-2">{priceFields}</div> : null}

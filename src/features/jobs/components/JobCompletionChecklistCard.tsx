@@ -10,6 +10,7 @@ import {
   REQUIRED_QA_CHECKLIST_ITEMS,
   type RequiredQaChecklist,
 } from "@/features/jobs/utils/jobCompletionChecklist";
+import type { JobCloseoutMode } from "@/features/jobs/types/job";
 
 function ChecklistRow({ label, complete }: { label: string; complete: boolean }) {
   return (
@@ -28,6 +29,7 @@ export function JobCompletionChecklistCard({
   photosUploaded,
   installedSystemsEntered,
   jobNotesCompleted,
+  closeoutMode = "full",
   signatureCaption,
   signaturePreviewUrl,
   initialChecklist,
@@ -36,6 +38,7 @@ export function JobCompletionChecklistCard({
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
   jobNotesCompleted: boolean;
+  closeoutMode?: JobCloseoutMode;
   signatureCaption?: string | null;
   signaturePreviewUrl?: string | null;
   initialChecklist: RequiredQaChecklist;
@@ -46,10 +49,14 @@ export function JobCompletionChecklistCard({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const visitMode = closeoutMode === "visit";
   const qaComplete = isRequiredQaChecklistComplete(qaChecklist);
   const canComplete = useMemo(
-    () => photosUploaded && installedSystemsEntered && jobNotesCompleted && qaComplete,
-    [installedSystemsEntered, jobNotesCompleted, photosUploaded, qaComplete],
+    () =>
+      visitMode
+        ? jobNotesCompleted
+        : photosUploaded && installedSystemsEntered && jobNotesCompleted && qaComplete,
+    [installedSystemsEntered, jobNotesCompleted, photosUploaded, qaComplete, visitMode],
   );
 
   async function saveChecklist() {
@@ -76,7 +83,9 @@ export function JobCompletionChecklistCard({
           <div>
             <h2 className="text-lg font-semibold text-white">Completion Checklist</h2>
             <p className="mt-1 text-sm text-slate-400">
-              All checklist items must be complete before marking this job complete.
+              {visitMode
+                ? "Visit closeout — a job note is all this job needs to be marked complete. The other items are tracked for reference only."
+                : "All checklist items must be complete before marking this job complete."}
             </p>
           </div>
         </div>
@@ -157,8 +166,12 @@ export function JobCompletionChecklistCard({
           }`}
         >
           {canComplete
-            ? "Completion checklist ready."
-            : "Complete all checklist items before finishing this job."}
+            ? visitMode
+              ? "Job note recorded — this visit job can be marked complete."
+              : "Completion checklist ready."
+            : visitMode
+              ? "Add a job note to finish this visit job."
+              : "Complete all checklist items before finishing this job."}
         </p>
       </div>
     </SurfaceCard>

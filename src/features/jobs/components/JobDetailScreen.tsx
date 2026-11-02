@@ -457,6 +457,7 @@ export function JobDetailScreen({
             photosUploaded={photoCount > 0}
             installedSystemsEntered={installedSystemsEntered}
             jobNotesCompleted={jobNotesCompleted}
+            closeoutMode={job.closeoutMode ?? "full"}
             signatureCaption={
               latestSignature
                 ? formatSignatureCaption({

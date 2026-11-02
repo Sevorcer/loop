@@ -1,4 +1,4 @@
-import type { JobPriority, JobType } from "../types/job";
+import type { JobCloseoutMode, JobPriority, JobType } from "../types/job";
 
 /**
  * Identity fields copied onto the edit-job form.
@@ -18,6 +18,7 @@ export interface EditJobIdentitySource {
   assignees?: Array<{ id: string }> | null;
   type: JobType;
   priority: JobPriority;
+  closeoutMode?: JobCloseoutMode;
   location: string;
   summary: string;
   notes: string;
@@ -36,6 +37,7 @@ export function editJobIdentityValues(job: EditJobIdentitySource) {
     assigneeIds: (job.assignees ?? []).map((assignee) => assignee.id),
     type: job.type,
     priority: job.priority,
+    closeoutMode: job.closeoutMode ?? "full",
     location: job.location,
     summary: job.summary,
     notes: job.notes,
