@@ -8,6 +8,15 @@ export type JobStatus =
   | "Cancelled";
 
 export type JobPriority = "Low" | "Medium" | "High";
+
+/**
+ * How a job closes out, picked by the office per job.
+ * - "full": completion requires a tech photo, an installed system linked to
+ *   the job, a job note, and the required QA items.
+ * - "visit": completion requires a job note only (single-visit jobs such as
+ *   inspection finals, where the install gates do not fit).
+ */
+export type JobCloseoutMode = "full" | "visit";
 export type JobAppointmentHour = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 export interface Job {
@@ -48,6 +57,9 @@ export interface Job {
   summary: string;
   location: string;
   notes: string;
+  // Closeout mode (migration 20261102000000) — absent when the column has
+  // not been applied yet; readers treat anything but "visit" as "full".
+  closeoutMode?: JobCloseoutMode;
   contractorIds?: string[];   assignees?: { id: string; name: string }[];
   /** People on the job when it was first marked completed. */
   completionTeam?: { id: string | null; name: string }[];

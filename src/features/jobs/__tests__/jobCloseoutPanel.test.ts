@@ -3,6 +3,7 @@ import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { JobCloseoutMode } from "../types/job";
 import type { JobCompletionChecklistStatus } from "../utils/jobCompletionChecklist";
 import {
   buildCloseoutSteps,
@@ -32,24 +33,28 @@ vi.mock("@/lib/api/client", () => ({
 
 import { JobCloseoutPanel } from "../components/JobCloseoutPanel";
 
-type ChecklistPayload = JobCompletionChecklistStatus & { closeoutMode?: string };
+type ChecklistPayload = JobCompletionChecklistStatus & {
+  closeoutMode: JobCloseoutMode;
+};
 
-const ALL_MISSING: JobCompletionChecklistStatus = {
+const ALL_MISSING: ChecklistPayload = {
   photosUploaded: false,
   installedSystemsEntered: false,
   jobNotesCompleted: false,
   requiredQaItemsComplete: false,
   customerSignaturePlaceholder: "optional",
   canComplete: false,
+  closeoutMode: "full",
 };
 
-const ALL_DONE: JobCompletionChecklistStatus = {
+const ALL_DONE: ChecklistPayload = {
   photosUploaded: true,
   installedSystemsEntered: true,
   jobNotesCompleted: true,
   requiredQaItemsComplete: true,
   customerSignaturePlaceholder: "optional",
   canComplete: true,
+  closeoutMode: "full",
 };
 
 const roots: Root[] = [];
@@ -136,13 +141,28 @@ describe("buildCloseoutSteps", () => {
     expect(steps[2].sectionId).toBe(JOB_CLOSEOUT_SECTION_IDS.qa);
     expect(steps[3].sectionId).toBe(JOB_CLOSEOUT_SECTION_IDS.systems);
   });
+
+  it("returns only the note step in visit mode", () => {
+    const steps = buildCloseoutSteps({ ...ALL_MISSING, closeoutMode: "visit" });
+
+    expect(steps.map((step) => step.key)).toEqual(["note"]);
+    expect(steps[0].complete).toBe(false);
+
+    const notedSteps = buildCloseoutSteps({
+      ...ALL_MISSING,
+      closeoutMode: "visit",
+      jobNotesCompleted: true,
+    });
+
+    expect(notedSteps.map((step) => step.key)).toEqual(["note"]);
+    expect(notedSteps[0].complete).toBe(true);
+  });
 });
 
 describe("closeoutModeLabel", () => {
   it("labels known modes and tolerates a missing field", () => {
     expect(closeoutModeLabel(undefined)).toBeNull();
     expect(closeoutModeLabel(null)).toBeNull();
-    expect(closeoutModeLabel("")).toBeNull();
     expect(closeoutModeLabel("visit")).toBe("Visit closeout — note only");
     expect(closeoutModeLabel("full")).toBe("Full closeout");
   });
@@ -230,6 +250,41 @@ describe("JobCloseoutPanel", () => {
     await openPanel(container);
 
     expect(container.textContent).toContain("Visit closeout — note only");
+  });
+
+  it("shows only the note step in visit mode", async () => {
+    currentChecklist = { ...ALL_MISSING, closeoutMode: "visit" };
+    const container = await renderPanel();
+    await openPanel(container);
+
+    expect(container.textContent).toContain("Job note");
+    expect(container.textContent).toContain("Visit closeout — note only");
+    expect(container.textContent).not.toContain("QA checklist");
+    expect(container.textContent).not.toContain("Installed systems");
+    expect(container.querySelector("textarea")).toBeTruthy();
+    expect(findButton(container, "Go to Photos & Files")).toBeUndefined();
+    expect(findButton(container, "Complete job")?.disabled).toBe(true);
+  });
+
+  it("completes a visit job once the note is in, with no other steps required", async () => {
+    currentChecklist = {
+      ...ALL_MISSING,
+      closeoutMode: "visit",
+      jobNotesCompleted: true,
+      canComplete: true,
+    };
+    const container = await renderPanel();
+    await openPanel(container);
+
+    expect(container.textContent).not.toContain("QA checklist");
+    expect(container.textContent).not.toContain("Installed systems");
+    const completeButton = findButton(container, "Complete job");
+    expect(completeButton?.disabled).toBe(false);
+
+    await click(completeButton);
+
+    expect(onUpdateStatus).toHaveBeenCalledWith("Completed");
+    expect(container.textContent).toContain("Job closed out");
   });
 
   it("renders nothing when completing is not a valid transition", async () => {

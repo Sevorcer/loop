@@ -1,3 +1,4 @@
+import type { JobCloseoutMode } from "../types/job";
 import type { JobCompletionChecklistStatus } from "./jobCompletionChecklist";
 
 /**
@@ -30,11 +31,15 @@ export interface CloseoutStep {
  * The guided closeout steps, in the order a tech should work through them.
  * Driven entirely by the completion-checklist payload so the panel always
  * agrees with what the server will require before completing the job.
+ * Visit closeout is gated on the job note alone, so its step list is the
+ * note step only — the photo, QA, and installed-systems gates do not apply.
  */
 export function buildCloseoutSteps(
-  checklist: JobCompletionChecklistStatus,
+  checklist: JobCompletionChecklistStatus & {
+    closeoutMode?: JobCloseoutMode | null;
+  },
 ): CloseoutStep[] {
-  return [
+  const steps: CloseoutStep[] = [
     {
       key: "note",
       label: "Job note",
@@ -68,19 +73,24 @@ export function buildCloseoutSteps(
       actionLabel: "Go to Installed systems",
     },
   ];
+
+  if (checklist.closeoutMode === "visit") {
+    return steps.filter((step) => step.key === "note");
+  }
+  return steps;
 }
 
 /**
- * Human label for the closeout mode the sibling closeout-mode work adds to
- * the checklist payload (e.g. "visit"). Tolerates the field being absent —
- * returns null so the panel simply shows no mode badge.
+ * Human label for the closeout mode carried on the checklist payload.
+ * The mode is a closed type ("full" | "visit"); an absent mode returns
+ * null so the panel simply shows no mode badge.
  */
-export function closeoutModeLabel(mode: string | null | undefined): string | null {
-  const value = (mode ?? "").trim().toLowerCase();
-  if (!value) return null;
-  if (value === "visit") return "Visit closeout — note only";
-  if (value === "full") return "Full closeout";
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)} closeout`;
+export function closeoutModeLabel(
+  mode: JobCloseoutMode | null | undefined,
+): string | null {
+  if (mode === "visit") return "Visit closeout — note only";
+  if (mode === "full") return "Full closeout";
+  return null;
 }
 
 const HIGHLIGHT_CLASSES = ["ring-2", "ring-amber-300/80"];

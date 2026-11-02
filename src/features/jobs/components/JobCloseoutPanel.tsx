@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 
-import type { JobStatus } from "../types/job";
+import type { JobCloseoutMode, JobStatus } from "../types/job";
 import type { JobCompletionChecklistStatus } from "../utils/jobCompletionChecklist";
 import {
   buildCloseoutSteps,
@@ -28,11 +28,12 @@ import { JobStatusFailure } from "./JobStatusActions";
 
 /**
  * The completion-checklist payload, plus the closeout mode the closeout-mode
- * work adds to it. The mode is display-only here — the panel renders whatever
- * gates the payload reports and tolerates the field being absent.
+ * work adds to it. The mode drives the mode badge and the step list (Visit
+ * shows the job-note step only); completion itself stays gated by the
+ * payload's canComplete, which mirrors the server's gates.
  */
 type CloseoutChecklist = JobCompletionChecklistStatus & {
-  closeoutMode?: string | null;
+  closeoutMode: JobCloseoutMode;
 };
 
 interface JobCloseoutPanelProps {
