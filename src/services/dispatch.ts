@@ -1,7 +1,7 @@
 import "server-only";
 
 import { listContractors } from "@/repositories/contractors";
-import { createJobActivity, getJobById, listJobs, setJobPeople, updateJob } from "@/repositories/jobs";
+import { createJobActivity, getJobById, listJobsByIds, setJobPeople, updateJob } from "@/repositories/jobs";
 import {
   companyTimeOfDay,
   shiftIsoToCompanyDate,
@@ -33,16 +33,28 @@ export { loadDispatchSnapshot };
  * Job-level context the dispatch board filters need but the snapshot lacks:
  * the contractors assigned to each job (jobs carry contractor_ids; dispatch
  * plans don't) and the contractor list for the filter dropdown. Also returns
- * all job IDs so the board can drop dispatch plans orphaned by job deletion.
+ * the job IDs so the board can drop dispatch plans orphaned by job deletion.
+ *
+ * The jobs are the ones the snapshot's plans point at, fetched by id. This
+ * used to read listJobs(), whose default page is the 50 newest jobs: every
+ * plan for an older job — the pilot jobs and everything the Service Fusion
+ * import brought in — was then dropped by the board as an "orphan" even
+ * though the job exists. Fetching by id has no page cap, so every plan in
+ * the snapshot keeps its job.
  */
-export async function loadDispatchJobContext(): Promise<{
+export async function loadDispatchJobContext(
+  plans: ReadonlyArray<{ jobId?: string | null }> = [],
+): Promise<{
   contractors: { id: string; name: string }[];
   jobContractorIds: Record<string, string[]>;
   jobIds: string[];
-  jobs: Awaited<ReturnType<typeof listJobs>>;
+  jobs: Awaited<ReturnType<typeof listJobsByIds>>;
 }> {
+  const planJobIds = [
+    ...new Set(plans.map((plan) => plan.jobId).filter((id): id is string => !!id)),
+  ];
   const [jobs, contractorList] = await Promise.all([
-    listJobs(),
+    listJobsByIds(planJobIds),
     listContractors(),
   ]);
 

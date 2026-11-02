@@ -32,12 +32,16 @@ const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
 
 export default async function DispatchPage() {
   await redirectTechFromOfficePath(ROUTES.DISPATCH);
-  const [snapshot, jobContext, people, timeOff] = await Promise.all([
+  // The job context is scoped to the jobs the snapshot's plans point at,
+  // so it loads after the snapshot rather than in parallel with it.
+  const [snapshot, people, timeOff] = await Promise.all([
     loadDispatchSnapshot().catch(() => null),
-    loadDispatchJobContext().catch(() => null),
     listCalendarTeam().catch(() => []),
     listTimeOff().catch(() => []),
   ]);
+  const jobContext = snapshot
+    ? await loadDispatchJobContext(snapshot.plans).catch(() => null)
+    : null;
 
   const assembled: DispatchSnapshot = snapshot
     ? {
