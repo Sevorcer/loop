@@ -163,3 +163,87 @@ describe("alignDispatchSnapshotWithJobs", () => {
     expect(aligned.metrics.inProgress).toBe(1);
   });
 });
+
+describe("alignDispatchSnapshotWithJobs assignee label", () => {
+  const scheduledJob = {
+    id: "job-1",
+    status: "Scheduled" as const,
+    scheduledFor: "2026-11-02",
+    scheduledStartAt: "2026-11-02T16:00:00.000Z",
+    scheduledEndAt: "2026-11-02T18:00:00.000Z",
+  };
+
+  it("carries the job's assignee label onto the plan when nobody on it is a LOOP user", () => {
+    const aligned = alignDispatchSnapshotWithJobs(snapshot([plan()]), [
+      { ...scheduledJob, assignedTo: "Casey Belson", assignees: [] },
+    ]);
+
+    expect(aligned.dispatchPlans[0].assigneeLabel).toBe("Casey Belson");
+  });
+
+  it("carries a multi-name label raw, exactly as the job carries it", () => {
+    const aligned = alignDispatchSnapshotWithJobs(snapshot([plan()]), [
+      { ...scheduledJob, assignedTo: "Nate Carver + Casey Belson", assignees: [] },
+    ]);
+
+    expect(aligned.dispatchPlans[0].assigneeLabel).toBe("Nate Carver + Casey Belson");
+  });
+
+  it("leaves the label off when the job has real assignees", () => {
+    const aligned = alignDispatchSnapshotWithJobs(snapshot([plan()]), [
+      {
+        ...scheduledJob,
+        assignedTo: "Brian Ramirez",
+        assignees: [{ id: "11111111-1111-4111-8111-111111111111", name: "Brian Ramirez" }],
+      },
+    ]);
+
+    expect(aligned.dispatchPlans[0].assigneeLabel).toBeUndefined();
+    expect(aligned.dispatchPlans[0].assignees).toEqual([
+      { id: "11111111-1111-4111-8111-111111111111", name: "Brian Ramirez", legacy: undefined },
+    ]);
+  });
+
+  it("leaves the label off when a crew assignment covers the plan", () => {
+    const withAssignment = snapshot([plan()]);
+    withAssignment.crewAssignments = [
+      {
+        id: "asg-1",
+        dispatchPlanId: "plan-1",
+        jobId: "job-1",
+        crewId: "crew-1",
+        crewName: "Install Truck 4",
+        leadInstaller: "Brian Ramirez",
+        supportingTechnicians: [],
+        status: "confirmed",
+        assignedAt: "2026-11-01T15:00:00.000Z",
+        reassignmentHistory: [],
+      },
+    ];
+    withAssignment.crews = [
+      {
+        id: "crew-1",
+        name: "Install Truck 4",
+        leadInstaller: "Brian Ramirez",
+        members: [{ id: "m-1", name: "Brian Ramirez", role: "lead" }],
+        certifications: [],
+        availability: "available",
+        truckName: "Install Truck 4",
+      },
+    ];
+
+    const aligned = alignDispatchSnapshotWithJobs(withAssignment, [
+      { ...scheduledJob, assignedTo: "Casey Belson", assignees: [] },
+    ]);
+
+    expect(aligned.dispatchPlans[0].assigneeLabel).toBeUndefined();
+  });
+
+  it("leaves the label off when the job carries no assignee text", () => {
+    const aligned = alignDispatchSnapshotWithJobs(snapshot([plan()]), [
+      { ...scheduledJob, assignedTo: "", assignees: [] },
+    ]);
+
+    expect(aligned.dispatchPlans[0].assigneeLabel).toBeUndefined();
+  });
+});

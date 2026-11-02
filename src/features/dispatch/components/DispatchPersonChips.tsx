@@ -4,13 +4,15 @@ import { useState } from "react";
 import { AlertTriangle, UserPlus, X } from "lucide-react";
 
 import type { DispatchAssignee, DispatchPerson, DispatchTimeOffWindow } from "../types/dispatch";
-import { isLegacyAssignee, teamLabelForPeople } from "../utils/dispatchPeople";
+import { isLegacyAssignee, planPeopleDisplay } from "../utils/dispatchPeople";
 
 const DRAG_TYPE = "application/x-loop-person";
 
 interface DispatchPersonChipsProps {
   planId: string;
   people: DispatchAssignee[];
+  /** Free-text assignee label from the job, shown when there are no user-linked people. */
+  assigneeLabel?: string | null;
   directory: DispatchPerson[];
   timeOff: DispatchTimeOffWindow[];
   canAssign: boolean;
@@ -23,6 +25,7 @@ interface DispatchPersonChipsProps {
 export function DispatchPersonChips({
   planId,
   people,
+  assigneeLabel = null,
   directory,
   timeOff,
   canAssign,
@@ -32,7 +35,7 @@ export function DispatchPersonChips({
   onMovePerson,
 }: DispatchPersonChipsProps) {
   const [dropActive, setDropActive] = useState(false);
-  const label = teamLabelForPeople(people);
+  const display = planPeopleDisplay(people, assigneeLabel);
   const assignedIds = new Set(people.filter((person) => !isLegacyAssignee(person)).map((person) => person.id));
   const available = directory.filter((person) => !assignedIds.has(person.id));
 
@@ -63,13 +66,17 @@ export function DispatchPersonChips({
       }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-slate-400">
-          {label ? label : "No one assigned"}
-        </span>
+        {display.kind === "assigneeLabel" ? (
+          <span className="text-xs italic text-slate-500">{display.label}</span>
+        ) : (
+          <span className="text-xs font-medium text-slate-400">
+            {display.kind === "people" ? display.label : "No one assigned"}
+          </span>
+        )}
       </div>
 
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        {people.map((person) => {
+        {(display.kind === "assigneeLabel" ? [] : people).map((person) => {
           const legacy = isLegacyAssignee(person);
           const off = timeOff.find((entry) => entry.userId === person.id);
           return (
@@ -168,15 +175,20 @@ export function DispatchPersonChips({
         ) : null}
       </div>
 
-      {timeOff.length > 0 ? (
+      {timeOff.length > 0 && display.kind === "people" ? (
         <p className="text-xs text-yellow-300" role="status">
           Off during this job:{" "}
           {timeOff.map((entry) => `${entry.personName} (${entry.reason})`).join("; ")}.
         </p>
       ) : null}
-      {people.some((person) => isLegacyAssignee(person)) ? (
+      {display.kind === "people" && people.some((person) => isLegacyAssignee(person)) ? (
         <p className="text-xs text-slate-500">
           Names marked previous crew are still on the old crew list and are not a user account, so they stay visible.
+        </p>
+      ) : null}
+      {display.kind === "assigneeLabel" ? (
+        <p className="text-xs text-slate-500">
+          This name came over with the imported job and is not a LOOP user account, so it is shown as text.
         </p>
       ) : null}
     </div>

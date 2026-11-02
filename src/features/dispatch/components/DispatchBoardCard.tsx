@@ -214,6 +214,7 @@ export function DispatchBoardCard({
         <DispatchPersonChips
           planId={plan.id}
           people={people}
+          assigneeLabel={plan.assigneeLabel ?? null}
           directory={directory}
           timeOff={timeOff}
           canAssign={canAssign}
