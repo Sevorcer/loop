@@ -274,6 +274,7 @@ export function CalendarScreen() {
   // calendar hang once the company history grew past a few hundred jobs.
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobsReady, setJobsReady] = useState(false);
+  const [jobsRangeKey, setJobsRangeKey] = useState<string | null>(null);
   const [jobsNote, setJobsNote] = useState<string | null>(null);
   const [unscheduledCount, setUnscheduledCount] = useState(0);
   const { role } = useCurrentRole();
@@ -556,6 +557,7 @@ export function CalendarScreen() {
     view === "week"
       ? visibleWeek[6]
       : `${monthKey}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
+  const rangeKey = `${rangeFrom}|${rangeTo}`;
 
   useEffect(() => {
     if (!role) return;
@@ -580,12 +582,20 @@ export function CalendarScreen() {
         setJobsNote("Jobs could not be loaded for this period.");
       })
       .finally(() => {
-        if (!cancelled) setJobsReady(true);
+        if (cancelled) return;
+        setJobsReady(true);
+        // Mark this range settled even when the fetch failed, so the
+        // loading state lifts and the error note (or the cleared list on
+        // an auth failure) is what the user sees. A superseded fetch is
+        // cancelled above and never reaches this point, so rapid
+        // navigation can neither overwrite newer jobs nor settle the
+        // loading state early.
+        setJobsRangeKey(rangeKey);
       });
     return () => {
       cancelled = true;
     };
-  }, [role, rangeFrom, rangeTo]);
+  }, [role, rangeFrom, rangeTo, rangeKey]);
 
   const title =
     view === "week"
@@ -597,6 +607,16 @@ export function CalendarScreen() {
       ? visibleWeek.includes(today)
       : today.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`);
   const showToday = !visibleHasToday || selectedDate !== today;
+
+  // Until the fetch for the visible range settles, the jobs on hand still
+  // belong to the previous range (jobsRangeKey names the range they were
+  // fetched for). Keep the loading treatment up instead of plotting them
+  // against the new period, where they would read as an empty or wrong
+  // schedule. Because this is derived from the range itself, the very
+  // first render after navigation already shows it. The jobs stay put —
+  // only the rendering is gated — so the people directory and other
+  // consumers are unaffected while the new range loads.
+  const jobsPending = jobsRangeKey !== rangeKey;
 
   const focusDate = useCallback((date: string) => {
     setSelectedDate(date);
@@ -674,7 +694,7 @@ export function CalendarScreen() {
         />
       </div>
 
-      {!jobsReady || !viewReady || !peopleReady || (office && role && !groupsReady) ? (
+      {!jobsReady || jobsPending || !viewReady || !peopleReady || (office && role && !groupsReady) ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
           Loading calendar…
         </div>
