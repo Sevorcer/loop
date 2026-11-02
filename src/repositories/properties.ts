@@ -441,10 +441,13 @@ export async function resolvePropertyIdByName(
     .select("id")
     .eq("org_id", orgId)
     .eq("name", name)
-    .maybeSingle();
+    .limit(2);
 
   if (error) throw new Error(error.message);
-  return (data as { id: string } | null)?.id ?? null;
+  // Duplicate property names (e.g. after a Service Fusion import) resolve to
+  // null rather than throwing, mirroring resolveCustomerIdByName above.
+  const matches = (data ?? []) as { id: string }[];
+  return matches.length === 1 ? matches[0].id : null;
 }
 
 export async function countOpenJobsForProperty(
