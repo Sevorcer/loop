@@ -21,7 +21,9 @@ import type { JobCompletionChecklistStatus } from "../utils/jobCompletionCheckli
 import {
   buildCloseoutSteps,
   closeoutModeLabel,
+  closeoutSectionKeyForStep,
   scrollToJobSection,
+  type CloseoutSectionKey,
   type CloseoutStep,
 } from "../utils/jobCloseout";
 import { JobStatusFailure } from "./JobStatusActions";
@@ -41,6 +43,14 @@ interface JobCloseoutPanelProps {
   status: JobStatus;
   onAddNote: (note: string) => Promise<void>;
   onUpdateStatus: (status: JobStatus) => Promise<void>;
+  /**
+   * Optional tab-aware jump: when the host screen organises the job page
+   * into tabs, it passes this so a step's jump button switches to the tab
+   * that owns the section (and the host scrolls/highlights it there)
+   * instead of the panel scrolling the page itself. When absent, the
+   * panel keeps the original scroll-to-section behaviour.
+   */
+  onShowSection?: (section: CloseoutSectionKey) => void;
 }
 
 function StepRow({
@@ -84,6 +94,7 @@ export function JobCloseoutPanel({
   status,
   onAddNote,
   onUpdateStatus,
+  onShowSection,
 }: JobCloseoutPanelProps) {
   const { role } = useCurrentRole();
   const [open, setOpen] = useState(false);
@@ -278,7 +289,16 @@ export function JobCloseoutPanel({
                           <Button
                             variant="secondary"
                             className="min-h-[48px] gap-2 text-base md:min-h-0 md:text-sm"
-                            onClick={() => scrollToJobSection(step.sectionId!)}
+                            onClick={() => {
+                              const section = onShowSection
+                                ? closeoutSectionKeyForStep(step)
+                                : null;
+                              if (onShowSection && section) {
+                                onShowSection(section);
+                                return;
+                              }
+                              scrollToJobSection(step.sectionId!);
+                            }}
                           >
                             {step.actionLabel}
                             <ArrowRight className="h-4 w-4" />

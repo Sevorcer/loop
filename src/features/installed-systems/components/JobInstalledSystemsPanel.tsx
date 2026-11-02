@@ -7,7 +7,7 @@ import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTES } from "@/lib/routes";
 
-import { useEffect, useMemo, useState } from "react"; import { useRouter } from "next/navigation"; import { actorDisplayName } from "@/lib/actors"; import { loadProfileNames } from "@/services/profileDirectory"; import { useInstalledSystems } from "../state/InstalledSystemsProvider";
+import { useEffect, useMemo, useRef, useState } from "react"; import { useRouter } from "next/navigation"; import { actorDisplayName } from "@/lib/actors"; import { loadProfileNames } from "@/services/profileDirectory"; import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import type { InstalledSystem } from "../types/installedSystem";
 
 function getMatchVariant(system: InstalledSystem) {
@@ -28,6 +28,8 @@ interface JobInstalledSystemsPanelProps {
   propertyId?: string;
   customerName?: string;
   propertyName?: string;
+  /** Optional: reports the number of systems on this job whenever it changes (e.g. for a tab badge). */
+  onCountChange?: (count: number) => void;
 }
 
 export function JobInstalledSystemsPanel({
@@ -36,12 +38,20 @@ export function JobInstalledSystemsPanel({
   propertyId,
   customerName,
   propertyName,
+  onCountChange,
 }: JobInstalledSystemsPanelProps) {
   const router = useRouter();
   const { getInstalledSystemsForJob, getTechnicalProfileById } =
     useInstalledSystems();
 
-  const systems = getInstalledSystemsForJob(jobId, propertyId);    const technicalIdentityIds = useMemo(     () =>       Array.from(         new Set(           systems             .map((system) => system.technicalIdentityId)             .filter((value): value is string => Boolean(value)),         ),       ),     [systems],   );   const [identityNames, setIdentityNames] = useState<Record<string, string>>({});    useEffect(() => {     let cancelled = false;     async function loadIdentityNames() {       if (technicalIdentityIds.length === 0) {         if (!cancelled) setIdentityNames({});         return;       }       try {         const next = await loadProfileNames(technicalIdentityIds);         if (!cancelled) setIdentityNames(next);       } catch {         if (!cancelled) setIdentityNames({});       }     }     void loadIdentityNames();     return () => {       cancelled = true;     };   }, [technicalIdentityIds]);    function technicalIdentityLabel(technicalIdentityId: string | null | undefined): string {     if (!technicalIdentityId) return "a team member";     const direct = actorDisplayName(technicalIdentityId);     if (direct) return direct;     return identityNames[technicalIdentityId] ?? "a team member";   }
+  const systems = getInstalledSystemsForJob(jobId, propertyId);
+  const countCallbackRef = useRef(onCountChange);
+  useEffect(() => {
+    countCallbackRef.current = onCountChange;
+  });
+  useEffect(() => {
+    countCallbackRef.current?.(systems.length);
+  }, [systems.length]);    const technicalIdentityIds = useMemo(     () =>       Array.from(         new Set(           systems             .map((system) => system.technicalIdentityId)             .filter((value): value is string => Boolean(value)),         ),       ),     [systems],   );   const [identityNames, setIdentityNames] = useState<Record<string, string>>({});    useEffect(() => {     let cancelled = false;     async function loadIdentityNames() {       if (technicalIdentityIds.length === 0) {         if (!cancelled) setIdentityNames({});         return;       }       try {         const next = await loadProfileNames(technicalIdentityIds);         if (!cancelled) setIdentityNames(next);       } catch {         if (!cancelled) setIdentityNames({});       }     }     void loadIdentityNames();     return () => {       cancelled = true;     };   }, [technicalIdentityIds]);    function technicalIdentityLabel(technicalIdentityId: string | null | undefined): string {     if (!technicalIdentityId) return "a team member";     const direct = actorDisplayName(technicalIdentityId);     if (direct) return direct;     return identityNames[technicalIdentityId] ?? "a team member";   }
 
   const addSystemParams = new URLSearchParams({
     ...(jobId ? { jobId } : {}),

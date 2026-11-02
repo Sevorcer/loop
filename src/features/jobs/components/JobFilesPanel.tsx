@@ -26,9 +26,12 @@ interface JobFileMeta {
 export function JobFilesPanel({
   jobId,
   onFilesChanged,
+  onCountChange,
 }: {
   jobId: string;
   onFilesChanged?: (files: JobFileMeta[]) => void;
+  /** Optional: reports the current file count whenever the list changes (e.g. for a tab badge). */
+  onCountChange?: (count: number) => void;
 }) {
   const { role } = useCurrentRole();
   const [files, setFiles] = useState<JobFileMeta[]>([]);
@@ -57,12 +60,13 @@ export function JobFilesPanel({
       const nextFiles = response.files ?? [];
       setFiles(nextFiles);
       onFilesChanged?.(nextFiles);
+      onCountChange?.(nextFiles.length);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load files.");
     } finally {
       setLoading(false);
     }
-  }, [jobId, onFilesChanged, role]);
+  }, [jobId, onCountChange, onFilesChanged, role]);
 
   useEffect(() => {
     queueMicrotask(() => {
