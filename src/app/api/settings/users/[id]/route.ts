@@ -25,9 +25,10 @@ export async function PATCH(request: Request, { params }: Params) {
       UpdateUserPayload & { status: "active" | "inactive" }
     >;
 
-    // Status change
+    // Status change — the service enforces org scope, self, and last-owner
+    // guards before the org-blind admin ban call runs.
     if (body.status === "active" || body.status === "inactive") {
-      await setOrgUserStatus(id, body.status);
+      await setOrgUserStatus(guard.ctx.userId, id, body.status);
     }
 
     // Profile updates

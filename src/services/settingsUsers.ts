@@ -365,15 +365,55 @@ export async function updateOrgUser(
 /**
  * Activate or deactivate a user account.
  * Uses Supabase's ban_duration field — deactivated users are banned until 2099.
+ *
+ * The admin ban call (auth.admin.updateUserById) is org-blind, so the scope
+ * checks must happen here, before it runs:
+ *   - only an owner or manager may change status;
+ *   - the target must be in the caller's own company (a cross-company or
+ *     unknown target is refused, so one org cannot lock out another);
+ *   - you cannot change your own status;
+ *   - you cannot deactivate the organization's last active owner.
  */
 
 /** Duration string used to effectively permanently ban a user. ~100 years. */
 const PERMANENT_BAN_DURATION = "876000h" as const;
 
 export async function setOrgUserStatus(
+  callerUserId: string,
   userId: string,
   status: "active" | "inactive"
 ): Promise<void> {
+  const caller = await readCallerAuthority(callerUserId);
+  assertCanManageStaff(caller.role);
+  const callerOrgId = caller.orgId;
+
+  // Read the target through the service role so a cross-company row cannot be
+  // hidden by RLS — we need to see it precisely so we can refuse it.
+  const profiles = profileAdmin();
+  const { data: target, error: targetError } = await profiles
+    .from("user_profiles")
+    .select("org_id, app_role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (targetError) throw new Error(targetError.message);
+
+  // Cross-company (or unknown) target: refuse the same way a cross-company
+  // role change does, so one org can never act on another's users.
+  const sameCompany = Boolean(callerOrgId) && target?.org_id === callerOrgId;
+  if (!sameCompany) {
+    throw refused("That person is not in your company.");
+  }
+
+  if (userId === callerUserId) {
+    throw refused("Changing your own active status is denied.");
+  }
+
+  // Deactivating the last active owner would leave the org with no one who can
+  // manage it. Only block the deactivation path; reactivating is always safe.
+  if (status === "inactive" && target?.app_role === "owner") {
+    await assertNotLastActiveOwner(callerOrgId as string, userId);
+  }
+
   const admin = createSupabaseAdminClient();
 
   if (status === "inactive") {
@@ -384,6 +424,65 @@ export async function setOrgUserStatus(
     await admin.auth.admin.updateUserById(userId, {
       ban_duration: "none",
     });
+  }
+}
+
+interface OwnerIdRow {
+  id: string;
+}
+
+interface OwnerListResult {
+  data: OwnerIdRow[] | null;
+  error: SupabaseErrorLike | null;
+}
+
+interface OwnerListAdmin {
+  from(table: "user_profiles"): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        eq(column: string, value: string): PromiseLike<OwnerListResult>;
+      };
+    };
+  };
+}
+
+/**
+ * Refuse when deactivating `targetId` would leave the org with no active
+ * owner. Fail-safe: a deactivation is allowed only when we can positively
+ * confirm another owner is currently active (an owner whose auth row exists
+ * and is not banned). If that cannot be confirmed, the deactivation is
+ * refused so the org can never be locked out of owner access.
+ */
+async function assertNotLastActiveOwner(orgId: string, targetId: string): Promise<void> {
+  const lastOwnerRefusal = "You cannot deactivate the organization's last active owner.";
+
+  const admin = createSupabaseAdminClient() as unknown as OwnerListAdmin;
+  const { data: owners, error } = await admin
+    .from("user_profiles")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("app_role", "owner");
+  if (error) throw toSupabaseServiceError(error, "Failed to check organization owners.");
+
+  const otherOwnerIds = (owners ?? [])
+    .map((owner) => owner.id)
+    .filter((id) => id !== targetId);
+
+  if (otherOwnerIds.length === 0) {
+    throw refused(lastOwnerRefusal);
+  }
+
+  const authMap = await loadAuthUsersForProfiles(otherOwnerIds);
+  const hasOtherActiveOwner = otherOwnerIds.some((id) => {
+    const authUser = authMap.get(id);
+    if (!authUser) return false; // cannot confirm this owner can still sign in
+    const banned =
+      authUser.banned_until != null && new Date(authUser.banned_until) > new Date();
+    return !banned;
+  });
+
+  if (!hasOtherActiveOwner) {
+    throw refused(lastOwnerRefusal);
   }
 }
 
