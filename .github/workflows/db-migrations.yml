@@ -1,9 +1,12 @@
 name: Database Migrations
 
-# Runs on every PR that touches migration or Supabase config files.
-# Also runs on push to main to apply migrations to the primary environment.
+# Pull requests and pushes only check that migration files are well formed.
+# Nothing in those events applies SQL to production.
 #
-# Required GitHub secrets:
+# Applying migrations to the live database is manual. Run this workflow from
+# the Actions tab and type apply-production in the confirmation box.
+#
+# Required GitHub secrets, only for that manual apply:
 #   SUPABASE_ACCESS_TOKEN   — Personal access token from app.supabase.com/account/tokens
 #   SUPABASE_PROJECT_REF    — Project reference ID (e.g. "abcdefghijklmnop")
 #   SUPABASE_DB_PASSWORD    — Database password for the linked project
@@ -23,6 +26,12 @@ on:
       - "supabase/migrations/**"
       - "supabase/verifications/**"
       - "supabase/config.toml"
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type apply-production to apply migrations to the live database"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -45,22 +54,14 @@ jobs:
         run: bash scripts/verify-migrations.sh
 
   # ── Apply & drift check ────────────────────────────────────────────────────
-  # Runs only when Supabase credentials are available (i.e. not on fork PRs or
-  # bot-authored PRs where GitHub withholds repository secrets).
-  # Applies pending migrations to the linked project and fails if schema
-  # drift is detected after the apply.
+  # Manual only. Pull requests and pushes never reach this job, so they
+  # never run supabase db push against production.
   apply-and-verify:
     name: Apply migrations & verify schema
     runs-on: ubuntu-latest
     needs: verify-structure
 
-    # Skip on fork PRs plus bot-authored PRs where secrets are unavailable.
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       github.actor != 'dependabot[bot]' &&
-       github.actor != 'Copilot')
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'apply-production'
 
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -189,13 +190,12 @@ jobs:
   # Calls the deployed DB health endpoint after migration apply to validate that
   # schema, RLS policies, indexes, and data integrity checks all pass.
   #
-  # Runs only on push to main — the live deployment must be up before this runs.
-  # Blocked by apply-and-verify: will not run if migration apply failed.
+  # Runs only after a confirmed manual apply.
   verify-sql:
     name: Verification SQL gate
     runs-on: ubuntu-latest
     needs: apply-and-verify
-    if: github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'apply-production'
 
     env:
       LOOP_DEPLOY_URL: ${{ secrets.LOOP_DEPLOY_URL }}
@@ -301,7 +301,7 @@ jobs:
     name: Application smoke test
     runs-on: ubuntu-latest
     needs: verify-sql
-    if: github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'apply-production'
 
     env:
       LOOP_DEPLOY_URL: ${{ secrets.LOOP_DEPLOY_URL }}
@@ -337,7 +337,7 @@ jobs:
     name: Mark deploy healthy
     runs-on: ubuntu-latest
     needs: [apply-and-verify, verify-sql, smoke-test]
-    if: github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'apply-production'
 
     steps:
       - name: Declare deploy healthy

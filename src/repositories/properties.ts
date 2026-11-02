@@ -20,8 +20,19 @@ import { getRepositoryContext, type SessionRepositoryContextInput } from "./supa
 // Row shapes
 // ---------------------------------------------------------------------------
 
-const PROPERTY_SELECT =
+const PROPERTY_SELECT_BASE =
   "id,org_id,customer_id,name,address,city,type,status,primary_system,open_jobs,last_visit,latitude,longitude,formatted_address,place_id,created_at";
+
+let propertyRegionReady = true;
+
+function propertySelect(): string {
+  return propertyRegionReady ? `${PROPERTY_SELECT_BASE},state,zip` : PROPERTY_SELECT_BASE;
+}
+
+function missingRegionColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "42703" || /column/i.test(error.message ?? "") && /state|zip/i.test(error.message ?? "");
+}
 
 interface PropertyRow {
   id: string;
@@ -40,6 +51,8 @@ interface PropertyRow {
   formatted_address: string | null;
   place_id: string | null;
   created_at: string;
+  state?: string;
+  zip?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +103,17 @@ function buildLocation(row: PropertyRow): PropertyLocation | undefined {
   };
 }
 
+async function readPropertyRows(
+  run: (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>,
+): Promise<{ data: unknown; error: { code?: string; message: string } | null }> {
+  const first = await run(propertySelect());
+  if (first.error && propertyRegionReady && missingRegionColumn(first.error)) {
+    propertyRegionReady = false;
+    return run(propertySelect());
+  }
+  return first;
+}
+
 function mapProperty(row: PropertyRow, customerName: string): Property {
   return {
     id: row.id,
@@ -98,6 +122,8 @@ function mapProperty(row: PropertyRow, customerName: string): Property {
     customerId: row.customer_id ?? undefined,
     address: row.address,
     city: row.city,
+    state: row.state ?? "",
+    zip: row.zip ?? "",
     type: row.type as PropertyType,
     status: row.status as PropertyStatus,
     primarySystem: row.primary_system,
@@ -229,17 +255,17 @@ export async function listProperties(
   const to = from + pageSize - 1;
 
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  let query = supabase
-    .from("properties")
-    .select(PROPERTY_SELECT)
-    .eq("org_id", orgId)
-    .order("created_at", { ascending: false });
-
-  if (options?.search) {
-    query = query.ilike("name", `%${options.search}%`);
-  }
-
-  const { data, error } = await query.range(from, to);
+  const { data, error } = await readPropertyRows((columns) => {
+    let query = supabase
+      .from("properties")
+      .select(columns)
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false });
+    if (options?.search) {
+      query = query.ilike("name", `%${options.search}%`);
+    }
+    return query.range(from, to);
+  });
 
   if (error) throw new Error(error.message);
 
@@ -344,11 +370,9 @@ export async function listPropertiesByCustomerId(
   const chunkSize = 80;
   for (let index = 0; index < ids.length; index += chunkSize) {
     const chunk = ids.slice(index, index + chunkSize);
-    const { data, error } = await supabase
-      .from("properties")
-      .select(PROPERTY_SELECT)
-      .eq("org_id", orgId)
-      .in("id", chunk);
+    const { data, error } = await readPropertyRows((columns) =>
+      supabase.from("properties").select(columns).eq("org_id", orgId).in("id", chunk),
+    );
     if (error) throw new Error(error.message);
     rows.push(...((data ?? []) as PropertyRow[]));
   }
@@ -363,12 +387,9 @@ export async function getPropertyById(
   contextInput?: SessionRepositoryContextInput,
 ): Promise<Property | null> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await supabase
-    .from("properties")
-    .select(PROPERTY_SELECT)
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await readPropertyRows((columns) =>
+    supabase.from("properties").select(columns).eq("org_id", orgId).eq("id", id).maybeSingle(),
+  );
 
   if (error) throw new Error(error.message);
   if (!data) return null;
@@ -457,26 +478,28 @@ export async function createPropertyRecord(
     ? explicitCustomerId
     : await resolveCustomerIdByName(input.customer, contextInput);
 
-  const { data, error } = await supabase
-    .from("properties")
-    .insert({
-      org_id: orgId,
-      customer_id: customerId ?? null,
-      name: input.name,
-      address: input.address,
-      city: input.city,
-      type: input.type,
-      status: input.status,
-      primary_system: input.primarySystem,
-      open_jobs: input.openJobs ?? 0,
-      last_visit: input.lastVisit ?? new Date().toISOString().slice(0, 10),
-      latitude: input.location?.latitude ?? null,
-      longitude: input.location?.longitude ?? null,
-      formatted_address: input.location?.formattedAddress ?? null,
-      place_id: input.location?.placeId ?? null,
-    })
-    .select(PROPERTY_SELECT)
-    .single();
+  const { data, error } = await readPropertyRows((columns) =>
+    supabase
+      .from("properties")
+      .insert({
+        org_id: orgId,
+        customer_id: customerId ?? null,
+        name: input.name,
+        address: input.address,
+        city: input.city,
+        type: input.type,
+        status: input.status,
+        primary_system: input.primarySystem,
+        open_jobs: input.openJobs ?? 0,
+        last_visit: input.lastVisit ?? new Date().toISOString().slice(0, 10),
+        latitude: input.location?.latitude ?? null,
+        longitude: input.location?.longitude ?? null,
+        formatted_address: input.location?.formattedAddress ?? null,
+        place_id: input.location?.placeId ?? null,
+      })
+      .select(columns)
+      .single(),
+  );
 
   if (error) {
     // Cast once to access Supabase-specific fields beyond the base PostgREST error shape
@@ -540,13 +563,15 @@ export async function updatePropertyRecord(
     updatePayload.customer_id = await resolveCustomerIdByName(input.customer, contextInput);
   }
 
-  const { data, error } = await supabase
-    .from("properties")
-    .update(updatePayload)
-    .eq("org_id", orgId)
-    .eq("id", id)
-    .select(PROPERTY_SELECT)
-    .maybeSingle();
+  const { data, error } = await readPropertyRows((columns) =>
+    supabase
+      .from("properties")
+      .update(updatePayload)
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .select(columns)
+      .maybeSingle(),
+  );
 
   if (error) throw new Error(error.message);
   if (!data) return null;

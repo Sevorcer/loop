@@ -117,9 +117,42 @@ export function CustomerDetailScreen({
               {streetLine ? (
                 <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
                   {streetLine}
+                  {customer.state ? `, ${customer.state}` : ""}
                 </span>
               ) : null}
             </div>
+
+            {customer.parentCustomer ? (
+              <p className="text-sm text-muted-foreground">
+                Part of{" "}
+                <Link
+                  href={ROUTE_BUILDERS.CUSTOMER_DETAIL(customer.parentCustomer.id)}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {customer.parentCustomer.name}
+                </Link>
+              </p>
+            ) : null}
+
+            {customer.childCustomers && customer.childCustomers.length > 0 ? (
+              <div className="max-w-xl space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Linked job sites
+                </p>
+                <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
+                  {customer.childCustomers.map((child) => (
+                    <li key={child.id}>
+                      <Link
+                        href={ROUTE_BUILDERS.CUSTOMER_DETAIL(child.id)}
+                        className="text-primary underline-offset-4 hover:underline"
+                      >
+                        {child.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             {customer.notes ? (
               <div className="rounded-xl border border-default bg-surface-elevated/50 p-3 text-sm">

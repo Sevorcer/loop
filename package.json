@@ -20,6 +20,7 @@
     "db:verify-migrations": "bash scripts/verify-migrations.sh",
     "db:verify-verification": "bash scripts/verify-migration-verification.sh",
     "db:integrity-check": "bash scripts/db-integrity-check.sh",
+    "sf:import": "tsx scripts/sf-import/run.ts",
     "db:bootstrap-validate": "bash scripts/db-bootstrap-validate.sh",
     "db:bootstrap-validate:structure": "bash scripts/db-bootstrap-validate.sh --structure-only"
   },
@@ -32,6 +33,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",
     "next": "16.4.3",
+    "pg": "^8.23.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",
@@ -42,6 +44,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.12",
@@ -50,6 +53,7 @@
     "happy-dom": "^20.14.6",
     "shadcn": "^4.13.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^4.1.12"
   },

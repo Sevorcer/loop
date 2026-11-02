@@ -20,6 +20,8 @@ export interface Property {
   customerId?: string;
   address: string;
   city: string;
+  state?: string;
+  zip?: string;
   type: PropertyType;
   status: PropertyStatus;
   primarySystem: string;

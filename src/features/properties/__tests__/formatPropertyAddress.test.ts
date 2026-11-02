@@ -31,6 +31,17 @@ describe("formatPropertyAddress", () => {
     expect(formatPropertyAddress({ address: " ", city: "Seattle" })).toBe("Seattle");
   });
 
+  it("adds state and zip when the property has them", () => {
+    expect(
+      formatPropertyAddress({
+        address: "10 Maple St",
+        city: "Seattle",
+        state: "WA",
+        zip: "98101",
+      }),
+    ).toBe("10 Maple St, Seattle, WA, 98101");
+  });
+
   it("returns an empty string when both parts are blank", () => {
     expect(formatPropertyAddress({ address: "", city: "" })).toBe("");
     expect(formatPropertyAddress({ address: "  ", city: " , " })).toBe("");
