@@ -51,6 +51,39 @@ export type {
 
 import type { RepositoryResult } from "@/lib/repositories/contracts";
 
+// ---------------------------------------------------------------------------
+// Directory search helpers
+//
+// Free-text directory search runs server-side as a PostgREST `or(...)` filter
+// of `ilike` clauses so matches are found across the whole table, not just
+// the first page a screen happened to load.
+// ---------------------------------------------------------------------------
+
+/** Escape a free-text term for use inside a PostgREST `ilike` pattern. */
+export function escapeIlikeTerm(value: string): string {
+  return value.replace(/[%_\\]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Build a PostgREST `or` filter matching `term` against any of the given
+ * columns (case-insensitive substring). Characters that would break the `or`
+ * filter grammar are stripped. Returns null when the term is empty.
+ */
+export function buildIlikeOrFilter(
+  columns: string[],
+  term: string | undefined,
+): string | null {
+  const cleaned = (term ?? "")
+    .replace(/[,()"]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!cleaned) {
+    return null;
+  }
+  const pattern = `%${escapeIlikeTerm(cleaned)}%`;
+  return columns.map((column) => `${column}.ilike.${pattern}`).join(",");
+}
+
 /**
  * Runs `fn` and wraps any thrown error into a typed `RepositoryResult`.
  * Supabase client errors, configuration errors, and unknown errors are all

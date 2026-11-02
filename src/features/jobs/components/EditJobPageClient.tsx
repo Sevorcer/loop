@@ -33,6 +33,7 @@ function EditJobFormContent({ job, priceVisible = false, priceCents = null }: Ed
     propertyOptions,
     loadPropertiesForCustomer,
     searchCustomers,
+    searchProperties,
     createCustomer,
     createProperty,
   } = useCustomerPropertyOptions(role);
@@ -84,9 +85,15 @@ function EditJobFormContent({ job, priceVisible = false, priceCents = null }: Ed
       onPropertySearch={(text, customerId) => {
         if (propertySearchTimer.current) clearTimeout(propertySearchTimer.current);
         const query = text.trim();
-        if (!customerId || !query) return;
+        if (!query) return;
         propertySearchTimer.current = setTimeout(() => {
-          void loadPropertiesForCustomer(customerId, query);
+          // Scoped to the picked customer when there is one; otherwise
+          // search the whole directory server-side.
+          if (customerId) {
+            void loadPropertiesForCustomer(customerId, query);
+          } else {
+            void searchProperties(query);
+          }
         }, 300);
       }}
       onCustomerSelected={(customerId) => {

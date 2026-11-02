@@ -147,12 +147,44 @@ describe("GET /api/customers — contract", () => {
 
   it("returns 200 with customers array for an authorized request", async () => {
     requirePermissionMock.mockResolvedValue(authorizedCtx());
-    listCustomersMock.mockResolvedValue([{ id: "c-1", name: "Acme" }]);
+    listCustomersMock.mockResolvedValue({
+      items: [{ id: "c-1", name: "Acme" }],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+    });
     const res = await getCustomers(new Request("http://localhost/api/customers"));
     expect(res.status).toBe(200);
     const body = await res.json() as { customers: Array<{ id: string }> };
     expect(Array.isArray(body.customers)).toBe(true);
     expect(body.customers[0].id).toBe("c-1");
+  });
+
+  it("passes search and paging through and returns the exact total", async () => {
+    requirePermissionMock.mockResolvedValue(authorizedCtx());
+    listCustomersMock.mockResolvedValue({
+      items: [{ id: "c-87", name: "Kenmore Holdings" }],
+      total: 1514,
+      page: 2,
+      pageSize: 10,
+    });
+    const res = await getCustomers(
+      new Request("http://localhost/api/customers?search=kenmore&page=2&pageSize=10"),
+    );
+    expect(res.status).toBe(200);
+    expect(listCustomersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ search: "kenmore", page: 2, pageSize: 10 }),
+    );
+    const body = await res.json() as {
+      customers: Array<{ id: string }>;
+      total: number;
+      page: number;
+      pageSize: number;
+    };
+    expect(body.customers[0].id).toBe("c-87");
+    expect(body.total).toBe(1514);
+    expect(body.page).toBe(2);
+    expect(body.pageSize).toBe(10);
   });
 });
 

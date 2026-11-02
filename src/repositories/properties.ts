@@ -13,7 +13,12 @@ import {
   resolvePropertyCustomer,
   type JobCustomerHint,
 } from "./propertyCustomerLink";
-import { OPEN_JOB_STATUS_EXCLUSION_FILTER, UNLINKED_CUSTOMER_LABEL } from "./shared";
+import {
+  buildIlikeOrFilter,
+  OPEN_JOB_STATUS_EXCLUSION_FILTER,
+  UNLINKED_CUSTOMER_LABEL,
+  type PaginatedResult,
+} from "./shared";
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
 // ---------------------------------------------------------------------------
@@ -103,9 +108,15 @@ function buildLocation(row: PropertyRow): PropertyLocation | undefined {
   };
 }
 
+interface PropertyReadResult {
+  data: unknown;
+  error: { code?: string; message: string } | null;
+  count?: number | null;
+}
+
 async function readPropertyRows(
-  run: (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>,
-): Promise<{ data: unknown; error: { code?: string; message: string } | null }> {
+  run: (columns: string) => PromiseLike<PropertyReadResult>,
+): Promise<PropertyReadResult> {
   const first = await run(propertySelect());
   if (first.error && propertyRegionReady && missingRegionColumn(first.error)) {
     propertyRegionReady = false;
@@ -245,31 +256,92 @@ async function getCustomerNameMap(
 // Queries
 // ---------------------------------------------------------------------------
 
+export interface ListPropertiesOptions {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: PropertyStatus;
+  type?: PropertyType;
+  city?: string;
+}
+
 export async function listProperties(
   contextInput?: SessionRepositoryContextInput,
-  options?: { page?: number; pageSize?: number; search?: string },
-): Promise<Property[]> {
+  options?: ListPropertiesOptions,
+): Promise<PaginatedResult<Property>> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await readPropertyRows((columns) => {
+  const { data, error, count } = await readPropertyRows((columns) => {
     let query = supabase
       .from("properties")
-      .select(columns)
+      .select(columns, { count: "exact" })
       .eq("org_id", orgId)
       .order("created_at", { ascending: false });
-    if (options?.search) {
-      query = query.ilike("name", `%${options.search}%`);
+    const searchFilter = buildIlikeOrFilter(
+      ["name", "address", "city", "primary_system"],
+      options?.search,
+    );
+    if (searchFilter) {
+      query = query.or(searchFilter);
+    }
+    if (options?.status) {
+      query = query.eq("status", options.status);
+    }
+    if (options?.type) {
+      query = query.eq("type", options.type);
+    }
+    if (options?.city) {
+      query = query.eq("city", options.city);
     }
     return query.range(from, to);
   });
 
   if (error) throw new Error(error.message);
 
-  return withCustomerNames((data ?? []) as PropertyRow[], contextInput);
+  const items = await withCustomerNames((data ?? []) as PropertyRow[], contextInput);
+  return { items, total: count ?? items.length, page, pageSize };
+}
+
+/**
+ * Distinct non-empty property cities for the directory filter dropdown.
+ * Paged through the city column only so the option list stays complete no
+ * matter how large the property directory grows.
+ */
+export async function listPropertyCities(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<string[]> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const cities = new Set<string>();
+  const pageSize = 1000;
+  for (let page = 0; page < 50; page += 1) {
+    const from = page * pageSize;
+    const { data, error } = await supabase
+      .from("properties")
+      .select("city")
+      .eq("org_id", orgId)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const rows = (data ?? []) as Array<{ city?: string | null }>;
+    for (const row of rows) {
+      const city = typeof row.city === "string" ? row.city.trim() : "";
+      if (city) {
+        cities.add(city);
+      }
+    }
+    if (rows.length < pageSize) {
+      break;
+    }
+  }
+  return [...cities].sort((a, b) => a.localeCompare(b));
 }
 
 const LINK_PAGE_SIZE = 1000;

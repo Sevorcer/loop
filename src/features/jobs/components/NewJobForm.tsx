@@ -48,6 +48,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
     error: smartLoadError,
     loadPropertiesForCustomer,
     searchCustomers,
+    searchProperties,
     createCustomer,
     createProperty,
   } = useCustomerPropertyOptions(role);
@@ -56,9 +57,14 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   const handlePropertyServerSearch = (text: string, customerId?: string) => {
     if (propertySearchTimer.current) clearTimeout(propertySearchTimer.current);
     const query = text.trim();
-    if (!query || !role || !customerId) return;
+    if (!query || !role) return;
     propertySearchTimer.current = setTimeout(() => {
-      void loadPropertiesForCustomer(customerId, query).catch((error) => {
+      // Scoped to the picked customer when there is one; otherwise search
+      // the whole directory server-side instead of the loaded first page.
+      const search = customerId
+        ? loadPropertiesForCustomer(customerId, query)
+        : searchProperties(query);
+      void search.catch((error) => {
         console.error("[jobs] property server search failed", error);
       });
     }, 300);

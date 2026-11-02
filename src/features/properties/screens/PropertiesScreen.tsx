@@ -6,9 +6,52 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
-import { PropertyTable } from "../components/PropertyTable";
+import { listProperties, listPropertyCities } from "@/services/properties";
 
-export function PropertiesScreen() {
+import { PropertyTable } from "../components/PropertyTable";
+import type { PropertyStatus, PropertyType } from "../types/property";
+
+// Matches the row count the directory table previously paged by internally.
+const DIRECTORY_PAGE_SIZE = 5;
+const PROPERTY_STATUSES = new Set<string>(["Active", "Pending", "Inactive"]);
+const PROPERTY_TYPES = new Set<string>(["Residential", "Commercial", "Multi-Family"]);
+
+interface PropertiesScreenProps {
+  /** Raw `?q=` value from the URL; the table owns editing it. */
+  search?: string;
+  /** Raw `?page=` value from the URL. */
+  page?: string;
+  /** Raw `?status=` value from the URL. */
+  status?: string;
+  /** Raw `?type=` value from the URL. */
+  type?: string;
+  /** Raw `?city=` value from the URL. */
+  city?: string;
+}
+
+function parsePageParam(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+export async function PropertiesScreen({
+  search = "",
+  page = "",
+  status = "",
+  type = "",
+  city = "",
+}: PropertiesScreenProps) {
+  const [result, cityOptions] = await Promise.all([
+    listProperties(undefined, {
+      search: search.trim() || undefined,
+      page: parsePageParam(page),
+      pageSize: DIRECTORY_PAGE_SIZE,
+      status: PROPERTY_STATUSES.has(status) ? (status as PropertyStatus) : undefined,
+      type: PROPERTY_TYPES.has(type) ? (type as PropertyType) : undefined,
+      city: city || undefined,
+    }),
+    listPropertyCities(),
+  ]);
   return (
     <div className="space-y-4 sm:space-y-6">
       <SurfaceCard className="overflow-hidden">
@@ -61,7 +104,17 @@ export function PropertiesScreen() {
         </div>
 
         <div className="p-0 md:p-6">
-          <PropertyTable />
+          <PropertyTable
+            properties={result.items}
+            total={result.total}
+            page={result.page}
+            pageSize={result.pageSize}
+            search={search}
+            statusFilter={status}
+            typeFilter={type}
+            cityFilter={city}
+            cityOptions={cityOptions}
+          />
         </div>
       </SurfaceCard>
     </div>

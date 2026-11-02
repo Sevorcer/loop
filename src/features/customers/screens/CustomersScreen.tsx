@@ -5,12 +5,46 @@ import { PermissionGuard } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
-import { listCustomers } from "@/services/customers";
+import { listCustomerCities, listCustomers } from "@/services/customers";
 
 import { CustomerTable } from "../components/CustomerTable";
+import type { CustomerStatus } from "../types/customer";
 
-export async function CustomersScreen() {
-  const customers = await listCustomers();
+const DIRECTORY_PAGE_SIZE = 10;
+const CUSTOMER_STATUSES = new Set<string>(["Active", "Prospect", "Inactive"]);
+
+interface CustomersScreenProps {
+  /** Raw `?q=` value from the URL; the table owns editing it. */
+  search?: string;
+  /** Raw `?page=` value from the URL. */
+  page?: string;
+  /** Raw `?status=` value from the URL. */
+  status?: string;
+  /** Raw `?city=` value from the URL. */
+  city?: string;
+}
+
+function parsePageParam(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+export async function CustomersScreen({
+  search = "",
+  page = "",
+  status = "",
+  city = "",
+}: CustomersScreenProps) {
+  const [result, cityOptions] = await Promise.all([
+    listCustomers({
+      search: search.trim() || undefined,
+      page: parsePageParam(page),
+      pageSize: DIRECTORY_PAGE_SIZE,
+      status: CUSTOMER_STATUSES.has(status) ? (status as CustomerStatus) : undefined,
+      city: city || undefined,
+    }),
+    listCustomerCities(),
+  ]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -64,7 +98,16 @@ export async function CustomersScreen() {
         </div>
 
         <div className="p-0 md:p-6">
-          <CustomerTable customers={customers} />
+          <CustomerTable
+            customers={result.items}
+            total={result.total}
+            page={result.page}
+            pageSize={result.pageSize}
+            search={search}
+            statusFilter={status}
+            cityFilter={city}
+            cityOptions={cityOptions}
+          />
         </div>
       </SurfaceCard>
     </div>

@@ -350,8 +350,8 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
 export async function getSearchRecords(): Promise<SearchRecord[]> {
   const [
     { jobs },
-    properties,
-    customers,
+    propertiesPage,
+    customersPage,
     installedSystemsRaw,
     knowledgeItems,
     portalProjects,
@@ -377,6 +377,11 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     : installedSystemsRaw.ok
       ? installedSystemsRaw.data
       : [];
+
+  // Copilot indexes the first directory page only (pre-existing behavior);
+  // the list services now return a page object instead of a bare array.
+  const properties = propertiesPage.items;
+  const customers = customersPage.items;
 
   const navigationRecords: SearchRecord[] = NAVIGATION_TARGETS.map((target) => ({
     id: `navigation-${target.href}`,

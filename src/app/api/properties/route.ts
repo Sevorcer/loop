@@ -32,6 +32,23 @@ function readPropertyStatus(value: unknown) {
   return normalized as "Active" | "Pending" | "Inactive";
 }
 
+/** Optional list query params: invalid values are ignored, not errors. */
+function readListPageParam(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined;
+}
+
+function readOptionalPropertyStatus(value: string | null) {
+  if (!value || !PROPERTY_STATUSES.has(value)) return undefined;
+  return value as "Active" | "Pending" | "Inactive";
+}
+
+function readOptionalPropertyType(value: string | null) {
+  if (!value || !PROPERTY_TYPES.has(value)) return undefined;
+  return value as "Residential" | "Commercial" | "Multi-Family";
+}
+
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "properties", "select");
   if (!guard.ok) return guard.response;
@@ -44,10 +61,22 @@ export async function GET(request: Request) {
     if (customerId) {
       const owned = await listPropertiesForCustomer(customerId, { userId }, { pageSize: 200 });
       const properties = search ? propertiesMatchingQuery(owned, search) : owned;
-      return NextResponse.json({ properties });
+      return NextResponse.json({ properties, total: properties.length });
     }
-    const properties = await listProperties({ userId }, { search });
-    return NextResponse.json({ properties });
+    const result = await listProperties({ userId }, {
+      search,
+      page: readListPageParam(params.get("page")),
+      pageSize: readListPageParam(params.get("pageSize")),
+      status: readOptionalPropertyStatus(params.get("status")),
+      type: readOptionalPropertyType(params.get("type")),
+      city: params.get("city") ?? undefined,
+    });
+    return NextResponse.json({
+      properties: result.items,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+    });
   } catch (error) {
     return mapRouteError(error);
   }
