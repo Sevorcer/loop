@@ -7,6 +7,7 @@ import Link from "next/link";
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { useCurrentRole } from "@/features/auth";
 import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
@@ -31,6 +32,10 @@ export function InstalledSystemDetailScreen({
   installedSystem: InstalledSystem;
 }) {
   const { getTechnicalProfileById, getCatalogEntryById } = useInstalledSystems();
+  // Warranty registration is office-only; technicians never see the control.
+  const { role } = useCurrentRole();
+  const canRegisterWarranty =
+    role === "owner" || role === "manager" || role === "office" || role === "dispatch";
   const profile = getTechnicalProfileById(installedSystem.technicalProfileId);
   const catalogEntries =
     profile?.catalogEntryIds
@@ -155,10 +160,8 @@ export function InstalledSystemDetailScreen({
               {installedSystem.warrantyExpiry ? (
                 <FactTile label="Warranty expiry" value={installedSystem.warrantyExpiry} />
               ) : null}
-              {!installedSystem.warrantyRegistered ? (
-                <PermissionGuard table="installed_systems" action="update">
-                  <WarrantyRegisterButton systemId={installedSystem.id} />
-                </PermissionGuard>
+              {!installedSystem.warrantyRegistered && canRegisterWarranty ? (
+                <WarrantyRegisterButton systemId={installedSystem.id} />
               ) : null}
               <FactTile
                 label="Match confidence"
