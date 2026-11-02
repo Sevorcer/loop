@@ -36,7 +36,9 @@ import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCo
 import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
+import { JOB_CLOSEOUT_SECTION_IDS } from "../utils/jobCloseout";
 import { AssignContractorPanel } from "./AssignContractorPanel";
+import { JobCloseoutPanel } from "./JobCloseoutPanel";
 import { JobNotesHistory } from "./JobNotesHistory";
 import { JobCompletionChecklistCard } from "./JobCompletionChecklistCard";
 import { JobFilesPanel } from "./JobFilesPanel";
@@ -432,12 +434,25 @@ export function JobDetailScreen({
             />
           </PermissionGuard>
 
+          <PermissionGuard table="jobs" action="update">
+            <JobCloseoutPanel
+              jobId={job.id}
+              status={job.status}
+              onAddNote={onAddNote}
+              onUpdateStatus={onUpdateStatus}
+            />
+          </PermissionGuard>
+
           <CreateCallbackPanel
             jobId={job.id}
             status={job.status}
             callbackContext={callbackContext}
           />
 
+          <div
+            id={JOB_CLOSEOUT_SECTION_IDS.photos}
+            className="scroll-mt-6 rounded-3xl transition-shadow duration-500"
+          >
           <JobFilesPanel
             jobId={job.id}
             onFilesChanged={(files) => {
@@ -450,9 +465,14 @@ export function JobDetailScreen({
               );
             }}
           />
+          </div>
 
           <JobSignatureCard jobId={job.id} onLatestChange={setLatestSignature} />
 
+          <div
+            id={JOB_CLOSEOUT_SECTION_IDS.qa}
+            className="scroll-mt-6 rounded-3xl transition-shadow duration-500"
+          >
           <JobCompletionChecklistCard
             photosUploaded={photoCount > 0}
             installedSystemsEntered={installedSystemsEntered}
@@ -471,11 +491,16 @@ export function JobDetailScreen({
             initialChecklist={qaChecklist}
             onSaveChecklist={onUpdateQaChecklist}
           />
+          </div>
 
           <JobTasksCard jobId={job.id} jobType={job.type} />
 
           {isTech ? null : <AssignContractorPanel jobId={job.id} />}
 
+          <div
+            id={JOB_CLOSEOUT_SECTION_IDS.systems}
+            className="scroll-mt-6 rounded-3xl transition-shadow duration-500"
+          >
           <JobInstalledSystemsPanel
               jobId={job.id}
               jobNumber={job.jobNumber}
@@ -483,6 +508,7 @@ export function JobDetailScreen({
               customerName={job.customerName}
               propertyName={job.propertyName}
             />
+          </div>
 
           <PermissionGuard table="job_notes" action="insert">
             <JobNoteComposer onAddNote={onAddNote} />
