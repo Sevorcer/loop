@@ -702,68 +702,66 @@ export interface DispatchRepositorySnapshot {
   events: DispatchEvent[];
 }
 
-export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot> {
-  const { supabase, orgId } = await getRepositoryContext();
+const DISPATCH_PLAN_SELECT =
+  "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at";
+const CREW_SELECT =
+  "id,org_id,name,lead_installer,members,certifications,availability,truck_name";
+const CREW_ASSIGNMENT_SELECT =
+  "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history";
+const SCHEDULE_BLOCK_SELECT =
+  "id,org_id,dispatch_plan_id,job_id,crew_assignment_id,crew_name,scheduled_date,scheduled_start_time,scheduled_end_time,estimated_duration_hours,job_type,customer_name,property_name,dispatch_status";
+const DISPATCH_EVENT_SELECT =
+  "id,org_id,dispatch_plan_id,type,timestamp,description,metadata";
 
-  const [plansRes, crewsRes, assignmentsRes, blocksRes, eventsRes] = await Promise.all([
-    supabase
-      .from("dispatch_plans")
-      .select(
-        "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at"
-      )
-      .eq("org_id", orgId)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("crews")
-      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
-      .eq("org_id", orgId)
-      .order("name"),
-    supabase
-      .from("crew_assignments")
-      .select(
-        "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history"
-      )
-      .eq("org_id", orgId),
-    supabase
-      .from("schedule_blocks")
-      .select(
-        "id,org_id,dispatch_plan_id,job_id,crew_assignment_id,crew_name,scheduled_date,scheduled_start_time,scheduled_end_time,estimated_duration_hours,job_type,customer_name,property_name,dispatch_status"
-      )
-      .eq("org_id", orgId)
-      .order("scheduled_date"),
-    supabase
-      .from("dispatch_events")
-      .select("id,org_id,dispatch_plan_id,type,timestamp,description,metadata")
-      .eq("org_id", orgId)
-      .order("timestamp"),
-  ]);
+/**
+ * PostgREST returns at most 1,000 rows per request and truncates the rest
+ * silently. The snapshot tables are the board's whole scope, so they are
+ * read in 1,000-row pages (ordered with an id tiebreak so pages cannot
+ * overlap or skip rows) until a short page ends the table.
+ */
+const SNAPSHOT_PAGE_SIZE = 1000;
 
-  if (plansRes.error) throw new Error(plansRes.error.message);
-  if (crewsRes.error) throw new Error(crewsRes.error.message);
-  if (assignmentsRes.error) throw new Error(assignmentsRes.error.message);
-  if (blocksRes.error) throw new Error(blocksRes.error.message);
-  if (eventsRes.error) throw new Error(eventsRes.error.message);
+/** Upper bound for one .in(...) id list; keeps request URLs bounded. */
+const SNAPSHOT_ID_CHUNK_SIZE = 80;
 
-  const rawPlans = (plansRes.data ?? []) as DispatchPlanRow[];
-  const rawBlocks = (blocksRes.data ?? []) as ScheduleBlockRow[];
+type SnapshotSupabase = Awaited<ReturnType<typeof getRepositoryContext>>["supabase"];
 
-  // Enrich plans and blocks with PR3C scheduling data (scheduled_start_at) from jobs.
-  // Falls back gracefully if the column is not yet present (migration pending).
-  const jobIds = [
-    ...new Set([
-      ...rawPlans.map((p) => p.job_id).filter((id): id is string => !!id),
-      ...rawBlocks.map((b) => b.job_id).filter((id): id is string => !!id),
-    ]),
-  ];
+interface SnapshotPageResult<Row> {
+  data: Row[] | null;
+  error: { message: string } | null;
+}
 
-  const scheduledStartAtByJobId = new Map<string, string>(); const assignedTechNamesByJobId = new Map<string, string[]>();
+async function fetchAllSnapshotRows<Row>(
+  runPage: (from: number, to: number) => PromiseLike<SnapshotPageResult<Row>>,
+): Promise<Row[]> {
+  const rows: Row[] = [];
+  for (let from = 0; ; from += SNAPSHOT_PAGE_SIZE) {
+    const { data, error } = await runPage(from, from + SNAPSHOT_PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < SNAPSHOT_PAGE_SIZE) return rows;
+  }
+}
+
+function idChunks(ids: string[]): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += SNAPSHOT_ID_CHUNK_SIZE) {
+    chunks.push(ids.slice(index, index + SNAPSHOT_ID_CHUNK_SIZE));
+  }
+  return chunks;
+}
+
+async function fetchSnapshotJobFacts(supabase: SnapshotSupabase, jobIds: string[]) {
+  const scheduledStartAtByJobId = new Map<string, string>();
   const jobTitleByJobId = new Map<string, string>();
-  if (jobIds.length > 0) {
+
+  for (const chunk of idChunks(jobIds)) {
     // Try PR3C column first; silently skip on column-missing errors.
     const { data: jobRows, error: jobsError } = await supabase
       .from("jobs")
       .select("id,title,scheduled_start_at")
-      .in("id", jobIds);
+      .in("id", chunk);
 
     if (!jobsError) {
       for (const row of jobRows ?? []) {
@@ -780,11 +778,136 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
         }
       }
     }
-    // If the column is missing (pre-migration), we simply leave the maps empty —
-    // dispatch cards will render without a scheduled time badge rather than crash.
+    // If the column is missing (pre-migration), we simply leave the maps
+    // empty for that chunk — dispatch cards will render without a scheduled
+    // time badge rather than crash.
   }
 
-  if (jobIds.length > 0) { const { data: assigneeRows } = await supabase.from("job_assignees").select("job_id,user_id").eq("org_id", orgId).in("job_id", jobIds).order("created_at", { ascending: true }); const assigneeUserIds = [...new Set((assigneeRows ?? []).map((r) => (r as { user_id: string }).user_id).filter(Boolean))]; if (assigneeUserIds.length > 0) { const { data: profileRows } = await supabase.from("user_profiles").select("id,full_name,email").in("id", assigneeUserIds); const nameById = new Map<string, string>(); for (const p of profileRows ?? []) { const pr = p as { id: string; full_name: string | null; email: string | null }; nameById.set(pr.id, pr.full_name ?? pr.email ?? ""); } for (const r of assigneeRows ?? []) { const ar = r as { job_id: string; user_id: string }; const nm = nameById.get(ar.user_id); if (!nm) continue; const list = assignedTechNamesByJobId.get(ar.job_id) ?? []; if (!list.includes(nm)) list.push(nm); assignedTechNamesByJobId.set(ar.job_id, list); } } } const plans = rawPlans.map((row) => {
+  return { scheduledStartAtByJobId, jobTitleByJobId };
+}
+
+async function fetchSnapshotTechNames(
+  supabase: SnapshotSupabase,
+  orgId: string,
+  jobIds: string[],
+) {
+  const assignedTechNamesByJobId = new Map<string, string[]>();
+  const assigneeRows: Array<{ job_id: string; user_id: string }> = [];
+
+  for (const chunk of idChunks(jobIds)) {
+    const { data } = await supabase
+      .from("job_assignees")
+      .select("job_id,user_id")
+      .eq("org_id", orgId)
+      .in("job_id", chunk)
+      .order("created_at", { ascending: true });
+    assigneeRows.push(
+      ...((data ?? []) as Array<{ job_id: string; user_id: string }>),
+    );
+  }
+
+  const assigneeUserIds = [
+    ...new Set(assigneeRows.map((r) => r.user_id).filter(Boolean)),
+  ];
+  if (assigneeUserIds.length === 0) return assignedTechNamesByJobId;
+
+  const nameById = new Map<string, string>();
+  for (const chunk of idChunks(assigneeUserIds)) {
+    const { data: profileRows } = await supabase
+      .from("user_profiles")
+      .select("id,full_name,email")
+      .in("id", chunk);
+    for (const p of profileRows ?? []) {
+      const pr = p as { id: string; full_name: string | null; email: string | null };
+      nameById.set(pr.id, pr.full_name ?? pr.email ?? "");
+    }
+  }
+
+  for (const ar of assigneeRows) {
+    const nm = nameById.get(ar.user_id);
+    if (!nm) continue;
+    const list = assignedTechNamesByJobId.get(ar.job_id) ?? [];
+    if (!list.includes(nm)) list.push(nm);
+    assignedTechNamesByJobId.set(ar.job_id, list);
+  }
+
+  return assignedTechNamesByJobId;
+}
+
+export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const [rawPlans, rawCrews, rawAssignments, rawBlocks, rawEvents] =
+    await Promise.all([
+      fetchAllSnapshotRows<DispatchPlanRow>((from, to) =>
+        supabase
+          .from("dispatch_plans")
+          .select(DISPATCH_PLAN_SELECT)
+          .eq("org_id", orgId)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      ),
+      fetchAllSnapshotRows<CrewRow>((from, to) =>
+        supabase
+          .from("crews")
+          .select(CREW_SELECT)
+          .eq("org_id", orgId)
+          .order("name")
+          .order("id")
+          .range(from, to),
+      ),
+      fetchAllSnapshotRows<CrewAssignmentRow>((from, to) =>
+        supabase
+          .from("crew_assignments")
+          .select(CREW_ASSIGNMENT_SELECT)
+          .eq("org_id", orgId)
+          .order("id")
+          .range(from, to),
+      ),
+      fetchAllSnapshotRows<ScheduleBlockRow>((from, to) =>
+        supabase
+          .from("schedule_blocks")
+          .select(SCHEDULE_BLOCK_SELECT)
+          .eq("org_id", orgId)
+          .order("scheduled_date")
+          .order("id")
+          .range(from, to),
+      ),
+      fetchAllSnapshotRows<DispatchEventRow>((from, to) =>
+        supabase
+          .from("dispatch_events")
+          .select(DISPATCH_EVENT_SELECT)
+          .eq("org_id", orgId)
+          .order("timestamp")
+          .order("id")
+          .range(from, to),
+      ),
+    ]);
+
+  // Enrich plans and blocks with PR3C scheduling data (scheduled_start_at)
+  // from jobs, and with the assigned tech names. The id lists can hold
+  // thousands of ids, so they are read in bounded chunks.
+  const jobIds = [
+    ...new Set([
+      ...rawPlans.map((p) => p.job_id).filter((id): id is string => !!id),
+      ...rawBlocks.map((b) => b.job_id).filter((id): id is string => !!id),
+    ]),
+  ];
+
+  const { scheduledStartAtByJobId, jobTitleByJobId } =
+    jobIds.length > 0
+      ? await fetchSnapshotJobFacts(supabase, jobIds)
+      : {
+          scheduledStartAtByJobId: new Map<string, string>(),
+          jobTitleByJobId: new Map<string, string>(),
+        };
+  const assignedTechNamesByJobId =
+    jobIds.length > 0
+      ? await fetchSnapshotTechNames(supabase, orgId, jobIds)
+      : new Map<string, string[]>();
+
+  const plans = rawPlans.map((row) => {
     const plan = mapDispatchPlan(row);
     if (row.job_id) {
       const startAt = scheduledStartAtByJobId.get(row.job_id);
@@ -806,9 +929,9 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
 
   return {
     plans,
-    crews: ((crewsRes.data ?? []) as CrewRow[]).map(mapCrew),
-    assignments: ((assignmentsRes.data ?? []) as CrewAssignmentRow[]).map(mapCrewAssignment),
+    crews: rawCrews.map(mapCrew),
+    assignments: rawAssignments.map(mapCrewAssignment),
     scheduleBlocks,
-    events: ((eventsRes.data ?? []) as DispatchEventRow[]).map(mapDispatchEvent),
+    events: rawEvents.map(mapDispatchEvent),
   };
 }

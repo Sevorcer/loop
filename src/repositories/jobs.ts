@@ -39,7 +39,12 @@ const WARN_LEGACY_INSERT_FALLBACK =
 const WARN_PR3C_UPDATE_FALLBACK =
   "[jobs] scheduling column missing – PR3C migration not yet applied or schema cache not refreshed. Falling back to legacy update.";
 
-function normalizeAssigneeValue(value: string | null | undefined): string { return (value ?? "").trim().toLowerCase(); } async function resolveAssignedUserId(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, assignedTo: string | null | undefined): Promise<string | null> { const normalized = normalizeAssigneeValue(assignedTo); if (!normalized) { return null; } const { data, error } = await supabase.from("user_profiles").select("id,full_name,email").eq("org_id", orgId); if (error) { return null; } const matches = ((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).filter((profile) => normalizeAssigneeValue(profile.full_name) === normalized || normalizeAssigneeValue(profile.email) === normalized); return matches.length === 1 ? matches[0].id : null; } async function writeJobAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobId: string, assigneeIds: string[] | undefined): Promise<void> { if (assigneeIds === undefined) { return; } const ids = Array.from(new Set(assigneeIds)); const { error: deleteError } = await supabase.from("job_assignees").delete().eq("org_id", orgId).eq("job_id", jobId); if (deleteError) { throw new Error(deleteError.message); } if (ids.length > 0) { const { error: insertError } = await supabase.from("job_assignees").insert(ids.map((userId) => ({ org_id: orgId, job_id: jobId, user_id: userId }))); if (insertError) { throw new Error(insertError.message); } } } async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobIds: string[]): Promise<Map<string, { id: string; name: string }[]>> { const byJob = new Map<string, { id: string; name: string }[]>(); if (jobIds.length === 0) { return byJob; } const { data, error } = await supabase.from("job_assignees").select("job_id,user_id").eq("org_id", orgId).in("job_id", jobIds).order("created_at", { ascending: true }); if (error) { throw new Error(error.message); } const rows = (data ?? []) as Array<{ job_id: string; user_id: string }>; if (rows.length === 0) { return byJob; } const userIds = Array.from(new Set(rows.map((row) => row.user_id))); const { data: profiles, error: profileError } = await supabase.from("user_profiles").select("id,full_name,email").in("id", userIds); if (profileError) { throw new Error(profileError.message); } const nameById = new Map<string, string>(); for (const profile of (profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) { nameById.set(profile.id, (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member"); } for (const row of rows) { const list = byJob.get(row.job_id) ?? []; list.push({ id: row.user_id, name: nameById.get(row.user_id) ?? "Team member" }); byJob.set(row.job_id, list); } return byJob; } async function attachAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobsList: Job[]): Promise<void> { if (jobsList.length === 0) { return; } const byJob = await readJobAssignees(supabase, orgId, jobsList.map((job) => job.id)); for (const job of jobsList) { job.assignees = byJob.get(job.id) ?? []; } } interface JobRow {
+function normalizeAssigneeValue(value: string | null | undefined): string { return (value ?? "").trim().toLowerCase(); } async function resolveAssignedUserId(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, assignedTo: string | null | undefined): Promise<string | null> { const normalized = normalizeAssigneeValue(assignedTo); if (!normalized) { return null; } const { data, error } = await supabase.from("user_profiles").select("id,full_name,email").eq("org_id", orgId); if (error) { return null; } const matches = ((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).filter((profile) => normalizeAssigneeValue(profile.full_name) === normalized || normalizeAssigneeValue(profile.email) === normalized); return matches.length === 1 ? matches[0].id : null; } async function writeJobAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobId: string, assigneeIds: string[] | undefined): Promise<void> { if (assigneeIds === undefined) { return; } const ids = Array.from(new Set(assigneeIds)); const { error: deleteError } = await supabase.from("job_assignees").delete().eq("org_id", orgId).eq("job_id", jobId); if (deleteError) { throw new Error(deleteError.message); } if (ids.length > 0) { const { error: insertError } = await supabase.from("job_assignees").insert(ids.map((userId) => ({ org_id: orgId, job_id: jobId, user_id: userId }))); if (insertError) { throw new Error(insertError.message); } } }
+
+/** Upper bound for one .in(...) id list; keeps request URLs bounded. */
+export const JOB_ID_QUERY_CHUNK_SIZE = 80;
+
+async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobIds: string[]): Promise<Map<string, { id: string; name: string }[]>> { const byJob = new Map<string, { id: string; name: string }[]>(); if (jobIds.length === 0) { return byJob; } const rows: Array<{ job_id: string; user_id: string }> = []; for (let index = 0; index < jobIds.length; index += JOB_ID_QUERY_CHUNK_SIZE) { const chunk = jobIds.slice(index, index + JOB_ID_QUERY_CHUNK_SIZE); const { data, error } = await supabase.from("job_assignees").select("job_id,user_id").eq("org_id", orgId).in("job_id", chunk).order("created_at", { ascending: true }); if (error) { throw new Error(error.message); } rows.push(...((data ?? []) as Array<{ job_id: string; user_id: string }>)); } if (rows.length === 0) { return byJob; } const userIds = Array.from(new Set(rows.map((row) => row.user_id))); const profiles: Array<{ id: string; full_name: string | null; email: string | null }> = []; for (let index = 0; index < userIds.length; index += JOB_ID_QUERY_CHUNK_SIZE) { const chunk = userIds.slice(index, index + JOB_ID_QUERY_CHUNK_SIZE); const { data, error: profileError } = await supabase.from("user_profiles").select("id,full_name,email").in("id", chunk); if (profileError) { throw new Error(profileError.message); } profiles.push(...((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>)); } const nameById = new Map<string, string>(); for (const profile of profiles) { nameById.set(profile.id, (profile.full_name ?? "").trim() || (profile.email ?? "").trim() || "Team member"); } for (const row of rows) { const list = byJob.get(row.job_id) ?? []; list.push({ id: row.user_id, name: nameById.get(row.user_id) ?? "Team member" }); byJob.set(row.job_id, list); } return byJob; } async function attachAssignees(supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"], orgId: string, jobsList: Job[]): Promise<void> { if (jobsList.length === 0) { return; } const byJob = await readJobAssignees(supabase, orgId, jobsList.map((job) => job.id)); for (const job of jobsList) { job.assignees = byJob.get(job.id) ?? []; } } interface JobRow {
   id: string;
   job_number: string;
   estimate_id: string | null;
@@ -363,6 +368,63 @@ export async function listJobs(
   }
 
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
+}
+
+/**
+ * Fetches the jobs for an explicit id list, in JOB_ID_QUERY_CHUNK_SIZE
+ * chunks, newest first. Unlike listJobs this is not page-capped: every id
+ * the caller names is looked up, so callers that already hold the ids they
+ * need (the dispatch board holding plan job ids) never lose rows to the
+ * 50-row default page. Missing ids are skipped. Runs through the session
+ * client, so row security scopes technicians exactly as listJobs does, and
+ * the scheduling-column fallback chain applies per chunk.
+ */
+export async function listJobsByIds(ids: string[]): Promise<Job[]> {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+
+  const { supabase, orgId } = await getRepositoryContext();
+  const rows: JobRow[] = [];
+
+  for (let index = 0; index < uniqueIds.length; index += JOB_ID_QUERY_CHUNK_SIZE) {
+    const chunk = uniqueIds.slice(index, index + JOB_ID_QUERY_CHUNK_SIZE);
+    const runChunk = (select: string) =>
+      supabase
+        .from("jobs")
+        .select(select)
+        .eq("org_id", orgId)
+        .in("id", chunk)
+        .order("created_at", { ascending: false });
+
+    const result = await runChunk(JOB_SELECT);
+    let data = toJobRows(result.data);
+    let error = result.error;
+
+    if (error && isSchedulingColumnMissingError(error)) {
+      console.warn(WARN_PR3C_FALLBACK_LEGACY);
+      const fallback = await runChunk(JOB_SELECT_WITH_LEGACY);
+      data = toJobRows(fallback.data);
+      error = fallback.error;
+
+      if (error && isSchedulingColumnMissingError(error)) {
+        console.warn(WARN_LEGACY_FALLBACK_BASE);
+        const base = await runChunk(JOB_SELECT_BASE);
+        data = toJobRows(base.data);
+        error = base.error;
+      }
+    }
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    rows.push(...((data ?? []) as JobRow[]));
+  }
+
+  rows.sort((left, right) => right.created_at.localeCompare(left.created_at));
+  const jobsList = rows.map(mapJob);
+  await attachAssignees(supabase, orgId, jobsList);
+  return jobsList;
 }
 
 /**
