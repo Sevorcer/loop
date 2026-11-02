@@ -3,6 +3,7 @@ import "server-only";
 import type {
   Job,
   JobAppointmentHour,
+  JobCloseoutMode,
   JobPriority,
   JobStatus,
   JobType,
@@ -24,6 +25,7 @@ const COL_SCHEDULED_START_AT = "scheduled_start_at";
 const COL_SCHEDULED_END_AT = "scheduled_end_at";
 const COL_ARRIVAL_WINDOW_START_AT = "arrival_window_start_at";
 const COL_ARRIVAL_WINDOW_END_AT = "arrival_window_end_at";
+const COL_CLOSEOUT_MODE = "closeout_mode";
 
 // Warning messages — defined once to keep all fallback log lines consistent.
 const WARN_PR3C_FALLBACK_LEGACY =
@@ -62,6 +64,8 @@ function normalizeAssigneeValue(value: string | null | undefined): string { retu
   scheduled_end_at?: string | null;
   arrival_window_start_at?: string | null;
   arrival_window_end_at?: string | null;
+  // Closeout mode — absent when migration 20261102000000 not yet applied.
+  closeout_mode?: string | null;
   summary: string;
   location: string;
   notes: string;
@@ -85,6 +89,7 @@ export interface JobWriteInput {
   type: JobType;
   status?: JobStatus;
   priority: JobPriority;
+  closeoutMode?: JobCloseoutMode;
   customerId?: string | null;
   customerName: string;
   propertyId?: string | null;
@@ -152,6 +157,8 @@ function mapJob(row: JobRow): Job {
     // Legacy fields (deprecated but kept for backward compat)
     scheduledFor,
     appointmentHour,
+    // Anything but an explicit "visit" reads as the default "full".
+    closeoutMode: row.closeout_mode === "visit" ? "visit" : "full",
     summary: row.summary,
     location: row.location,
     notes: row.notes,
@@ -165,9 +172,11 @@ const JOB_SELECT_BASE =
 const JOB_SELECT_WITH_LEGACY = JOB_SELECT_BASE + ",appointment_window";
 
 // PR3C adds real clock-time columns; also still selects the legacy hour column.
+// closeout_mode (migration 20261102000000) rides the same top tier so the
+// fallback chain drops it together with the PR3C columns pre-migration.
 const JOB_SELECT =
   JOB_SELECT_WITH_LEGACY +
-  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at";
+  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode";
 
 /**
  * Returns true when the Supabase/PostgREST error indicates that a scheduling
@@ -191,6 +200,7 @@ function isSchedulingColumnMissingError(error: {
     COL_SCHEDULED_END_AT,
     COL_ARRIVAL_WINDOW_START_AT,
     COL_ARRIVAL_WINDOW_END_AT,
+    COL_CLOSEOUT_MODE,
   ];
   const mentionsColumn = schedulingColumns.some((col) => raw.includes(col));
   if (!mentionsColumn) return false;
@@ -618,6 +628,7 @@ export async function createJob(
     type: input.type,
     status: input.status ?? "Scheduled",
     priority: input.priority,
+    closeout_mode: input.closeoutMode ?? "full",
     customer_id: input.customerId ?? null,
     customer_name: input.customerName,
     property_id: input.propertyId ?? null,
@@ -653,6 +664,7 @@ export async function createJob(
     delete legacyPayload.scheduled_end_at;
     delete legacyPayload.arrival_window_start_at;
     delete legacyPayload.arrival_window_end_at;
+    delete legacyPayload.closeout_mode;
     const fallback = await supabase
       .from("jobs")
       .insert(legacyPayload)
@@ -709,6 +721,7 @@ export async function updateJob(
   if (input.type !== undefined) updatePayload.type = input.type;
   if (input.status !== undefined) updatePayload.status = input.status;
   if (input.priority !== undefined) updatePayload.priority = input.priority;
+  if (input.closeoutMode !== undefined) updatePayload.closeout_mode = input.closeoutMode;
   if (input.customerId !== undefined) updatePayload.customer_id = input.customerId;
   if (input.customerName !== undefined) updatePayload.customer_name = input.customerName;
   if (input.propertyId !== undefined) updatePayload.property_id = input.propertyId;
@@ -758,6 +771,7 @@ export async function updateJob(
     delete legacyPayload.scheduled_end_at;
     delete legacyPayload.arrival_window_start_at;
     delete legacyPayload.arrival_window_end_at;
+    delete legacyPayload.closeout_mode;
     const fallback = await supabase
       .from("jobs")
       .update(legacyPayload)
@@ -1090,7 +1104,7 @@ export async function setJobPeople(
   // The board reads job_assignees. Write that first so a reload during the
   // label update already shows the person as removed.
   await writeJobAssignees(supabase, orgId, jobId, ids);
-  const updateResult = await supabase
+  let updateResult = await supabase
     .from("jobs")
     .update({
       assigned_to: assignedTo,
@@ -1100,6 +1114,21 @@ export async function setJobPeople(
     .eq("id", jobId)
     .select(JOB_SELECT)
     .maybeSingle();
+
+  if (updateResult.error && isSchedulingColumnMissingError(updateResult.error)) {
+    // A not-yet-applied column (e.g. closeout_mode) must not break people
+    // assignment — retry with the legacy select, like the other write paths.
+    updateResult = await supabase
+      .from("jobs")
+      .update({
+        assigned_to: assignedTo,
+        assigned_user_id: ids[0] ?? null,
+      })
+      .eq("org_id", orgId)
+      .eq("id", jobId)
+      .select(JOB_SELECT_WITH_LEGACY)
+      .maybeSingle();
+  }
 
   if (updateResult.error) throw new Error(updateResult.error.message);
   const data = toJobRow(updateResult.data);

@@ -23,6 +23,7 @@ export interface CreateJobInput {
   appointmentHour?: Job["appointmentHour"];
   type: Job["type"];
   priority: Job["priority"];
+  closeoutMode?: Job["closeoutMode"];
   location: string;
   summary: string;
   notes: string;
@@ -47,6 +48,7 @@ export interface UpdateJobInput {
   appointmentHour?: Job["appointmentHour"];
   type: Job["type"];
   priority: Job["priority"];
+  closeoutMode?: Job["closeoutMode"];
   location: string;
   summary: string;
   notes: string;

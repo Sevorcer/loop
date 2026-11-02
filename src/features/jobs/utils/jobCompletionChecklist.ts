@@ -1,3 +1,4 @@
+import type { JobCloseoutMode } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 
 export interface RequiredQaChecklist {
@@ -22,6 +23,7 @@ export const REQUIRED_QA_CHECKLIST_ITEMS = [
 ] as const satisfies ReadonlyArray<{ key: keyof RequiredQaChecklist; label: string }>;
 
 export interface JobCompletionChecklistStatus {
+  closeoutMode: JobCloseoutMode;
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
   jobNotesCompleted: boolean;

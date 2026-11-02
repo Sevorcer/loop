@@ -11,10 +11,11 @@ import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
 import { createJob, listJobsWithActivity } from "@/services/jobs";
 
-import type { JobAppointmentHour } from "@/features/jobs/types/job";
+import type { JobAppointmentHour, JobCloseoutMode } from "@/features/jobs/types/job";
 
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
+const JOB_CLOSEOUT_MODES = new Set(["full", "visit"]);
 
 function readJobType(value: unknown) {
   const normalized = String(value ?? "Service");
@@ -30,6 +31,17 @@ function readJobPriority(value: unknown) {
     throw new Error("Invalid job priority.");
   }
   return normalized as "Low" | "Medium" | "High";
+}
+
+function readCloseoutMode(value: unknown): JobCloseoutMode | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+  const normalized = String(value);
+  if (!JOB_CLOSEOUT_MODES.has(normalized)) {
+    throw new Error("Invalid closeout mode.");
+  }
+  return normalized as JobCloseoutMode;
 }
 
 function readJobAppointmentHour(value: unknown): JobAppointmentHour | undefined {
@@ -89,6 +101,7 @@ export async function POST(request: Request) {
       arrivalWindowEndAt: parseOptionalTimestamp(body.arrivalWindowEndAt),
       type: readJobType(body.type),
       priority: readJobPriority(body.priority),
+      closeoutMode: readCloseoutMode(body.closeoutMode),
       location: String(body.location ?? "").trim(),
       summary: String(body.summary ?? "").trim(),
       notes: String(body.notes ?? "").trim(),

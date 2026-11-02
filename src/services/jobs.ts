@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Job, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
+import type { Job, JobCloseoutMode, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 import type { JobActivity } from "@/features/jobs/types/jobActivity";
 import type { CreateJobInput, UpdateJobInput } from "@/features/jobs/types/jobStore";
 import type { AppRole } from "@/services/authorization";
@@ -74,6 +74,7 @@ const JOB_STATUSES = new Set<JobStatus>([
   "Cancelled",
 ]);
 const JOB_PRIORITIES = new Set<JobPriority>(["Low", "Medium", "High"]);
+const JOB_CLOSEOUT_MODES = new Set<JobCloseoutMode>(["full", "visit"]);
 
 interface JobMutationContext {
   actorId?: string;
@@ -122,6 +123,9 @@ function validateJobInput(input: CreateJobInput | UpdateJobInput) {
   if (missingMessage) throw new Error(missingMessage);
   if (!JOB_TYPES.has(input.type)) throw new Error("Invalid job type.");
   if (!JOB_PRIORITIES.has(input.priority)) throw new Error("Invalid job priority.");
+  if (input.closeoutMode !== undefined && !JOB_CLOSEOUT_MODES.has(input.closeoutMode)) {
+    throw new Error("Invalid closeout mode.");
+  }
 
   // Validate the primary scheduling field (PR3C) when provided
   const hasNewScheduling = isValidDateString(input.scheduledStartAt);
@@ -468,6 +472,9 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   }
   if (existing.type !== updatedJob.type) changedFields.push("type");
   if (existing.priority !== updatedJob.priority) changedFields.push("priority");
+  if ((existing.closeout_mode ?? "full") !== (updatedJob.closeoutMode ?? "full")) {
+    changedFields.push("closeout mode");
+  }
   if (existing.location !== updatedJob.location) changedFields.push("location");
   if (existing.summary !== updatedJob.summary) changedFields.push("summary");
   if (existing.notes !== updatedJob.notes) changedFields.push("notes");
@@ -519,10 +526,16 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
     const checklist = await getJobCompletionChecklist(id, context?.role);
     if (!checklist.canComplete) {
       const blockers: string[] = [];
-      if (!checklist.photosUploaded) blockers.push("missing at least one photo");
-      if (!checklist.installedSystemsEntered) blockers.push("missing installed systems");
-      if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
-      if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
+      if (checklist.closeoutMode === "visit") {
+        // Visit closeout gates on the note alone — never name the full-mode
+        // gates here, so the job page's "still needed" list stays truthful.
+        if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
+      } else {
+        if (!checklist.photosUploaded) blockers.push("missing at least one photo");
+        if (!checklist.installedSystemsEntered) blockers.push("missing installed systems");
+        if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
+        if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
+      }
       throw new Error(`Cannot complete job — ${blockers.join(", ")}.`);
     }
   }
@@ -801,17 +814,26 @@ export async function getJobCompletionChecklist(
   const jobNotesCompleted = noteHistory.length > 0 || job.notes.trim().length > 0;
   const requiredQaItemsComplete = isRequiredQaChecklistComplete(qaChecklist);
 
+  // Closeout mode (office-picked per job): "visit" jobs — single-visit work
+  // like inspection finals — complete on a job note alone. Anything that is
+  // not an explicit "visit" (including jobs read before the closeout_mode
+  // migration lands) keeps the full four-gate closeout.
+  const closeoutMode: JobCloseoutMode = job.closeoutMode === "visit" ? "visit" : "full";
+
   return {
+    closeoutMode,
     photosUploaded,
     installedSystemsEntered,
     jobNotesCompleted,
     requiredQaItemsComplete,
     customerSignaturePlaceholder: "optional",
     canComplete:
-      photosUploaded &&
-      installedSystemsEntered &&
-      jobNotesCompleted &&
-      requiredQaItemsComplete,
+      closeoutMode === "visit"
+        ? jobNotesCompleted
+        : photosUploaded &&
+          installedSystemsEntered &&
+          jobNotesCompleted &&
+          requiredQaItemsComplete,
   };
 }
 
