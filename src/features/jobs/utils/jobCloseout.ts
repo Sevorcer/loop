@@ -16,6 +16,34 @@ export const JOB_CLOSEOUT_SECTION_IDS = {
 
 export type CloseoutStepKey = "note" | "photo" | "qa" | "systems";
 
+/**
+ * Tab sections of the job detail page that own a closeout step's
+ * information. Screens that organise the job page into tabs use this to
+ * route a step's jump button to the tab that owns the section instead of
+ * scrolling the single long page.
+ */
+export type CloseoutSectionKey = "files" | "tasks" | "systems";
+
+const SECTION_KEY_BY_STEP_KEY: Record<
+  Exclude<CloseoutStepKey, "note">,
+  CloseoutSectionKey
+> = {
+  photo: "files",
+  qa: "tasks",
+  systems: "systems",
+};
+
+/**
+ * Maps a closeout step to the tab section that owns it. The note step is
+ * handled inline in the closeout panel, so it maps to null.
+ */
+export function closeoutSectionKeyForStep(
+  step: CloseoutStep,
+): CloseoutSectionKey | null {
+  if (step.key === "note") return null;
+  return SECTION_KEY_BY_STEP_KEY[step.key];
+}
+
 export interface CloseoutStep {
   key: CloseoutStepKey;
   label: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ClipboardList, Loader2, Plus, Trash2 } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
@@ -21,9 +21,12 @@ import { canManageJobChecklist } from "@/features/jobs/utils/jobChecklistAccess"
 export function JobTasksCard({
   jobId,
   jobType,
+  onCountsChange,
 }: {
   jobId: string;
   jobType: string;
+  /** Optional: reports { done, total } across both lists whenever they change (e.g. for a tab badge). */
+  onCountsChange?: (counts: { done: number; total: number }) => void;
 }) {
   const { role } = useCurrentRole();
   const canManageChecklist = canManageJobChecklist(role);
@@ -62,6 +65,15 @@ export function JobTasksCard({
       void loadTasks();
     });
   }, [loadTasks]);
+
+  const doneCount = tasks.filter((task) => task.isDone).length;
+  const countsCallbackRef = useRef(onCountsChange);
+  useEffect(() => {
+    countsCallbackRef.current = onCountsChange;
+  });
+  useEffect(() => {
+    countsCallbackRef.current?.({ done: doneCount, total: tasks.length });
+  }, [doneCount, tasks.length]);
 
   const fieldTasks = tasks.filter((task) => task.section !== "office"); const officeTasks = tasks.filter((task) => task.section === "office"); const fieldDoneCount = fieldTasks.filter((task) => task.isDone).length; const officeDoneCount = officeTasks.filter((task) => task.isDone).length;
 
