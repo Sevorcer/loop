@@ -11,7 +11,9 @@ import { DEFAULT_JOB_APPOINTMENT_HOUR } from "@/features/jobs/utils/appointmentW
 import { deriveScheduledStartAt } from "@/features/jobs/utils/schedulingTime";
 import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActivity";
 
+import { jobOverlapsDateRange } from "@/features/calendar/utils/calendarSchedule";
 import { formatTeamLabel } from "@/lib/teamLabel";
+import { addCalendarDays } from "@/lib/timezone";
 
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
@@ -351,6 +353,111 @@ export async function listJobs(
   }
 
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
+}
+
+/**
+ * Jobs whose scheduled span overlaps the inclusive company-date range
+ * [from, to] (YYYY-MM-DD), for the calendar's range endpoint.
+ *
+ * The SQL filter is deliberately a superset: company-timezone day boundaries
+ * can shift an instant across a UTC day, so the window is padded by two days
+ * and the precise overlap check runs on the mapped jobs with
+ * jobOverlapsDateRange — the same placement rules the calendar renders with
+ * (clock-time start wins, legacy date fallback, multi-day spans included).
+ * Runs through the session client, so row security scopes technicians to
+ * their assigned jobs exactly as listJobs does.
+ */
+export async function listJobsInRange(from: string, to: string): Promise<Job[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const windowStart = `${addCalendarDays(from, -2)}T00:00:00.000Z`;
+  const windowEnd = `${addCalendarDays(to, 2)}T23:59:59.999Z`;
+  const legacyFrom = addCalendarDays(from, -2);
+  const legacyToExclusive = addCalendarDays(to, 3);
+
+  // Timestamp jobs: the span (start through end, or the start alone when no
+  // end is stored) reaches into the padded window. Legacy jobs carry only a
+  // scheduled_for date.
+  const rangeFilter = [
+    `and(scheduled_start_at.lte.${windowEnd},scheduled_end_at.gte.${windowStart})`,
+    `and(scheduled_start_at.lte.${windowEnd},scheduled_start_at.gte.${windowStart},scheduled_end_at.is.null)`,
+    `and(scheduled_start_at.is.null,scheduled_for.gte.${legacyFrom},scheduled_for.lt.${legacyToExclusive})`,
+  ].join(",");
+
+  const runQuery = (select: string, withTimestamps: boolean) => {
+    const query = supabase.from("jobs").select(select).eq("org_id", orgId);
+    const filtered = withTimestamps
+      ? query.or(rangeFilter)
+      : query.gte("scheduled_for", legacyFrom).lt("scheduled_for", legacyToExclusive);
+    return filtered.order("created_at", { ascending: false });
+  };
+
+  const result = await runQuery(JOB_SELECT, true);
+  let data = toJobRows(result.data);
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
+    // The PR3C columns do not exist in this environment, so timestamps
+    // cannot be filtered on — legacy jobs are the only scheduled kind.
+    const fallback = await runQuery(JOB_SELECT_WITH_LEGACY, false);
+    data = toJobRows(fallback.data);
+    error = fallback.error;
+
+    if (error && isSchedulingColumnMissingError(error)) {
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
+      const base = await runQuery(JOB_SELECT_BASE, false);
+      data = toJobRows(base.data);
+      error = base.error;
+    }
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const jobsList = ((data ?? []) as JobRow[])
+    .map(mapJob)
+    .filter((job) => jobOverlapsDateRange(job, from, to));
+  await attachAssignees(supabase, orgId, jobsList);
+  return jobsList;
+}
+
+/**
+ * Count of jobs with no scheduled date — neither a clock-time start nor a
+ * legacy scheduled_for date — matching isJobScheduled's definition. Backs
+ * the calendar's "jobs without a scheduled date" note now that the calendar
+ * only loads one range at a time. Session-scoped like every job read.
+ */
+export async function countUnscheduledJobs(): Promise<number> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const full = await supabase
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .is("scheduled_start_at", null)
+    .is("scheduled_for", null);
+
+  if (!full.error) {
+    return full.count ?? 0;
+  }
+
+  if (!isSchedulingColumnMissingError(full.error)) {
+    throw new Error(full.error.message);
+  }
+
+  const legacy = await supabase
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .is("scheduled_for", null);
+
+  if (legacy.error) {
+    throw new Error(legacy.error.message);
+  }
+
+  return legacy.count ?? 0;
 }
 
 export async function listJobActivity(

@@ -7,7 +7,6 @@ import { ArrowRight, CalendarRange, ListFilter, UserCircle2 } from "lucide-react
 
 import { PageHeader, StatusBadge } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
-import { useJobs } from "@/features/jobs/state/JobsProvider";
 import type { Job } from "@/features/jobs/types/job";
 import { ApiRequestError, requestJson } from "@/lib/api/client";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
@@ -48,7 +47,6 @@ import {
   formatMonthTitle,
   formatWeekRangeLabel,
   isCalendarJobUnassigned,
-  isJobScheduled,
   relativeDayLabel,
   resolveCalendarView,
   shiftDate,
@@ -268,10 +266,16 @@ function DayPanel({
 }
 
 export function CalendarScreen() {
-  // Technicians only receive their own jobs. The jobs API uses the signed-in
-  // session, and row security limits a tech to assigned work. This screen
-  // does not widen that list.
-  const { hydrated, jobs } = useJobs();
+  // Technicians only receive their own jobs. The calendar jobs endpoint
+  // uses the signed-in session, and row security limits a tech to assigned
+  // work. This screen does not widen that list.
+  // Jobs load one visible range at a time from /api/calendar/jobs instead
+  // of the whole workspace history — the old shared loader made the
+  // calendar hang once the company history grew past a few hundred jobs.
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsReady, setJobsReady] = useState(false);
+  const [jobsNote, setJobsNote] = useState<string | null>(null);
+  const [unscheduledCount, setUnscheduledCount] = useState(0);
   const { role } = useCurrentRole();
   const router = useRouter();
   const pathname = usePathname();
@@ -542,6 +546,47 @@ export function CalendarScreen() {
       cancelled = true;
     };
   }, [office, role]);
+
+  // The month grid only plots dates inside the displayed month, and the
+  // week view plots exactly its seven dates — fetch just that window and
+  // refetch when navigation changes it.
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const rangeFrom = view === "week" ? visibleWeek[0] : `${monthKey}-01`;
+  const rangeTo =
+    view === "week"
+      ? visibleWeek[6]
+      : `${monthKey}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
+
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    void requestJson<{ jobs: Job[]; unscheduledCount: number }>(
+      `/api/calendar/jobs?from=${rangeFrom}&to=${rangeTo}`,
+      { role, cache: "no-store" },
+    )
+      .then((data) => {
+        if (cancelled) return;
+        setJobs(Array.isArray(data.jobs) ? data.jobs : []);
+        setUnscheduledCount(typeof data.unscheduledCount === "number" ? data.unscheduledCount : 0);
+        setJobsNote(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+          setJobs([]);
+          setUnscheduledCount(0);
+          return;
+        }
+        setJobsNote("Jobs could not be loaded for this period.");
+      })
+      .finally(() => {
+        if (!cancelled) setJobsReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, rangeFrom, rangeTo]);
+
   const title =
     view === "week"
       ? formatWeekRangeLabel(visibleWeek[0], visibleWeek[6])
@@ -552,7 +597,6 @@ export function CalendarScreen() {
       ? visibleWeek.includes(today)
       : today.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`);
   const showToday = !visibleHasToday || selectedDate !== today;
-  const hasUnscheduled = jobs.some((job) => !isJobScheduled(job));
 
   const focusDate = useCallback((date: string) => {
     setSelectedDate(date);
@@ -630,7 +674,7 @@ export function CalendarScreen() {
         />
       </div>
 
-      {!hydrated || !viewReady || !peopleReady || (office && role && !groupsReady) ? (
+      {!jobsReady || !viewReady || !peopleReady || (office && role && !groupsReady) ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
           Loading calendar…
         </div>
@@ -672,6 +716,7 @@ export function CalendarScreen() {
             onOpenTask={(entry) => setEditor({ mode: "task", date: selectedDate, entry })}
           />
           {entriesNote ? <p className="text-sm text-muted">{entriesNote}</p> : null}
+          {jobsNote ? <p className="text-sm text-muted">{jobsNote}</p> : null}
           <DayPanel selectedDate={selectedDate} today={today} jobs={dayJobs} />
           {editor ? (
             <CalendarEntryDialog
@@ -689,7 +734,7 @@ export function CalendarScreen() {
         </div>
       )}
 
-      {hydrated && hasUnscheduled ? (
+      {jobsReady && unscheduledCount > 0 ? (
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 print:hidden">
           <CalendarRange className="h-4 w-4 shrink-0 text-slate-500" />
           <p className="text-xs text-slate-400">

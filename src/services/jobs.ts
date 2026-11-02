@@ -30,6 +30,7 @@ import {
   noteBodiesToAppend,
 } from "@/features/jobs/utils/jobNotes";
 import {
+  countUnscheduledJobs,
   getMaxJobNumberSuffix,
   createJob as createJobRecord,
   createJobActivity as createJobActivityRecord,
@@ -42,6 +43,7 @@ import {
   listJobsByCustomerId,
   listJobsByPropertyId,
   listJobsForDispatch,
+  listJobsInRange,
   toJob,
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
@@ -249,9 +251,10 @@ async function ensureDispatchPlanForJob(
 }
 
 /**
- * The calendar and the jobs list share this loader. The repository default
- * of 50 rows hid the rest of a busy month, so page until the schedule is
- * complete (or a high safety cap).
+ * The jobs list pages until the schedule is complete (or a high safety cap):
+ * the repository default of 50 rows hid the rest of a busy month. The
+ * calendar no longer shares this loader — it fetches one visible range at
+ * a time through listJobsForCalendar.
  */
 const WORKSPACE_JOB_PAGE_SIZE = 200;
 const WORKSPACE_JOB_MAX_PAGES = 15;
@@ -282,6 +285,24 @@ export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: J
     viewerCanSeePrice(),
   ]);
   return { jobs, activity: redactJobPriceActivity(activity, canSeePrice) };
+}
+
+/**
+ * Calendar range read: only the jobs that overlap the visible company-date
+ * range, plus the org-wide unscheduled count that backs the calendar's
+ * "jobs without a scheduled date" note. No activity payload — the calendar
+ * never renders it, and shipping the full workspace history is what made
+ * the calendar hang after the Service Fusion import.
+ */
+export async function listJobsForCalendar(
+  from: string,
+  to: string,
+): Promise<{ jobs: Job[]; unscheduledCount: number }> {
+  const [jobs, unscheduledCount] = await Promise.all([
+    listJobsInRange(from, to),
+    countUnscheduledJobs(),
+  ]);
+  return { jobs, unscheduledCount };
 }
 
 export async function listJobsForCustomer(customerId: string): Promise<Job[]> {

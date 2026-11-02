@@ -174,6 +174,22 @@ export function isJobScheduled(
   return scheduledStartDate(job) != null;
 }
 
+/**
+ * True when any company date the job occupies falls inside [from, to]
+ * (inclusive YYYY-MM-DD bounds). Built on jobCalendarDates so the server-side
+ * range fetch keeps exactly the days the calendar itself would plot,
+ * including multi-day spans that only cross an edge of the range.
+ */
+export function jobOverlapsDateRange(
+  job: Pick<Job, "scheduledFor" | "scheduledStartAt" | "scheduledEndAt">,
+  from: string,
+  to: string,
+): boolean {
+  const dates = jobCalendarDates(job);
+  if (dates.length === 0) return false;
+  return dates[0] <= to && dates[dates.length - 1] >= from;
+}
+
 /** Every scheduled job for each company date, earliest start first. No cap. */
 export function groupJobsByDate(jobs: readonly Job[]): Record<string, Job[]> {
   const grouped: Record<string, Job[]> = {};

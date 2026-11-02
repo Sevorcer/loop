@@ -16,6 +16,7 @@ import {
   groupJobsByDate,
   isJobScheduled,
   jobCalendarDates,
+  jobOverlapsDateRange,
   parseCalendarView,
   resolveCalendarView,
   startOfWeek,
@@ -159,6 +160,85 @@ describe("jobCalendarDates", () => {
     expect(dates.length).toBeGreaterThan(300);
     expect(dates.length).toBeLessThanOrEqual(367);
     expect(dates[0]).toBe("2026-01-01");
+  });
+});
+
+describe("jobOverlapsDateRange", () => {
+  const NOVEMBER = { from: "2026-11-01", to: "2026-11-30" } as const;
+
+  it("includes a job inside the range and excludes jobs outside it", () => {
+    expect(
+      jobOverlapsDateRange(
+        job({ id: "in", scheduledStartAt: "2026-11-10T17:00:00.000Z", scheduledEndAt: "2026-11-10T19:00:00.000Z" }),
+        NOVEMBER.from,
+        NOVEMBER.to,
+      ),
+    ).toBe(true);
+    expect(
+      jobOverlapsDateRange(
+        job({ id: "before", scheduledStartAt: "2026-10-20T17:00:00.000Z", scheduledEndAt: "2026-10-20T19:00:00.000Z" }),
+        NOVEMBER.from,
+        NOVEMBER.to,
+      ),
+    ).toBe(false);
+    expect(
+      jobOverlapsDateRange(
+        job({ id: "after", scheduledStartAt: "2026-12-05T17:00:00.000Z", scheduledEndAt: "2026-12-05T19:00:00.000Z" }),
+        NOVEMBER.from,
+        NOVEMBER.to,
+      ),
+    ).toBe(false);
+  });
+
+  it("includes multi-day jobs that only cross one edge of the range", () => {
+    // Starts in October, ends Nov 2 (Pacific dates Oct 30 – Nov 2).
+    expect(
+      jobOverlapsDateRange(
+        job({ id: "cross-in", scheduledStartAt: "2026-10-30T16:00:00.000Z", scheduledEndAt: "2026-11-02T20:00:00.000Z" }),
+        NOVEMBER.from,
+        NOVEMBER.to,
+      ),
+    ).toBe(true);
+    // Starts Nov 29, ends in December.
+    expect(
+      jobOverlapsDateRange(
+        job({ id: "cross-out", scheduledStartAt: "2026-11-29T17:00:00.000Z", scheduledEndAt: "2026-12-02T20:00:00.000Z" }),
+        NOVEMBER.from,
+        NOVEMBER.to,
+      ),
+    ).toBe(true);
+    // Spans the whole range without starting or ending inside it.
+    expect(
+      jobOverlapsDateRange(
+        job({ id: "span-all", scheduledStartAt: "2026-10-01T16:00:00.000Z", scheduledEndAt: "2026-12-15T20:00:00.000Z" }),
+        NOVEMBER.from,
+        NOVEMBER.to,
+      ),
+    ).toBe(true);
+  });
+
+  it("judges edge jobs by their company date, not their UTC date", () => {
+    // 11:00 pm Pacific on Oct 31 is already Nov 1 in UTC, but the job
+    // belongs to October on the calendar, so November does not claim it.
+    const lateOctober = job({
+      id: "late-oct",
+      scheduledFor: "2026-11-01",
+      scheduledStartAt: "2026-11-01T06:00:00.000Z",
+      scheduledEndAt: "2026-11-01T06:45:00.000Z",
+    });
+    expect(jobOverlapsDateRange(lateOctober, NOVEMBER.from, NOVEMBER.to)).toBe(false);
+    expect(jobOverlapsDateRange(lateOctober, "2026-10-01", "2026-10-31")).toBe(true);
+  });
+
+  it("places legacy date-only jobs on their stored date", () => {
+    const legacy = job({ id: "legacy", scheduledFor: "2026-11-15", scheduledStartAt: null, scheduledEndAt: null });
+    expect(jobOverlapsDateRange(legacy, NOVEMBER.from, NOVEMBER.to)).toBe(true);
+    expect(jobOverlapsDateRange(legacy, "2026-12-01", "2026-12-31")).toBe(false);
+  });
+
+  it("never overlaps for an unscheduled job", () => {
+    const open = job({ id: "open", scheduledFor: null, scheduledStartAt: null, scheduledEndAt: null });
+    expect(jobOverlapsDateRange(open, NOVEMBER.from, NOVEMBER.to)).toBe(false);
   });
 });
 
