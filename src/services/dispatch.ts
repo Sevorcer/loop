@@ -3,8 +3,10 @@ import "server-only";
 import { listContractors } from "@/repositories/contractors";
 import { createJobActivity, getJobById, listJobsByIds, setJobPeople, updateJob } from "@/repositories/jobs";
 import {
+  addCalendarDays,
   companyTimeOfDay,
   shiftIsoToCompanyDate,
+  todayInCompanyTimeZone,
 } from "@/lib/timezone";
 import { scheduledWindowClock, scheduledWindowHours } from "@/features/dispatch/utils/jobSchedule";
 
@@ -28,6 +30,25 @@ import {
 } from "@/repositories/dispatch";
 
 export { loadDispatchSnapshot };
+
+/** How many days of completed work the dispatch board keeps on screen. */
+export const DISPATCH_BOARD_COMPLETED_WINDOW_DAYS = 7;
+
+/**
+ * The dispatch board's snapshot: all active plans (any date) plus completed
+ * plans from the last DISPATCH_BOARD_COMPLETED_WINDOW_DAYS days, counted in
+ * the company timezone. The full snapshot loads thousands of completed
+ * plans going back years, which a working board never displays; other
+ * consumers (customer timeline, snapshot API) keep the unwindowed read via
+ * loadDispatchSnapshot.
+ */
+export async function loadBoardDispatchSnapshot() {
+  const completedSince = addCalendarDays(
+    todayInCompanyTimeZone(),
+    -DISPATCH_BOARD_COMPLETED_WINDOW_DAYS,
+  );
+  return loadDispatchSnapshot({ boardWindow: { completedSince } });
+}
 
 /**
  * Job-level context the dispatch board filters need but the snapshot lacks:

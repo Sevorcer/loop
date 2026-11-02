@@ -834,11 +834,163 @@ async function fetchSnapshotTechNames(
   return assignedTechNamesByJobId;
 }
 
-export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot> {
+export interface LoadDispatchSnapshotOptions {
+  /**
+   * Board window. When set, the snapshot carries only the plans a working
+   * dispatch board needs:
+   *   - every plan whose dispatch_status is not completed/cancelled,
+   *     whatever its target_date (all active work, past and future); plus
+   *   - completed plans whose target_date is on or after `completedSince`
+   *     (a YYYY-MM-DD date in the company timezone).
+   * Crew assignments, schedule blocks, and dispatch events are then scoped
+   * to those plans instead of being read org-wide. When the option is
+   * omitted the full org-wide snapshot loads, exactly as before — the
+   * customer timeline and the snapshot API depend on the full history.
+   */
+  boardWindow?: {
+    completedSince: string;
+  };
+}
+
+/** Statuses a board window always excludes except via the completed recency rule. */
+const BOARD_WINDOW_EXCLUDED_STATUSES = "(completed,cancelled)";
+
+function comparePlanRowsNewestFirst(a: DispatchPlanRow, b: DispatchPlanRow) {
+  if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
+  if (a.id !== b.id) return a.id < b.id ? 1 : -1;
+  return 0;
+}
+
+/**
+ * The windowed plan set as two filtered reads — active work of any date,
+ * plus recently completed work — merged back into the snapshot's usual
+ * newest-first order. Both filters ride on the Supabase queries themselves;
+ * nothing is fetched and then discarded in memory.
+ */
+async function fetchBoardWindowPlanRows(
+  supabase: SnapshotSupabase,
+  orgId: string,
+  completedSince: string,
+): Promise<DispatchPlanRow[]> {
+  const [activeRows, recentCompletedRows] = await Promise.all([
+    fetchAllSnapshotRows<DispatchPlanRow>((from, to) =>
+      supabase
+        .from("dispatch_plans")
+        .select(DISPATCH_PLAN_SELECT)
+        .eq("org_id", orgId)
+        .not("dispatch_status", "in", BOARD_WINDOW_EXCLUDED_STATUSES)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    ),
+    fetchAllSnapshotRows<DispatchPlanRow>((from, to) =>
+      supabase
+        .from("dispatch_plans")
+        .select(DISPATCH_PLAN_SELECT)
+        .eq("org_id", orgId)
+        .eq("dispatch_status", "completed")
+        .gte("target_date", completedSince)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    ),
+  ]);
+
+  const byId = new Map<string, DispatchPlanRow>();
+  for (const row of [...activeRows, ...recentCompletedRows]) {
+    byId.set(row.id, row);
+  }
+  return [...byId.values()].sort(comparePlanRowsNewestFirst);
+}
+
+/**
+ * Reads one plan-child table (assignments, blocks, or events) for just the
+ * given plans: ids are chunked to bound each .in(...) list, and each chunk
+ * is paged like the org-wide snapshot reads.
+ */
+async function fetchSnapshotRowsForPlanIds<Row>(
+  planIds: string[],
+  runChunkPage: (
+    planIdChunk: string[],
+    from: number,
+    to: number,
+  ) => PromiseLike<SnapshotPageResult<Row>>,
+): Promise<Row[]> {
+  const rows: Row[] = [];
+  for (const chunk of idChunks(planIds)) {
+    rows.push(
+      ...(await fetchAllSnapshotRows<Row>((from, to) =>
+        runChunkPage(chunk, from, to),
+      )),
+    );
+  }
+  return rows;
+}
+
+export async function loadDispatchSnapshot(
+  options?: LoadDispatchSnapshotOptions,
+): Promise<DispatchRepositorySnapshot> {
   const { supabase, orgId } = await getRepositoryContext();
 
-  const [rawPlans, rawCrews, rawAssignments, rawBlocks, rawEvents] =
-    await Promise.all([
+  const boardWindow = options?.boardWindow;
+
+  const crewsPromise = fetchAllSnapshotRows<CrewRow>((from, to) =>
+    supabase
+      .from("crews")
+      .select(CREW_SELECT)
+      .eq("org_id", orgId)
+      .order("name")
+      .order("id")
+      .range(from, to),
+  );
+
+  let rawPlans: DispatchPlanRow[];
+  let rawAssignments: CrewAssignmentRow[];
+  let rawBlocks: ScheduleBlockRow[];
+  let rawEvents: DispatchEventRow[];
+
+  if (boardWindow) {
+    rawPlans = await fetchBoardWindowPlanRows(
+      supabase,
+      orgId,
+      boardWindow.completedSince,
+    );
+    const planIds = rawPlans.map((row) => row.id);
+    [rawAssignments, rawBlocks, rawEvents] = await Promise.all([
+      fetchSnapshotRowsForPlanIds<CrewAssignmentRow>(
+        planIds,
+        (chunk, from, to) =>
+          supabase
+            .from("crew_assignments")
+            .select(CREW_ASSIGNMENT_SELECT)
+            .eq("org_id", orgId)
+            .in("dispatch_plan_id", chunk)
+            .order("id")
+            .range(from, to),
+      ),
+      fetchSnapshotRowsForPlanIds<ScheduleBlockRow>(planIds, (chunk, from, to) =>
+        supabase
+          .from("schedule_blocks")
+          .select(SCHEDULE_BLOCK_SELECT)
+          .eq("org_id", orgId)
+          .in("dispatch_plan_id", chunk)
+          .order("scheduled_date")
+          .order("id")
+          .range(from, to),
+      ),
+      fetchSnapshotRowsForPlanIds<DispatchEventRow>(planIds, (chunk, from, to) =>
+        supabase
+          .from("dispatch_events")
+          .select(DISPATCH_EVENT_SELECT)
+          .eq("org_id", orgId)
+          .in("dispatch_plan_id", chunk)
+          .order("timestamp")
+          .order("id")
+          .range(from, to),
+      ),
+    ]);
+  } else {
+    [rawPlans, rawAssignments, rawBlocks, rawEvents] = await Promise.all([
       fetchAllSnapshotRows<DispatchPlanRow>((from, to) =>
         supabase
           .from("dispatch_plans")
@@ -846,15 +998,6 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
           .eq("org_id", orgId)
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
-          .range(from, to),
-      ),
-      fetchAllSnapshotRows<CrewRow>((from, to) =>
-        supabase
-          .from("crews")
-          .select(CREW_SELECT)
-          .eq("org_id", orgId)
-          .order("name")
-          .order("id")
           .range(from, to),
       ),
       fetchAllSnapshotRows<CrewAssignmentRow>((from, to) =>
@@ -884,6 +1027,9 @@ export async function loadDispatchSnapshot(): Promise<DispatchRepositorySnapshot
           .range(from, to),
       ),
     ]);
+  }
+
+  const rawCrews = await crewsPromise;
 
   // Enrich plans and blocks with PR3C scheduling data (scheduled_start_at)
   // from jobs, and with the assigned tech names. The id lists can hold
