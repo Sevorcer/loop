@@ -458,3 +458,37 @@ describe("JobTasksCard add item (B3 — mouse users can add, not only Enter)", (
     });
   });
 });
+
+describe("JobDetailScreen Edit Job navigation", () => {
+  // Regression: the Edit Job button was a silent no-op in production. Probe
+  // diagnosis proved the client router fetched a valid RSC flight for
+  // /jobs/[id]/edit but never committed the soft navigation (router.push AND
+  // <Link> both drive that broken path). The fix renders a plain anchor to the
+  // edit route so the browser performs a full-document navigation to the
+  // proven-good URL. Contract under test: an anchor carrying the edit href is
+  // present for office roles and absent for technicians.
+  it("renders Edit Job as an anchor to the job's edit route for office roles", async () => {
+    authState.role = "owner";
+    const container = await renderScreen();
+
+    const editLink = [...container.querySelectorAll("a")].find((anchor) =>
+      anchor.textContent?.includes("Edit Job"),
+    );
+
+    expect(editLink, "expected an Edit Job link").toBeTruthy();
+    expect(editLink?.getAttribute("href")).toBe("/jobs/job-1/edit");
+  });
+
+  it("does not render Edit Job for technicians", async () => {
+    authState.role = "tech";
+    const container = await renderScreen();
+
+    const editLink = [...container.querySelectorAll("a")].find((anchor) =>
+      anchor.textContent?.includes("Edit Job"),
+    );
+    const editButton = findButton(container, "Edit Job");
+
+    expect(editLink).toBeUndefined();
+    expect(editButton).toBeUndefined();
+  });
+});
