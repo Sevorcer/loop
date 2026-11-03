@@ -1,14 +1,25 @@
 // LOOP service worker — makes the app installable and speeds up repeat loads.
 //
+// IMPORTANT: this file is GENERATED from scripts/sw.template.js by
+// scripts/generate-sw.mjs (wired as the npm `prebuild` step). Do NOT edit
+// public/sw.js by hand — edit this template instead. The generator injects a
+// per-deploy build id into CACHE_VERSION so every deploy gets a unique cache
+// name; the `activate` handler then purges ALL caches from previous builds,
+// which is what guarantees a returning device converges onto the new bundle
+// instead of serving a dead cached shell / stale chunks.
+//
 // Caching policy (deliberate):
 // - /api/* and non-GET requests: NEVER cached, always live (auth + job data).
-// - /_next/static/*: cache-first (Next.js fingerprints these per build, so stale
-//   assets are impossible across deploys).
+// - /_next/static/*: cache-first, but keyed under the per-build cache. Next.js
+//   fingerprints these per build, and `activate` deletes previous builds'
+//   caches, so old chunks cannot survive a deploy.
 // - Page navigations: network-first, falling back to the cached app shell when
-//   offline. Note: LOOP has no offline data mode — the fallback just avoids a
-//   dead browser error page until connectivity returns.
+//   offline. LOOP has no offline data mode — the fallback just avoids a dead
+//   browser error page until connectivity returns. The shell lives in the
+//   per-build cache, so it is purged on every deploy and can never pin a device
+//   to an old build while online (network-first always wins when reachable).
 
-const CACHE_VERSION = "loop-pwa-v1";
+const CACHE_VERSION = "loop-pwa-dev";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -51,7 +62,8 @@ self.addEventListener("fetch", (event) => {
   // API + auth traffic always goes to the network. Never cache it.
   if (url.pathname.startsWith("/api/")) return;
 
-  // Versioned build assets: safe to cache aggressively.
+  // Versioned build assets: safe to cache aggressively within a build. Old
+  // builds' assets are purged by the `activate` handler above.
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.open(CACHE_VERSION).then((cache) =>
