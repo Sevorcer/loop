@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 // [EDIT_PROBE] TEMPORARY DIAGNOSTIC IMPORT — remove with the probe block below.
 import { reportClientError } from "@/components/observability/ClientErrorReporter";
+// [EDITDIAG] TEMPORARY DIAGNOSTIC IMPORT — remove with EditNavDiag.
+import { EditNavDiag } from "./EditNavDiag";
 import {
   ArrowLeft,
   Briefcase,
@@ -426,6 +428,8 @@ export function JobDetailScreen({
     // The mobile bottom tab bar is about 4rem tall, plus the home-indicator
     // inset. Pad past both so the last block can scroll clear of it.
     <div className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+      {/* [EDITDIAG] TEMPORARY DIAGNOSTIC — remove with EditNavDiag. */}
+      <EditNavDiag jobId={job.id} />
       <div className="flex items-center justify-between gap-4">
         <Button
           variant="ghost"
