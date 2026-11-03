@@ -228,6 +228,20 @@ describe("listCustomers directory search + paging", () => {
     expect(query.rangeTo).toBe(19);
   });
 
+  it("escapes ilike wildcards and strips or-grammar characters from the term", async () => {
+    await listCustomers({ search: "50% off, (sale)*" });
+
+    const orFilter = lastCustomersQuery().orFilter ?? "";
+    // Grammar characters are gone, so the or-filter keeps exactly its
+    // four column clauses (a comma or paren from the term would add more).
+    expect(orFilter.split(",")).toHaveLength(4);
+    expect(orFilter).not.toContain("(");
+    // Wildcards are escaped, so they match literally instead of widening.
+    expect(orFilter).toContain("50\\%");
+    expect(orFilter).toContain("\\*");
+    expect(orFilter).not.toContain("%*");
+  });
+
   it("applies status and city filters server-side", async () => {
     const result = await listCustomers({ search: "kenmore", status: "Active", city: "Kenmore" });
     expect(result.items.map((customer) => customer.id)).toEqual(["cust-087"]);

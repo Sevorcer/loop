@@ -61,7 +61,7 @@ import type { RepositoryResult } from "@/lib/repositories/contracts";
 
 /** Escape a free-text term for use inside a PostgREST `ilike` pattern. */
 export function escapeIlikeTerm(value: string): string {
-  return value.replace(/[%_\\]/g, (char) => `\\${char}`);
+  return value.replace(/[%_*\\]/g, (char) => `\\${char}`);
 }
 
 /**
