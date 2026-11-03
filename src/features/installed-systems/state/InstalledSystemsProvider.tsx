@@ -19,15 +19,26 @@ import type {
   EquipmentCatalogEntry,
   EstimateEquipmentBundle,
   InstalledSystem,
+  InstalledSystemsCounts,
   TechnicalProfile,
 } from "../types/installedSystem";
+
+const EMPTY_COUNTS: InstalledSystemsCounts = {
+  total: 0,
+  activeWarranties: 0,
+  expiringSoon: 0,
+  expired: 0,
+};
 
 interface InstalledSystemsContextValue {
   catalogEntries: EquipmentCatalogEntry[];
   estimateBundles: EstimateEquipmentBundle[];
   installedSystems: InstalledSystem[];
   technicalProfiles: TechnicalProfile[];
+  counts: InstalledSystemsCounts;
   loading: boolean;
+  /** Non-null when the most recent load failed — distinct from an empty org. */
+  error: string | null;
   getInstalledSystemById: (id: string) => InstalledSystem | undefined;
   getInstalledSystemsForJob: (
     jobId: string,
@@ -49,7 +60,9 @@ export function InstalledSystemsProvider({
   const { role } = useCurrentRole();
   const [installedSystems, setInstalledSystems] = useState<InstalledSystem[]>([]);
   const [technicalProfiles, setTechnicalProfiles] = useState<TechnicalProfile[]>([]);
+  const [counts, setCounts] = useState<InstalledSystemsCounts>(EMPTY_COUNTS);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const technicalProfilesById = useMemo(
     () => {
       const map = new Map<string, TechnicalProfile>();
@@ -67,16 +80,27 @@ export function InstalledSystemsProvider({
     if (!role) return;
 
     setLoading(true);
+    setError(null);
     try {
       const snapshot = await requestJson<{
         installedSystems: InstalledSystem[];
         technicalProfiles: TechnicalProfile[];
+        counts?: InstalledSystemsCounts;
       }>("/api/installed-systems", { role, cache: "no-store" });
 
       setInstalledSystems(snapshot.installedSystems ?? []);
       setTechnicalProfiles(snapshot.technicalProfiles ?? []);
-    } catch {
-      // Supabase not configured or network failure — start empty.
+      setCounts(snapshot.counts ?? EMPTY_COUNTS);
+    } catch (caught) {
+      // Surface the failure instead of silently collapsing into an empty
+      // state — the UI must be able to tell "load failed" apart from
+      // "this org genuinely has no systems".
+      setInstalledSystems([]);
+      setTechnicalProfiles([]);
+      setCounts(EMPTY_COUNTS);
+      setError(
+        caught instanceof Error ? caught.message : "Failed to load installed systems.",
+      );
     } finally {
       setLoading(false);
     }
@@ -125,14 +149,16 @@ export function InstalledSystemsProvider({
       estimateBundles: estimateEquipmentBundles,
       installedSystems,
       technicalProfiles,
+      counts,
       loading,
+      error,
       getInstalledSystemById,
       getInstalledSystemsForJob,
       getTechnicalProfileById,
       getCatalogEntryById,
       refreshSystems,
     };
-  }, [installedSystems, technicalProfiles, technicalProfilesById, loading, refreshSystems]);
+  }, [installedSystems, technicalProfiles, technicalProfilesById, counts, loading, error, refreshSystems]);
 
   return (
     <InstalledSystemsContext.Provider value={value}>

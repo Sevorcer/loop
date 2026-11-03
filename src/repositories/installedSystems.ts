@@ -3,10 +3,12 @@ import "server-only";
 import type {
   InstalledSystem,
   InstalledSystemLifecycle,
+  InstalledSystemsCounts,
   TechnicalFact,
   TechnicalProfile,
   CatalogMatchState,
 } from "@/features/installed-systems/types/installedSystem";
+import { EXPIRING_SOON_WINDOW_DAYS } from "@/features/installed-systems/types/installedSystem";
 
 import { wrapRepositoryError } from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
@@ -335,32 +337,125 @@ export async function deleteInstalledSystem(id: string) {
 export interface InstalledSystemsRepositorySnapshot {
   installedSystems: InstalledSystem[];
   technicalProfiles: TechnicalProfile[];
+  counts: InstalledSystemsCounts;
+}
+
+const INSTALLED_SYSTEM_COLUMNS =
+  "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at";
+
+const TECHNICAL_PROFILE_COLUMNS =
+  "id,org_id,technical_identity_id,system_name,manufacturer,equipment_type,catalog_entry_ids,match_state,match_confidence,permit_fields,known_facts,discovered_facts,confirmation_note";
+
+// Supabase/PostgREST silently caps an unranged select at 1,000 rows. Fetch in
+// fixed pages until a short page proves the table is exhausted, so a large org
+// (thousands of installed systems) is never silently truncated to the first
+// page. This is the read side only — it does not change any warranty write rule.
+const FETCH_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  runPage: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+
+  for (;;) {
+    const to = from + FETCH_PAGE_SIZE - 1;
+    const { data, error } = await runPage(from, to);
+    if (error) throw new Error(error.message);
+
+    const page = (data ?? []) as T[];
+    rows.push(...page);
+
+    if (page.length < FETCH_PAGE_SIZE) break;
+    from += FETCH_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+function isoDateDaysFromNow(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Exact, org-scoped tile counts computed entirely in the database with
+ * `count: "exact", head: true` queries — never the `.length` of a page that
+ * PostgREST may have capped at 1,000 rows. `warranty_expiry` is a fixed
+ * `YYYY-MM-DD` text column, so lexicographic `>=` / `<` / `<=` comparisons
+ * against ISO date strings are equivalent to calendar comparisons. Empty and
+ * NULL expiries are excluded from every warranty bucket.
+ */
+export async function loadInstalledSystemsCounts(): Promise<InstalledSystemsCounts> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const today = isoDateDaysFromNow(0);
+  const soonCutoff = isoDateDaysFromNow(EXPIRING_SOON_WINDOW_DAYS);
+
+  const [totalRes, activeRes, expiringRes, expiredRes] = await Promise.all([
+    supabase
+      .from("installed_systems")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId),
+    supabase
+      .from("installed_systems")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .neq("warranty_expiry", "")
+      .gte("warranty_expiry", today),
+    supabase
+      .from("installed_systems")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .neq("warranty_expiry", "")
+      .gte("warranty_expiry", today)
+      .lte("warranty_expiry", soonCutoff),
+    supabase
+      .from("installed_systems")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .neq("warranty_expiry", "")
+      .lt("warranty_expiry", today),
+  ]);
+
+  if (totalRes.error) throw new Error(totalRes.error.message);
+  if (activeRes.error) throw new Error(activeRes.error.message);
+  if (expiringRes.error) throw new Error(expiringRes.error.message);
+  if (expiredRes.error) throw new Error(expiredRes.error.message);
+
+  return {
+    total: totalRes.count ?? 0,
+    activeWarranties: activeRes.count ?? 0,
+    expiringSoon: expiringRes.count ?? 0,
+    expired: expiredRes.count ?? 0,
+  };
 }
 
 export async function loadInstalledSystemsSnapshot(): Promise<InstalledSystemsRepositorySnapshot> {
   const { supabase, orgId } = await getRepositoryContext();
 
-  const [systemsRes, profilesRes] = await Promise.all([
-    supabase
-      .from("installed_systems")
-      .select(
-        "id,org_id,technical_identity_id,technical_profile_id,system_name,lifecycle_status,customer_name,property_id,property_name,location,estimate_id,job_id,job_number,match_state,match_confidence,install_date,manufacturer,model_number,serial_numbers,warranty_expiry,warranty_registered,warranty_registered_at,warranty_registered_by,accessories,linked_workflow_ids,permit_ready,operational_history,created_at"
-      )
-      .eq("org_id", orgId)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("technical_profiles")
-      .select(
-        "id,org_id,technical_identity_id,system_name,manufacturer,equipment_type,catalog_entry_ids,match_state,match_confidence,permit_fields,known_facts,discovered_facts,confirmation_note"
-      )
-      .eq("org_id", orgId),
+  const [systemRows, profileRows, counts] = await Promise.all([
+    fetchAllRows<InstalledSystemRow>((from, to) =>
+      supabase
+        .from("installed_systems")
+        .select(INSTALLED_SYSTEM_COLUMNS)
+        .eq("org_id", orgId)
+        .order("created_at", { ascending: false })
+        .range(from, to)
+    ),
+    fetchAllRows<TechnicalProfileRow>((from, to) =>
+      supabase
+        .from("technical_profiles")
+        .select(TECHNICAL_PROFILE_COLUMNS)
+        .eq("org_id", orgId)
+        .range(from, to)
+    ),
+    loadInstalledSystemsCounts(),
   ]);
 
-  if (systemsRes.error) throw new Error(systemsRes.error.message);
-  if (profilesRes.error) throw new Error(profilesRes.error.message);
-
   return {
-    installedSystems: ((systemsRes.data ?? []) as InstalledSystemRow[]).map(mapInstalledSystem),
-    technicalProfiles: ((profilesRes.data ?? []) as TechnicalProfileRow[]).map(mapTechnicalProfile),
+    installedSystems: systemRows.map(mapInstalledSystem),
+    technicalProfiles: profileRows.map(mapTechnicalProfile),
+    counts,
   };
 }

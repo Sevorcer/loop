@@ -1,11 +1,25 @@
 "use client";
 
-import { ArrowRight, Cpu, FileCheck2, Plus, Search, ShieldAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Cpu,
+  FileCheck2,
+  Plus,
+  Search,
+  ShieldAlert,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { PermissionGuard, StatusBadge } from "@/components/atlas";
+import {
+  ErrorState,
+  LoadingState,
+  PermissionGuard,
+  StatusBadge,
+} from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 import { formatDateOnly } from "@/lib/dates";
 
@@ -16,7 +30,9 @@ import type {
 } from "../types/installedSystem";
 import {
   EMPTY_SYSTEM_FILTER,
+  SYSTEMS_PAGE_SIZE,
   filterInstalledSystems,
+  paginateInstalledSystems,
 } from "../utils/installedSystemsUtils";
 
 function getMatchVariant(system: InstalledSystem) {
@@ -39,20 +55,45 @@ const LIFECYCLE_OPTIONS: Array<InstalledSystemLifecycle | "all"> = [
 ];
 
 export function InstalledSystemsList() {
-  const { installedSystems, getTechnicalProfileById, loading } = useInstalledSystems();
+  const { installedSystems, getTechnicalProfileById, loading, error, refreshSystems } =
+    useInstalledSystems();
   const [query, setQuery] = useState(EMPTY_SYSTEM_FILTER.query);
   const [lifecycle, setLifecycle] = useState<InstalledSystemLifecycle | "all">(
     EMPTY_SYSTEM_FILTER.lifecycle
   );
+  const [page, setPage] = useState(1);
 
   const visibleSystems = useMemo(
     () => filterInstalledSystems(installedSystems, { query, lifecycle }),
     [installedSystems, query, lifecycle]
   );
 
+  // A filter or search change changes which systems match, so jump back to the
+  // first page rather than stranding the viewer on a now-out-of-range page.
+  // Done in the change handlers (not an effect) to keep page state in sync
+  // with the inputs without a set-state-in-effect round trip.
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    setPage(1);
+  }
+
+  function handleLifecycleChange(value: InstalledSystemLifecycle | "all") {
+    setLifecycle(value);
+    setPage(1);
+  }
+
+  const { items: pageSystems, page: currentPage, pageCount, total } = useMemo(
+    () => paginateInstalledSystems(visibleSystems, page, SYSTEMS_PAGE_SIZE),
+    [visibleSystems, page]
+  );
+
+  const rangeStart = total === 0 ? 0 : (currentPage - 1) * SYSTEMS_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * SYSTEMS_PAGE_SIZE, total);
+
   function clearFilters() {
     setQuery(EMPTY_SYSTEM_FILTER.query);
     setLifecycle(EMPTY_SYSTEM_FILTER.lifecycle);
+    setPage(1);
   }
 
   return (
@@ -64,7 +105,7 @@ export function InstalledSystemsList() {
             <input
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => handleQueryChange(event.target.value)}
               placeholder="Search systems, customers, properties…"
               aria-label="Search installed systems"
               className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-blue-500/50 focus:outline-none"
@@ -75,7 +116,7 @@ export function InstalledSystemsList() {
             <select
               value={lifecycle}
               onChange={(event) =>
-                setLifecycle(event.target.value as InstalledSystemLifecycle | "all")
+                handleLifecycleChange(event.target.value as InstalledSystemLifecycle | "all")
               }
               aria-label="Filter by lifecycle status"
               className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none"
@@ -90,7 +131,29 @@ export function InstalledSystemsList() {
         </div>
       </SurfaceCard>
 
-      {!loading && installedSystems.length === 0 && (
+      {error && (
+        <ErrorState
+          title="Couldn’t load installed systems"
+          description={error}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void refreshSystems();
+              }}
+            >
+              Try again
+            </Button>
+          }
+        />
+      )}
+
+      {!error && loading && installedSystems.length === 0 && (
+        <LoadingState message="Loading installed systems…" />
+      )}
+
+      {!error && !loading && installedSystems.length === 0 && (
         <SurfaceCard className="p-8 text-center sm:p-12">
           <div className="mx-auto max-w-md space-y-3">
             <h3 className="text-lg font-semibold text-white">No installed systems yet</h3>
@@ -112,7 +175,7 @@ export function InstalledSystemsList() {
         </SurfaceCard>
       )}
 
-      {!loading && installedSystems.length > 0 && visibleSystems.length === 0 && (
+      {!error && !loading && installedSystems.length > 0 && visibleSystems.length === 0 && (
         <SurfaceCard className="p-8 text-center sm:p-12">
           <div className="mx-auto max-w-md space-y-3">
             <h3 className="text-lg font-semibold text-white">No systems match</h3>
@@ -130,7 +193,7 @@ export function InstalledSystemsList() {
         </SurfaceCard>
       )}
 
-      {visibleSystems.map((system) => {
+      {!error && pageSystems.map((system) => {
         const profile = getTechnicalProfileById(system.technicalProfileId);
 
         return (
@@ -216,6 +279,43 @@ export function InstalledSystemsList() {
           </SurfaceCard>
         );
       })}
+
+      {!error && visibleSystems.length > SYSTEMS_PAGE_SIZE && (
+        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 sm:flex-row">
+          <p className="text-sm text-slate-400" aria-live="polite">
+            Showing{" "}
+            <span className="font-medium text-slate-200">
+              {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()}
+            </span>{" "}
+            of <span className="font-medium text-slate-200">{total.toLocaleString()}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="px-1 text-sm text-slate-400">
+              Page {currentPage.toLocaleString()} of {pageCount.toLocaleString()}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= pageCount}
+              onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+            >
+              Next
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
