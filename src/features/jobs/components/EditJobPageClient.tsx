@@ -7,7 +7,7 @@ import { RoutePermissionGuard } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
 import { useCustomerPropertyOptions } from "@/features/jobs/hooks/useCustomerPropertyOptions";
 import { requestJson } from "@/lib/api/client";
-import { listFieldTechnicians } from "@/services/profileDirectory";
+import { fetchAssignableMembers } from "@/services/profileDirectory";
 
 import { editJobIdentityValues } from "../utils/editJobInitialValues";
 import type { Job } from "../types/job";
@@ -43,7 +43,7 @@ function EditJobFormContent({ job, priceVisible = false, priceCents = null }: Ed
   useEffect(() => {
     if (!role) return;
     let cancelled = false;
-    void listFieldTechnicians()
+    void fetchAssignableMembers(role)
       .then((profiles) => {
         if (!cancelled) setTechnicianProfiles(profiles);
       })

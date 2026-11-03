@@ -1,4 +1,5 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { requestJson } from "@/lib/api/client";
 import type { AppRole } from "@/services/authorization";
 
 const APP_ROLES = new Set<AppRole>([
@@ -15,7 +16,7 @@ function isAppRole(value: unknown): value is AppRole {
   return typeof value === "string" && APP_ROLES.has(value as AppRole);
 }
 
-export interface TechnicianProfile {
+export interface AssignableMember {
   id: string;
   name: string;
 }
@@ -29,18 +30,25 @@ function displayName(row: { full_name?: string | null; email?: string | null }):
   return (row.full_name ?? "").trim() || (row.email ?? "").trim() || "Team member";
 }
 
-/** Technicians the job form can assign. */
-export async function listFieldTechnicians(): Promise<TechnicianProfile[]> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("user_profiles")
-    .select("id, full_name, email")
-    .eq("app_role", "tech");
-  if (error) return [];
-  return ((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>)
-    .map((profile) => ({ id: profile.id, name: displayName(profile) }))
-    .sort((left, right) => left.name.localeCompare(right.name));
+/**
+ * People the job assignee picker can offer.
+ *
+ * Sourced from GET /api/assignable-people, which returns active org members
+ * with a profile (the owner included) and excludes deactivated / auth-banned
+ * accounts and the external portal role. Ban state lives on auth.users, which
+ * a browser query cannot read, so sourcing must go through the API rather than
+ * a direct user_profiles select.
+ */
+export async function fetchAssignableMembers(role?: string | null): Promise<AssignableMember[]> {
+  try {
+    const { people } = await requestJson<{ people: AssignableMember[] }>(
+      "/api/assignable-people",
+      { role, cache: "no-store" },
+    );
+    return people ?? [];
+  } catch {
+    return [];
+  }
 }
 
 /** The signed-in person's own profile row. */

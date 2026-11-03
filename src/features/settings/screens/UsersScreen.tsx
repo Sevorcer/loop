@@ -11,7 +11,7 @@
  * - Trigger password reset emails
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { UserPlus, MoreHorizontal, Mail, Pencil, Power, PowerOff, RefreshCw } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas/PageHeader";
@@ -113,6 +113,19 @@ function formatLastLogin(lastSignInAt: string | null): string {
   } catch {
     return "—";
   }
+}
+
+/**
+ * The member's display name. Falls back to the email when the profile has no
+ * full_name (auth-only accounts such as deactivated shared logins have a
+ * profile row but no name), and only to "No name" when neither is set.
+ */
+function displayMemberName(user: OrgUser): ReactNode {
+  const name = user.fullName?.trim();
+  if (name) return name;
+  const email = user.email?.trim();
+  if (email) return email;
+  return <span className="text-slate-500">No name</span>;
 }
 
 function getUserInitials(user: OrgUser): string {
@@ -274,7 +287,7 @@ export function UsersScreen() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="break-words text-sm font-medium text-slate-200">
-                        {user.fullName ?? <span className="text-slate-500">No name</span>}
+                        {displayMemberName(user)}
                       </p>
                       <p className="break-all text-xs text-slate-500">{user.email || "—"}</p>
                     </div>
@@ -336,9 +349,7 @@ export function UsersScreen() {
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-slate-200">
-                              {user.fullName ?? (
-                                <span className="text-slate-500">No name</span>
-                              )}
+                              {displayMemberName(user)}
                             </p>
                             <p className="truncate text-xs text-slate-500">
                               {user.email || "—"}
