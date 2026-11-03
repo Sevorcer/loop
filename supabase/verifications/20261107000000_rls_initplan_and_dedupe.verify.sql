@@ -226,24 +226,97 @@ END $$;
 
 -- ============================================================================
 -- (B) Initplan rewrite complete: every current_app_role()/current_org_id()/auth.uid()
---     call in a public policy is wrapped as (select ...). Proven by: the number of
---     bare `fn()` occurrences equals the number of `(select fn())` occurrences.
+--     call in a public policy is wrapped in a scalar subquery -> (select fn()).
+--
+--     DEPARSE-AWARE. pg_policies.qual / .with_check are produced by pg_get_expr,
+--     which RE-DEPARSES the stored node tree rather than echoing the DDL text.
+--     A wrapped call written in the migration as "(select current_app_role())"
+--     is deparsed by Postgres as, literally:
+--
+--         ( SELECT current_app_role() AS current_app_role)
+--
+--     i.e. a space after "(", an UPPERCASE "SELECT", and the scalar subquery's
+--     implicit output-column ALIAS appended (" AS <col>"). The alias is the
+--     function's result column name — the UNQUALIFIED function name — so:
+--         current_app_role()  -> ( SELECT current_app_role() AS current_app_role)
+--         current_org_id()    -> ( SELECT current_org_id()   AS current_org_id)
+--         auth.uid()          -> ( SELECT auth.uid()         AS uid)
+--     The old check counted the literal lowercase "(select fn())" (0 matches on
+--     the deparsed text) against bare "fn()" (every call still contains that
+--     substring), so bare<>wrapped always fired even though the wrap is present.
+--
+--     The matcher below is therefore written against how Postgres ACTUALLY
+--     deparses, not against the DDL spelling:
+--       1. normalize: lowercase + collapse every whitespace run to one space, so
+--          "( SELECT current_app_role() AS current_app_role)" becomes
+--          "( select current_app_role() as current_app_role)".
+--       2. total   = occurrences of the call token  "fn()".
+--          (the appended alias " as current_app_role)" has no "()" and is NOT
+--           counted — only genuine call sites with parentheses are.)
+--       3. wrapped = occurrences of "select fn()" (a call immediately preceded,
+--          ignoring whitespace/case, by the SELECT of its wrapping subquery).
+--       4. bare = total - wrapped. A genuinely BARE (non-subquery) call is one
+--          that is NOT preceded by SELECT, so bare > 0 <=> an unwrapped call
+--          exists -> RAISE. This still catches any regression that drops the
+--          wrap, while passing on the current correctly-wrapped live state.
+--
+--     A read-only SELF-TEST (synthetic deparsed strings, no DDL — honours the
+--     read-only verification convention in README.md) is folded into the same
+--     loop to PROVE the matcher flags bare calls and passes wrapped ones.
 -- ============================================================================
 DO $$
-DECLARE p record; fn text; expr text; bare int; wrapped int;
+DECLARE
+  rec record;
+  fn text; calltok text; wraptok text; norm text;
+  total int; wrapped int; bare int;
 BEGIN
-  FOR p IN SELECT tablename, policyname, qual, with_check FROM pg_policies WHERE schemaname='public' LOOP
+  FOR rec IN
+    -- real public policies (qual and with_check scanned as separate rows)
+    SELECT tablename::text AS tablename, policyname::text AS policyname,
+           qual AS expr, false AS synthetic, NULL::boolean AS expect_bare
+      FROM pg_policies WHERE schemaname='public'
+    UNION ALL
+    SELECT tablename::text, policyname::text,
+           with_check AS expr, false, NULL::boolean
+      FROM pg_policies WHERE schemaname='public'
+    UNION ALL
+    -- self-test: WRAPPED deparse forms must NOT be flagged (expect_bare=false) ...
+    SELECT * FROM (VALUES
+      ('__selftest__', 'wrapped_app_role',
+         '(( SELECT current_app_role() AS current_app_role) = ''tech''::text)', true, false),
+      ('__selftest__', 'wrapped_org_id',
+         '(org_id = ( SELECT current_org_id() AS current_org_id))', true, false),
+      ('__selftest__', 'wrapped_auth_uid',
+         '(user_id = ( SELECT auth.uid() AS uid))', true, false),
+      -- ... and BARE forms MUST be flagged (expect_bare=true).
+      ('__selftest__', 'bare_app_role',
+         '((current_app_role() = ''tech''::text))', true, true),
+      ('__selftest__', 'bare_org_id',
+         '(org_id = current_org_id())', true, true),
+      ('__selftest__', 'bare_auth_uid',
+         '(user_id = auth.uid())', true, true)
+    ) AS s(tablename, policyname, expr, synthetic, expect_bare)
+  LOOP
     FOREACH fn IN ARRAY ARRAY['current_app_role()','current_org_id()','auth.uid()'] LOOP
-      FOREACH expr IN ARRAY ARRAY[coalesce(p.qual,''), coalesce(p.with_check,'')] LOOP
-        bare := (length(expr) - length(replace(expr, fn, ''))) / length(fn);
-        wrapped := (length(expr) - length(replace(expr, '(select ' || fn || ')', ''))) / length('(select ' || fn || ')');
-        IF bare <> wrapped THEN
-          RAISE EXCEPTION 'UNWRAPPED % in %.% (bare=%, wrapped=%)', fn, p.tablename, p.policyname, bare, wrapped;
+      norm    := lower(regexp_replace(coalesce(rec.expr,''), '\s+', ' ', 'g'));
+      calltok := lower(fn);               -- e.g. "current_app_role()"
+      wraptok := 'select ' || lower(fn);  -- e.g. "select current_app_role()"
+      total   := (length(norm) - length(replace(norm, calltok, ''))) / length(calltok);
+      wrapped := (length(norm) - length(replace(norm, wraptok, ''))) / length(wraptok);
+      bare    := total - wrapped;
+      IF rec.synthetic THEN
+        -- only assert the function the synthetic row actually exercises (total>0)
+        IF total > 0 AND (bare > 0) <> rec.expect_bare THEN
+          RAISE EXCEPTION 'SECTION (B) SELF-TEST FAILED: matcher for % on row % gave bare=% (total=%, wrapped=%), expected bare-present=%',
+            fn, rec.policyname, bare, total, wrapped, rec.expect_bare;
         END IF;
-      END LOOP;
+      ELSIF bare > 0 THEN
+        RAISE EXCEPTION 'UNWRAPPED % in %.% (bare=%, total=%, wrapped=%): deparsed qual/with_check carries a non-subquery (bare) call',
+          fn, rec.tablename, rec.policyname, bare, total, wrapped;
+      END IF;
     END LOOP;
   END LOOP;
-  RAISE NOTICE 'Initplan rewrite complete: all public-policy auth/org/role calls are wrapped.';
+  RAISE NOTICE 'Initplan rewrite complete: all public-policy auth/org/role calls are wrapped (deparse-aware matcher self-test passed).';
 END $$;
 
 -- ============================================================================
