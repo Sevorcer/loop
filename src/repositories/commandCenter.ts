@@ -4,6 +4,7 @@ import type { Job } from "@/features/jobs/types/job";
 import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
 import type { CommandCenterSnapshot } from "@/features/command-center/types/commandCenter";
 import { getStatusVariants } from "@/lib/jobs/status";
+import { todayInCompanyTimeZone } from "@/lib/timezone";
 import {
   computeKPIs,
   aggregatePersonWorkload,
@@ -13,14 +14,6 @@ import {
 
 import { getRepositoryContext } from "./supabaseContext";
 import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 // ---------------------------------------------------------------------------
 // Row shape (re-uses the same fields as jobs repository)
@@ -143,7 +136,10 @@ function mapDispatchPlanRow(row: DispatchPlanRow): DispatchPlan {
  */
 export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot> {
   const { supabase, orgId } = await getRepositoryContext();
-  const today = todayISO();
+  // "Today" is the company's wall-clock day, not UTC. A UTC "today" flipped the
+  // day early after ~4–5 PM Pacific, so scheduled/late/completed-today reads
+  // jumped to tomorrow. Matches Calendar/Dispatch/JobTable's company timezone.
+  const today = todayInCompanyTimeZone();
   const inProgressStatuses = getStatusVariants(["In Progress"]);
   const onHoldStatuses = getStatusVariants(["On Hold"]);
   const completedStatuses = getStatusVariants(["Completed"]);
@@ -357,7 +353,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
  * unavailable or returns an error. Ensures the screen always renders.
  */
 export function getEmptyCommandCenterSnapshot(): CommandCenterSnapshot {
-  const today = todayISO();
+  const today = todayInCompanyTimeZone();
   return {
     today,
     scheduledToday: [],

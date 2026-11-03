@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getStatusVariants } from "@/lib/jobs/status";
+import { todayInCompanyTimeZone } from "@/lib/timezone";
 
 import { getRepositoryContext } from "./supabaseContext";
 import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
@@ -36,10 +37,6 @@ export interface DashboardSummary {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function firstDayOfMonthISO(): string {
   const d = new Date();
   d.setDate(1);
@@ -59,7 +56,11 @@ function firstDayOfMonthISO(): string {
  */
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const { supabase, orgId } = await getRepositoryContext();
-  const today = todayISO();
+  // "Today" must be the company's wall-clock day, not UTC. Computing it in UTC
+  // flipped the day early after ~4–5 PM Pacific, so "scheduled/completed today"
+  // tiles jumped to tomorrow's date. Matches Calendar/Dispatch/JobTable, which
+  // already use the company timezone.
+  const today = todayInCompanyTimeZone();
   const monthStart = firstDayOfMonthISO();
 
   // Run all counts in parallel for a single-roundtrip feel.
