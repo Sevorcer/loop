@@ -8,8 +8,8 @@ import { alignDispatchSnapshotWithJobs } from "@/features/dispatch/utils/alignDi
 import { assembleDispatchSnapshot } from "@/features/dispatch/utils/dispatchUtils";
 import { listCalendarTeam, listTimeOff } from "@/repositories/calendarEntries";
 import {
+  loadBoardDispatchSnapshot,
   loadDispatchJobContext,
-  loadDispatchSnapshot,
 } from "@/services/dispatch";
 
 const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
@@ -32,10 +32,13 @@ const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
 
 export default async function DispatchPage() {
   await redirectTechFromOfficePath(ROUTES.DISPATCH);
+  // The board reads the windowed snapshot (active plans of any date plus
+  // the last 7 days of completions) — the full history made this page load
+  // thousands of completed plans it never displays.
   // The job context is scoped to the jobs the snapshot's plans point at,
   // so it loads after the snapshot rather than in parallel with it.
   const [snapshot, people, timeOff] = await Promise.all([
-    loadDispatchSnapshot().catch(() => null),
+    loadBoardDispatchSnapshot().catch(() => null),
     listCalendarTeam().catch(() => []),
     listTimeOff().catch(() => []),
   ]);
