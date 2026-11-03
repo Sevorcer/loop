@@ -881,11 +881,14 @@ export async function getJobCompletionChecklist(
   }
 
   const qaChecklist = parseLatestQaChecklist(activity);
+  // A non-signature image uploaded by ANY signed-in org member satisfies the
+  // Full closeout photo gate (decision 2026-11-03 — was tech-only). Customer
+  // signatures still never count (#297): the 'job-signatures' bucket is a file
+  // but not a job photo, so isSignatureFile excludes it.
   const photosUploaded = files.some(
     (file) =>
       !isSignatureFile(file) &&
-      file.mimeType.toLowerCase().startsWith("image/") &&
-      file.uploaderRole === "tech",
+      file.mimeType.toLowerCase().startsWith("image/"),
   );
   const installedSystemsEntered = snapshot.installedSystems.some(
     (system) => system.jobId === jobId || system.linkedWorkflowIds.includes(jobId),

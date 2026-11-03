@@ -127,6 +127,16 @@ const TECH_PHOTO_FILE = {
   uploaderRole: "tech",
 };
 
+// As of 2026-11-03 the photo gate is role-agnostic: a non-signature image from
+// any signed-in org member counts, not only a technician.
+const OFFICE_PHOTO_FILE = {
+  id: "file-office-photo",
+  bucket: "job-files",
+  fileName: "install-complete.jpg",
+  mimeType: "image/jpeg",
+  uploaderRole: "office",
+};
+
 const COMPLETE_QA_ACTIVITY = [
   {
     id: "qa-1",
@@ -198,6 +208,18 @@ describe("signature files and the closeout photo gate", () => {
   it("a real tech-uploaded photo still satisfies the photo gate", async () => {
     getJobByIdMock.mockResolvedValue(makeJob());
     listFilesMock.mockResolvedValue([TECH_PHOTO_FILE]);
+    satisfySystemsAndQa();
+
+    const checklist = await getJobCompletionChecklist("job-001", "office");
+
+    expect(checklist.photosUploaded).toBe(true);
+    expect(checklist.canComplete).toBe(true);
+  });
+
+  it("a non-signature image from a non-tech uploader (office) satisfies the photo gate", async () => {
+    // Role-agnostic as of 2026-11-03: any signed-in org member's photo counts.
+    getJobByIdMock.mockResolvedValue(makeJob());
+    listFilesMock.mockResolvedValue([OFFICE_PHOTO_FILE]);
     satisfySystemsAndQa();
 
     const checklist = await getJobCompletionChecklist("job-001", "office");
