@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Briefcase,
@@ -172,7 +171,6 @@ export function JobDetailScreen({
   priceVisible = false,
   priceCents = null,
 }: JobDetailScreenProps) {
-  const router = useRouter();
   const { role } = useCurrentRole();
   const isTech = role === "tech";
   const { getInstalledSystemsForJob } = useInstalledSystems();
@@ -292,16 +290,25 @@ export function JobDetailScreen({
     // inset. Pad past both so the last block can scroll clear of it.
     <div className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0">
       <div className="flex items-center justify-between gap-4">
-        <Button
-          variant="ghost"
-          className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
-          onClick={() => {
-            router.push("/jobs");
-          }}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Jobs
-        </Button>
+        {/*
+         * Stopgap: plain <a>, not router.push, same reason as Edit Job (#324).
+         * Soft navigation OUT of /jobs/[id] never commits — the router starts
+         * the transition but it never lands — so router.push("/jobs") here was
+         * a silent no-op and users got stuck on the job page. A plain anchor is
+         * not intercepted by the App Router and does a real browser navigation.
+         * The proper fix (loading.tsx/error.tsx Suspense boundary on jobs/[id],
+         * PR #325) should let soft nav commit again and retire this workaround.
+         */}
+        <a href="/jobs" data-testid="back-to-jobs-link">
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Jobs
+          </Button>
+        </a>
 
         {isTech ? null : (
           <PermissionGuard table="jobs" action="update">
