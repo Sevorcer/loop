@@ -13,9 +13,43 @@ import {
   jobNoteByline,
   jobNoteRoleLabel,
   legacyNoteFallback,
+  mergePendingJobNotes,
   noteBodiesToAppend,
   sortJobNotesNewestFirst,
 } from "@/features/jobs/utils/jobNotes";
+
+function makeNote(overrides: Partial<JobNote> & { id: string; body: string }): JobNote {
+  return {
+    jobId: "job-1",
+    authorId: null,
+    authorName: "You",
+    authorRole: "owner",
+    createdAt: "2026-11-03T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("mergePendingJobNotes", () => {
+  const server = [makeNote({ id: "note-1", body: "Old unit removed." })];
+
+  it("returns the server list unchanged when nothing is pending", () => {
+    expect(mergePendingJobNotes(server, [])).toBe(server);
+  });
+
+  it("shows an optimistic note the server list does not carry yet", () => {
+    const pending = [makeNote({ id: "optimistic-1", body: "New unit on the curb." })];
+    const merged = mergePendingJobNotes(server, pending);
+    expect(merged).toHaveLength(2);
+    expect(merged.map((note) => note.body)).toContain("New unit on the curb.");
+  });
+
+  it("drops the optimistic copy once the server list carries the same body (no duplicate after refresh)", () => {
+    const pending = [makeNote({ id: "optimistic-1", body: "Old unit removed." })];
+    const merged = mergePendingJobNotes(server, pending);
+    expect(merged).toBe(server);
+    expect(merged).toHaveLength(1);
+  });
+});
 
 describe("job note history", () => {
   it("uses a note-specific confirmation, not the QA checklist title", () => {

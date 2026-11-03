@@ -385,3 +385,76 @@ describe("JobDetailScreen tabs", () => {
     expect(panel(container, "systems")?.classList.contains("hidden")).toBe(false);
   });
 });
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(input),
+    "value",
+  )?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+describe("JobTasksCard add item (B3 — mouse users can add, not only Enter)", () => {
+  it("submitting the checklist field posts a new item for mouse users", async () => {
+    // POST returns the created task so the optimistic insert has a valid row.
+    requestJson.mockImplementation(async (url: string, options?: { method?: string }) => {
+      if (url.includes("completion-checklist")) return { checklist: ALL_MISSING };
+      if (url.endsWith("/files")) return { files: FILES };
+      if (url.includes("/signatures")) return { signatures: [] };
+      if (url.endsWith("/tasks")) {
+        if (options?.method === "POST") {
+          return {
+            task: {
+              id: "task-new",
+              jobId: "job-1",
+              label: "Pull the permit",
+              isDone: false,
+              section: "field",
+              sortOrder: 99,
+              createdAt: "2026-11-03T00:00:00.000Z",
+              updatedAt: "2026-11-03T00:00:00.000Z",
+              completedAt: null,
+              completedBy: null,
+            },
+          };
+        }
+        return { tasks: TASKS };
+      }
+      return {};
+    });
+
+    const container = await renderScreen();
+    await click(
+      container.querySelector<HTMLButtonElement>("#job-detail-tab-desktop-tasks") ?? undefined,
+    );
+
+    const tasksPanel = panel(container, "tasks")!;
+    const input = tasksPanel.querySelector<HTMLInputElement>('input[type="text"]');
+    expect(input, "expected the checklist field input").toBeTruthy();
+
+    await act(async () => {
+      setInputValue(input!, "Pull the permit");
+    });
+
+    // The Add button is the submit control inside the field's own form — click
+    // it the way a mouse user would, not via the Enter key on the input.
+    const form = input!.closest("form");
+    const addButton = form?.querySelector<HTMLButtonElement>('button[type="submit"]') ?? undefined;
+    expect(addButton?.textContent).toContain("Add");
+    expect(addButton?.disabled).toBe(false);
+    await click(addButton);
+
+    const postCall = requestJson.mock.calls.find(
+      ([url, options]) =>
+        typeof url === "string" &&
+        url.endsWith("/tasks") &&
+        (options as { method?: string } | undefined)?.method === "POST",
+    );
+    expect(postCall, "expected a POST to /tasks when the Add button is clicked").toBeTruthy();
+    expect((postCall?.[1] as { body?: { label?: string; section?: string } }).body).toMatchObject({
+      label: "Pull the permit",
+      section: "field",
+    });
+  });
+});
