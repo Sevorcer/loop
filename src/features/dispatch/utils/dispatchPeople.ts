@@ -97,6 +97,34 @@ export function teamLabelForPeople(people: readonly { name: string }[]): string 
   return formatTeamLabel(people.map((person) => person.name));
 }
 
+export type PlanPeopleDisplay =
+  | { kind: "people"; label: string }
+  | { kind: "assigneeLabel"; label: string }
+  | { kind: "empty" };
+
+/**
+ * What a dispatch card's people header shows. User-linked people win. When
+ * the only names resolved came from the job's free-text assignee label
+ * itself — imported jobs whose crew has no LOOP accounts — the card shows
+ * that label as plain text rather than dressing the names up as chips.
+ * With neither, the card keeps its "No one assigned" empty state.
+ */
+export function planPeopleDisplay(
+  people: readonly DispatchAssignee[],
+  assigneeLabel?: string | null,
+): PlanPeopleDisplay {
+  const label = teamLabelForPeople(people);
+  const fallback = assigneeLabel?.trim() ?? "";
+  const hasLinkedPerson = people.some((person) => !isLegacyAssignee(person));
+  if (label && (hasLinkedPerson || !fallback)) {
+    return { kind: "people", label };
+  }
+  if (fallback) {
+    return { kind: "assigneeLabel", label: fallback };
+  }
+  return { kind: "empty" };
+}
+
 export function addDispatchPerson(
   people: readonly DispatchAssignee[],
   person: DispatchPerson,

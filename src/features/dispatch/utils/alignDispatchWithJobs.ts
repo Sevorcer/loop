@@ -116,6 +116,17 @@ export function alignDispatchSnapshotWithJobs(
     } else if (!next.assignedTechNames?.length && job.assignedTo?.trim()) {
       next.assignedTechNames = job.assignedTo.split(",").map((name) => name.trim()).filter(Boolean);
     }
+    // Imported jobs can carry their people only as the job's free-text
+    // assignee label — the named people have no LOOP account, so there are
+    // no job assignees and no crew assignment for them. Carry the label on
+    // the plan so the board card can show it as plain text instead of
+    // claiming no one is assigned. User-linked people always win: when a
+    // job assignee or a crew assignment exists, the label stays off.
+    const hasLinkedPeople =
+      (job.assignees ?? []).some((person) => person.id && person.name.trim()) ||
+      Boolean(assignment);
+    next.assigneeLabel =
+      !hasLinkedPeople && job.assignedTo?.trim() ? job.assignedTo.trim() : undefined;
     return next;
   });
 

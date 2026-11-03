@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { Crew, CrewAssignment } from "../types/dispatch";
+import type { Crew, CrewAssignment, DispatchAssignee } from "../types/dispatch";
 import {
   addDispatchPerson,
   canAssignDispatchPeople,
+  legacyPersonId,
   moveDispatchPerson,
   persistedAssigneeIds,
+  planPeopleDisplay,
   removeDispatchPerson,
   replaceDispatchPerson,
   resolvePlanPeople,
@@ -116,5 +118,53 @@ describe("time off and roles", () => {
     expect(canAssignDispatchPeople("tech")).toBe(false);
     expect(canAssignDispatchPeople("sales")).toBe(false);
     expect(canAssignDispatchPeople(null)).toBe(false);
+  });
+});
+
+describe("planPeopleDisplay", () => {
+  const legacyCasey: DispatchAssignee = {
+    id: legacyPersonId("Casey Belson"),
+    name: "Casey Belson",
+    legacy: true,
+  };
+  const legacyNate: DispatchAssignee = {
+    id: legacyPersonId("Nate Carver"),
+    name: "Nate Carver",
+    legacy: true,
+  };
+
+  it("shows user-linked people when they exist, with or without a label", () => {
+    expect(planPeopleDisplay([brian], null)).toEqual({ kind: "people", label: "Brian Ramirez" });
+    expect(planPeopleDisplay([brian], "Casey Belson")).toEqual({
+      kind: "people",
+      label: "Brian Ramirez",
+    });
+  });
+
+  it("falls back to the job's assignee label when nobody is user-linked", () => {
+    expect(planPeopleDisplay([], "Casey Belson")).toEqual({
+      kind: "assigneeLabel",
+      label: "Casey Belson",
+    });
+  });
+
+  it("shows the raw label, not a re-sorted team label, when the resolved names came from the label itself", () => {
+    expect(planPeopleDisplay([legacyNate, legacyCasey], "Nate Carver + Casey Belson")).toEqual({
+      kind: "assigneeLabel",
+      label: "Nate Carver + Casey Belson",
+    });
+  });
+
+  it("keeps legacy crew names as people when there is no label fallback", () => {
+    expect(planPeopleDisplay([legacyCasey], null)).toEqual({
+      kind: "people",
+      label: "Casey Belson",
+    });
+  });
+
+  it("keeps the empty state when there are no people and no label", () => {
+    expect(planPeopleDisplay([], null)).toEqual({ kind: "empty" });
+    expect(planPeopleDisplay([], "  ")).toEqual({ kind: "empty" });
+    expect(planPeopleDisplay([], undefined)).toEqual({ kind: "empty" });
   });
 });

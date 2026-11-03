@@ -112,6 +112,14 @@ export interface DispatchPlan {
   jobNumber: string;
   /** Job title from the jobs table (enriched at snapshot load). */
   jobTitle?: string; assignedTechNames?: string[];
+  /**
+   * Display-only fallback: the job's free-text assignee label (e.g. an
+   * imported Service Fusion name with no LOOP account). Set by board
+   * alignment only when the plan has no user-linked people to show, so
+   * the card can display the name as plain text instead of claiming no
+   * one is assigned. Never persisted.
+   */
+  assigneeLabel?: string | null;
   customerName: string;
   propertyName: string;
   jobType: string;
