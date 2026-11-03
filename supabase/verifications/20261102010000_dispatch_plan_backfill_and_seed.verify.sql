@@ -60,14 +60,14 @@ FROM public.jobs j
 GROUP BY 1, 2
 ORDER BY 1, 2;
 
--- Timezone derivation check: seed target_date must equal the job's start
--- day in America/Los_Angeles on every row.
-SELECT j.job_number,
-       j.scheduled_start_at,
-       (j.scheduled_start_at AT TIME ZONE 'America/Los_Angeles')::date AS expected_date,
-       private.dispatch_plan_seed_for_job(j) ->> 'target_date' AS seed_date
-FROM public.jobs j
-WHERE j.scheduled_start_at IS NOT NULL
-  AND private.dispatch_plan_seed_for_job(j) ->> 'target_date'
-      IS DISTINCT FROM (j.scheduled_start_at AT TIME ZONE 'America/Los_Angeles')::date::text;
--- Expected: 0 rows (any row returned is a timezone mismatch).
+-- Timezone derivation gate: seed target_date must equal the job's start
+-- day in America/Los_Angeles on every row. Asserted (not just printed), so
+-- a timezone regression actually fails this verification.
+DO $$ BEGIN
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM public.jobs j
+    WHERE j.scheduled_start_at IS NOT NULL
+      AND private.dispatch_plan_seed_for_job(j) ->> 'target_date'
+          IS DISTINCT FROM (j.scheduled_start_at AT TIME ZONE 'America/Los_Angeles')::date::text
+  ), 'seed target_date must match the America/Los_Angeles start day for every job';
+END $$;
