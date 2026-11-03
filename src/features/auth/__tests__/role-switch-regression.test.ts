@@ -105,9 +105,12 @@ describe("action button availability — Edit Job (jobs.update)", () => {
     expect(hasPermission("tech", "jobs", "update")).toBe(true);
   });
 
-  it("office and sales cannot update jobs", () => {
-    expect(hasPermission("office", "jobs", "update")).toBe(false);
-    expect(hasPermission("sales", "jobs", "update")).toBe(false);
+  it("office can update jobs (B4 — office job-edit control)", () => {
+    expect(hasPermission("office", "jobs", "update")).toBe(true);
+  });
+  
+    it("sales cannot update jobs", () => {
+      expect(hasPermission("sales", "jobs", "update")).toBe(false);
   });
 });
 
