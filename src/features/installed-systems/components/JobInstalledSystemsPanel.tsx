@@ -7,8 +7,9 @@ import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTES } from "@/lib/routes";
 
-import { useEffect, useMemo, useRef, useState } from "react"; import { useRouter } from "next/navigation"; import { actorDisplayName } from "@/lib/actors"; import { loadProfileNames } from "@/services/profileDirectory"; import { useInstalledSystems } from "../state/InstalledSystemsProvider";
+import { useEffect, useMemo, useRef, useState } from "react"; import { actorDisplayName } from "@/lib/actors"; import { loadProfileNames } from "@/services/profileDirectory"; import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import type { InstalledSystem } from "../types/installedSystem";
+import { AddSystemDialog } from "./AddSystemDialog";
 
 function getMatchVariant(system: InstalledSystem) {
   if (system.matchState === "exact") return "success" as const;
@@ -40,9 +41,9 @@ export function JobInstalledSystemsPanel({
   propertyName,
   onCountChange,
 }: JobInstalledSystemsPanelProps) {
-  const router = useRouter();
   const { getInstalledSystemsForJob, getTechnicalProfileById } =
     useInstalledSystems();
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const systems = getInstalledSystemsForJob(jobId, propertyId);
   const countCallbackRef = useRef(onCountChange);
@@ -53,16 +54,8 @@ export function JobInstalledSystemsPanel({
     countCallbackRef.current?.(systems.length);
   }, [systems.length]);    const technicalIdentityIds = useMemo(     () =>       Array.from(         new Set(           systems             .map((system) => system.technicalIdentityId)             .filter((value): value is string => Boolean(value)),         ),       ),     [systems],   );   const [identityNames, setIdentityNames] = useState<Record<string, string>>({});    useEffect(() => {     let cancelled = false;     async function loadIdentityNames() {       if (technicalIdentityIds.length === 0) {         if (!cancelled) setIdentityNames({});         return;       }       try {         const next = await loadProfileNames(technicalIdentityIds);         if (!cancelled) setIdentityNames(next);       } catch {         if (!cancelled) setIdentityNames({});       }     }     void loadIdentityNames();     return () => {       cancelled = true;     };   }, [technicalIdentityIds]);    function technicalIdentityLabel(technicalIdentityId: string | null | undefined): string {     if (!technicalIdentityId) return "a team member";     const direct = actorDisplayName(technicalIdentityId);     if (direct) return direct;     return identityNames[technicalIdentityId] ?? "a team member";   }
 
-  const addSystemParams = new URLSearchParams({
-    ...(jobId ? { jobId } : {}),
-    ...(jobNumber ? { jobNumber } : {}),
-    ...(propertyId ? { propertyId } : {}),
-    ...(customerName ? { customerName } : {}),
-    ...(propertyName ? { propertyName } : {}),
-  });
-  const addSystemHref = `${ROUTES.INSTALLED_SYSTEMS}/new?${addSystemParams.toString()}`;
-
   return (
+    <>
     <SurfaceCard>
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-start justify-between gap-3">
@@ -86,9 +79,7 @@ export function JobInstalledSystemsPanel({
           <PermissionGuard table="installed_systems" action="insert">
             <button
               type="button"
-              onClick={() => {
-                router.push(addSystemHref);
-              }}
+              onClick={() => setIsAddOpen(true)}
               className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
             >
               <PlusCircle className="h-4 w-4" />
@@ -210,6 +201,20 @@ export function JobInstalledSystemsPanel({
         </div>
       ) : null}
     </SurfaceCard>
+
+      {isAddOpen ? (
+        <AddSystemDialog
+          context={{ jobId, jobNumber, propertyId, customerName, propertyName }}
+          onClose={() => setIsAddOpen(false)}
+          onCreated={() => {
+            // The installed-systems provider was refreshed inside the form, so
+            // the new record is already in context; just close the dialog. The
+            // panel re-renders with it and the closeout gate clears in place.
+            setIsAddOpen(false);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 

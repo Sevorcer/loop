@@ -241,3 +241,68 @@ describe("POST /api/installed-systems — required field validation", () => {
     expect(response.status).toBe(201);
   });
 });
+
+// ─── POST /api/installed-systems — create-and-link from the job Systems tab ───
+// The "Add System" dialog on a job reuses this exact create path, passing the
+// job context so the new record is linked to the job via installed_systems.job_id.
+
+describe("POST /api/installed-systems — create and link to job", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createInstalledSystemMock.mockResolvedValue({ id: "sys-linked", ...validBody() });
+  });
+
+  it("links the created system to the job (job_id) through the existing service", async () => {
+    const body = {
+      ...validBody(),
+      jobId: "job-123",
+      jobNumber: "J-1001",
+      propertyId: "prop-9",
+    };
+
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "owner", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+    const json = (await response.json()) as { installedSystem: { id: string } };
+
+    expect(response.status).toBe(201);
+    expect(json.installedSystem.id).toBe("sys-linked");
+    // jobId/jobNumber/propertyId flow straight into the create service, which
+    // persists job_id — this is what clears the job's closeout "Installed
+    // systems" gate once a system is linked.
+    expect(createInstalledSystemMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: "job-123",
+        jobNumber: "J-1001",
+        propertyId: "prop-9",
+      }),
+    );
+  });
+
+  it("S2: never registers the warranty on create, even if the body tries", async () => {
+    const body = {
+      ...validBody(),
+      jobId: "job-123",
+      warrantyRegistered: true,
+      warranty_registered: true,
+      warrantyRegisteredBy: "tech-1",
+    };
+
+    const response = await postInstalledSystem(
+      new Request("http://localhost/api/installed-systems", {
+        method: "POST",
+        headers: { "x-loop-role": "owner", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(createInstalledSystemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ warrantyRegistered: false }),
+    );
+  });
+});
