@@ -6,6 +6,8 @@ import {
   EMPTY_SYSTEM_FILTER,
   filterInstalledSystems,
   getEstimateEquipmentBundle,
+  paginateInstalledSystems,
+  SYSTEMS_PAGE_SIZE,
 } from "../utils/installedSystemsUtils";
 import type { InstalledSystem } from "../types/installedSystem";
 
@@ -272,5 +274,57 @@ describe("filterInstalledSystems", () => {
     expect(
       filterInstalledSystems(systems, { query: "  trane  ", lifecycle: "all" }).map((s) => s.id)
     ).toEqual(["s1"]);
+  });
+});
+
+// ─── paginateInstalledSystems ──────────────────────────────────────────────
+
+describe("paginateInstalledSystems", () => {
+  // A large list (> 1,000) guards against ever rendering the whole result set
+  // at once — the unbounded render that hung the tab on scroll.
+  const many = Array.from({ length: 2778 }, (_, index) =>
+    makeSystem({ id: `sys-${String(index).padStart(4, "0")}` }),
+  );
+
+  it("returns only one page worth of items, never the whole list", () => {
+    const result = paginateInstalledSystems(many, 1);
+
+    expect(result.items).toHaveLength(SYSTEMS_PAGE_SIZE);
+    expect(result.total).toBe(2778);
+    expect(result.page).toBe(1);
+    expect(result.pageCount).toBe(Math.ceil(2778 / SYSTEMS_PAGE_SIZE));
+    expect(result.items[0].id).toBe("sys-0000");
+  });
+
+  it("returns a disjoint slice for a later page", () => {
+    const pageSize = 10;
+    const page1 = paginateInstalledSystems(many, 1, pageSize);
+    const page2 = paginateInstalledSystems(many, 2, pageSize);
+
+    expect(page1.items.map((s) => s.id)).toEqual(
+      many.slice(0, 10).map((s) => s.id),
+    );
+    expect(page2.items.map((s) => s.id)).toEqual(
+      many.slice(10, 20).map((s) => s.id),
+    );
+    const page1Ids = new Set(page1.items.map((s) => s.id));
+    expect(page2.items.every((s) => !page1Ids.has(s.id))).toBe(true);
+  });
+
+  it("clamps an out-of-range page into bounds instead of returning nothing", () => {
+    const result = paginateInstalledSystems(many, 9_999, 10);
+    expect(result.page).toBe(result.pageCount);
+    expect(result.items).toHaveLength(10);
+
+    const low = paginateInstalledSystems(many, 0, 10);
+    expect(low.page).toBe(1);
+  });
+
+  it("reports a single empty page for an empty list", () => {
+    const result = paginateInstalledSystems([], 1);
+    expect(result.items).toHaveLength(0);
+    expect(result.total).toBe(0);
+    expect(result.pageCount).toBe(1);
+    expect(result.page).toBe(1);
   });
 });

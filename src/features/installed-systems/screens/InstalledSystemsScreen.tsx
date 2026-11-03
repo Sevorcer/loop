@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Cpu, FileCheck2, Plus, ShieldAlert } from "lucide-react";
+import { Cpu, Plus, ShieldCheck, ShieldX, Timer } from "lucide-react";
 import Link from "next/link";
 
 import { PermissionGuard } from "@/components/atlas";
@@ -12,15 +12,13 @@ import { InstalledSystemsList } from "../components/InstalledSystemsList";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 
 export function InstalledSystemsScreen() {
-  const { installedSystems } = useInstalledSystems();
+  const { counts, loading, error } = useInstalledSystems();
 
-  const exactMatches = installedSystems.filter(
-    (system) => system.matchState === "exact"
-  ).length;
-  const permitReady = installedSystems.filter((system) => system.permitReady).length;
-  const needsReview = installedSystems.filter(
-    (system) => system.matchState !== "exact"
-  ).length;
+  // Tiles read exact, server-computed counts (never `.length` of a page that
+  // PostgREST may have capped at 1,000 rows). While loading, or after a failed
+  // load, show an em dash rather than a misleading "0".
+  const tileValue = (value: number) =>
+    error || loading ? "—" : value.toLocaleString();
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -44,21 +42,26 @@ export function InstalledSystemsScreen() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard
-              icon={CheckCircle2}
-              value={String(exactMatches)}
-              label="Exact catalog matches"
+              icon={Cpu}
+              value={tileValue(counts.total)}
+              label="Systems"
             />
             <MetricCard
-              icon={FileCheck2}
-              value={String(permitReady)}
-              label="Permit-ready systems"
+              icon={ShieldCheck}
+              value={tileValue(counts.activeWarranties)}
+              label="Active warranties"
             />
             <MetricCard
-              icon={ShieldAlert}
-              value={String(needsReview)}
-              label="Needs confirmation"
+              icon={Timer}
+              value={tileValue(counts.expiringSoon)}
+              label="Expiring soon"
+            />
+            <MetricCard
+              icon={ShieldX}
+              value={tileValue(counts.expired)}
+              label="Expired"
             />
           </div>
 
@@ -83,7 +86,7 @@ function MetricCard({
   value,
   label,
 }: {
-  icon: typeof CheckCircle2;
+  icon: typeof Cpu;
   value: string;
   label: string;
 }) {

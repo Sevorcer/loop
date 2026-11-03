@@ -386,6 +386,49 @@ export const EMPTY_SYSTEM_FILTER: InstalledSystemFilter = {
   lifecycle: "all",
 };
 
+/**
+ * Default number of system cards rendered per page. The list is paginated
+ * (not virtualized) so the DOM never holds thousands of heavy cards at once —
+ * the previous unbounded render of the whole (capped) result set is what hung
+ * the tab on scroll for large orgs.
+ */
+export const SYSTEMS_PAGE_SIZE = 25;
+
+export interface InstalledSystemsPage {
+  /** The slice of systems to render for the requested page. */
+  items: InstalledSystem[];
+  /** 1-based page actually returned (clamped into range). */
+  page: number;
+  /** Total number of pages for the given page size (at least 1). */
+  pageCount: number;
+  /** Total number of systems before paging. */
+  total: number;
+}
+
+/**
+ * Pure, 1-based pagination over an already-filtered list. Clamps out-of-range
+ * pages so a filter change that shrinks the list can never strand the viewer
+ * on an empty page.
+ */
+export function paginateInstalledSystems(
+  systems: InstalledSystem[],
+  page: number,
+  pageSize: number = SYSTEMS_PAGE_SIZE
+): InstalledSystemsPage {
+  const size = Math.max(1, Math.floor(pageSize));
+  const total = systems.length;
+  const pageCount = Math.max(1, Math.ceil(total / size));
+  const safePage = Math.min(Math.max(1, Math.floor(page) || 1), pageCount);
+  const from = (safePage - 1) * size;
+
+  return {
+    items: systems.slice(from, from + size),
+    page: safePage,
+    pageCount,
+    total,
+  };
+}
+
 export function filterInstalledSystems(
   systems: InstalledSystem[],
   filter: InstalledSystemFilter

@@ -168,3 +168,29 @@ export interface InstalledSystemsSnapshot {
   technicalProfiles: TechnicalProfile[];
   installedSystems: InstalledSystem[];
 }
+
+/**
+ * Number of days ahead of "today" a warranty must expire within to count as
+ * "expiring soon". A read-only classification window — it does NOT change any
+ * warranty write rule (techs still cannot register warranties; office marks a
+ * system registered).
+ */
+export const EXPIRING_SOON_WINDOW_DAYS = 30;
+
+/**
+ * Org-wide installed-systems tile counts, computed server-side with exact
+ * COUNT queries (never `.length` of a capped page). `warrantyExpiry` is a
+ * fixed `YYYY-MM-DD` string, so a lexicographic comparison against today's
+ * ISO date is equivalent to a calendar comparison.
+ *
+ * - activeWarranties: a non-empty expiry on or after today.
+ * - expiringSoon: a non-empty expiry within EXPIRING_SOON_WINDOW_DAYS from today
+ *   (a subset of activeWarranties).
+ * - expired: a non-empty expiry strictly before today.
+ */
+export interface InstalledSystemsCounts {
+  total: number;
+  activeWarranties: number;
+  expiringSoon: number;
+  expired: number;
+}
