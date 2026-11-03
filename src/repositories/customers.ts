@@ -3,7 +3,11 @@ import "server-only";
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 
 import { loadLinkedPropertyIds } from "./properties";
-import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
+import {
+  buildIlikeOrFilter,
+  OPEN_JOB_STATUS_EXCLUSION_FILTER,
+  type PaginatedResult,
+} from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
 
 const CUSTOMER_COLUMNS =
@@ -77,9 +81,17 @@ function mapCustomer(row: CustomerRow): Customer {
   };
 }
 
+export interface ListCustomersOptions {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: CustomerStatus;
+  city?: string;
+}
+
 export async function listCustomers(
-  options?: { page?: number; pageSize?: number; search?: string },
-): Promise<Customer[]> {
+  options?: ListCustomersOptions,
+): Promise<PaginatedResult<Customer>> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
   const from = (page - 1) * pageSize;
@@ -88,22 +100,69 @@ export async function listCustomers(
   const { supabase, orgId } = await getRepositoryContext();
   let query = supabase
     .from("customers")
-    .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at")
+    .select("id,name,primary_contact,email,phone,phone2,city,street,zip,notes,status,property_count,open_jobs,last_activity,created_at", { count: "exact" })
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
-  if (options?.search) {
-    query = query.ilike("name", `%${options.search}%`);
+  const searchFilter = buildIlikeOrFilter(
+    ["name", "primary_contact", "street", "city"],
+    options?.search,
+  );
+  if (searchFilter) {
+    query = query.or(searchFilter);
+  }
+  if (options?.status) {
+    query = query.eq("status", options.status);
+  }
+  if (options?.city) {
+    query = query.eq("city", options.city);
   }
 
-  const { data, error } = await query.range(from, to);
+  const { data, error, count } = await query.range(from, to);
 
   if (error) {
     throw new Error(error.message);
   }
 
   const linked = await loadLinkedPropertyIds();
-  return ((data ?? []) as CustomerRow[]).map((row) => withLinkedPropertyCount(mapCustomer(row), linked));
+  const items = ((data ?? []) as CustomerRow[]).map((row) => withLinkedPropertyCount(mapCustomer(row), linked));
+  return { items, total: count ?? items.length, page, pageSize };
+}
+
+/**
+ * Distinct non-empty customer cities for the directory filter dropdown.
+ * Paged through the city column only so the option list stays complete no
+ * matter how large the customer directory grows.
+ */
+export async function listCustomerCities(): Promise<string[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const cities = new Set<string>();
+  const pageSize = 1000;
+  for (let page = 0; page < 50; page += 1) {
+    const from = page * pageSize;
+    const { data, error } = await supabase
+      .from("customers")
+      .select("city")
+      .eq("org_id", orgId)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const rows = (data ?? []) as Array<{ city?: string | null }>;
+    for (const row of rows) {
+      const city = typeof row.city === "string" ? row.city.trim() : "";
+      if (city) {
+        cities.add(city);
+      }
+    }
+    if (rows.length < pageSize) {
+      break;
+    }
+  }
+  return [...cities].sort((a, b) => a.localeCompare(b));
 }
 
 function missingAccountColumn(error: { code?: string; message?: string } | null): boolean {

@@ -9,6 +9,7 @@ import {
   createCustomer as createCustomerRecord,
   deleteCustomer as deleteCustomerRecord,
   getCustomerById,
+  listCustomerCities as listCustomerCitiesRecord,
   listCustomers as listCustomerRecords,
   updateCustomer as updateCustomerRecord,
 } from "@/repositories/customers";
@@ -61,8 +62,18 @@ function validateCustomerInput(input: CustomerInput) {
   if (!CUSTOMER_STATUSES.has(input.status)) throw new Error("Invalid customer status.");
 }
 
-export async function listCustomers(options?: { search?: string }) {
+export async function listCustomers(options?: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  status?: CustomerStatus;
+  city?: string;
+}) {
   return listCustomerRecords(options);
+}
+
+export async function listCustomerCities() {
+  return listCustomerCitiesRecord();
 }
 
 export async function fetchCustomerById(id: string): Promise<Customer | null> {

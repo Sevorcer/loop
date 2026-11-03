@@ -72,6 +72,13 @@ function NewPropertyFormContent({ initialCustomerId }: { initialCustomerId?: str
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [customerLoadError, setCustomerLoadError] = useState(false);
   const [customerRetryCount, setCustomerRetryCount] = useState(0);
+  const [customerSearch, setCustomerSearch] = useState("");
+  // Server-side search results for the picker, tagged with the query they
+  // belong to; results for a stale query are ignored.
+  const [customerSearchResults, setCustomerSearchResults] = useState<{
+    query: string;
+    customers: Customer[];
+  } | null>(null);
 
   // F6: customer picker instead of free text — typo-proof linking.
   // F21 hardening: a failed customer fetch used to leave the dropdown with
@@ -104,6 +111,76 @@ function NewPropertyFormContent({ initialCustomerId }: { initialCustomerId?: str
       cancelled = true;
     };
   }, [role, customerRetryCount]);
+
+  // The directory is far larger than one picker page, so typing in the
+  // search box queries the server-side customer search and the select shows
+  // the actual matches instead of the first loaded page.
+  useEffect(() => {
+    if (!role) return;
+    const query = customerSearch.trim();
+    if (!query) return;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void requestJson<{ customers: Customer[] }>(
+        `/api/customers?search=${encodeURIComponent(query)}`,
+        { role },
+      )
+        .then((res) => {
+          if (!cancelled) {
+            setCustomerSearchResults({ query, customers: res.customers ?? [] });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCustomerSearchResults({ query, customers: [] });
+          }
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [customerSearch, role]);
+
+  const trimmedCustomerSearch = customerSearch.trim();
+  const searchedCustomers =
+    trimmedCustomerSearch &&
+    customerSearchResults &&
+    customerSearchResults.query === trimmedCustomerSearch
+      ? customerSearchResults.customers
+      : null;
+
+  // F5 follow-up: when the prefilled customer sits beyond the first picker
+  // page, fetch it by id so its name resolves in the select.
+  useEffect(() => {
+    if (!role || !initialCustomerId) return;
+    if (customerOptions.some((customer) => customer.id === initialCustomerId)) return;
+    let cancelled = false;
+
+    void requestJson<{ customer: Customer }>(`/api/customers/${initialCustomerId}`, {
+      role,
+    })
+      .then((res) => {
+        if (!cancelled && res.customer) {
+          setCustomerOptions((current) =>
+            current.some((customer) => customer.id === res.customer.id)
+              ? current
+              : [...current, res.customer],
+          );
+        }
+      })
+      .catch(() => {
+        // Prefill is best-effort; the picker still works without it.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customerOptions, initialCustomerId, role]);
+
+  const visibleCustomerOptions = searchedCustomers ?? customerOptions;
 
   // F5: prefill the customer when arriving from a customer page (?customerId=).
   // The select is name-valued but the URL carries the id, so resolve the id
@@ -244,6 +321,13 @@ function NewPropertyFormContent({ initialCustomerId }: { initialCustomerId?: str
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Customer</label>
+              <input
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="Search customers…"
+                aria-label="Search customers"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+              />
               <select
                 value={effectiveCustomer}
                 onChange={(e) => updateField("customer", e.target.value)}
@@ -251,16 +335,21 @@ function NewPropertyFormContent({ initialCustomerId }: { initialCustomerId?: str
                 required
               >
                 <option value="">Select a customer…</option>
-                {customerOptions.map((customer) => (
+                {visibleCustomerOptions.map((customer) => (
                   <option key={customer.id} value={customer.name}>
                     {customer.name}
                   </option>
                 ))}
                 {effectiveCustomer &&
-                !customerOptions.some((customer) => customer.name === effectiveCustomer) ? (
+                !visibleCustomerOptions.some((customer) => customer.name === effectiveCustomer) ? (
                   <option value={effectiveCustomer}>{effectiveCustomer}</option>
                 ) : null}
               </select>
+              {searchedCustomers !== null && searchedCustomers.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  No customers match that search.
+                </p>
+              ) : null}
               {customerLoadError ? (
                 <p className="text-xs text-red-300">
                   Couldn&apos;t load customers — check your connection, then{" "}

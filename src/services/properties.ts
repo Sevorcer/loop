@@ -7,6 +7,7 @@ import {
   deletePropertyRecord,
   getPropertyById,
   listProperties as listPropertyRecords,
+  listPropertyCities as listPropertyCitiesRecord,
   listPropertiesByCustomerId,
   resolveCustomerIdByName,
   resolvePropertyIdByName as resolvePropertyIdByNameRecord,
@@ -95,9 +96,22 @@ async function resolveLocation(
 
 export async function listProperties(
   contextInput?: SessionRepositoryContextInput,
-  options?: { search?: string },
+  options?: {
+    search?: string;
+    page?: number;
+    pageSize?: number;
+    status?: PropertyStatus;
+    type?: PropertyType;
+    city?: string;
+  },
 ) {
   return listPropertyRecords(contextInput, options);
+}
+
+export async function listPropertyCities(
+  contextInput?: SessionRepositoryContextInput,
+) {
+  return listPropertyCitiesRecord(contextInput);
 }
 
 export async function listPropertiesForCustomer(

@@ -77,6 +77,24 @@ export function useCustomerPropertyOptions(role: string | null | undefined) {
     [role],
   );
 
+  /**
+   * Server-side property search for when no customer is selected yet — the
+   * initially loaded page is only the first slice of the directory, so
+   * matches beyond it have to come from the repository search.
+   */
+  const searchProperties = useCallback(
+    async (text: string) => {
+      const query = text.trim();
+      if (!query || !role) return;
+      const response = await requestJson<{ properties: Property[] }>(
+        `/api/properties?search=${encodeURIComponent(query)}`,
+        { role },
+      );
+      setPropertyOptions((current) => mergeById(current, response.properties ?? []));
+    },
+    [role],
+  );
+
   const createCustomer = useCallback(
     async (name: string) => {
       const response = await requestJson<{ customer: Customer }>("/api/customers", {
@@ -118,6 +136,7 @@ export function useCustomerPropertyOptions(role: string | null | undefined) {
     error,
     loadPropertiesForCustomer,
     searchCustomers,
+    searchProperties,
     createCustomer,
     createProperty,
   };

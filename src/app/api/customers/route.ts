@@ -16,14 +16,37 @@ function readCustomerStatus(value: unknown) {
   return normalized as "Active" | "Prospect" | "Inactive";
 }
 
+/** Optional list query params: invalid values are ignored, not errors. */
+function readListPageParam(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : undefined;
+}
+
+function readOptionalCustomerStatus(value: string | null) {
+  if (!value || !CUSTOMER_STATUSES.has(value)) return undefined;
+  return value as "Active" | "Prospect" | "Inactive";
+}
+
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "customers", "select");
   if (!guard.ok) return guard.response;
 
   try {
-    const search = new URL(request.url).searchParams.get("search") ?? undefined;
-    const customers = await listCustomers({ search });
-    return NextResponse.json({ customers });
+    const params = new URL(request.url).searchParams;
+    const result = await listCustomers({
+      search: params.get("search") ?? undefined,
+      page: readListPageParam(params.get("page")),
+      pageSize: readListPageParam(params.get("pageSize")),
+      status: readOptionalCustomerStatus(params.get("status")),
+      city: params.get("city") ?? undefined,
+    });
+    return NextResponse.json({
+      customers: result.items,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+    });
   } catch (error) {
     return mapRouteError(error);
   }

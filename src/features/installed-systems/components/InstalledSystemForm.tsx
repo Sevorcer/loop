@@ -84,6 +84,24 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
   const [isSaving, setIsSaving] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  // Server-side picker search results, tagged with the query (and customer
+  // scope, for properties) they belong to; stale results are ignored.
+  const [customerSearchResults, setCustomerSearchResults] = useState<{
+    query: string;
+    customers: Customer[];
+  } | null>(null);
+  const [propertySearch, setPropertySearch] = useState("");
+  const [propertySearchResults, setPropertySearchResults] = useState<{
+    query: string;
+    scope: string | null;
+    properties: Property[];
+  } | null>(null);
+  // Properties belonging to the selected customer, tagged with its id.
+  const [scopedPropertiesState, setScopedPropertiesState] = useState<{
+    customerId: string;
+    properties: Property[];
+  } | null>(null);
 
   // F6: pickers instead of free text — typo-proof customer/property linking.
   useEffect(() => {
@@ -96,15 +114,163 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
       .catch(() => setPropertyOptions([]));
   }, [role]);
 
+  // When the form is locked to a job property (or editing), that property can
+  // sit beyond the first picker page — fetch it by id so the select shows it.
+  useEffect(() => {
+    if (!role || !context?.propertyId) return;
+    if (propertyOptions.some((property) => property.id === context.propertyId)) return;
+    let cancelled = false;
+    void requestJson<{ property: Property }>(`/api/properties/${context.propertyId}`, { role })
+      .then((res) => {
+        if (!cancelled && res.property) {
+          setPropertyOptions((current) =>
+            current.some((property) => property.id === res.property.id)
+              ? current
+              : [...current, res.property],
+          );
+        }
+      })
+      .catch(() => {
+        // Best-effort; the fallback option still renders the current value.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [context?.propertyId, propertyOptions, role]);
+
+  // The directories are far larger than one picker page, so typing in a
+  // search box queries the server-side search and the select shows the
+  // actual matches instead of the first loaded page. Results are tagged
+  // with the query/scope they belong to; stale results are ignored.
+  useEffect(() => {
+    if (!role) return;
+    const query = customerSearch.trim();
+    if (!query) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void requestJson<{ customers: Customer[] }>(
+        `/api/customers?search=${encodeURIComponent(query)}`,
+        { role },
+      )
+        .then((res) => {
+          if (!cancelled) {
+            setCustomerSearchResults({ query, customers: res.customers ?? [] });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setCustomerSearchResults({ query, customers: [] });
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [customerSearch, role]);
+
+  const trimmedCustomerSearch = customerSearch.trim();
+  const searchedCustomers =
+    trimmedCustomerSearch &&
+    customerSearchResults &&
+    customerSearchResults.query === trimmedCustomerSearch
+      ? customerSearchResults.customers
+      : null;
+  const visibleCustomerOptions = searchedCustomers ?? customerOptions;
+  const selectedCustomerId =
+    [...customerOptions, ...(searchedCustomers ?? [])].find(
+      (customer) => customer.name === form.customerName,
+    )?.id ?? null;
+
+  // Scope the property picker to the selected customer so it lists that
+  // customer's properties instead of the first page of everyone's.
+  useEffect(() => {
+    if (!role || !selectedCustomerId) return;
+    let cancelled = false;
+    void requestJson<{ properties: Property[] }>(
+      `/api/properties?customerId=${encodeURIComponent(selectedCustomerId)}`,
+      { role },
+    )
+      .then((res) => {
+        if (!cancelled) {
+          setScopedPropertiesState({
+            customerId: selectedCustomerId,
+            properties: res.properties ?? [],
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScopedPropertiesState({ customerId: selectedCustomerId, properties: [] });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, selectedCustomerId]);
+
+  const scopedProperties =
+    scopedPropertiesState && scopedPropertiesState.customerId === selectedCustomerId
+      ? scopedPropertiesState.properties
+      : null;
+
+  // Property search runs server-side too, scoped to the selected customer
+  // when the form knows it.
+  useEffect(() => {
+    if (!role) return;
+    const query = propertySearch.trim();
+    if (!query) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const scope = selectedCustomerId
+        ? `customerId=${encodeURIComponent(selectedCustomerId)}&`
+        : "";
+      void requestJson<{ properties: Property[] }>(
+        `/api/properties?${scope}search=${encodeURIComponent(query)}`,
+        { role },
+      )
+        .then((res) => {
+          if (!cancelled) {
+            setPropertySearchResults({
+              query,
+              scope: selectedCustomerId,
+              properties: res.properties ?? [],
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPropertySearchResults({
+              query,
+              scope: selectedCustomerId,
+              properties: [],
+            });
+          }
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [propertySearch, role, selectedCustomerId]);
+
+  const trimmedPropertySearch = propertySearch.trim();
+  const searchedProperties =
+    trimmedPropertySearch &&
+    propertySearchResults &&
+    propertySearchResults.query === trimmedPropertySearch &&
+    propertySearchResults.scope === selectedCustomerId
+      ? propertySearchResults.properties
+      : null;
+
   const isEdit = Boolean(system);
   const lockJobProperty = role === "tech" && Boolean(context?.propertyName || context?.propertyId);
+  const propertySource = searchedProperties ?? scopedProperties ?? propertyOptions;
   const visibleProperties = lockJobProperty
-    ? propertyOptions.filter(
+    ? propertySource.filter(
         (property) =>
           (context?.propertyId && property.id === context.propertyId) ||
           (context?.propertyName && property.name === context.propertyName),
       )
-    : propertyOptions;
+    : propertySource;
   const cancelHref = isEdit
     ? ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system!.id)
     : context?.jobId ? ROUTE_BUILDERS.JOB_DETAIL(context.jobId) : ROUTES.INSTALLED_SYSTEMS;
@@ -352,6 +518,14 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
               <label className="text-sm font-medium text-slate-200">
                 Customer <span className="text-red-400">*</span>
               </label>
+              <input
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="Search customers…"
+                aria-label="Search customers"
+                disabled={lockJobProperty}
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40 disabled:opacity-70"
+              />
               <select
                 value={form.customerName}
                 onChange={(e) => updateField("customerName", e.target.value)}
@@ -360,16 +534,21 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
                 required
               >
                 <option value="">Select a customer…</option>
-                {customerOptions.map((customer) => (
+                {visibleCustomerOptions.map((customer) => (
                   <option key={customer.id} value={customer.name}>
                     {customer.name}
                   </option>
                 ))}
                 {form.customerName &&
-                !customerOptions.some((customer) => customer.name === form.customerName) ? (
+                !visibleCustomerOptions.some((customer) => customer.name === form.customerName) ? (
                   <option value={form.customerName}>{form.customerName}</option>
                 ) : null}
               </select>
+              {searchedCustomers !== null && searchedCustomers.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  No customers match that search.
+                </p>
+              ) : null}
               {fieldErrors.customerName ? (
                 <p className="text-xs text-red-400">{fieldErrors.customerName}</p>
               ) : null}
@@ -380,6 +559,14 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
               <label className="text-sm font-medium text-slate-200">
                 Property <span className="text-red-400">*</span>
               </label>
+              <input
+                value={propertySearch}
+                onChange={(e) => setPropertySearch(e.target.value)}
+                placeholder="Search properties…"
+                aria-label="Search properties"
+                disabled={lockJobProperty}
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40 disabled:opacity-70"
+              />
               <select
                 value={form.propertyName}
                 onChange={(e) => updateField("propertyName", e.target.value)}
@@ -398,6 +585,11 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
                   <option value={form.propertyName}>{form.propertyName}</option>
                 ) : null}
               </select>
+              {searchedProperties !== null && searchedProperties.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  No properties match that search.
+                </p>
+              ) : null}
               {fieldErrors.propertyName ? (
                 <p className="text-xs text-red-400">{fieldErrors.propertyName}</p>
               ) : null}

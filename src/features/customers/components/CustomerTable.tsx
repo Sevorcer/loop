@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { DataTable, EmptyState } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
@@ -11,103 +11,125 @@ import { customerColumns } from "./CustomerColumns";
 import { CustomerToolbar } from "./CustomerToolbar";
 
 const ALL_FILTER_VALUE = "all";
-const PAGE_SIZE = 10;
 
 interface CustomerTableProps {
+  /** One server-fetched page of customers (already searched + filtered). */
   customers: Customer[];
+  /** Exact total from the repository count for the current search/filters. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Current `?q=` value. */
+  search: string;
+  /** Current `?status=` value ("" when unset). */
+  statusFilter: string;
+  /** Current `?city=` value ("" when unset). */
+  cityFilter: string;
+  cityOptions: string[];
 }
 
-export function CustomerTable({ customers }: CustomerTableProps) {
+export function CustomerTable({
+  customers,
+  total,
+  page,
+  pageSize,
+  search,
+  statusFilter,
+  cityFilter,
+  cityOptions,
+}: CustomerTableProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
-  const [cityFilter, setCityFilter] = useState(ALL_FILTER_VALUE);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const cityOptions = useMemo(() => {
-    return Array.from(new Set(customers.map((customer) => customer.city))).sort();
-  }, [customers]);
-
-  const filteredCustomers = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase();
-
-    return customers.filter((customer) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        customer.name.toLowerCase().includes(normalizedSearch) ||
-        customer.primaryContact.toLowerCase().includes(normalizedSearch) ||
-        customer.email.toLowerCase().includes(normalizedSearch) ||
-        customer.phone.toLowerCase().includes(normalizedSearch) ||
-        customer.city.toLowerCase().includes(normalizedSearch);
-
-      const matchesStatus =
-        statusFilter === ALL_FILTER_VALUE || customer.status === statusFilter;
-
-      const matchesCity = cityFilter === ALL_FILTER_VALUE || customer.city === cityFilter;
-
-      return matchesSearch && matchesStatus && matchesCity;
-    });
-  }, [customers, cityFilter, searchValue, statusFilter]);
-
-  const totalCustomers = filteredCustomers.length;
-  const totalPages = Math.max(1, Math.ceil(totalCustomers / PAGE_SIZE));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedCustomers = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
-    return filteredCustomers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredCustomers, safeCurrentPage]);
-
-  const hasActiveFilters =
-    searchValue.trim().length > 0 ||
-    statusFilter !== ALL_FILTER_VALUE ||
-    cityFilter !== ALL_FILTER_VALUE;
-
-  const showingFrom = totalCustomers === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
-  const showingTo =
-    totalCustomers === 0 ? 0 : Math.min(safeCurrentPage * PAGE_SIZE, totalCustomers);
-
-  function handleSearchChange(value: string) {
-    setSearchValue(value);
-    setCurrentPage(1);
+  const [searchValue, setSearchValue] = useState(search);
+  // Sync the input when the URL changes elsewhere (back/forward, clear
+  // filters) — adjusted during render, per the React docs pattern.
+  const [syncedSearch, setSyncedSearch] = useState(search);
+  if (search !== syncedSearch) {
+    setSyncedSearch(search);
+    setSearchValue(search);
   }
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safeCurrentPage = Math.min(page, totalPages);
+  const showingFrom = total === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const showingTo = total === 0 ? 0 : Math.min(safeCurrentPage * pageSize, total);
+
+  const hasActiveFilters =
+    search.trim().length > 0 || statusFilter !== "" || cityFilter !== "";
+
+  const pushParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === null || value === "") {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  // Debounced search: the URL is the source of truth, so typing re-runs the
+  // server-side search instead of filtering the loaded page in memory.
+  useEffect(() => {
+    if (searchValue === search) return;
+    const timer = setTimeout(() => {
+      pushParams({ q: searchValue.trim() || null, page: null });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [pushParams, search, searchValue]);
+
   function handleStatusChange(value: string) {
-    setStatusFilter(value);
-    setCurrentPage(1);
+    pushParams({
+      status: value === ALL_FILTER_VALUE ? null : value,
+      page: null,
+    });
   }
 
   function handleCityChange(value: string) {
-    setCityFilter(value);
-    setCurrentPage(1);
+    pushParams({
+      city: value === ALL_FILTER_VALUE ? null : value,
+      page: null,
+    });
   }
 
   function handleClearFilters() {
     setSearchValue("");
-    setStatusFilter(ALL_FILTER_VALUE);
-    setCityFilter(ALL_FILTER_VALUE);
-    setCurrentPage(1);
+    pushParams({ q: null, status: null, city: null, page: null });
+  }
+
+  function handlePageChange(nextPage: number) {
+    pushParams({ page: nextPage > 1 ? String(nextPage) : null });
   }
 
   function handleRowClick(customer: Customer) {
     router.push(`/customers/${customer.id}`);
   }
 
-  if (filteredCustomers.length === 0) {
+  const toolbar = (
+    <CustomerToolbar
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
+      statusFilter={statusFilter === "" ? ALL_FILTER_VALUE : statusFilter}
+      onStatusChange={handleStatusChange}
+      cityFilter={cityFilter === "" ? ALL_FILTER_VALUE : cityFilter}
+      onCityChange={handleCityChange}
+      cityOptions={cityOptions}
+      onClearFilters={handleClearFilters}
+      hasActiveFilters={hasActiveFilters}
+    />
+  );
+
+  if (customers.length === 0) {
     return (
       <div className="space-y-4">
-        <CustomerToolbar
-          searchValue={searchValue}
-          onSearchChange={handleSearchChange}
-          statusFilter={statusFilter}
-          onStatusChange={handleStatusChange}
-          cityFilter={cityFilter}
-          onCityChange={handleCityChange}
-          cityOptions={cityOptions}
-          onClearFilters={handleClearFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
+        {toolbar}
 
         <EmptyState
           title="No customers found"
@@ -130,22 +152,12 @@ export function CustomerTable({ customers }: CustomerTableProps) {
 
   return (
     <div className="space-y-4">
-      <CustomerToolbar
-        searchValue={searchValue}
-        onSearchChange={handleSearchChange}
-        statusFilter={statusFilter}
-        onStatusChange={handleStatusChange}
-        cityFilter={cityFilter}
-        onCityChange={handleCityChange}
-        cityOptions={cityOptions}
-        onClearFilters={handleClearFilters}
-        hasActiveFilters={hasActiveFilters}
-      />
+      {toolbar}
 
       <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <p>
-          Showing {showingFrom}–{showingTo} of {totalCustomers}{" "}
-          {totalCustomers === 1 ? "customer" : "customers"}
+          Showing {showingFrom}–{showingTo} of {total}{" "}
+          {total === 1 ? "customer" : "customers"}
         </p>
 
         <div className="flex items-center gap-2">
@@ -159,7 +171,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
             variant="outline"
             size="sm"
             className="min-h-[44px]"
-            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            onClick={() => handlePageChange(safeCurrentPage - 1)}
             disabled={safeCurrentPage === 1}
           >
             Previous
@@ -173,7 +185,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
             variant="outline"
             size="sm"
             className="min-h-[44px]"
-            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            onClick={() => handlePageChange(safeCurrentPage + 1)}
             disabled={safeCurrentPage === totalPages}
           >
             Next
@@ -181,7 +193,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
         </div>
       </div>
 
-      <DataTable columns={customerColumns} data={paginatedCustomers} onRowClick={handleRowClick} disableInternalPagination />
+      <DataTable columns={customerColumns} data={customers} onRowClick={handleRowClick} disableInternalPagination />
     </div>
   );
 }

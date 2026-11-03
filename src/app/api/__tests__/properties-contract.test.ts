@@ -141,12 +141,45 @@ describe("GET /api/properties — contract", () => {
 
   it("returns 200 with properties array for an authorized request", async () => {
     requirePermissionMock.mockResolvedValue(authorizedCtx());
-    listPropertiesMock.mockResolvedValue([{ id: "p-1", name: "Main St" }]);
+    listPropertiesMock.mockResolvedValue({
+      items: [{ id: "p-1", name: "Main St" }],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+    });
     const res = await getProperties(new Request("http://localhost/api/properties"));
     expect(res.status).toBe(200);
     const body = await res.json() as { properties: Array<{ id: string }> };
     expect(Array.isArray(body.properties)).toBe(true);
     expect(body.properties[0].id).toBe("p-1");
+  });
+
+  it("passes search and paging through and returns the exact total", async () => {
+    requirePermissionMock.mockResolvedValue(authorizedCtx());
+    listPropertiesMock.mockResolvedValue({
+      items: [{ id: "p-87", name: "Harborview Tower" }],
+      total: 1514,
+      page: 2,
+      pageSize: 5,
+    });
+    const res = await getProperties(
+      new Request("http://localhost/api/properties?search=harborview&page=2&pageSize=5"),
+    );
+    expect(res.status).toBe(200);
+    expect(listPropertiesMock).toHaveBeenCalledWith(
+      { userId: "user-1" },
+      expect.objectContaining({ search: "harborview", page: 2, pageSize: 5 }),
+    );
+    const body = await res.json() as {
+      properties: Array<{ id: string }>;
+      total: number;
+      page: number;
+      pageSize: number;
+    };
+    expect(body.properties[0].id).toBe("p-87");
+    expect(body.total).toBe(1514);
+    expect(body.page).toBe(2);
+    expect(body.pageSize).toBe(5);
   });
 });
 
