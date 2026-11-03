@@ -5,6 +5,7 @@ import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
 import type { CommandCenterSnapshot } from "@/features/command-center/types/commandCenter";
 import { getStatusVariants } from "@/lib/jobs/status";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
+import { CALLBACK_TYPE_QUERY_VARIANTS } from "@/lib/callbacks";
 import {
   computeKPIs,
   aggregatePersonWorkload,
@@ -190,14 +191,15 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
       .order("scheduled_for", { ascending: true }),
 
-    // 5. Callbacks — ILIKE pattern match on title or notes
-    //    NOTE: no dedicated type/flag in current schema; Sprint 8 should add one.
+    // 5. Open callbacks — shared definition: type Callback AND status open.
+    //    Counts by job TYPE (not title/notes keyword matching) so this panel
+    //    agrees with the Dashboard and the Jobs list. See src/lib/callbacks.ts.
     supabase
       .from("jobs")
       .select(JOB_COLUMNS)
       .eq("org_id", orgId)
+      .in("type", CALLBACK_TYPE_QUERY_VARIANTS)
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
-      .or("title.ilike.%callback%,notes.ilike.%callback%")
       .order("scheduled_for", { ascending: true }),
 
     // 6. Unassigned (assigned_to is null or empty string)

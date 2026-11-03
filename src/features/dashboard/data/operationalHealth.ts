@@ -1,4 +1,5 @@
 import type { DashboardSummary } from "@/repositories/dashboard";
+import { CALLBACK_LABELS, isCallbackType } from "@/lib/callbacks";
 
 export const NO_DATA_LABEL = "—";
 
@@ -57,7 +58,7 @@ export function buildOperationalHealth(summary: DashboardSummary): OperationalHe
     signals: [
       { label: "Today's Jobs", value: String(summary.scheduledToday) },
       { label: "Active Crews", value: String(summary.activeCrews) },
-      { label: "Callbacks", value: String(summary.openCallbacks) },
+      { label: CALLBACK_LABELS.open, value: String(summary.openCallbacks) },
       { label: "Open Estimates", value: String(summary.openEstimates) },
       { label: "Dispatch Status", value: dispatchStatusLabel(summary) },
     ],
@@ -90,7 +91,7 @@ export function buildAttentionItems(jobs: DashboardJobSignal[]): AttentionItem[]
   for (const job of jobs) {
     if (!isOpen(job.status)) continue;
     const label = job.jobNumber ? `${job.jobNumber} · ${job.title}` : job.title;
-    if (job.type.trim().toLowerCase() === "callback" && isUnassigned(job.assignedTo)) {
+    if (isCallbackType(job.type) && isUnassigned(job.assignedTo)) {
       push(job, "Callback waiting assignment", `${label} has not been assigned yet.`);
     }
   }
