@@ -7,7 +7,11 @@ import {
   mapRouteError,
   readJsonObject,
 } from "@/lib/api/routeErrors";
-import { canCheckJobTask, canManageJobChecklist } from "@/features/jobs/utils/jobChecklistAccess";
+import {
+  canAddJobChecklistItem,
+  canCheckJobTask,
+  canRemoveJobChecklistItem,
+} from "@/features/jobs/utils/jobChecklistAccess";
 import {
   applyInstallChecklistTemplate,
   createJobTask,
@@ -39,10 +43,10 @@ export async function POST(
 ) {
   const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
-  if (!canManageJobChecklist(guard.ctx.role)) {
+  if (!canAddJobChecklistItem(guard.ctx.role)) {
     return createApiErrorResponse(
       "FORBIDDEN",
-      "Only office staff can add checklist items.",
+      "You cannot add checklist items.",
       403,
     );
   }
@@ -120,7 +124,7 @@ export async function DELETE(
 ) {
   const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
-  if (!canManageJobChecklist(guard.ctx.role)) {
+  if (!canRemoveJobChecklistItem(guard.ctx.role)) {
     return createApiErrorResponse(
       "FORBIDDEN",
       "Only office staff can remove checklist items.",

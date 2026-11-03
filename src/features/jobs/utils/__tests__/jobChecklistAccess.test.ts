@@ -1,25 +1,47 @@
 import { describe, expect, it } from "vitest";
 
-import { canCheckJobTask, canManageJobChecklist } from "@/features/jobs/utils/jobChecklistAccess";
+import {
+  canAddJobChecklistItem,
+  canCheckJobTask,
+  canRemoveJobChecklistItem,
+} from "@/features/jobs/utils/jobChecklistAccess";
 
 describe("job checklist access", () => {
-  it("lets office roles add and remove items, including dispatch", () => {
-    for (const role of ["owner", "manager", "office", "dispatch"]) {
-      expect(canManageJobChecklist(role)).toBe(true);
+  it("lets anyone on the team add an item, including a technician", () => {
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales"]) {
+      expect(canAddJobChecklistItem(role)).toBe(true);
+    }
+  });
+
+  it("keeps the customer portal and signed-out callers off the add path", () => {
+    expect(canAddJobChecklistItem("portal")).toBe(false);
+    expect(canAddJobChecklistItem(null)).toBe(false);
+    expect(canAddJobChecklistItem(undefined)).toBe(false);
+  });
+
+  it("lets only office and above remove an item", () => {
+    for (const role of ["owner", "manager", "office"]) {
+      expect(canRemoveJobChecklistItem(role)).toBe(true);
+    }
+  });
+
+  it("does not let a technician or dispatch remove an item", () => {
+    expect(canRemoveJobChecklistItem("tech")).toBe(false);
+    expect(canRemoveJobChecklistItem("dispatch")).toBe(false);
+    expect(canRemoveJobChecklistItem("sales")).toBe(false);
+    expect(canRemoveJobChecklistItem("portal")).toBe(false);
+    expect(canRemoveJobChecklistItem(null)).toBe(false);
+  });
+
+  it("lets a technician and office roles check an item off", () => {
+    for (const role of ["owner", "manager", "office", "dispatch", "tech"]) {
       expect(canCheckJobTask(role)).toBe(true);
     }
   });
 
-  it("lets a technician check an item off and not manage the list", () => {
-    expect(canCheckJobTask("tech")).toBe(true);
-    expect(canManageJobChecklist("tech")).toBe(false);
-  });
-
-  it("keeps sales and portal off the checklist writes", () => {
-    expect(canManageJobChecklist("sales")).toBe(false);
+  it("keeps sales and portal off the check path", () => {
     expect(canCheckJobTask("sales")).toBe(false);
-    expect(canManageJobChecklist("portal")).toBe(false);
     expect(canCheckJobTask("portal")).toBe(false);
-    expect(canManageJobChecklist(null)).toBe(false);
+    expect(canCheckJobTask(null)).toBe(false);
   });
 });
