@@ -309,7 +309,7 @@ export function JobDetailScreen({
               variant="secondary"
               className="min-h-[44px]"
               onClick={() => {
-                router.push(`/jobs/${job.id}/edit`);
+                router.push(ROUTE_BUILDERS.JOB_EDIT(job.id));
               }}
             >
               Edit Job

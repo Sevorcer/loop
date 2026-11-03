@@ -301,6 +301,107 @@ describe("PATCH /api/jobs/[id] action=update — contract", () => {
     const body = await res.json() as { job: { id: string } };
     expect(body.job.id).toBe("j-1");
   });
+
+  // The Edit Job form (office/owner) saves through this exact path. These
+  // tests lock in that closeout_mode AND both schedule dates (start + end)
+  // round-trip from the PATCH body into the updateJob service unchanged —
+  // the whole point of B4 (office can flip closeout mode via Edit Job).
+  it("forwards closeout mode and scheduled start + end to updateJob (round-trip)", async () => {
+    requirePermissionMock.mockResolvedValue(authorizedCtx("office"));
+    readJsonObjectMock.mockResolvedValue({
+      action: "update",
+      title: "Updated Title",
+      customerName: "Acme",
+      propertyName: "HQ",
+      assignedTo: "Tech",
+      scheduledFor: "2026-11-02",
+      scheduledStartAt: "2026-11-02T18:00:00.000Z",
+      scheduledEndAt: "2026-11-05T02:00:00.000Z",
+      type: "Service",
+      priority: "Medium",
+      closeoutMode: "visit",
+      location: "123 Main",
+      summary: "",
+      notes: "",
+    });
+    updateJobMock.mockResolvedValue({ id: "j-1", title: "Updated Title", closeoutMode: "visit" });
+
+    const res = await patchJobById(
+      new Request("http://localhost/api/jobs/j-1", { method: "PATCH" }),
+      makeParams("j-1"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(updateJobMock).toHaveBeenCalledWith(
+      "j-1",
+      expect.objectContaining({
+        closeoutMode: "visit",
+        scheduledStartAt: "2026-11-02T18:00:00.000Z",
+        scheduledEndAt: "2026-11-05T02:00:00.000Z",
+      }),
+    );
+  });
+
+  it("clears the scheduled end when the form sends an empty value (end is not silently dropped)", async () => {
+    requirePermissionMock.mockResolvedValue(authorizedCtx("office"));
+    readJsonObjectMock.mockResolvedValue({
+      action: "update",
+      title: "Updated Title",
+      customerName: "Acme",
+      propertyName: "HQ",
+      assignedTo: "Tech",
+      scheduledFor: "2026-11-02",
+      scheduledStartAt: "2026-11-02T18:00:00.000Z",
+      scheduledEndAt: "",
+      type: "Service",
+      priority: "Medium",
+      closeoutMode: "full",
+      location: "123 Main",
+      summary: "",
+      notes: "",
+    });
+    updateJobMock.mockResolvedValue({ id: "j-1" });
+
+    const res = await patchJobById(
+      new Request("http://localhost/api/jobs/j-1", { method: "PATCH" }),
+      makeParams("j-1"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(updateJobMock).toHaveBeenCalledWith(
+      "j-1",
+      expect.objectContaining({
+        closeoutMode: "full",
+        scheduledStartAt: "2026-11-02T18:00:00.000Z",
+        scheduledEndAt: null,
+      }),
+    );
+  });
+
+  it("still rejects a technician attempting action=update with 403 (S1 guard unchanged)", async () => {
+    requirePermissionMock.mockResolvedValue(authorizedCtx("tech"));
+    readJsonObjectMock.mockResolvedValue({
+      action: "update",
+      title: "Tech edit",
+      customerName: "Acme",
+      propertyName: "HQ",
+      assignedTo: "Tech",
+      type: "Service",
+      priority: "Medium",
+      closeoutMode: "visit",
+      location: "123 Main",
+      summary: "",
+      notes: "",
+    });
+
+    const res = await patchJobById(
+      new Request("http://localhost/api/jobs/j-1", { method: "PATCH" }),
+      makeParams("j-1"),
+    );
+
+    expect(res.status).toBe(403);
+    expect(updateJobMock).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
