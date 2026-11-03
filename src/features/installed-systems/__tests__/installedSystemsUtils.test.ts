@@ -314,7 +314,8 @@ describe("paginateInstalledSystems", () => {
   it("clamps an out-of-range page into bounds instead of returning nothing", () => {
     const result = paginateInstalledSystems(many, 9_999, 10);
     expect(result.page).toBe(result.pageCount);
-    expect(result.items).toHaveLength(10);
+    // Last page holds the remainder, not a full page: 2778 % 10 = 8.
+    expect(result.items).toHaveLength(8);
 
     const low = paginateInstalledSystems(many, 0, 10);
     expect(low.page).toBe(1);
