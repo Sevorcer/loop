@@ -107,6 +107,65 @@ export interface ProductionReport {
   jobs: ProductionJobLine[];
 }
 
+/**
+ * The compact, paged view of a report that the API ships to the browser.
+ *
+ * Totals, by-team, and by-person are bounded by headcount, so they travel in
+ * full on every page. The per-job line list is what makes the report heavy at
+ * import scale (thousands of completed jobs), so it is sliced into pages. The
+ * slice is a contiguous window of the identical, fully-computed `jobs` list,
+ * so stitching every page back together reproduces the whole list exactly and
+ * no figure or definition changes.
+ */
+export interface ProductionReportPage extends ProductionReport {
+  /** Total completed jobs in range, across every page. */
+  jobsTotal: number;
+  /** 1-based page number of the `jobs` slice. */
+  page: number;
+  pageSize: number;
+  /** True when more job pages remain after this one. */
+  hasMore: boolean;
+}
+
+/** Default job rows per page. Keeps the first payload to a single screen's worth. */
+export const PRODUCTION_JOBS_PAGE_SIZE = 100;
+
+/** Upper bound a caller may request, so one request can never ship everything. */
+export const PRODUCTION_JOBS_MAX_PAGE_SIZE = 500;
+
+/**
+ * Slices a fully-computed report into a page. Pure: the totals, teams, and
+ * people are passed through untouched; only the `jobs` list is windowed. This
+ * is what preserves parity — the page's figures are the report's figures.
+ */
+export function pageOfProductionReport(
+  report: ProductionReport,
+  page = 1,
+  pageSize: number = PRODUCTION_JOBS_PAGE_SIZE,
+): ProductionReportPage {
+  const total = report.jobs.length;
+  const size = clampPageSize(pageSize);
+  const safePage = Number.isFinite(page) && page > 1 ? Math.floor(page) : 1;
+  const start = (safePage - 1) * size;
+  const slice = start >= total ? [] : report.jobs.slice(start, start + size);
+  return {
+    ...report,
+    jobs: slice,
+    jobsTotal: total,
+    page: safePage,
+    pageSize: size,
+    hasMore: start + slice.length < total,
+  };
+}
+
+function clampPageSize(pageSize: number): number {
+  if (!Number.isFinite(pageSize)) return PRODUCTION_JOBS_PAGE_SIZE;
+  const rounded = Math.floor(pageSize);
+  if (rounded < 1) return 1;
+  if (rounded > PRODUCTION_JOBS_MAX_PAGE_SIZE) return PRODUCTION_JOBS_MAX_PAGE_SIZE;
+  return rounded;
+}
+
 const DATE_KEY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export function isDateKey(value: string): boolean {
