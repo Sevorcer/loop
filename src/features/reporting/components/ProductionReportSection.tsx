@@ -14,7 +14,6 @@ import {
   companyPresetRange,
   formatRevenueCents,
   formatScheduledHours,
-  productionReportToCsv,
   redactProductionReport,
   type ProductionBucket,
   type ProductionPersonBucket,
@@ -35,13 +34,16 @@ export function ProductionReportSection() {
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
   const [exportError, setExportError] = useState<string | null>(null);
-  const { report, loading, error } = useProductionReport(from, to);
+  const [exporting, setExporting] = useState(false);
+  const { report, loading, error, jobsTotal, hasMore, loadingMore, loadMore } =
+    useProductionReport(from, to);
   const showRevenue = Boolean(role) && canSeeJobRevenue(role) && report?.canSeeRevenue === true;
   const visible = useMemo(
     () => (report && !showRevenue ? redactProductionReport(report) : report),
     [report, showRevenue],
   );
-  const exportReady = !loading && visible != null && visible.from === from && visible.to === to;
+  const exportReady =
+    !loading && !exporting && visible != null && visible.from === from && visible.to === to;
 
   function applyPreset(next: Exclude<RangePreset, "custom">) {
     const range = companyPresetRange(next);
@@ -50,20 +52,31 @@ export function ProductionReportSection() {
     setTo(range.to);
   }
 
-  function exportCsv() {
-    if (!exportReady || !visible) return;
+  // The full spreadsheet (every job row, not just the page on screen) is built
+  // server-side and streamed back, so the client never has to hold thousands
+  // of rows in memory just to export them.
+  async function exportCsv() {
+    if (!exportReady) return;
     setExportError(null);
+    setExporting(true);
     try {
-      const csv = productionReportToCsv(visible);
+      const params = new URLSearchParams({ from, to, format: "csv" });
+      const response = await fetch(`/api/reports/production?${params.toString()}`, {
+        credentials: "same-origin",
+      });
+      if (!response.ok) throw new Error("The spreadsheet could not be downloaded.");
+      const csv = await response.text();
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `production-${visible.from}-to-${visible.to}.csv`;
+      link.download = `production-${from}-to-${to}.csv`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
       setExportError(err instanceof Error ? err.message : "The spreadsheet could not be downloaded.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -73,12 +86,12 @@ export function ProductionReportSection() {
       actions={
         <button
           type="button"
-          onClick={exportCsv}
+          onClick={() => void exportCsv()}
           disabled={!exportReady}
-          aria-busy={loading}
+          aria-busy={loading || exporting}
           className="min-h-10 rounded-full border border-default px-3 text-sm text-foreground hover:bg-surface-elevated disabled:opacity-50"
         >
-          {loading ? "Loading…" : "Download CSV"}
+          {loading ? "Loading…" : exporting ? "Downloading…" : "Download CSV"}
         </button>
       }
     >
@@ -151,7 +164,14 @@ export function ProductionReportSection() {
         ) : error || !visible ? (
           <ErrorState title="Unable to load production" description={error ?? "Try another date range."} />
         ) : (
-          <ProductionReportView report={visible} showRevenue={showRevenue} />
+          <ProductionReportView
+            report={visible}
+            showRevenue={showRevenue}
+            jobsTotal={jobsTotal}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
+          />
         )}
       </div>
     </SectionCard>
@@ -161,9 +181,17 @@ export function ProductionReportSection() {
 export function ProductionReportView({
   report,
   showRevenue,
+  jobsTotal = report.jobs.length,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: {
   report: ProductionReport;
   showRevenue: boolean;
+  jobsTotal?: number;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -224,6 +252,25 @@ export function ProductionReportView({
           ])}
           emptyMessage="No completed jobs in this range."
         />
+        {jobsTotal > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-muted">
+              Showing {report.jobs.length.toLocaleString("en-US")} of{" "}
+              {jobsTotal.toLocaleString("en-US")} jobs
+            </p>
+            {hasMore && onLoadMore ? (
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                aria-busy={loadingMore}
+                className="min-h-10 rounded-full border border-default px-3 text-sm text-foreground hover:bg-surface-elevated disabled:opacity-50"
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </ReportBlock>
     </div>
   );

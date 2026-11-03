@@ -3,7 +3,7 @@ import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ProductionReport } from "../utils/productionReport";
+import type { ProductionReportPage } from "../utils/productionReport";
 
 vi.mock("@/features/auth", () => ({
   useCurrentRole: () => ({ role: "owner", setDevRole: () => {} }),
@@ -13,7 +13,7 @@ import { ProductionReportSection } from "../components/ProductionReportSection";
 
 const roots: Root[] = [];
 
-function reportFor(from: string, to: string): ProductionReport {
+function reportFor(from: string, to: string): ProductionReportPage {
   return {
     from,
     to,
@@ -61,13 +61,36 @@ function reportFor(from: string, to: string): ProductionReport {
         revenueCents: 250000,
       },
     ],
+    jobsTotal: 1,
+    page: 1,
+    pageSize: 100,
+    hasMore: false,
   };
+}
+
+// The server builds the full CSV; the client only downloads it.
+function csvFor(): string {
+  return [
+    "Teams,Jobs,Revenue,Average ticket,Scheduled hours",
+    "Alex Nguyen,1,$2500.00,$2500.00,6 h",
+    "",
+    "Job,Title,Customer,Team,Completed,Revenue,Scheduled hours",
+    "JOB-31,Furnace install,Northwind,Alex Nguyen,2026-10-31,$2500.00,6 h",
+    "",
+  ].join("\n");
 }
 
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
+  });
+}
+
+function csvResponse(body: string): Response {
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "text/csv; charset=utf-8" },
   });
 }
 
@@ -84,7 +107,9 @@ async function render(node: ReactNode) {
 
 function downloadButton(container: HTMLElement): HTMLButtonElement {
   const button = [...container.querySelectorAll("button")].find((item) =>
-    item.textContent === "Download CSV" || item.textContent === "Loading…",
+    item.textContent === "Download CSV"
+    || item.textContent === "Loading…"
+    || item.textContent === "Downloading…",
   );
   if (!button) throw new Error("Download button is missing.");
   return button as HTMLButtonElement;
@@ -103,7 +128,7 @@ afterEach(() => {
 });
 
 describe("production CSV download", () => {
-  it("stays disabled until the report on screen is ready, then downloads that report", async () => {
+  it("stays disabled until the report on screen is ready, then downloads the full CSV from the server", async () => {
     const requests: string[] = [];
     let pending: { url: string; resolve: (response: Response) => void } | null = null;
     vi.stubGlobal(
@@ -132,8 +157,11 @@ describe("production CSV download", () => {
     expect(waiting.textContent).toBe("Loading…");
     expect(waiting.getAttribute("aria-busy")).toBe("true");
 
+    // First request loads page 1 of the report — never the CSV.
     const first = pending as { url: string; resolve: (response: Response) => void } | null;
     if (!first) throw new Error("The report was not requested.");
+    expect(first.url).not.toContain("format=csv");
+    expect(first.url).toContain("page=1");
     const firstUrl = new URL(first.url, "http://localhost");
     await act(async () => {
       first.resolve(jsonResponse({
@@ -144,16 +172,22 @@ describe("production CSV download", () => {
     const ready = downloadButton(container);
     expect(ready.disabled).toBe(false);
     expect(ready.textContent).toBe("Download CSV");
+
+    // Clicking download asks the server for the full CSV export.
     await act(async () => {
       ready.click();
+    });
+    const csvRequest = pending as { url: string; resolve: (response: Response) => void };
+    expect(csvRequest.url).toContain("format=csv");
+    await act(async () => {
+      csvRequest.resolve(csvResponse(csvFor()));
     });
     await vi.waitFor(() => {
       expect(files[0]).toContain("JOB-31");
     });
     expect(files[0]).toContain("Furnace install");
-    expect(files[0]).toContain("$2,500.00");
-    expect(requests.every((url) => !url.includes("format=csv"))).toBe(true);
 
+    // Switching the range reloads page 1 (again, not the CSV).
     await act(async () => {
       [...container.querySelectorAll("button")].find((button) => button.textContent === "Last month")?.click();
     });
@@ -162,6 +196,7 @@ describe("production CSV download", () => {
     expect(reloading.textContent).toBe("Loading…");
 
     const second = pending as { url: string; resolve: (response: Response) => void };
+    expect(second.url).not.toContain("format=csv");
     const secondUrl = new URL(second.url, "http://localhost");
     await act(async () => {
       second.resolve(jsonResponse({
@@ -169,6 +204,8 @@ describe("production CSV download", () => {
       }));
     });
     expect(downloadButton(container).disabled).toBe(false);
-    expect(requests.every((url) => !url.includes("format=csv"))).toBe(true);
+
+    // Exactly one CSV request was ever made, from the download click.
+    expect(requests.filter((url) => url.includes("format=csv"))).toHaveLength(1);
   });
 });

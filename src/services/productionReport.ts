@@ -3,8 +3,10 @@ import "server-only";
 import {
   assertDateRange,
   computeProductionReport,
+  pageOfProductionReport,
   redactProductionReport,
   type ProductionReport,
+  type ProductionReportPage,
 } from "@/features/reporting/utils/productionReport";
 import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { companyTimeZone } from "@/lib/timezone";
@@ -21,4 +23,22 @@ export async function getProductionReport(
   const source = await listProductionSources(includeRevenue);
   const report = computeProductionReport(source.jobs, source.completions, range, companyTimeZone());
   return includeRevenue ? report : redactProductionReport(report);
+}
+
+/**
+ * Same report, delivered as a page: the compact totals/teams/people plus one
+ * window of the jobs list. The full report is computed exactly as above (so
+ * every figure and definition is identical), then sliced — this is the shape
+ * the reporting screen fetches so the first payload stays small and the page
+ * is interactive in seconds instead of shipping thousands of job rows.
+ */
+export async function getProductionReportPage(
+  role: AppRole,
+  from: string,
+  to: string,
+  page = 1,
+  pageSize?: number,
+): Promise<ProductionReportPage> {
+  const report = await getProductionReport(role, from, to);
+  return pageOfProductionReport(report, page, pageSize);
 }
