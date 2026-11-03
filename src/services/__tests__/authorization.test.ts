@@ -214,8 +214,9 @@ describe("office role", () => {
     expectDenied("office", "job_notes", ["update", "delete"]);
   });
 
-  it("cannot update or delete jobs", () => {
-    expectDenied("office", "jobs", ["update", "delete"]);
+  it("can update jobs (B4 — full editor incl. closeout mode) but cannot delete them", () => {
+    expectAllowed("office", "jobs", ["update"]);
+    expectDenied("office", "jobs", ["delete"]);
   });
 
   it("cannot delete customers or properties", () => {

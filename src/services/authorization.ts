@@ -135,8 +135,9 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     // tech: own rows only — RLS enforces the row-scope restriction
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     insert: new Set<AppRole>(["owner", "manager", "office"]),
-    // dispatch/tech: status column only — enforced at application layer
-    update: new Set<AppRole>(["owner", "manager", "dispatch", "tech"]),
+    // dispatch/tech: status column only — enforced at application layer.
+    // office: full job editor (incl. closeout_mode) — B4.
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
     delete: new Set<AppRole>(["owner"]),
   },
 
