@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyCustomerAutocomplete,
   applyPropertyAutocomplete,
+  buildTechnicianSuggestions,
   getScopedProperties,
   resolveInitialSmartSelection,
 } from "../utils/smartJobCreation";
@@ -74,5 +75,28 @@ describe("smartJobCreation integration", () => {
     const result = applyCustomerAutocomplete(customers, "Custom Walk-in");
     expect(result.state.customerId).toBeUndefined();
     expect(result.formPatch.customerName).toBe("Custom Walk-in");
+  });
+});
+
+// The assignee picker only sources active org members now, but the form keeps
+// a free-text fallback (built from crew + existing-job names) so an imported
+// Service Fusion crew with no LOOP account is still shown and its historical
+// assignment is never dropped — PR #300's display-only fallback. This locks
+// that fallback source so it keeps surfacing those SF names.
+describe("buildTechnicianSuggestions (SF-name display fallback source)", () => {
+  it("surfaces imported crew names, de-duplicated and sorted", () => {
+    const suggestions = buildTechnicianSuggestions([
+      "Sebastian Vasquez",
+      "Antonio Vilchez",
+      "Sebastian Vasquez",
+      "",
+      "  ",
+    ]);
+    expect(suggestions).toEqual(["Antonio Vilchez", "Sebastian Vasquez"]);
+  });
+
+  it("preserves a historical free-text assignment with no matching profile", () => {
+    const suggestions = buildTechnicianSuggestions(["Marcus Rivera"]);
+    expect(suggestions).toContain("Marcus Rivera");
   });
 });

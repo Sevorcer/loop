@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import { useCustomerPropertyOptions } from "@/features/jobs/hooks/useCustomerPropertyOptions";
 import { requestJson } from "@/lib/api/client";
-import { listFieldTechnicians } from "@/services/profileDirectory";
+import { fetchAssignableMembers } from "@/services/profileDirectory";
 import { ROUTES } from "@/lib/routes";
 
 import type { Crew } from "@/features/dispatch/types/dispatch";
@@ -101,7 +101,7 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   useEffect(() => {
     if (!role) return;
     let cancelled = false;
-    void listFieldTechnicians()
+    void fetchAssignableMembers(role)
       .then((profiles) => {
         if (!cancelled) setTechnicianProfiles(profiles);
       })
