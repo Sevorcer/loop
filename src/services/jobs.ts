@@ -44,6 +44,7 @@ import {
   listJobsByPropertyId,
   listJobsForDispatch,
   listJobsInRange,
+  listRecentJobs as listRecentJobRecords,
   toJob,
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
@@ -280,6 +281,16 @@ async function viewerCanSeePrice(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * The latest N jobs for the dashboard "Recent Jobs" widget. Server-limited —
+ * it does NOT reuse listJobsWithActivity / the full workspace paginator, so a
+ * large org no longer times the widget out downloading every job and its
+ * activity. Default of 5 matches what the widget renders.
+ */
+export async function listRecentJobs(limit = 5): Promise<Job[]> {
+  return listRecentJobRecords(limit);
 }
 
 export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
@@ -523,6 +534,27 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
   }
 
   if (status === "Completed") {
+    // A multi-day job must not be completable before its final scheduled day.
+    // Day boundaries are the company timezone (America/Los_Angeles), matching
+    // how dispatch windowing counts calendar days. The final day is the
+    // scheduled end; a job with no end falls back to its start day. Single-day
+    // jobs (no end, or an end on the start day) are never gated, so this
+    // applies equally to full and visit closeout. Checked before the checklist
+    // gate so the day block reads ahead of any "still needed" message.
+    const startDay = companyCalendarDate(existing.scheduledStartAt);
+    const endDay = companyCalendarDate(existing.scheduledEndAt);
+    const finalDay = endDay ?? startDay;
+    if (
+      startDay &&
+      finalDay &&
+      finalDay > startDay &&
+      todayInCompanyTimeZone() < finalDay
+    ) {
+      throw new Error(
+        `Cannot complete job — this job runs through ${formatDateOnly(finalDay)} and cannot be completed before its final scheduled day.`,
+      );
+    }
+
     const checklist = await getJobCompletionChecklist(id, context?.role);
     if (!checklist.canComplete) {
       const blockers: string[] = [];

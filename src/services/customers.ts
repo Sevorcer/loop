@@ -4,11 +4,14 @@ import type { Customer, CustomerStatus } from "@/features/customers/types/custom
 import type { CustomerJobItem, CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import {
   countCustomerReferences,
-  countOpenJobsForCustomer,
+  countJobsForCustomers,
+  countOpenJobsForCustomers,
   countPropertiesForCustomer,
   createCustomer as createCustomerRecord,
   deleteCustomer as deleteCustomerRecord,
   getCustomerById,
+  getParentCustomerId,
+  listChildCustomerIds,
   listCustomerCities as listCustomerCitiesRecord,
   listCustomers as listCustomerRecords,
   updateCustomer as updateCustomerRecord,
@@ -121,10 +124,17 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput) {
   return updateCustomerRecord(id, merged);
 }
 
-export async function syncCustomerCounters(customerId: string) {
+/**
+ * Recompute and store a single customer's counters. The open-job count rolls
+ * up any child customers ([customerId, ...childIds]) so a builder parent's
+ * stored `open_jobs` reflects the whole account, not just jobs filed directly
+ * against the parent. Uses exact head counts — never a capped `.length`.
+ */
+async function syncCustomerCountersFor(customerId: string) {
+  const childIds = await listChildCustomerIds(customerId);
   const [propertyCount, openJobs] = await Promise.all([
     countPropertiesForCustomer(customerId),
-    countOpenJobsForCustomer(customerId),
+    countOpenJobsForCustomers([customerId, ...childIds]),
   ]);
 
   return updateCustomerRecord(customerId, {
@@ -132,6 +142,45 @@ export async function syncCustomerCounters(customerId: string) {
     openJobs,
     lastActivity: new Date().toISOString().slice(0, 10),
   });
+}
+
+export async function syncCustomerCounters(customerId: string) {
+  const result = await syncCustomerCountersFor(customerId);
+
+  // When a child customer's jobs change, the parent's rolled-up count is now
+  // stale too — refresh it in the same pass. One hop only; parents have no
+  // parent of their own in this model.
+  const parentId = await getParentCustomerId(customerId);
+  if (parentId && parentId !== customerId) {
+    await syncCustomerCountersFor(parentId);
+  }
+
+  return result;
+}
+
+export interface CustomerJobScopeCounts {
+  /** Jobs filed directly against this customer. */
+  own: number;
+  /** Jobs across this customer plus its child customers. */
+  acrossAccount: number;
+  /** Number of child customers rolling up into this customer. */
+  childCount: number;
+}
+
+/**
+ * Exact "Jobs in Scope" counts for the customer detail tiles. Both figures
+ * come from PostgREST head counts, so they are correct for parents whose job
+ * lists exceed the 1000-row fetch cap.
+ */
+export async function getCustomerJobScopeCounts(
+  customerId: string,
+): Promise<CustomerJobScopeCounts> {
+  const childIds = await listChildCustomerIds(customerId);
+  const own = await countJobsForCustomers([customerId]);
+  const acrossAccount =
+    childIds.length > 0 ? await countJobsForCustomers([customerId, ...childIds]) : own;
+
+  return { own, acrossAccount, childCount: childIds.length };
 }
 
 export async function deleteCustomer(id: string) {

@@ -106,6 +106,11 @@ export interface JobDraft {
   arrival_window_start_at: string | null;
   arrival_window_end_at: string | null;
   created_at: string | null;
+  // Real Service Fusion completion time (the SF job's updated_at), carried so the
+  // import function can backdate a "Job completed" activity event. Null unless the
+  // mapped status is Completed and Service Fusion has a usable timestamp — never
+  // fabricated, so a completed job without updated_at emits no event.
+  completed_at: string | null;
 }
 
 export interface FinancialDraft {
@@ -584,6 +589,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
       sf_tech_names: matchedTechs.unmatched.map((item) => item.name).join(", "),
       ...schedule,
       created_at: timestampOrNull(job.created_at),
+      completed_at: status.status === "Completed" ? timestampOrNull(job.updated_at) : null,
     });
 
     const cents = dollarsToCents(job.total);

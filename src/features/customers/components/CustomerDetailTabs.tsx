@@ -13,6 +13,8 @@ import { joinAddressParts } from "@/lib/address";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { formatDateOnly } from "@/lib/dates";
 
+import type { CustomerJobScopeCounts } from "@/services/customers";
+
 import type { Customer } from "../types/customer";
 import type {
   CustomerInstalledSystemItem,
@@ -102,6 +104,7 @@ interface CustomerDetailTabsProps {
   customer: Customer;
   properties: CustomerPropertyItem[];
   jobs: CustomerJobItem[];
+  jobScopeCounts?: CustomerJobScopeCounts | null;
   installedSystems: CustomerInstalledSystemItem[];
   timelineItems: TimelineEventItem[];
   timelineError?: string;
@@ -114,6 +117,7 @@ export function CustomerDetailTabs({
   customer,
   properties,
   jobs,
+  jobScopeCounts,
   installedSystems,
   timelineItems,
   timelineError,
@@ -187,6 +191,36 @@ export function CustomerDetailTabs({
         : undefined,
     [properties, selectedPropertyId],
   );
+
+  // "Jobs in Scope" tile. Without a property lens we show the exact head
+  // counts from the server (correct even for parents past the 1000-row fetch
+  // cap); with a lens we scope to the selected property's loaded jobs. Labels
+  // make clear whether a number counts this customer alone or the whole
+  // account (this customer + its linked job sites).
+  const jobScopeTile = useMemo(() => {
+    if (selectedPropertyId) {
+      return {
+        title: "Jobs in Scope",
+        value: filteredJobs.length,
+        caption: `Jobs at ${scopedProperty?.name ?? "the selected property"}.`,
+      };
+    }
+
+    if (jobScopeCounts && jobScopeCounts.childCount > 0) {
+      const sites = jobScopeCounts.childCount === 1 ? "linked job site" : "linked job sites";
+      return {
+        title: "Jobs Across Account",
+        value: jobScopeCounts.acrossAccount,
+        caption: `${jobScopeCounts.own} direct to this customer · ${jobScopeCounts.childCount} ${sites} rolled in.`,
+      };
+    }
+
+    return {
+      title: "Jobs in Scope",
+      value: jobScopeCounts ? jobScopeCounts.own : filteredJobs.length,
+      caption: "Jobs tied to this customer.",
+    };
+  }, [filteredJobs.length, jobScopeCounts, scopedProperty?.name, selectedPropertyId]);
 
   const updateUrl = (nextTab: CustomerDetailTabKey, nextPropertyId?: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -287,13 +321,11 @@ export function CustomerDetailTabs({
 
           <Card>
             <CardHeader>
-              <CardTitle>Jobs in Scope</CardTitle>
+              <CardTitle>{jobScopeTile.title}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold">{filteredJobs.length}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Scheduled and active customer jobs in the selected lens.
-              </p>
+              <p className="text-2xl font-semibold">{jobScopeTile.value}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{jobScopeTile.caption}</p>
             </CardContent>
           </Card>
 
