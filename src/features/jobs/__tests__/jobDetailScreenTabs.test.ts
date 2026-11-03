@@ -460,11 +460,13 @@ describe("JobTasksCard add item (B3 — mouse users can add, not only Enter)", (
 });
 
 describe("JobDetailScreen Edit Job navigation", () => {
-  // Regression: the Edit Job button was a silent no-op in production because it
-  // navigated with an imperative router.push into the nested dynamic route
-  // /jobs/[id]/edit, which did not commit. It must render as a real <Link>
-  // (an anchor with the edit href), mirroring the working "New Job" button, so
-  // Next's client router performs the navigation.
+  // Regression: the Edit Job button was a silent no-op in production. Probe
+  // diagnosis proved the client router fetched a valid RSC flight for
+  // /jobs/[id]/edit but never committed the soft navigation (router.push AND
+  // <Link> both drive that broken path). The fix renders a plain anchor to the
+  // edit route so the browser performs a full-document navigation to the
+  // proven-good URL. Contract under test: an anchor carrying the edit href is
+  // present for office roles and absent for technicians.
   it("renders Edit Job as an anchor to the job's edit route for office roles", async () => {
     authState.role = "owner";
     const container = await renderScreen();

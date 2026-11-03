@@ -306,19 +306,28 @@ export function JobDetailScreen({
         {isTech ? null : (
           <PermissionGuard table="jobs" action="update">
             {/*
-             * Navigate with <Link>, not router.push in onClick. An imperative
-             * push into this nested dynamic route (/jobs/[id]/edit) did not
-             * commit in production — the button was a silent no-op — while the
-             * identical push to the static /jobs route ("Back to Jobs") worked.
-             * The "New Job" button (<Link href={JOB_NEW}><Button>) navigates
-             * reliably, so we mirror that proven pattern here. type="button"
-             * keeps the inner native button from ever acting on its own.
+             * Edit uses a PLAIN <a>, NOT next/link or router.push, on purpose.
+             *
+             * Instrumented diagnosis (probe v1–v3 on preview) proved the client
+             * router issues a correct RSC navigation for this route
+             * (GET /jobs/<id>/edit?_rsc, headers RSC:1 + Next-Router-State-Tree)
+             * and receives a valid 200 text/x-component flight payload — yet it
+             * silently fails to COMMIT the /jobs/[id] -> /jobs/[id]/edit
+             * transition: URL never changes, nothing renders, no error. Both
+             * router.push and <Link> drive that same broken soft-nav path, so
+             * both are no-ops here. A full-document load of the same URL renders
+             * correctly (verified directly), so we force one: a plain anchor is
+             * not intercepted by the App Router and performs a real browser
+             * navigation to the proven-good path. (Deliberate deviation from the
+             * "always use Link" guideline for this one framework-level soft-nav
+             * failure; see the diag notes. type="button" keeps the inner native
+             * button from acting on its own so the anchor handles the click.)
              */}
-            <Link href={ROUTE_BUILDERS.JOB_EDIT(job.id)}>
+            <a href={ROUTE_BUILDERS.JOB_EDIT(job.id)} data-testid="edit-job-link">
               <Button type="button" variant="secondary" className="min-h-[44px]">
                 Edit Job
               </Button>
-            </Link>
+            </a>
           </PermissionGuard>
         )}
       </div>
