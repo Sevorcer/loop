@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Briefcase } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, ArrowRight, Briefcase, Loader2 } from "lucide-react";
 
 import { ROUTES } from "@/lib/routes";
-import { useJobs } from "@/features/jobs/state/JobsProvider";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 import { normalizeJobStatus } from "@/lib/jobs/status";
+import type { Job } from "@/features/jobs/types/job";
+
+const RECENT_LIMIT = 5;
 
 function getStatusColor(status: string) {
   switch (normalizeJobStatus(status) ?? status) {
@@ -25,11 +30,68 @@ function getStatusColor(status: string) {
 }
 
 export function RecentJobsList() {
-  const { jobs } = useJobs();
+  const { role } = useCurrentRole();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [status, setStatus] = useState<"loading" | "error" | "ready">("loading");
 
-  const recent = jobs.slice(0, 5);
+  const loadRecentJobs = useCallback(async () => {
+    if (!role) {
+      return;
+    }
 
-  if (recent.length === 0) {
+    setStatus("loading");
+    try {
+      const response = await requestJson<{ jobs: Job[] }>(
+        `/api/jobs/recent?limit=${RECENT_LIMIT}`,
+        { role, cache: "no-store" },
+      );
+      setJobs(response.jobs);
+      setStatus("ready");
+    } catch {
+      setStatus("error");
+    }
+  }, [role]);
+
+  useEffect(() => {
+    void loadRecentJobs();
+  }, [loadRecentJobs]);
+
+  // Distinct loading state — previously the widget showed the empty state
+  // while the full-workspace request was still in flight (or timing out).
+  if (status === "loading") {
+    return (
+      <div
+        role="status"
+        aria-label="Loading recent jobs"
+        className="text-muted flex items-center justify-center gap-2 px-6 py-8 text-sm"
+      >
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        <span>Loading recent jobs…</span>
+      </div>
+    );
+  }
+
+  // Distinct error state — a failed/timed-out read no longer masquerades as
+  // "no jobs yet".
+  if (status === "error") {
+    return (
+      <div className="flex flex-col items-center gap-3 px-6 py-8 text-center text-sm">
+        <span className="text-muted inline-flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
+          Couldn’t load recent jobs.
+        </span>
+        <button
+          type="button"
+          onClick={() => void loadRecentJobs()}
+          className="text-blue-400 hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (jobs.length === 0) {
     return (
       <div className="text-muted px-6 py-8 text-center text-sm">
         No jobs yet.{" "}
@@ -46,7 +108,7 @@ export function RecentJobsList() {
 
   return (
     <div>
-      {recent.map((job) => (
+      {jobs.map((job) => (
         <Link
           key={job.id}
           href={`${ROUTES.JOBS}/${job.id}`}

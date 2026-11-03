@@ -44,6 +44,7 @@ import {
   listJobsByPropertyId,
   listJobsForDispatch,
   listJobsInRange,
+  listRecentJobs as listRecentJobRecords,
   toJob,
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
@@ -280,6 +281,16 @@ async function viewerCanSeePrice(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * The latest N jobs for the dashboard "Recent Jobs" widget. Server-limited —
+ * it does NOT reuse listJobsWithActivity / the full workspace paginator, so a
+ * large org no longer times the widget out downloading every job and its
+ * activity. Default of 5 matches what the widget renders.
+ */
+export async function listRecentJobs(limit = 5): Promise<Job[]> {
+  return listRecentJobRecords(limit);
 }
 
 export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: JobActivity[] }> {
