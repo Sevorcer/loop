@@ -51,10 +51,12 @@ export function propertyOptionDetail(
 }
 
 export function missingPropertyDraftFields(draft: PropertyDraft): string[] {
+  // Name-only record creation (Collin's standing rule, 2026-10-01): the inline
+  // property-draft path only requires a name, matching the inline customer path.
+  // Street and city stay optional here. The standalone NewPropertyForm keeps its
+  // own address requirement for direct property creation.
   const missing: string[] = [];
   if (!draft.name.trim()) missing.push("Property name");
-  if (!draft.address.trim()) missing.push("Street address");
-  if (!draft.city.trim()) missing.push("City");
   return missing;
 }
 
