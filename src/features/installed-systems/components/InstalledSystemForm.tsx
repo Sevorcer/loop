@@ -62,9 +62,27 @@ export interface InstalledSystemFormContext {
 interface InstalledSystemFormProps {
   system?: InstalledSystem;
   context?: InstalledSystemFormContext;
+  /**
+   * Opt-in dialog mode. When provided, a successful create calls `onCreated`
+   * with the new system — after the installed-systems provider has been
+   * refreshed — instead of navigating to the system detail page, so the caller
+   * (e.g. the job Systems tab) can stay in place and surface the new record
+   * itself. The server create path is unchanged: same POST /api/installed-systems.
+   */
+  onCreated?: (system: InstalledSystem) => void;
+  /** When provided, Cancel calls this instead of navigating to `cancelHref`. */
+  onCancel?: () => void;
+  /** Drops the standalone-page hero so the form sits cleanly inside a dialog. */
+  embedded?: boolean;
 }
 
-export function InstalledSystemForm({ system, context }: InstalledSystemFormProps) {
+export function InstalledSystemForm({
+  system,
+  context,
+  onCreated,
+  onCancel,
+  embedded = false,
+}: InstalledSystemFormProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const { refreshSystems } = useInstalledSystems();
@@ -364,7 +382,14 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
           },
         );
         await refreshSystems();
-        router.push(ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(response.installedSystem.id));
+        if (onCreated) {
+          // Dialog mode: hand the new system back to the caller (which closes
+          // the dialog). The provider refresh above already makes it visible in
+          // the job Systems tab and flips the closeout "Installed systems" gate.
+          onCreated(response.installedSystem);
+        } else {
+          router.push(ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(response.installedSystem.id));
+        }
       }
     } catch (err) {
       setError(
@@ -377,6 +402,7 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
 
   return (
     <div className="space-y-6">
+      {embedded ? null : (
       <SurfaceCard className="overflow-hidden">
         <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
@@ -411,6 +437,7 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
           </Link>
         </div>
       </SurfaceCard>
+      )}
 
       <form onSubmit={handleSubmit}>
         <SurfaceCard>
@@ -628,15 +655,27 @@ export function InstalledSystemForm({ system, context }: InstalledSystemFormProp
           <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             {error ? <p className="text-sm text-red-300">{error}</p> : <div />}
             <div className="flex items-center justify-end gap-3">
-              <Link href={cancelHref}>
+              {onCancel ? (
                 <Button
                   type="button"
                   variant="ghost"
+                  onClick={onCancel}
+                  disabled={isSaving}
                   className="text-slate-300 hover:text-white"
                 >
                   Cancel
                 </Button>
-              </Link>
+              ) : (
+                <Link href={cancelHref}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-slate-300 hover:text-white"
+                  >
+                    Cancel
+                  </Button>
+                </Link>
+              )}
 
               <Button type="submit" className="gap-2" disabled={!canSubmit || isSaving}>
                 <Save className="h-4 w-4" />
