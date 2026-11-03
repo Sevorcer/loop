@@ -583,6 +583,11 @@ export function JobForm({
                 value={form.scheduledEndAt}
                 onChange={(next) => updateField("scheduledEndAt", next)}
                 invalid={Boolean(scheduledWindowError)}
+                // A multi-day job's end is commonly entered as just a day. Default
+                // the time to 5:00 PM so picking the end date alone persists the
+                // span (scheduled_end_at) instead of being silently dropped — the
+                // day is all the calendar, daily plans and completion gate need.
+                dateOnlyDefaultTime="17:00"
               />
               {scheduledWindowError && (
                 <p className="text-xs text-red-400">{scheduledWindowError}</p>
