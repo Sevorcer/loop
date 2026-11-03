@@ -86,7 +86,7 @@ CREATE POLICY "job_files_storage_insert"
   TO authenticated
   WITH CHECK (
     bucket_id = 'job-files'
-    AND (select public.current_app_role()) IN ('owner', 'manager', 'tech', 'office')
+    AND (select public.current_app_role()) IN ('owner', 'manager', 'dispatch', 'tech', 'office')
     AND EXISTS (
       SELECT 1
       FROM public.jobs j

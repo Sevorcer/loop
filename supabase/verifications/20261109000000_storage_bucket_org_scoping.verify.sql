@@ -64,7 +64,8 @@ DO $$ BEGIN
       AND qual ILIKE '%split_part%'
   ), 'job_files_storage_select must org-scope via EXISTS on public.jobs for the full visibility role set';
 
-  -- INSERT: owner/manager/tech/office + EXISTS on public.jobs.
+  -- INSERT: owner/manager/dispatch/tech/office + EXISTS on public.jobs.
+  -- (dispatch is included to match the upload route's jobs.update gate.)
   ASSERT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'storage' AND tablename = 'objects'
@@ -72,10 +73,11 @@ DO $$ BEGIN
       AND cmd = 'INSERT'
       AND with_check ILIKE '%bucket_id = ''job-files''%'
       AND with_check ILIKE '%current_app_role%'
+      AND with_check ILIKE '%''dispatch''%'
       AND with_check ILIKE '%''office''%'
       AND with_check ILIKE '%exists%'
       AND with_check ILIKE '%jobs%'
-  ), 'job_files_storage_insert must org-scope writes via EXISTS on public.jobs';
+  ), 'job_files_storage_insert must org-scope writes via EXISTS on public.jobs and include the dispatch role';
 
   -- DELETE: owner/manager only, AND org-scoped via EXISTS on public.jobs so a
   -- cross-org owner/manager cannot delete another org's files.
