@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+
+// [EDIT_PROBE] TEMPORARY DIAGNOSTIC IMPORT — remove with the probe block below.
+import { reportClientError } from "@/components/observability/ClientErrorReporter";
 import {
   ArrowLeft,
   Briefcase,
@@ -287,6 +290,138 @@ export function JobDetailScreen({
   const jobNotesCompleted =
     notes.some((note) => note.body.trim().length > 0) || job.notes.trim().length > 0;
 
+  // ==========================================================================
+  // [EDIT_PROBE] TEMPORARY DIAGNOSTIC — REMOVE AFTER ONE CAPTURE.
+  // Purpose: capture, from a real device, why the "Edit Job" button is a silent
+  // no-op. All beacons carry the marker "[EDIT_PROBE]" (grep Vercel runtime logs
+  // for `[EDIT_PROBE]`) and are POSTed best-effort via reportClientError(...),
+  // which emits a `[CLIENT_ERROR] {json}` line. Structured detail rides in the
+  // `stack` field (mirrors the existing jobs/error.tsx pattern). This block does
+  // NOT change the button's real behavior (router.push still runs unchanged).
+  // To revert: delete this block, the `data-edit-probe` attribute on the Edit
+  // Job button, the first line of its onClick, and the two diagnostic imports.
+  // --------------------------------------------------------------------------
+  const editProbeButtonRef = useRef<HTMLElement | null>(null);
+
+  // [EDIT_PROBE] short, PII-free description of a DOM node: tag/id/class/slot.
+  const describeEditProbeNode = (node: Element | null | undefined): string => {
+    try {
+      if (!node) return "null";
+      const el = node as HTMLElement;
+      const tag = el.tagName ? el.tagName.toLowerCase() : "?";
+      const id = el.id ? `#${el.id}` : "";
+      const cls =
+        typeof el.className === "string" && el.className.trim().length > 0
+          ? "." + el.className.trim().split(/\s+/).slice(0, 4).join(".")
+          : "";
+      const slot = el.getAttribute?.("data-slot")
+        ? `[data-slot=${el.getAttribute("data-slot")}]`
+        : "";
+      return `${tag}${id}${cls}${slot}`.slice(0, 280);
+    } catch {
+      return "describe-error";
+    }
+  };
+
+  // [EDIT_PROBE] beacon 1 — on mount: locate the Edit Job button, read its
+  // rect/center, and check what element actually sits at that center
+  // (live-device overlay check). sameAsButton:false => something covers it.
+  useEffect(() => {
+    try {
+      const node = document.querySelector<HTMLElement>('[data-edit-probe="edit-job"]');
+      editProbeButtonRef.current = node;
+      if (!node) {
+        reportClientError({
+          message: "[EDIT_PROBE] mount",
+          stack: JSON.stringify({
+            found: false,
+            note: "Edit Job button not in DOM at mount (PermissionGuard denied/loading or role=tech)",
+          }),
+          source: "edit-probe",
+        });
+        return;
+      }
+      const rect = node.getBoundingClientRect();
+      const center = {
+        x: Math.round(rect.left + rect.width / 2),
+        y: Math.round(rect.top + rect.height / 2),
+      };
+      const atCenter = document.elementFromPoint(center.x, center.y);
+      reportClientError({
+        message: "[EDIT_PROBE] mount",
+        stack: JSON.stringify({
+          found: true,
+          rect: {
+            top: Math.round(rect.top),
+            left: Math.round(rect.left),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          },
+          center,
+          elementAtCenter: describeEditProbeNode(atCenter),
+          sameAsButton: !!atCenter && (atCenter === node || node.contains(atCenter)),
+        }),
+        source: "edit-probe",
+      });
+    } catch {
+      // Best-effort; the probe must never break the screen.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // [EDIT_PROBE] beacon 2 — capture-phase document click listener: does a real
+  // click reach `document` in the capture phase at all, and is it inside the
+  // Edit Job button? Reports target, inside-button, coords, and what element is
+  // at the button's center at click time.
+  useEffect(() => {
+    const onDocClickCapture = (e: MouseEvent) => {
+      try {
+        const node =
+          editProbeButtonRef.current ??
+          document.querySelector<HTMLElement>('[data-edit-probe="edit-job"]');
+        const target = (e.target as Element | null) ?? null;
+        let elementAtEditCenter = "no-button";
+        let insideEditButton = false;
+        if (node) {
+          const rect = node.getBoundingClientRect();
+          const cx = Math.round(rect.left + rect.width / 2);
+          const cy = Math.round(rect.top + rect.height / 2);
+          elementAtEditCenter = describeEditProbeNode(document.elementFromPoint(cx, cy));
+          insideEditButton = !!target && node.contains(target);
+        }
+        reportClientError({
+          message: "[EDIT_PROBE] doc-capture-click",
+          stack: JSON.stringify({
+            targetDesc: describeEditProbeNode(target),
+            insideEditButton,
+            x: e.clientX,
+            y: e.clientY,
+            elementAtEditCenter,
+          }),
+          source: "edit-probe",
+        });
+      } catch {
+        // Best-effort; never let the listener throw.
+      }
+    };
+    try {
+      document.addEventListener("click", onDocClickCapture, { capture: true });
+    } catch {
+      // If registration fails, do nothing — the screen is unaffected.
+    }
+    return () => {
+      try {
+        document.removeEventListener("click", onDocClickCapture, { capture: true });
+      } catch {
+        // Ignore teardown failures.
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // --------------------------------------------------------------------------
+  // [EDIT_PROBE] END DIAGNOSTIC SETUP
+  // ==========================================================================
+
   return (
     // The mobile bottom tab bar is about 4rem tall, plus the home-indicator
     // inset. Pad past both so the last block can scroll clear of it.
@@ -306,9 +441,19 @@ export function JobDetailScreen({
         {isTech ? null : (
           <PermissionGuard table="jobs" action="update">
             <Button
+              /* [EDIT_PROBE] TEMPORARY: marker attribute so the diagnostic can
+                 find this button's DOM node. Remove with the probe block. */
+              data-edit-probe="edit-job"
               variant="secondary"
               className="min-h-[44px]"
               onClick={() => {
+                // [EDIT_PROBE] TEMPORARY: prove the React onClick handler runs.
+                // Must stay the FIRST statement; router.push below is unchanged.
+                reportClientError({
+                  message: "[EDIT_PROBE] onClick FIRED",
+                  stack: JSON.stringify({ jobId: job.id, target: `/jobs/${job.id}/edit` }),
+                  source: "edit-probe",
+                });
                 router.push(`/jobs/${job.id}/edit`);
               }}
             >
