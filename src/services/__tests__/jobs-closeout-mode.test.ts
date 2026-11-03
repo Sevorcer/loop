@@ -200,6 +200,28 @@ describe("getJobCompletionChecklist — visit closeout", () => {
     expect(checklist.jobNotesCompleted).toBe(false);
     expect(checklist.canComplete).toBe(false);
   });
+
+  // B9 — pin: the note gate is satisfied by ANY note, not only a tech-authored
+  // one. An office-authored note must keep closing out a visit job, so this
+  // behavior cannot silently regress to a tech-only check.
+  it("accepts an office-authored note (any author satisfies the gate)", async () => {
+    getJobByIdMock.mockResolvedValue(makeJob({ closeoutMode: "visit", notes: "" }));
+    listJobNotesMock.mockResolvedValue([
+      {
+        id: "note-office",
+        jobId: "job-001",
+        body: "Office confirmed inspection scheduled.",
+        authorId: "office-1",
+        authorName: "Dana Office",
+        authorRole: "office",
+      },
+    ]);
+
+    const checklist = await getJobCompletionChecklist("job-001", "office");
+
+    expect(checklist.jobNotesCompleted).toBe(true);
+    expect(checklist.canComplete).toBe(true);
+  });
 });
 
 // ─── getJobCompletionChecklist — full mode and the default ───────────────────
