@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 
 import { CustomerDetailScreen } from "@/features/customers";
-import { getCustomer, getCustomerJobs, getCustomerProperties } from "@/services/customers";
+import {
+  getCustomer,
+  getCustomerJobs,
+  getCustomerJobScopeCounts,
+  getCustomerProperties,
+} from "@/services/customers";
 import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
 import { buildCustomerTimelineEvents } from "@/services/timeline";
 
@@ -14,7 +19,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
   const { id } = await params;
   const query = await searchParams;
 
-  const [customer, properties, jobs] = await Promise.all([
+  const [customer, properties, jobs, jobScopeCounts] = await Promise.all([
     getCustomer(id),
     getCustomerProperties(id),
     getCustomerJobs(id).catch((err: unknown) => {
@@ -23,6 +28,15 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
         error: err instanceof Error ? err.message : String(err),
       });
       return [] as Awaited<ReturnType<typeof getCustomerJobs>>;
+    }),
+    // Exact head counts (parent + child customers) for the "Jobs in Scope"
+    // tile. A capped job list cannot be counted with `.length`.
+    getCustomerJobScopeCounts(id).catch((err: unknown) => {
+      console.error("[customers/detail] job scope count failed – falling back to list length", {
+        customerId: id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
     }),
   ]);
 
@@ -77,6 +91,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
       customer={customer}
       properties={properties}
       jobs={jobs}
+      jobScopeCounts={jobScopeCounts}
       installedSystems={systemsState.systems}
       timelineItems={timelineState.items}
       timelineError={timelineState.error}

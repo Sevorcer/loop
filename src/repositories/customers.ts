@@ -337,12 +337,25 @@ export async function countPropertiesForCustomer(customerId: string): Promise<nu
 }
 
 export async function countOpenJobsForCustomer(customerId: string): Promise<number> {
+  return countOpenJobsForCustomers([customerId]);
+}
+
+/**
+ * Exact open-job count across one OR MORE customer ids, using a PostgREST
+ * `head` count so the result is never capped by the 1000-row fetch limit.
+ * Pass the id set [parentId, ...childIds] to roll a parent's child-customer
+ * jobs up into a single count. An empty id set counts nothing.
+ */
+export async function countOpenJobsForCustomers(customerIds: string[]): Promise<number> {
+  const ids = [...new Set(customerIds)].filter(Boolean);
+  if (ids.length === 0) return 0;
+
   const { supabase, orgId } = await getRepositoryContext();
   const { count, error } = await supabase
     .from("jobs")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
-    .eq("customer_id", customerId)
+    .in("customer_id", ids)
     .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER);
 
   if (error) {
@@ -350,4 +363,71 @@ export async function countOpenJobsForCustomer(customerId: string): Promise<numb
   }
 
   return count ?? 0;
+}
+
+/**
+ * Exact total-job count (any status) across one or more customer ids. Backs
+ * the "Jobs in Scope" tile, which must report the true number even for large
+ * parents — a `.length` of a capped fetch silently stopped at 1000 rows.
+ */
+export async function countJobsForCustomers(customerIds: string[]): Promise<number> {
+  const ids = [...new Set(customerIds)].filter(Boolean);
+  if (ids.length === 0) return 0;
+
+  const { supabase, orgId } = await getRepositoryContext();
+  const { count, error } = await supabase
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .in("customer_id", ids);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return count ?? 0;
+}
+
+/**
+ * Ids of the child customers that roll up into this parent. Returns an empty
+ * list when the parent_customer_id column is absent (pre-migration schema) so
+ * callers degrade to a single-customer count instead of failing.
+ */
+export async function listChildCustomerIds(parentId: string): Promise<string[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("parent_customer_id", parentId);
+
+  if (error) {
+    if (missingAccountColumn(error)) return [];
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Array<{ id: string }>).map((row) => row.id);
+}
+
+/**
+ * The parent customer id for a customer, or null when it has none (or the
+ * parent_customer_id column is absent). Lets a counter sync also refresh the
+ * parent's rolled-up count when a child's jobs change.
+ */
+export async function getParentCustomerId(customerId: string): Promise<string | null> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("customers")
+    .select("parent_customer_id")
+    .eq("org_id", orgId)
+    .eq("id", customerId)
+    .maybeSingle();
+
+  if (error) {
+    if (missingAccountColumn(error)) return null;
+    throw new Error(error.message);
+  }
+
+  const parentId = (data as { parent_customer_id?: string | null } | null)?.parent_customer_id;
+  return parentId ?? null;
 }

@@ -371,6 +371,60 @@ export async function listJobs(
 }
 
 /**
+ * The most recently touched jobs, newest first, capped SERVER-SIDE with
+ * `.limit`. Purpose-built for the dashboard "Recent Jobs" widget: unlike
+ * listJobs/listWorkspaceJobs it never pages the whole workspace, so it cannot
+ * time out on a large org. Assignees are intentionally not attached — the
+ * widget does not render them, and skipping that keeps the read to a single
+ * query. The scheduling-column fallback chain matches listJobs so the read
+ * stays usable on schemas behind on migrations.
+ */
+export async function listRecentJobs(limit = 5): Promise<Job[]> {
+  const take = Math.max(1, Math.min(limit, 50));
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const result = await supabase
+    .from("jobs")
+    .select(JOB_SELECT)
+    .eq("org_id", orgId)
+    .order("updated_at", { ascending: false })
+    .limit(take);
+
+  let data = toJobRows(result.data);
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
+    const fallback = await supabase
+      .from("jobs")
+      .select(JOB_SELECT_WITH_LEGACY)
+      .eq("org_id", orgId)
+      .order("updated_at", { ascending: false })
+      .limit(take);
+    data = toJobRows(fallback.data);
+    error = fallback.error;
+
+    if (error && isSchedulingColumnMissingError(error)) {
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
+      const base = await supabase
+        .from("jobs")
+        .select(JOB_SELECT_BASE)
+        .eq("org_id", orgId)
+        .order("updated_at", { ascending: false })
+        .limit(take);
+      data = toJobRows(base.data);
+      error = base.error;
+    }
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as JobRow[]).map(mapJob);
+}
+
+/**
  * Fetches the jobs for an explicit id list, in JOB_ID_QUERY_CHUNK_SIZE
  * chunks, newest first. Unlike listJobs this is not page-capped: every id
  * the caller names is looked up, so callers that already hold the ids they

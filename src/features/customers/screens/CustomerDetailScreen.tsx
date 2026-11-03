@@ -18,11 +18,13 @@ import type {
   CustomerPropertyItem,
 } from "../types/customerDetails";
 import type { TimelineEventItem } from "@/lib/timeline";
+import type { CustomerJobScopeCounts } from "@/services/customers";
 
 interface CustomerDetailScreenProps {
   customer: Customer;
   properties: CustomerPropertyItem[];
   jobs: CustomerJobItem[];
+  jobScopeCounts?: CustomerJobScopeCounts | null;
   installedSystems: CustomerInstalledSystemItem[];
   timelineItems: TimelineEventItem[];
   timelineError?: string;
@@ -39,6 +41,7 @@ export function CustomerDetailScreen({
   customer,
   properties,
   jobs,
+  jobScopeCounts,
   installedSystems,
   timelineItems,
   timelineError,
@@ -253,6 +256,7 @@ export function CustomerDetailScreen({
         customer={customer}
         properties={properties}
         jobs={jobs}
+        jobScopeCounts={jobScopeCounts}
         installedSystems={installedSystems}
         timelineItems={timelineItems}
         timelineError={timelineError}
