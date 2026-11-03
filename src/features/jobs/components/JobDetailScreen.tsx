@@ -28,7 +28,7 @@ import { useInstalledSystems } from "@/features/installed-systems/state/Installe
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { joinAddressParts } from "@/lib/address";
-import { ROUTE_BUILDERS } from "@/lib/routes";
+import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 import { formatTeamLabel } from "@/lib/teamLabel";
 import { cn } from "@/lib/utils";
 
@@ -293,10 +293,11 @@ export function JobDetailScreen({
     <div className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0">
       <div className="flex items-center justify-between gap-4">
         <Button
+          type="button"
           variant="ghost"
           className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
           onClick={() => {
-            router.push("/jobs");
+            router.push(ROUTES.JOBS);
           }}
         >
           <ArrowLeft className="h-4 w-4" />
@@ -306,10 +307,11 @@ export function JobDetailScreen({
         {isTech ? null : (
           <PermissionGuard table="jobs" action="update">
             <Button
+              type="button"
               variant="secondary"
               className="min-h-[44px]"
               onClick={() => {
-                router.push(`/jobs/${job.id}/edit`);
+                router.push(ROUTE_BUILDERS.JOB_EDIT(job.id));
               }}
             >
               Edit Job
