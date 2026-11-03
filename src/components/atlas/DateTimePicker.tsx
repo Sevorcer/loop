@@ -40,6 +40,25 @@ export function parseDateTimeLocal(value: string): DateTimeParts {
   };
 }
 
+/**
+ * Parse a 24h "HH:mm" default into picker parts. Used by date-only fallbacks
+ * so an optional field (e.g. a job's Scheduled End) can commit the moment a
+ * date is picked, without forcing the user to also choose a time.
+ */
+export function parseDefaultTime(
+  time: string | null | undefined,
+): { hour12: string; minute: string; period: string } | null {
+  if (!time) return null;
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
+  if (!match) return null;
+  const hour24 = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour24 > 23 || minute > 59) return null;
+  const period = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return { hour12: String(hour12), minute: String(minute).padStart(2, "0"), period };
+}
+
 /** Combine picker parts back into a "YYYY-MM-DDTHH:mm" value. Returns "" unless complete. */
 export function formatDateTimeLocal(parts: DateTimeParts): string {
   const { date, hour12, minute, period } = parts;
@@ -63,13 +82,28 @@ const MINUTE_STEP_OPTIONS = Array.from({ length: 12 }, (_, i) =>
  * The picker is filled one control at a time, so the parts the user already
  * chose must stick while the rest are still empty. Returns the next parts plus
  * the combined "YYYY-MM-DDTHH:mm" value ("" until every part is present).
+ *
+ * When `dateOnlyDefaultTime` ("HH:mm") is supplied, a chosen date completes the
+ * value on its own: any missing time part falls back to the default so the date
+ * is never silently dropped. This is how an optional end field (a job's
+ * Scheduled End) lets the user enter just a day. Clearing the date clears the
+ * value exactly as before — the fallback only applies while a date is present.
  */
 export function applyDateTimePartChange(
   parts: DateTimeParts,
   part: keyof DateTimeParts,
   partValue: string,
+  dateOnlyDefaultTime?: string | null,
 ): { next: DateTimeParts; combined: string } {
   const next = { ...parts, [part]: partValue };
+  if (next.date) {
+    const fill = parseDefaultTime(dateOnlyDefaultTime);
+    if (fill) {
+      if (!next.hour12) next.hour12 = fill.hour12;
+      if (!next.minute) next.minute = fill.minute;
+      if (!next.period) next.period = fill.period;
+    }
+  }
   return { next, combined: formatDateTimeLocal(next) };
 }
 
@@ -81,6 +115,12 @@ interface DateTimePickerProps {
   ariaLabel?: string;
   invalid?: boolean;
   disabled?: boolean;
+  /**
+   * Optional "HH:mm" fallback. When set, picking a date alone commits the value
+   * (missing time parts default to this), so an optional date-only field never
+   * drops the day the user chose. Leave unset for fields that require a full time.
+   */
+  dateOnlyDefaultTime?: string;
 }
 
 const controlClass = (invalid: boolean) =>
@@ -96,6 +136,7 @@ export function DateTimePicker({
   ariaLabel,
   invalid = false,
   disabled,
+  dateOnlyDefaultTime,
 }: DateTimePickerProps) {
   // Local part state: the user fills the controls one at a time, and each
   // choice must stick while the rest are still empty. Deriving the parts from
@@ -120,7 +161,7 @@ export function DateTimePicker({
   }, [parts.minute]);
 
   function handlePartChange(part: keyof DateTimeParts, partValue: string) {
-    const { next, combined } = applyDateTimePartChange(parts, part, partValue);
+    const { next, combined } = applyDateTimePartChange(parts, part, partValue, dateOnlyDefaultTime);
     setParts(next);
     lastEmittedRef.current = combined;
     onChange(combined);

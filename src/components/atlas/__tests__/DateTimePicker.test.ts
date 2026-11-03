@@ -4,6 +4,7 @@ import {
   applyDateTimePartChange,
   formatDateTimeLocal,
   parseDateTimeLocal,
+  parseDefaultTime,
 } from "@/components/atlas/DateTimePicker";
 import { isInstallDateValueValid } from "@/features/installed-systems/components/InstalledSystemForm";
 
@@ -98,6 +99,57 @@ describe("applyDateTimePartChange (F11 regression: partial input must stick)", (
     const parts = { date: "2026-09-30", hour12: "2", minute: "30", period: "" };
     const r = applyDateTimePartChange(parts, "period", "PM");
     expect(r.combined).toBe("2026-09-30T14:30");
+  });
+});
+
+describe("parseDefaultTime (date-only fallback parts)", () => {
+  it("parses a 24h HH:mm into labeled picker parts", () => {
+    expect(parseDefaultTime("17:00")).toEqual({ hour12: "5", minute: "00", period: "PM" });
+    expect(parseDefaultTime("00:30")).toEqual({ hour12: "12", minute: "30", period: "AM" });
+    expect(parseDefaultTime("12:00")).toEqual({ hour12: "12", minute: "00", period: "PM" });
+    expect(parseDefaultTime("9:05")).toEqual({ hour12: "9", minute: "05", period: "AM" });
+  });
+
+  it("rejects blank or out-of-range values", () => {
+    expect(parseDefaultTime("")).toBeNull();
+    expect(parseDefaultTime(null)).toBeNull();
+    expect(parseDefaultTime("25:00")).toBeNull();
+    expect(parseDefaultTime("10:61")).toBeNull();
+    expect(parseDefaultTime("noon")).toBeNull();
+  });
+});
+
+describe("applyDateTimePartChange — date-only default (T3: end date must not be dropped)", () => {
+  // The New Job form's Scheduled End is optional and commonly entered as just a
+  // day ("runs through Nov 5"). Without a fallback the picker emits "" until a
+  // time is also chosen, so the end — and the whole multi-day span — was lost.
+  it("commits a date-only end by defaulting the time to the supplied fallback", () => {
+    const parts = { date: "", hour12: "", minute: "", period: "" };
+    const r = applyDateTimePartChange(parts, "date", "2026-11-05", "17:00");
+    // Both the emitted value and the visible parts carry the default time.
+    expect(r.combined).toBe("2026-11-05T17:00");
+    expect(r.next).toEqual({ date: "2026-11-05", hour12: "5", minute: "00", period: "PM" });
+  });
+
+  it("lets an explicit time override the default once picked", () => {
+    let parts = { date: "", hour12: "", minute: "", period: "" };
+    parts = applyDateTimePartChange(parts, "date", "2026-11-05", "17:00").next;
+    const r = applyDateTimePartChange(parts, "hour12", "9", "17:00");
+    // Hour becomes 9, minute/period keep the already-filled default -> 9:00 PM.
+    expect(r.combined).toBe("2026-11-05T21:00");
+  });
+
+  it("clears the value when the date is removed, fallback notwithstanding", () => {
+    const parts = { date: "2026-11-05", hour12: "5", minute: "00", period: "PM" };
+    const r = applyDateTimePartChange(parts, "date", "", "17:00");
+    expect(r.combined).toBe("");
+  });
+
+  it("leaves behavior unchanged when no fallback is supplied (start/arrival fields)", () => {
+    const parts = { date: "", hour12: "", minute: "", period: "" };
+    const r = applyDateTimePartChange(parts, "date", "2026-11-05");
+    expect(r.combined).toBe("");
+    expect(r.next).toEqual({ date: "2026-11-05", hour12: "", minute: "", period: "" });
   });
 });
 
