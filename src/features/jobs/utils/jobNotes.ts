@@ -35,6 +35,28 @@ export function legacyNoteFallback(historyBodies: string[], column: string): str
   return text;
 }
 
+/**
+ * Merge notes added this session (optimistic inserts) into the server list.
+ * A note added through "Add Note" is written server-side as a job_notes row,
+ * but the route re-render does not always deliver the new row before the
+ * viewer looks, so the Notes section read "No notes…" until a full reload.
+ * Appending the optimistic copy makes it render immediately. A pending note
+ * is dropped once the server list carries a note with the same body, so a
+ * refresh that finally includes the real row never renders a duplicate.
+ */
+export function mergePendingJobNotes(
+  serverNotes: JobNote[],
+  pendingNotes: JobNote[],
+): JobNote[] {
+  if (pendingNotes.length === 0) return serverNotes;
+  const serverBodies = new Set(serverNotes.map((note) => note.body.trim()));
+  const stillPending = pendingNotes.filter(
+    (note) => !serverBodies.has(note.body.trim()),
+  );
+  if (stillPending.length === 0) return serverNotes;
+  return [...serverNotes, ...stillPending];
+}
+
 export function sortJobNotesNewestFirst<T extends { createdAt: string; id: string }>(
   notes: T[],
 ): T[] {

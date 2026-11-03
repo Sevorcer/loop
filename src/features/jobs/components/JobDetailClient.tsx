@@ -12,7 +12,7 @@ import type { JobActivity } from "../types/jobActivity";
 import type { JobCallbackContext } from "../types/jobCallback";
 import type { JobNote } from "../types/jobNote";
 import type { RequiredQaChecklist } from "../utils/jobCompletionChecklist";
-import { JOB_NOTE_SAVED_TOAST } from "../utils/jobNotes";
+import { JOB_NOTE_SAVED_TOAST, mergePendingJobNotes } from "../utils/jobNotes";
 import { mergeRecordedActivity } from "../utils/jobWorkspace";
 import { JobDetailScreen } from "./JobDetailScreen";
 
@@ -37,7 +37,9 @@ export function JobDetailClient({
   const { role } = useCurrentRole();
   const [confirmedStatus, setConfirmedStatus] = useState<JobStatus | null>(null);
   const [recordedActivity, setRecordedActivity] = useState<JobActivity[]>([]);
+  const [pendingNotes, setPendingNotes] = useState<JobNote[]>([]);
   const activityItems = mergeRecordedActivity(recordedActivity, activity, job.id);
+  const visibleNotes = mergePendingJobNotes(notes, pendingNotes);
   const liveJob: Job = {
     ...job,
     status: confirmedStatus && confirmedStatus !== job.status ? confirmedStatus : job.status,
@@ -67,6 +69,29 @@ export function JobDetailClient({
         role,
         body: { action: "notes", notes: note },
       });
+      // Optimistically show the note now. router.refresh() often does not
+      // deliver the new job_notes row before the viewer looks, which left the
+      // Notes section reading "No notes…" until a full reload. mergePendingJobNotes
+      // drops this copy once the refreshed server list carries the real row.
+      const trimmed = note.trim();
+      if (trimmed) {
+        const optimisticId =
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? `optimistic-${crypto.randomUUID()}`
+            : `optimistic-${Date.now()}`;
+        setPendingNotes((current) => [
+          ...current,
+          {
+            id: optimisticId,
+            jobId: job.id,
+            body: trimmed,
+            authorId: null,
+            authorName: "You",
+            authorRole: role ?? "",
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      }
       pushToast(JOB_NOTE_SAVED_TOAST, "success");
       router.refresh();
     } catch (error) {
@@ -94,7 +119,7 @@ export function JobDetailClient({
     <JobDetailScreen
       job={liveJob}
       activity={activityItems}
-      notes={notes}
+      notes={visibleNotes}
       callbackContext={callbackContext}
       onUpdateStatus={handleUpdateStatus}
       onPriceRecorded={handlePriceRecorded}
