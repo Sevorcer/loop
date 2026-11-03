@@ -458,3 +458,35 @@ describe("JobTasksCard add item (B3 — mouse users can add, not only Enter)", (
     });
   });
 });
+
+describe("JobDetailScreen Edit Job navigation", () => {
+  // Regression: the Edit Job button was a silent no-op in production because it
+  // navigated with an imperative router.push into the nested dynamic route
+  // /jobs/[id]/edit, which did not commit. It must render as a real <Link>
+  // (an anchor with the edit href), mirroring the working "New Job" button, so
+  // Next's client router performs the navigation.
+  it("renders Edit Job as an anchor to the job's edit route for office roles", async () => {
+    authState.role = "owner";
+    const container = await renderScreen();
+
+    const editLink = [...container.querySelectorAll("a")].find((anchor) =>
+      anchor.textContent?.includes("Edit Job"),
+    );
+
+    expect(editLink, "expected an Edit Job link").toBeTruthy();
+    expect(editLink?.getAttribute("href")).toBe("/jobs/job-1/edit");
+  });
+
+  it("does not render Edit Job for technicians", async () => {
+    authState.role = "tech";
+    const container = await renderScreen();
+
+    const editLink = [...container.querySelectorAll("a")].find((anchor) =>
+      anchor.textContent?.includes("Edit Job"),
+    );
+    const editButton = findButton(container, "Edit Job");
+
+    expect(editLink).toBeUndefined();
+    expect(editButton).toBeUndefined();
+  });
+});

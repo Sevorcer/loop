@@ -305,15 +305,20 @@ export function JobDetailScreen({
 
         {isTech ? null : (
           <PermissionGuard table="jobs" action="update">
-            <Button
-              variant="secondary"
-              className="min-h-[44px]"
-              onClick={() => {
-                router.push(`/jobs/${job.id}/edit`);
-              }}
-            >
-              Edit Job
-            </Button>
+            {/*
+             * Navigate with <Link>, not router.push in onClick. An imperative
+             * push into this nested dynamic route (/jobs/[id]/edit) did not
+             * commit in production — the button was a silent no-op — while the
+             * identical push to the static /jobs route ("Back to Jobs") worked.
+             * The "New Job" button (<Link href={JOB_NEW}><Button>) navigates
+             * reliably, so we mirror that proven pattern here. type="button"
+             * keeps the inner native button from ever acting on its own.
+             */}
+            <Link href={ROUTE_BUILDERS.JOB_EDIT(job.id)}>
+              <Button type="button" variant="secondary" className="min-h-[44px]">
+                Edit Job
+              </Button>
+            </Link>
           </PermissionGuard>
         )}
       </div>
