@@ -8,6 +8,26 @@ import type {
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
 const PAGE_SIZE = 1000;
+// Keep every id list short enough for the gateway in front of PostgREST: an
+// unchunked .in() over ~2,500 job ids builds a ~90 KB request URL that the
+// gateway rejects with a 414 before it ever reaches the database. Matches
+// the chunk size used in repositories/properties.ts.
+const ID_CHUNK_SIZE = 80;
+
+interface QueryError {
+  code?: string;
+  message?: string;
+}
+
+function upstreamError(error: QueryError): Error {
+  const message = (error.message ?? "").trim();
+  // postgrest-js surfaces a non-JSON upstream body (e.g. a proxy error page)
+  // as the error message verbatim. Never let raw markup reach the UI.
+  if (!message || message.startsWith("<") || message.includes("<html")) {
+    return new Error("Production report query failed.");
+  }
+  return new Error(message);
+}
 
 interface JobRow {
   id: string;
@@ -34,12 +54,42 @@ async function eachPage<T>(
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const { data, error } = await load(from, to);
-    if (error) throw new Error(error.message);
+    if (error) throw upstreamError(error);
     const batch = data ?? [];
     rows.push(...batch);
     if (batch.length < PAGE_SIZE) break;
   }
   return rows;
+}
+
+// Reads rows for a large id list without ever putting the whole list in one
+// request: ids are chunked (see ID_CHUNK_SIZE) and each chunk is paged, so a
+// chunk that matches more than PAGE_SIZE rows is read in full instead of
+// silently truncating at the PostgREST row cap. The first error stops the
+// read and is returned (not thrown) so callers keep their missing-relation
+// handling.
+async function readByIdsInChunks<Row>(
+  ids: string[],
+  load: (
+    chunk: string[],
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: Row[] | null; error: QueryError | null }>,
+): Promise<{ rows: Row[]; error: QueryError | null }> {
+  const rows: Row[] = [];
+  for (let index = 0; index < ids.length; index += ID_CHUNK_SIZE) {
+    const chunk = ids.slice(index, index + ID_CHUNK_SIZE);
+    for (let page = 0; page < 50; page += 1) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error } = await load(chunk, from, to);
+      if (error) return { rows, error };
+      const batch = data ?? [];
+      rows.push(...batch);
+      if (batch.length < PAGE_SIZE) break;
+    }
+  }
+  return { rows, error: null };
 }
 
 export async function listProductionSources(
@@ -112,16 +162,22 @@ async function readAssignees(
 ): Promise<Map<string, { id: string | null; name: string }[]>> {
   const byJob = new Map<string, { id: string | null; name: string }[]>();
   if (jobIds.length === 0) return byJob;
-  const { data, error } = await supabase
-    .from("job_assignees")
-    .select("job_id,user_id")
-    .eq("org_id", orgId)
-    .in("job_id", jobIds);
+  const { rows, error } = await readByIdsInChunks<{ job_id: string; user_id: string }>(
+    jobIds,
+    (chunk, from, to) =>
+      supabase
+        .from("job_assignees")
+        .select("job_id,user_id")
+        .eq("org_id", orgId)
+        .in("job_id", chunk)
+        .order("job_id", { ascending: true })
+        .order("user_id", { ascending: true })
+        .range(from, to),
+  );
   if (error) {
     if (missingRelation(error, "job_assignees")) return byJob;
-    throw new Error(error.message);
+    throw upstreamError(error);
   }
-  const rows = (data ?? []) as Array<{ job_id: string; user_id: string }>;
   const names = await profileNames(supabase, orgId, rows.map((row) => row.user_id));
   for (const row of rows) {
     const list = byJob.get(row.job_id) ?? [];
@@ -138,16 +194,25 @@ async function readCompletionTeams(
 ): Promise<Map<string, { id: string | null; name: string }[]>> {
   const byJob = new Map<string, { id: string | null; name: string }[]>();
   if (jobIds.length === 0) return byJob;
-  const { data, error } = await supabase
-    .from("job_completion_team")
-    .select("job_id,user_id,person_name")
-    .eq("org_id", orgId)
-    .in("job_id", jobIds);
+  const { rows, error } = await readByIdsInChunks<{
+    job_id: string;
+    user_id: string | null;
+    person_name: string;
+  }>(jobIds, (chunk, from, to) =>
+    supabase
+      .from("job_completion_team")
+      .select("job_id,user_id,person_name")
+      .eq("org_id", orgId)
+      .in("job_id", chunk)
+      .order("job_id", { ascending: true })
+      .order("person_name", { ascending: true })
+      .range(from, to),
+  );
   if (error) {
     if (missingRelation(error, "job_completion_team")) return byJob;
-    throw new Error(error.message);
+    throw upstreamError(error);
   }
-  for (const row of (data ?? []) as Array<{ job_id: string; user_id: string | null; person_name: string }>) {
+  for (const row of rows) {
     const list = byJob.get(row.job_id) ?? [];
     list.push({ id: row.user_id, name: row.person_name });
     byJob.set(row.job_id, list);
@@ -162,16 +227,23 @@ async function readEstimates(
 ): Promise<Map<string, number>> {
   const hours = new Map<string, number>();
   if (jobIds.length === 0) return hours;
-  const { data, error } = await supabase
-    .from("dispatch_plans")
-    .select("job_id,estimated_duration_hours")
-    .eq("org_id", orgId)
-    .in("job_id", jobIds);
+  const { rows, error } = await readByIdsInChunks<{
+    job_id: string | null;
+    estimated_duration_hours: number | string | null;
+  }>(jobIds, (chunk, from, to) =>
+    supabase
+      .from("dispatch_plans")
+      .select("job_id,estimated_duration_hours")
+      .eq("org_id", orgId)
+      .in("job_id", chunk)
+      .order("job_id", { ascending: true })
+      .range(from, to),
+  );
   if (error) {
     if (missingRelation(error, "dispatch_plans")) return hours;
-    throw new Error(error.message);
+    throw upstreamError(error);
   }
-  for (const row of (data ?? []) as Array<{ job_id: string | null; estimated_duration_hours: number | string | null }>) {
+  for (const row of rows) {
     if (!row.job_id) continue;
     const value = typeof row.estimated_duration_hours === "number"
       ? row.estimated_duration_hours
@@ -190,16 +262,23 @@ async function readRevenue(
 ): Promise<Map<string, number | null>> {
   const amounts = new Map<string, number | null>();
   if (jobIds.length === 0) return amounts;
-  const { data, error } = await supabase
-    .from("job_financials")
-    .select("job_id,revenue_cents")
-    .eq("org_id", orgId)
-    .in("job_id", jobIds);
+  const { rows, error } = await readByIdsInChunks<{
+    job_id: string;
+    revenue_cents: number | string | null;
+  }>(jobIds, (chunk, from, to) =>
+    supabase
+      .from("job_financials")
+      .select("job_id,revenue_cents")
+      .eq("org_id", orgId)
+      .in("job_id", chunk)
+      .order("job_id", { ascending: true })
+      .range(from, to),
+  );
   if (error) {
     if (missingRelation(error, "job_financials")) return amounts;
-    throw new Error(error.message);
+    throw upstreamError(error);
   }
-  for (const row of (data ?? []) as Array<{ job_id: string; revenue_cents: number | string | null }>) {
+  for (const row of rows) {
     if (row.revenue_cents == null) {
       amounts.set(row.job_id, null);
       continue;
@@ -218,14 +297,18 @@ async function profileNames(
   const names = new Map<string, string>();
   const ids = [...new Set(userIds.filter(Boolean))];
   if (ids.length === 0) return names;
-  const { data, error } = await supabase
-    .from("user_profiles")
-    .select("id,full_name,email")
-    .eq("org_id", orgId)
-    .in("id", ids);
-  if (error) throw new Error(error.message);
-  for (const row of (data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) {
-    names.set(row.id, (row.full_name ?? "").trim() || (row.email ?? "").trim() || "Team member");
+  // One row per id, so chunking alone (no paging) keeps every request small.
+  for (let index = 0; index < ids.length; index += ID_CHUNK_SIZE) {
+    const chunk = ids.slice(index, index + ID_CHUNK_SIZE);
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("id,full_name,email")
+      .eq("org_id", orgId)
+      .in("id", chunk);
+    if (error) throw upstreamError(error);
+    for (const row of (data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) {
+      names.set(row.id, (row.full_name ?? "").trim() || (row.email ?? "").trim() || "Team member");
+    }
   }
   return names;
 }
