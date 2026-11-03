@@ -784,6 +784,19 @@ export async function updateRequiredQaChecklist(
   return normalizedChecklist;
 }
 
+// Customer signatures are stored as job files too: captureJobSignature
+// (services/jobSignatures.ts) uploads the PNG through the shared storage
+// service with the job id attached, so it lands in the same per-job file
+// list as real uploads. It lives in its own bucket, which is what marks it
+// — a signature is not a job photo: it must never satisfy the closeout
+// photo gate or appear in the Photos & Files list (the job page renders
+// signatures from the job_signatures records instead).
+const SIGNATURE_FILE_BUCKET = "job-signatures";
+
+function isSignatureFile(file: { bucket?: string | null }): boolean {
+  return file.bucket === SIGNATURE_FILE_BUCKET;
+}
+
 export async function getJobCompletionChecklist(
   jobId: string,
   role?: AppRole,
@@ -805,7 +818,10 @@ export async function getJobCompletionChecklist(
 
   const qaChecklist = parseLatestQaChecklist(activity);
   const photosUploaded = files.some(
-    (file) => file.mimeType.toLowerCase().startsWith("image/") && file.uploaderRole === "tech",
+    (file) =>
+      !isSignatureFile(file) &&
+      file.mimeType.toLowerCase().startsWith("image/") &&
+      file.uploaderRole === "tech",
   );
   const installedSystemsEntered = snapshot.installedSystems.some(
     (system) => system.jobId === jobId || system.linkedWorkflowIds.includes(jobId),
@@ -841,7 +857,11 @@ export async function listJobFiles(jobId: string, role?: AppRole) {
   if (!role) {
     throw new Error("Unable to list job files for this user.");
   }
-  return listFiles(role, { jobId });
+  const files = await listFiles(role, { jobId });
+  // Signatures ride along in the job's storage objects but are not job
+  // files — the Photos & Files panel (and every count derived from it)
+  // must not show or count them as photos.
+  return files.filter((file) => !isSignatureFile(file));
 }
 
 export async function recordJobFileUpload(
