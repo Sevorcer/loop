@@ -32,6 +32,7 @@ import {
 import {
   countUnscheduledJobs,
   getMaxJobNumberSuffix,
+  isJobNumberUniqueViolation,
   createJob as createJobRecord,
   createJobActivity as createJobActivityRecord,
   deleteJob as deleteJobRecord,
@@ -184,6 +185,13 @@ function createJobNumber(suffix: number) {
   // Job numbers start at JOB-1001.
   return `JOB-${Math.max(suffix, 1001)}`;
 }
+
+// Bounded retries for the concurrent-create race: if two creates read the same
+// MAX job number and race to insert the same JOB-<n>, the loser hits the
+// jobs_job_number_unique index. We retry with the next number rather than
+// erroring. The bound guards against an unexpected hot loop; under normal
+// contention one or two retries resolve it.
+const MAX_JOB_NUMBER_ALLOCATION_RETRIES = 25;
 
 async function ensureDispatchPlanForJob(
   job: Job,
@@ -360,9 +368,13 @@ export async function createJob(
   normalized.appointmentHour = appointmentHour;
   validateJobInput(normalized);
 
-  // Next number = highest JOB-<n> in use + 1. Never derive this from the
-  // job count: deleting a job drops the count and reuses a live number.
-  // The number lookup does not depend on resolving the customer or property.
+  // Next number = MAX existing JOB-<n> + 1. Never derive this from the job
+  // count (deleting a job drops the count and reuses a live number) nor from
+  // the newest row by created_at (deleting the highest-numbered job leaves a
+  // lower newest row and reuses a number that has existed). getMaxJobNumberSuffix
+  // scans every JOB-<n> row — including cancelled and soft-deleted ones — so the
+  // sequence is monotonic. The number lookup does not depend on resolving the
+  // customer or property.
   const [nextIndex, resolvedCustomerId, resolvedPropertyId] = await Promise.all([
     getMaxJobNumberSuffix(contextInput).then((suffix) => suffix + 1),
     normalized.customerId
@@ -374,17 +386,37 @@ export async function createJob(
   ]);
   const customerId = resolvedCustomerId;
   const propertyId = resolvedPropertyId;
-  if (!customerId && normalized.customerName.trim()) throw new Error("Customer not found: " + normalized.customerName.trim() + ". Use '+ Create new'."); if (!propertyId && normalized.propertyName.trim()) throw new Error("Property not found: " + normalized.propertyName.trim() + ". Use '+ Create new'."); const createdJob = await createJobRecord(
-    createJobNumber(nextIndex),
-    {
-      ...normalized,
-      appointmentHour,
-      customerId,
-      propertyId,
-      status: "Scheduled",
-    },
-    contextInput,
-  );
+  if (!customerId && normalized.customerName.trim()) throw new Error("Customer not found: " + normalized.customerName.trim() + ". Use '+ Create new'."); if (!propertyId && normalized.propertyName.trim()) throw new Error("Property not found: " + normalized.propertyName.trim() + ". Use '+ Create new'.");
+  // Insert with a bounded retry: a concurrent create may already have taken
+  // this number (jobs_job_number_unique). On that violation, advance to the
+  // next number and retry rather than surfacing the error.
+  let candidate = nextIndex;
+  let createdJob: Awaited<ReturnType<typeof createJobRecord>> | undefined;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      createdJob = await createJobRecord(
+        createJobNumber(candidate),
+        {
+          ...normalized,
+          appointmentHour,
+          customerId,
+          propertyId,
+          status: "Scheduled",
+        },
+        contextInput,
+      );
+      break;
+    } catch (error) {
+      if (isJobNumberUniqueViolation(error) && attempt < MAX_JOB_NUMBER_ALLOCATION_RETRIES) {
+        candidate = Math.max(candidate, 1001) + 1;
+        continue;
+      }
+      throw error;
+    }
+  }
+  // Unreachable unless the loop exited without assigning (it either breaks with
+  // a job or rethrows); this both guards that invariant and narrows the type.
+  if (!createdJob) throw new Error("Failed to allocate a unique job number");
 
   const followUps: Array<Promise<unknown>> = [
     createJobActivityRecord({

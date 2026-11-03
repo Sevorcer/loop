@@ -219,6 +219,26 @@ function isSchedulingColumnMissingError(error: {
 }
 
 /**
+ * True when `error` is a unique-constraint violation on the job_number index
+ * (Postgres 23505 / jobs_job_number_unique). The job-number allocator uses this
+ * to detect the concurrent-create race — two creates reading the same MAX and
+ * racing to insert the same JOB-<n> — and retry with the next number instead of
+ * surfacing the error. Deliberately narrow: a 23505 on any OTHER unique index
+ * (so not job_number) is not a number collision and must not trigger a retry.
+ */
+export function isJobNumberUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  const message = String((error as { message?: unknown }).message ?? "").toLowerCase();
+  const mentionsJobNumber =
+    message.includes("job_number") || message.includes("jobs_job_number_unique");
+  if (!mentionsJobNumber) return false;
+  // 23505 = unique_violation. PostgREST surfaces the pg code; a raw Error
+  // thrown from the repo re-exposes it via the attached `code` property.
+  return code === "23505" || message.includes("duplicate key");
+}
+
+/**
  * Type helper: cast Supabase response data to JobRow[].
  * Supabase infers a generic string error type when the select literal
  * contains columns not present in generated types; this helper centralises
@@ -804,7 +824,12 @@ export async function createJob(
   }
 
   if (error) {
-    throw new Error(error.message);
+    // Preserve the Postgres error code so callers (the job-number allocator)
+    // can detect a unique-violation on job_number and retry with the next
+    // number. A bare `new Error(message)` would drop `error.code`.
+    const thrown = new Error(error.message) as Error & { code?: string };
+    if (error.code) thrown.code = error.code;
+    throw thrown;
   }
 
   const createdJob = mapJob(data as JobRow);
@@ -1035,32 +1060,48 @@ const JOB_NUMBER_PATTERN = /^JOB-(\d+)$/;
 
 /**
  * Highest numeric suffix among existing JOB-<n> numbers in the org.
- * Job numbers must be derived from this — never from the row count:
- * a deleted job drops the count and the next create would reuse a
- * number that is still in use (duplicate JOB-1006 incident, 2026-09-30).
+ * Job numbers must be derived from this — never from the row count and
+ * never from the newest row by created_at:
+ *   - row count: a deleted job drops the count and the next create would
+ *     reuse a number still in use (duplicate JOB-1006 incident, 2026-09-30).
+ *   - newest by created_at: deleting the highest-numbered job(s) leaves the
+ *     newest *remaining* row with a LOWER number, so the next create reuses a
+ *     number that has already existed (JOB-1018/JOB-1019 reuse, 2026-11-02).
+ *
+ * MONOTONIC guarantee: we scan every JOB-<n> row and take the true MAX suffix,
+ * so the next number is always max+1. This query deliberately does NOT filter
+ * by status or deleted_at — cancelled and (once soft-delete lands) soft-deleted
+ * rows keep their job_number visible here, so a number that has ever existed is
+ * never reissued. SF-<n> import numbers are excluded (JOB-% only) and so cannot
+ * disturb the JOB- sequence.
+ *
+ * Note: the max is computed in JS by parsing the numeric suffix rather than by
+ * a lexical `order(job_number desc)` — lexical ordering would rank JOB-9999
+ * above JOB-10000 once the sequence crosses into five digits.
  */
 export async function getMaxJobNumberSuffix(
   contextInput?: SessionRepositoryContextInput,
 ): Promise<number> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  // Order by created_at desc and take the most recent — job numbers are
-  // assigned sequentially at creation, so the newest job has the highest number.
   const { data, error } = await supabase
     .from("jobs")
     .select("job_number")
     .eq("org_id", orgId)
-    .like("job_number", "JOB-%")
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .like("job_number", "JOB-%");
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const row = (data ?? [])[0] as { job_number: string } | undefined;
-  if (!row) return 0;
-  const match = JOB_NUMBER_PATTERN.exec(row.job_number ?? "");
-  return match ? Number.parseInt(match[1], 10) : 0;
+  const rows = (data ?? []) as Array<{ job_number: string | null }>;
+  let max = 0;
+  for (const row of rows) {
+    const match = JOB_NUMBER_PATTERN.exec(row.job_number ?? "");
+    if (!match) continue;
+    const value = Number.parseInt(match[1], 10);
+    if (Number.isFinite(value) && value > max) max = value;
+  }
+  return max;
 }
 
 export function toJob(row: JobRow): Job {
