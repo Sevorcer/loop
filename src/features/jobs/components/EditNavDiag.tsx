@@ -51,6 +51,122 @@ export function EditNavDiag({ jobId }: EditNavDiagProps) {
       }
     };
 
+    // Capture the ORIGINAL fetch up front so our own probe/beacon calls below
+    // don't get caught by the wrapper we install.
+    const origFetch = window.fetch.bind(window);
+
+    // KEY: wrap fetch to observe the ROUTER's real RSC exchange for /edit — the
+    // request's RSC/router headers and the response's status/content-type. This
+    // discriminates "SW/route returned something unapplyable" from "router got
+    // clean flight but won't commit the transition". Excludes /api (our beacon
+    // channel) to avoid recursion, and only reports /edit traffic.
+    let fetchReports = 0;
+    const wrappedFetch: typeof window.fetch = (input, init) => {
+      let url = "";
+      let method = "GET";
+      let routerHeaders: Record<string, string | null> = {};
+      try {
+        url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : (input as Request).url;
+        const reqHeaders =
+          init?.headers ??
+          (typeof input === "object" && input !== null && "headers" in input
+            ? (input as Request).headers
+            : undefined);
+        const h = new Headers(reqHeaders as HeadersInit | undefined);
+        routerHeaders = {
+          rsc: h.get("RSC"),
+          prefetch: h.get("Next-Router-Prefetch"),
+          stateTree: h.get("Next-Router-State-Tree") ? "present" : null,
+          nextUrl: h.get("Next-Url"),
+        };
+        method =
+          init?.method ??
+          (typeof input === "object" && input !== null && "method" in input
+            ? (input as Request).method
+            : "GET");
+      } catch {
+        // fall through to the real fetch regardless
+      }
+
+      const p = origFetch(input as RequestInfo | URL, init);
+
+      try {
+        if (url.includes("/edit") && !url.includes("/api/") && fetchReports < 6) {
+          fetchReports += 1;
+          void p
+            .then(async (res) => {
+              let bodyHead = "";
+              try {
+                bodyHead = (await res.clone().text()).slice(0, 120);
+              } catch {
+                bodyHead = "<clone read failed>";
+              }
+              beacon("router-fetch", {
+                url,
+                method,
+                reqHeaders: routerHeaders,
+                status: res.status,
+                redirected: res.redirected,
+                finalUrl: res.url,
+                type: res.type,
+                contentType: res.headers.get("content-type"),
+                bodyHead,
+              });
+            })
+            .catch((e) => beacon("router-fetch-error", { url, error: String(e) }));
+        }
+      } catch {
+        // never let instrumentation break the real request
+      }
+
+      return p;
+    };
+    try {
+      window.fetch = wrappedFetch;
+    } catch {
+      // if we can't patch fetch, the rest of the probe still runs
+    }
+
+    // KEY: the Navigation API fires `navigate` for SPA navigations in Chromium.
+    // If it fires for /edit, the router DID start the navigation (so the fault
+    // is in the commit); if it never fires on the tap, the click never
+    // initiated a navigation at all.
+    let navReports = 0;
+    const navApi = (window as unknown as { navigation?: EventTarget }).navigation;
+    const onNavigate = (event: Event) => {
+      try {
+        const e = event as Event & {
+          destination?: { url?: string };
+          navigationType?: string;
+          canIntercept?: boolean;
+          hashChange?: boolean;
+          downloadRequest?: unknown;
+        };
+        const dest = e.destination?.url ?? "";
+        if (dest.includes("/edit") && navReports < 4) {
+          navReports += 1;
+          beacon("navigate-event", {
+            dest,
+            navigationType: e.navigationType ?? null,
+            canIntercept: e.canIntercept ?? null,
+            hashChange: e.hashChange ?? null,
+          });
+        }
+      } catch {
+        // never throw
+      }
+    };
+    try {
+      navApi?.addEventListener?.("navigate", onNavigate);
+    } catch {
+      // Navigation API may be unavailable; non-fatal.
+    }
+
     // 1) Service worker controlling this page?
     try {
       const controller =
@@ -79,7 +195,7 @@ export function EditNavDiag({ jobId }: EditNavDiagProps) {
     // 2) What does the server actually return for the edit segment?
     const probeFetch = async (mode: "rsc" | "plain") => {
       try {
-        const res = await fetch(editUrl, {
+        const res = await origFetch(editUrl, {
           headers: mode === "rsc" ? { RSC: "1" } : {},
           cache: "no-store",
         });
@@ -133,6 +249,16 @@ export function EditNavDiag({ jobId }: EditNavDiagProps) {
       try {
         history.pushState = origPush;
         history.replaceState = origReplace;
+      } catch {
+        // ignore teardown failures
+      }
+      try {
+        if (window.fetch === wrappedFetch) window.fetch = origFetch;
+      } catch {
+        // ignore teardown failures
+      }
+      try {
+        navApi?.removeEventListener?.("navigate", onNavigate);
       } catch {
         // ignore teardown failures
       }
