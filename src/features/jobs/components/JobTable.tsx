@@ -16,6 +16,7 @@ import { lookupProfileName } from "@/services/profileDirectory";
 import { useJobs } from "../state/JobsProvider";
 import type { JobPriority, JobStatus, JobType } from "../types/job";
 import { jobTypeFilterLabel } from "@/features/jobs/utils/callbackJob";
+import { CALLBACK_LABELS, CALLBACK_TYPE } from "@/lib/callbacks";
 
 import { jobColumns } from "./JobColumns";
 
@@ -306,6 +307,14 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
           </div>
         }
       />
+
+      {typeFilter === CALLBACK_TYPE ? (
+        <p className="px-4 pb-1 pt-3 text-xs text-slate-400 md:px-6">
+          {openOnly ? CALLBACK_LABELS.open : CALLBACK_LABELS.all}:{" "}
+          <span className="font-semibold text-slate-200">{filteredJobs.length}</span>
+          {openOnly ? null : " — includes completed and cancelled"}
+        </p>
+      ) : null}
 
       <DataTable
         columns={jobColumns}

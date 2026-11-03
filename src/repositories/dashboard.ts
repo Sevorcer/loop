@@ -2,6 +2,7 @@ import "server-only";
 
 import { getStatusVariants } from "@/lib/jobs/status";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
+import { CALLBACK_TYPE_QUERY_VARIANTS } from "@/lib/callbacks";
 
 import { getRepositoryContext } from "./supabaseContext";
 import { OPEN_JOB_STATUS_EXCLUSION_FILTER } from "./shared";
@@ -144,11 +145,12 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       .eq("scheduled_for", today)
       .not("assigned_to", "is", null),
 
+    // Open callbacks — shared definition: type Callback AND status open.
     supabase
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("org_id", orgId)
-      .in("type", ["Callback", "callback"])
+      .in("type", CALLBACK_TYPE_QUERY_VARIANTS)
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER),
 
     supabase

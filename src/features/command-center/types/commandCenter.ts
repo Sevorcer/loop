@@ -61,7 +61,7 @@ export interface CommandCenterKPIs {
    * NOTE: no DB index backing this; acceptable at current scale.
    */
   waitingOnPermit: number;
-  /** Open jobs matching "callback" pattern in title or notes. */
+  /** Open callbacks: jobs of type Callback that are not Completed/Cancelled. */
   callbacks: number;
   /**
    * Jobs completed today using best available completion signal.
@@ -107,7 +107,7 @@ export interface CommandCenterSnapshot {
   onHold: Job[];
   /** Open inspection-type jobs. */
   inspections: Job[];
-  /** Jobs matching callback pattern. */
+  /** Open callbacks: jobs of type Callback that are not Completed/Cancelled. */
   callbacks: Job[];
   /** Jobs with no assigned technician. */
   unassigned: Job[];

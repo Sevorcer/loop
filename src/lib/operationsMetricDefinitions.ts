@@ -1,4 +1,5 @@
 import { ROUTES } from "@/lib/routes";
+import { CALLBACK_LABELS, CALLBACK_TYPE } from "@/lib/callbacks";
 
 function buildHref(basePath: string, params: Record<string, string>): string {
   const search = new URLSearchParams(params).toString();
@@ -10,7 +11,8 @@ export const ACTIONABLE_VIEWS = {
   inProgress: buildHref(ROUTES.JOBS, { status: "In Progress" }),
   onHold: buildHref(ROUTES.JOBS, { status: "On Hold" }),
   waitingOnInspection: buildHref(ROUTES.JOBS, { type: "Inspection", open: "true" }),
-  callbacks: buildHref(ROUTES.JOBS, { q: "callback", open: "true" }),
+  callbacks: buildHref(ROUTES.JOBS, { type: CALLBACK_TYPE, open: "true" }),
+  callbacksAll: buildHref(ROUTES.JOBS, { type: CALLBACK_TYPE }),
   unassigned: buildHref(ROUTES.JOBS, { unassigned: "true", open: "true" }),
   late: buildHref(ROUTES.JOBS, { late: "true", open: "true" }),
   problemJobs: buildHref(ROUTES.JOBS, { problem: "true", open: "true" }),
@@ -59,9 +61,9 @@ export const COMMAND_CENTER_KPI_DEFINITIONS: Record<CommandCenterKPIKey, KPIView
     href: ACTIONABLE_VIEWS.waitingOnPermit,
   },
   callbacks: {
-    label: "Callbacks",
-    description: "Open jobs matching callback keywords",
-    helpText: "Uses title/notes keyword matching until callback flag is added.",
+    label: CALLBACK_LABELS.open,
+    description: "Open jobs of type Callback",
+    helpText: "Counts jobs whose type is Callback and are not Completed or Cancelled.",
     href: ACTIONABLE_VIEWS.callbacks,
   },
   completedToday: {
