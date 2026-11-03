@@ -1,0 +1,43 @@
+name: CI
+
+# Runs the Vitest suite on every pull request to main and every push to main.
+#
+# This is the automated test gate the code review flagged as missing: the
+# suite (~1,600 tests) previously ran only when someone remembered to run it
+# locally. Neither the Vercel build nor any existing workflow executes it, so
+# a PR could merge with failing or unwritten-but-passing-locally tests.
+#
+# Type-checking is intentionally NOT duplicated here: the Vercel build already
+# type-checks via `next build` on every deployment.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests (Vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
