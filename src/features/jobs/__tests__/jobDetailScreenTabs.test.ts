@@ -462,11 +462,13 @@ describe("JobTasksCard add item (B3 — mouse users can add, not only Enter)", (
 describe("JobDetailScreen Edit Job navigation", () => {
   // Regression: the Edit Job button was a silent no-op in production. Probe
   // diagnosis proved the client router fetched a valid RSC flight for
-  // /jobs/[id]/edit but never committed the soft navigation (router.push AND
-  // <Link> both drive that broken path). The fix renders a plain anchor to the
-  // edit route so the browser performs a full-document navigation to the
-  // proven-good URL. Contract under test: an anchor carrying the edit href is
-  // present for office roles and absent for technicians.
+  // /jobs/[id]/edit but never committed the soft navigation. Root cause: the
+  // jobs/[id] segment lacked a loading.tsx Suspense boundary (its sibling
+  // customers/[id] has one and soft-navigates fine); adding loading.tsx +
+  // error.tsx lets the router commit and stream the async edit segment, so the
+  // button is a <Link> again. Contract under test (satisfied by <Link> or a
+  // plain anchor): an anchor carrying the edit href is present for office roles
+  // and absent for technicians.
   it("renders Edit Job as an anchor to the job's edit route for office roles", async () => {
     authState.role = "owner";
     const container = await renderScreen();

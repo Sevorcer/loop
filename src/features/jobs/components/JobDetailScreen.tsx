@@ -306,28 +306,24 @@ export function JobDetailScreen({
         {isTech ? null : (
           <PermissionGuard table="jobs" action="update">
             {/*
-             * Edit uses a PLAIN <a>, NOT next/link or router.push, on purpose.
-             *
-             * Instrumented diagnosis (probe v1–v3 on preview) proved the client
-             * router issues a correct RSC navigation for this route
-             * (GET /jobs/<id>/edit?_rsc, headers RSC:1 + Next-Router-State-Tree)
-             * and receives a valid 200 text/x-component flight payload — yet it
-             * silently fails to COMMIT the /jobs/[id] -> /jobs/[id]/edit
-             * transition: URL never changes, nothing renders, no error. Both
-             * router.push and <Link> drive that same broken soft-nav path, so
-             * both are no-ops here. A full-document load of the same URL renders
-             * correctly (verified directly), so we force one: a plain anchor is
-             * not intercepted by the App Router and performs a real browser
-             * navigation to the proven-good path. (Deliberate deviation from the
-             * "always use Link" guideline for this one framework-level soft-nav
-             * failure; see the diag notes. type="button" keeps the inner native
-             * button from acting on its own so the anchor handles the click.)
+             * Soft navigation restored (<Link>) now that jobs/[id] has a
+             * loading.tsx Suspense boundary. The Edit Job no-op was NOT the
+             * trigger: probes proved the router fetched a valid RSC flight for
+             * /jobs/[id]/edit (200 text/x-component) but never COMMITTED the
+             * /jobs/[id] -> /jobs/[id]/edit transition. The jobs/[id] segment
+             * was the only [id] route missing loading.tsx + error.tsx; its
+             * sibling customers/[id] (which has them) soft-navigates fine.
+             * Adding the boundary gives the router a fallback to commit into and
+             * stream the async edit segment. If a preview tap confirms this
+             * navigates, it replaces the plain-<a> full-reload workaround from
+             * #324. type="button" keeps the inner native button inert so <Link>
+             * owns the navigation.
              */}
-            <a href={ROUTE_BUILDERS.JOB_EDIT(job.id)} data-testid="edit-job-link">
+            <Link href={ROUTE_BUILDERS.JOB_EDIT(job.id)} data-testid="edit-job-link">
               <Button type="button" variant="secondary" className="min-h-[44px]">
                 Edit Job
               </Button>
-            </a>
+            </Link>
           </PermissionGuard>
         )}
       </div>
