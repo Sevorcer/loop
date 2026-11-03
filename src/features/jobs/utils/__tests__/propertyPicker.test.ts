@@ -57,11 +57,19 @@ describe("property picker", () => {
     expect(filterRecordOptions(options, "warehouse")).toEqual([]);
   });
 
-  it("names the missing address fields", () => {
+  it("treats a name-only inline property draft as complete", () => {
+    // Name-only record creation (2026-10-01): the inline property path mirrors
+    // the inline customer path, so a street/city are not required here.
     const fields = missingPropertyDraftFields({ name: "Shop", address: " ", city: "" });
-    expect(fields).toEqual(["Street address", "City"]);
+    expect(fields).toEqual([]);
+    expect(formatMissingPropertyDraft(fields)).toBeNull();
+  });
+
+  it("still requires a property name for the inline draft", () => {
+    const fields = missingPropertyDraftFields({ name: "  ", address: "1450 Northside Blvd", city: "Seattle" });
+    expect(fields).toEqual(["Property name"]);
     expect(formatMissingPropertyDraft(fields)).toBe(
-      "Add the missing information: Street address, City.",
+      "Add the missing information: Property name.",
     );
   });
 });
