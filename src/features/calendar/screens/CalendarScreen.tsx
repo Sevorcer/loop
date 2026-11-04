@@ -490,7 +490,7 @@ export function CalendarScreen() {
     if (!role) return;
     try {
       const data = await requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>(
-        "/api/calendar",
+        `/api/calendar?from=${rangeFrom}&to=${rangeTo}`,
         { role, cache: "no-store" },
       );
       setTimeOff(data.timeOff);
@@ -504,15 +504,15 @@ export function CalendarScreen() {
       }
       setEntriesNote("Time off and tasks could not be loaded. Scheduled jobs are still shown.");
     }
-  }, [role]);
+  }, [role, rangeFrom, rangeTo]);
 
   useEffect(() => {
     if (!role) return;
     let cancelled = false;
-    void requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>("/api/calendar", {
-      role,
-      cache: "no-store",
-    })
+    void requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>(
+      `/api/calendar?from=${rangeFrom}&to=${rangeTo}`,
+      { role, cache: "no-store" },
+    )
       .then((data) => {
         if (cancelled) return;
         setTimeOff(data.timeOff);
@@ -531,7 +531,7 @@ export function CalendarScreen() {
     return () => {
       cancelled = true;
     };
-  }, [role]);
+  }, [role, rangeFrom, rangeTo]);
 
   useEffect(() => {
     if (!office) return;

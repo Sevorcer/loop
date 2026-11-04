@@ -20,11 +20,17 @@ import {
   updateTimeOff,
 } from "@/repositories/calendarEntries";
 
-export async function listCalendarSchedule(): Promise<{
+export async function listCalendarSchedule(dateRange?: {
+  from: string;
+  to: string;
+}): Promise<{
   timeOff: TimeOffEntry[];
   tasks: CalendarTaskEntry[];
 }> {
-  const [timeOff, tasks] = await Promise.all([listTimeOff(), listCalendarTasks()]);
+  const [timeOff, tasks] = await Promise.all([
+    listTimeOff(dateRange),
+    listCalendarTasks(dateRange),
+  ]);
   return { timeOff, tasks };
 }
 
