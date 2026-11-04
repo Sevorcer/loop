@@ -115,6 +115,35 @@ export function JobDetailClient({
     }
   }
 
+  async function handleSoftDelete() {
+    try {
+      await requestJson(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        role,
+        body: { action: "soft-delete" },
+      });
+      pushToast("Job deleted.", "success");
+      router.push("/jobs");
+      router.refresh();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Couldn't delete the job.", "error");
+    }
+  }
+
+  async function handleRestore() {
+    try {
+      await requestJson(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        role,
+        body: { action: "restore" },
+      });
+      pushToast("Job restored.", "success");
+      router.refresh();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Couldn't restore the job.", "error");
+    }
+  }
+
   return (
     <JobDetailScreen
       job={liveJob}
@@ -125,6 +154,8 @@ export function JobDetailClient({
       onPriceRecorded={handlePriceRecorded}
       onAddNote={handleAddNote}
       onUpdateQaChecklist={handleUpdateQaChecklist}
+      onSoftDelete={handleSoftDelete}
+      onRestore={handleRestore}
       priceVisible={priceVisible}
       priceCents={priceCents}
     />

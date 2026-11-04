@@ -9,6 +9,8 @@ import {
   addJobNote,
   assignContractor,
   deleteJob,
+  softDeleteJob,
+  restoreJob,
   getJob,
   listJobActivity,
   removeContractorAssignment,
@@ -21,7 +23,7 @@ import { normalizeQaChecklist } from "@/features/jobs/utils/jobCompletionCheckli
 
 import type { JobAppointmentHour, JobCloseoutMode } from "@/features/jobs/types/job";
 
-const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "contractor"]);
+const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "contractor", "soft-delete", "restore"]);
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
 const JOB_CLOSEOUT_MODES = new Set(["full", "visit"]);
@@ -205,6 +207,16 @@ export async function PATCH(
                   actorId: guard.ctx.userId,
                   role: guard.ctx.role,
                 })
+          : action === "soft-delete"
+            ? await softDeleteJob(id, {
+                actorId: guard.ctx.userId,
+                role: guard.ctx.role,
+              })
+          : action === "restore"
+            ? await restoreJob(id, {
+                actorId: guard.ctx.userId,
+                role: guard.ctx.role,
+              })
           : await updateJob(id, {
               estimateId:
                 body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
@@ -248,6 +260,14 @@ export async function PATCH(
 
     if (action === "qa") {
       return NextResponse.json({ checklist: result });
+    }
+
+    if (action === "soft-delete") {
+      return NextResponse.json({ message: "Job deleted.", id });
+    }
+
+    if (action === "restore") {
+      return NextResponse.json({ message: "Job restored.", id });
     }
 
     return NextResponse.json({ job: result });

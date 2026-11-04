@@ -108,6 +108,11 @@ const { fakeSupabase } = vi.hoisted(() => {
       return this;
     }
 
+    is(column: string, value: unknown) {
+      this.filters.push((row) => (row[column] ?? null) === value);
+      return this;
+    }
+
     or(expression: string) {
       // Shape used by the completed-date filter:
       // "updated_at.gte.<date>,id.in.(<id>,<id>)"

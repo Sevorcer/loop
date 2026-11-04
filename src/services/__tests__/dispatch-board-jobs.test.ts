@@ -117,6 +117,10 @@ const { tables, queryCalls, mockGetRepositoryContext } = vi.hoisted(() => {
         filters.push((row) => (values as unknown[]).includes(row[column]));
         return builder;
       },
+      is: (column: string, value: unknown) => {
+        filters.push((row) => (row[column] ?? null) === value);
+        return builder;
+      },
       lte: (column: string, value: unknown) => {
         filters.push(
           (row) => String(row[column] ?? "") <= String(value ?? ""),

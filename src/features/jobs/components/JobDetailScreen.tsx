@@ -14,6 +14,8 @@ import {
   LayoutGrid,
   MapPin,
   Navigation,
+  RotateCcw,
+  Trash2,
   User,
   Wrench,
   type LucideIcon,
@@ -163,6 +165,8 @@ interface JobDetailScreenProps {
   onPriceRecorded?: (activity: JobActivity) => void;
   onAddNote: (note: string) => Promise<void>;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
+  onSoftDelete?: () => Promise<void>;
+  onRestore?: () => Promise<void>;
   priceVisible?: boolean;
   priceCents?: number | null;
 }
@@ -176,6 +180,8 @@ export function JobDetailScreen({
   onPriceRecorded,
   onAddNote,
   onUpdateQaChecklist,
+  onSoftDelete,
+  onRestore,
   priceVisible = false,
   priceCents = null,
 }: JobDetailScreenProps) {
@@ -354,6 +360,40 @@ export function JobDetailScreen({
             </a>
           </PermissionGuard>
         )}
+
+        {onSoftDelete && !isTech ? (
+          <PermissionGuard table="jobs" action="update">
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-[44px] gap-2 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              data-testid="soft-delete-job-btn"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this job? It can be restored later by an owner.")) {
+                  void onSoftDelete();
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
+          </PermissionGuard>
+        ) : null}
+
+        {onRestore && role === "owner" ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-[44px] gap-2 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+            data-testid="restore-job-btn"
+            onClick={() => {
+              void onRestore();
+            }}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Restore
+          </Button>
+        ) : null}
       </div>
 
       <SurfaceCard className="overflow-hidden">

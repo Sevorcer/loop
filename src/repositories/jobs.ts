@@ -281,6 +281,7 @@ export async function listJobsByCustomerId(
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("customer_id", customerId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -294,6 +295,7 @@ export async function listJobsByCustomerId(
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
       .eq("customer_id", customerId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(from, to);
     data = toJobRows(fallback.data);
@@ -306,6 +308,7 @@ export async function listJobsByCustomerId(
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
         .eq("customer_id", customerId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .range(from, to);
       data = toJobRows(base.data);
@@ -334,6 +337,7 @@ export async function listJobs(
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -346,6 +350,7 @@ export async function listJobs(
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(from, to);
     data = toJobRows(fallback.data);
@@ -357,6 +362,7 @@ export async function listJobs(
         .from("jobs")
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .range(from, to);
       data = toJobRows(base.data);
@@ -447,10 +453,11 @@ export async function listJobsPaginated(
   // Helper: apply shared filters to a query builder (works for both data
   // and count queries). The builder type is generic enough for both select
   // overloads Supabase provides.
-  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function; gte: Function }>(
+  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function; is: Function; gte: Function }>(
     query: Q,
   ): Q {
-    let q = query.eq("org_id", orgId) as Q;
+    let q = (query.eq("org_id", orgId) as Q);
+    q = q.is("deleted_at", null) as Q;
 
     // Status filter
     const statuses = Array.isArray(filter.status) ? filter.status : filter.status ? [filter.status] : [];
@@ -576,6 +583,7 @@ export async function listRecentJobs(limit = 5): Promise<Job[]> {
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false })
     .limit(take);
 
@@ -588,6 +596,7 @@ export async function listRecentJobs(limit = 5): Promise<Job[]> {
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
+      .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(take);
     data = toJobRows(fallback.data);
@@ -599,6 +608,7 @@ export async function listRecentJobs(limit = 5): Promise<Job[]> {
         .from("jobs")
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(take);
       data = toJobRows(base.data);
@@ -637,6 +647,7 @@ export async function listJobsByIds(ids: string[]): Promise<Job[]> {
         .select(select)
         .eq("org_id", orgId)
         .in("id", chunk)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
     const result = await runChunk(JOB_SELECT);
@@ -704,7 +715,7 @@ export async function listJobsInRange(from: string, to: string): Promise<Job[]> 
   const RANGE_PAGE = 1000;
 
   const runQuery = (select: string, withTimestamps: boolean) => {
-    const query = supabase.from("jobs").select(select).eq("org_id", orgId);
+    const query = supabase.from("jobs").select(select).eq("org_id", orgId).is("deleted_at", null);
     const filtered = withTimestamps
       ? query.or(rangeFilter)
       : query.gte("scheduled_for", legacyFrom).lt("scheduled_for", legacyToExclusive);
@@ -766,6 +777,7 @@ export async function countUnscheduledJobs(): Promise<number> {
     .from("jobs")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .is("scheduled_start_at", null)
     .is("scheduled_for", null);
 
@@ -781,6 +793,7 @@ export async function countUnscheduledJobs(): Promise<number> {
     .from("jobs")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .is("scheduled_for", null);
 
   if (legacy.error) {
@@ -803,6 +816,7 @@ export async function listJobActivity(
     .from("job_activity")
     .select("id,job_id,actor_id,type,title,description,created_at")
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -1145,6 +1159,50 @@ export async function deleteJob(id: string): Promise<boolean> {
   return Boolean(count);
 }
 
+
+/**
+ * Soft-delete a job by setting its deleted_at timestamp.
+ * Returns true when exactly one row was updated.
+ */
+export async function softDeleteJob(id: string): Promise<boolean> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .select("id");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).length > 0;
+}
+
+/**
+ * Restore a soft-deleted job by clearing its deleted_at timestamp.
+ * Returns true when exactly one row was updated.
+ */
+export async function restoreJob(id: string): Promise<boolean> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .update({ deleted_at: null })
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .not("deleted_at", "is", null)
+    .select("id");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).length > 0;
+}
+
+
 export async function createJobActivity(
   input: JobActivityWriteInput,
   contextInput?: SessionRepositoryContextInput,
@@ -1231,7 +1289,8 @@ export async function countJobs(
   const { count, error } = await supabase
     .from("jobs")
     .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId);
+    .eq("org_id", orgId)
+    .is("deleted_at", null);
 
   if (error) {
     throw new Error(error.message);
@@ -1309,6 +1368,7 @@ export async function listJobsByPropertyId(
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("property_id", propertyId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -1322,6 +1382,7 @@ export async function listJobsByPropertyId(
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
       .eq("property_id", propertyId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(from, to);
     data = toJobRows(fallback.data);
@@ -1334,6 +1395,7 @@ export async function listJobsByPropertyId(
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
         .eq("property_id", propertyId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .range(from, to);
       data = toJobRows(base.data);
@@ -1502,6 +1564,7 @@ export async function listJobReportRows(
     .from("jobs")
     .select(JOB_REPORT_SELECT)
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 

@@ -37,6 +37,8 @@ import {
   createJob as createJobRecord,
   createJobActivity as createJobActivityRecord,
   deleteJob as deleteJobRecord,
+  softDeleteJob as softDeleteJobRecord,
+  restoreJob as restoreJobRecord,
   getJobById,
   getJobRowById,
   listActivityByJobId,
@@ -979,4 +981,69 @@ export async function deleteJob(id: string) {
   }
 
   return deleted;
+}
+
+// ─── Soft-delete & Restore ────────────────────────────────────────────────────
+
+const SOFT_DELETE_ROLES = new Set<AppRole>(["owner", "manager", "office"]);
+const RESTORE_ROLES = new Set<AppRole>(["owner"]);
+
+/**
+ * Soft-delete a job (set `deleted_at` to now). Permitted for owner, manager,
+ * and office roles. Also removes the job's dispatch plans.
+ */
+export async function softDeleteJob(
+  id: string,
+  ctx: { actorId?: string; role: AppRole },
+): Promise<boolean> {
+  if (!SOFT_DELETE_ROLES.has(ctx.role)) {
+    throw new Error("Insufficient permissions to delete this job.");
+  }
+
+  const existing = await getJobById(id);
+  const deleted = await softDeleteJobRecord(id);
+
+  if (deleted) {
+    await deleteDispatchPlansByJobId(id);
+  }
+
+  if (deleted && existing) {
+    await syncRelatedCounters(existing);
+    await createJobActivityRecord({
+      jobId: id,
+      actorId: ctx.actorId,
+      type: "status",
+      title: "Job deleted",
+      description: "Job was soft-deleted.",
+    });
+  }
+
+  return deleted;
+}
+
+/**
+ * Restore a soft-deleted job (clear `deleted_at`). Only the owner role can
+ * restore deleted jobs.
+ */
+export async function restoreJob(
+  id: string,
+  ctx: { actorId?: string; role: AppRole },
+): Promise<boolean> {
+  if (!RESTORE_ROLES.has(ctx.role)) {
+    throw new Error("Insufficient permissions to restore this job.");
+  }
+
+  const restored = await restoreJobRecord(id);
+
+  if (restored) {
+    await createJobActivityRecord({
+      jobId: id,
+      actorId: ctx.actorId,
+      type: "status",
+      title: "Job restored",
+      description: "Job was restored from soft-delete.",
+    });
+  }
+
+  return restored;
 }
