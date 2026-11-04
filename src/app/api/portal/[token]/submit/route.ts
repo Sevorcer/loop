@@ -95,7 +95,9 @@ export async function POST(
         name,
         contact,
         message,
-      })
+        // Untyped admin client: portal_submissions is not in the generated
+        // types, so the insert payload resolves to never[] without the cast.
+      } as never)
       .select("id, created_at")
       .single();
 
