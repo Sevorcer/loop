@@ -51,7 +51,6 @@ export function isTechDeniedPath(pathname: string): boolean {
  * notes, photos, checklists, and status changes on their assigned work.
  */
 const TECH_DENIED_API_PREFIXES = [
-  "/api/dispatch",
   "/api/dispatch-plans",
   "/api/daily-plans",
   "/api/customers",

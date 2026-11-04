@@ -25,7 +25,6 @@ describe("technician route guard", () => {
   });
 
   it("blocks the office APIs behind those screens", () => {
-    expect(isTechDeniedApiPath("/api/dispatch")).toBe(true);
     expect(isTechDeniedApiPath("/api/dispatch-plans/plan-1")).toBe(true);
     expect(isTechDeniedApiPath("/api/daily-plans")).toBe(true);
     expect(isTechDeniedApiPath("/api/customers")).toBe(true);
