@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import Link from "next/link";
 
 import { ROUTE_BUILDERS } from "@/lib/routes";
@@ -32,14 +33,20 @@ const JOB_TYPE_CARD: Record<JobType, string> = {
   Callback: "border-rose-400/40 border-l-rose-400 bg-rose-500/15",
 };
 
+/** Statuses that must not be draggable. */
+const NON_DRAGGABLE_STATUSES = new Set(["Completed", "Cancelled"]);
+
 export function CalendarJobCard({
   job,
   onDate,
   density,
+  canDrag = false,
 }: {
   job: Job;
   onDate: string;
   density: "compact" | "comfortable";
+  /** Whether this card should be draggable for rescheduling. */
+  canDrag?: boolean;
 }) {
   const time = formatCalendarTimeRange(job, onDate);
   const heading = calendarJobHeading(job);
@@ -47,14 +54,55 @@ export function CalendarJobCard({
   const techs = calendarTechLabel(job);
   const comfortable = density === "comfortable";
 
+  const isDraggable = canDrag && !NON_DRAGGABLE_STATUSES.has(job.status);
+
+  // Track whether the pointer actually moved — if it did, suppress the
+  // click-through to the link so the browser's drag visual takes over
+  // and the user doesn't accidentally navigate.
+  const didDragRef = useRef(false);
+
+  const handleDragStart = useCallback(
+    (event: React.DragEvent<HTMLAnchorElement>) => {
+      if (!isDraggable) {
+        event.preventDefault();
+        return;
+      }
+      didDragRef.current = false;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(
+        "application/x-loop-calendar-job",
+        JSON.stringify({ jobId: job.id, grabDay: onDate }),
+      );
+    },
+    [isDraggable, job.id, onDate],
+  );
+
+  const handleDrag = useCallback(() => {
+    didDragRef.current = true;
+  }, []);
+
+  const handleClick = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (didDragRef.current) {
+        event.preventDefault();
+      }
+    },
+    [],
+  );
+
   return (
     <Link
       href={ROUTE_BUILDERS.JOB_DETAIL(job.id)}
-      onClick={(event) => event.stopPropagation()}
+      draggable={isDraggable}
+      onDragStart={handleDragStart}
+      onDrag={handleDrag}
+      onClick={handleClick}
       className={cn(
         "calendar-card block w-full min-w-0 rounded-lg border border-l-4 text-left transition-colors",
         "hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
         comfortable ? "px-2.5 py-2" : "px-1.5 py-1",
+        isDraggable && "cursor-grab active:cursor-grabbing",
         JOB_TYPE_CARD[job.type] ?? "border-white/15 border-l-slate-400 bg-white/[0.04]",
       )}
       aria-label={`${time}. ${heading}${subtitle ? `. ${subtitle}` : ""}. ${techs}. Open job.`}

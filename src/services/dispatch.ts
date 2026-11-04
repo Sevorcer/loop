@@ -4,10 +4,12 @@ import { listContractors } from "@/repositories/contractors";
 import { createJobActivity, getJobById, listJobsByIds, setJobPeople, updateJob } from "@/repositories/jobs";
 import {
   addCalendarDays,
+  companyCalendarDate,
   companyTimeOfDay,
   shiftIsoToCompanyDate,
   todayInCompanyTimeZone,
 } from "@/lib/timezone";
+import { computeRescheduleShift } from "@/lib/rescheduleShift";
 import { scheduledWindowClock, scheduledWindowHours } from "@/features/dispatch/utils/jobSchedule";
 
 import type {
@@ -194,12 +196,35 @@ export async function schedulePlan(
   let estimatedDurationHours = input.estimatedDurationHours;
 
   if (job) {
-    const shiftedStart = job.scheduledStartAt
-      ? shiftIsoToCompanyDate(job.scheduledStartAt, input.scheduledDate)
-      : null;
-    const shiftedEnd = job.scheduledEndAt
-      ? shiftIsoToCompanyDate(job.scheduledEndAt, input.scheduledDate)
-      : null;
+    // When the job already has a scheduledStartAt, compute the day delta
+    // between its current start date and the target date, then shift both
+    // start and end by that delta. This preserves multi-day job spans —
+    // the old code pinned both to the drop date, collapsing multi-day jobs.
+    let shiftedStart: string | null = null;
+    let shiftedEnd: string | null = null;
+
+    if (job.scheduledStartAt) {
+      const grabDay = companyCalendarDate(job.scheduledStartAt);
+      if (grabDay) {
+        const shifted = computeRescheduleShift({
+          scheduledStartAt: job.scheduledStartAt,
+          scheduledEndAt: job.scheduledEndAt ?? null,
+          grabDay,
+          dropDay: input.scheduledDate,
+        });
+        shiftedStart = shifted.scheduledStartAt;
+        shiftedEnd = shifted.scheduledEndAt;
+      } else {
+        shiftedStart = shiftIsoToCompanyDate(job.scheduledStartAt, input.scheduledDate);
+      }
+    }
+
+    // Jobs without a scheduledStartAt but with a scheduledEndAt: pin end to
+    // the target date (legacy single-day behaviour, preserving time of day).
+    if (!shiftedEnd && job.scheduledEndAt && !job.scheduledStartAt) {
+      shiftedEnd = shiftIsoToCompanyDate(job.scheduledEndAt, input.scheduledDate);
+    }
+
     const clock = scheduledWindowClock(
       shiftedStart ?? job.scheduledStartAt,
       shiftedEnd ?? job.scheduledEndAt,

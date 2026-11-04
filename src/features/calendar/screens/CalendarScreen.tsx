@@ -9,7 +9,9 @@ import { PageHeader, StatusBadge } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
 import type { Job } from "@/features/jobs/types/job";
 import { ApiRequestError, requestJson } from "@/lib/api/client";
-import { todayInCompanyTimeZone } from "@/lib/timezone";
+import { companyCalendarDate, todayInCompanyTimeZone } from "@/lib/timezone";
+import { computeRescheduleShift } from "@/lib/rescheduleShift";
+import { pushToast } from "@/components/ui/toast";
 import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 
 import { CalendarEntryDialog, type CalendarEditor } from "../components/CalendarEntryDialog";
@@ -685,6 +687,84 @@ export function CalendarScreen() {
     focusDate(todayInCompanyTimeZone());
   }, [focusDate]);
 
+  const handleRescheduleJob = useCallback(
+    async (jobId: string, grabDay: string, dropDay: string) => {
+      if (!role || grabDay === dropDay) return;
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job) return;
+
+      // Compute shifted dates using the same shift math as the dispatch board.
+      const startAt = job.scheduledStartAt ?? null;
+      const endAt = job.scheduledEndAt ?? null;
+
+      if (!startAt) {
+        // Jobs without a start timestamp cannot be shifted — only date-only
+        // scheduling applies. Move the legacy scheduledFor field.
+        try {
+          await requestJson(`/api/jobs/${jobId}`, {
+            role,
+            method: "PATCH",
+            body: { scheduledFor: dropDay },
+          });
+          setJobs((current) =>
+            current.map((j) =>
+              j.id === jobId ? { ...j, scheduledFor: dropDay } : j,
+            ),
+          );
+        } catch (error) {
+          pushToast(
+            error instanceof Error ? error.message : "Could not reschedule the job.",
+            "error",
+          );
+        }
+        return;
+      }
+
+      const shifted = computeRescheduleShift({
+        scheduledStartAt: startAt,
+        scheduledEndAt: endAt,
+        grabDay,
+        dropDay,
+      });
+
+      // Optimistic update
+      const previousJobs = jobs;
+      const newScheduledFor = companyCalendarDate(shifted.scheduledStartAt) ?? dropDay;
+      setJobs((current) =>
+        current.map((j) =>
+          j.id === jobId
+            ? {
+                ...j,
+                scheduledStartAt: shifted.scheduledStartAt,
+                scheduledEndAt: shifted.scheduledEndAt,
+                scheduledFor: newScheduledFor,
+              }
+            : j,
+        ),
+      );
+
+      try {
+        await requestJson(`/api/jobs/${jobId}`, {
+          role,
+          method: "PATCH",
+          body: {
+            scheduledFor: newScheduledFor,
+            scheduledStartAt: shifted.scheduledStartAt,
+            scheduledEndAt: shifted.scheduledEndAt,
+          },
+        });
+      } catch (error) {
+        // Revert on failure
+        setJobs(previousJobs);
+        pushToast(
+          error instanceof Error ? error.message : "Could not reschedule the job.",
+          "error",
+        );
+      }
+    },
+    [jobs, role],
+  );
+
   return (
     <div className="min-w-0 space-y-6">
       <div className="print:hidden">
@@ -734,6 +814,10 @@ export function CalendarScreen() {
             onAdd={office ? () => setEditor({ mode: "choose", date: selectedDate }) : undefined}
             onOpenTimeOff={(entry) => setEditor({ mode: "time_off", date: selectedDate, entry })}
             onOpenTask={(entry) => setEditor({ mode: "task", date: selectedDate, entry })}
+            canDragJobs={office}
+            onRescheduleJob={(jobId, grabDay, dropDay) => {
+              void handleRescheduleJob(jobId, grabDay, dropDay);
+            }}
           />
           {entriesNote ? <p className="text-sm text-muted">{entriesNote}</p> : null}
           {jobsNote ? <p className="text-sm text-muted">{jobsNote}</p> : null}
