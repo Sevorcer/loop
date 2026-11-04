@@ -9,11 +9,12 @@ import { JobListWidget } from "./JobListWidget";
  * the status maps to any hold reason, not only missing parts.
  * Sprint 8: add a hold_reason field to surface specific blockers per job.
  */
-export function OnHoldJobsWidget({ jobs }: { jobs: Job[] }) {
+export function OnHoldJobsWidget({ jobs, totalCount }: { jobs: Job[]; totalCount?: number }) {
   return (
     <JobListWidget
       title="On Hold"
       jobs={jobs}
+      totalCount={totalCount}
       viewAllHref={ACTIONABLE_VIEWS.onHold}
       emptyTitle="No jobs on hold"
       emptyDescription="No jobs are currently blocked or waiting."

@@ -81,6 +81,10 @@ vi.mock("@/repositories/jobNotes", () => ({
   insertJobNote: vi.fn(),
 }));
 
+vi.mock("@/repositories/billing", () => ({
+  setBillingEligible: vi.fn(),
+}));
+
 import { updateJobStatus } from "@/services/jobs";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────

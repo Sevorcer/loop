@@ -308,7 +308,32 @@ describe("aggregateCrewWorkload", () => {
 describe("computeKPIs", () => {
   const today = "2026-07-28";
 
-  it("computes jobsToday from scheduledToday", () => {
+  function makeCounts(overrides: Partial<{
+    scheduledToday: number;
+    inProgress: number;
+    onHold: number;
+    inspections: number;
+    callbacks: number;
+    unassigned: number;
+    late: number;
+    completedTodayFallback: number;
+    completedToday: number;
+  }> = {}) {
+    return {
+      scheduledToday: 0,
+      inProgress: 0,
+      onHold: 0,
+      inspections: 0,
+      callbacks: 0,
+      unassigned: 0,
+      late: 0,
+      completedTodayFallback: 0,
+      completedToday: 0,
+      ...overrides,
+    };
+  }
+
+  it("computes jobsToday from server-side count", () => {
     const snapshot = {
       today,
       scheduledToday: [makeJob(), makeJob({ id: "j2" })],
@@ -320,6 +345,7 @@ describe("computeKPIs", () => {
       late: [],
       completedToday: [],
       dispatchPlans: [],
+      counts: makeCounts({ scheduledToday: 2 }),
     };
     const kpis = computeKPIs(snapshot);
     expect(kpis.jobsToday).toBe(2);
@@ -341,6 +367,7 @@ describe("computeKPIs", () => {
       late: [],
       completedToday: [],
       dispatchPlans: [],
+      counts: makeCounts({ inProgress: 3 }),
     };
     const kpis = computeKPIs(snapshot);
     expect(kpis.crewsDispatched).toBe(2);
@@ -367,6 +394,7 @@ describe("computeKPIs", () => {
       late: [],
       completedToday: [],
       dispatchPlans: [],
+      counts: makeCounts({ inProgress: 1 }),
     };
     expect(computeKPIs(snapshot).crewsDispatched).toBe(2);
   });
@@ -400,6 +428,7 @@ describe("computeKPIs", () => {
           constraints: [{ label: "Nothing special", severity: "note" }],
         }),
       ],
+      counts: makeCounts(),
     };
     const kpis = computeKPIs(snapshot);
     expect(kpis.waitingOnPermit).toBe(2);
@@ -419,6 +448,7 @@ describe("computeKPIs", () => {
       dispatchPlans: [
         makeDispatchPlan({ dispatchStatus: "completed", targetDate: "2026-07-27" }),
       ],
+      counts: makeCounts(),
     };
     const kpis = computeKPIs(snapshot);
     expect(kpis.avgCompletionHours).toBeNull();
@@ -449,9 +479,37 @@ describe("computeKPIs", () => {
           estimatedDurationHours: 8,
         }),
       ],
+      counts: makeCounts({ completedToday: 0 }),
     };
     const kpis = computeKPIs(snapshot);
     expect(kpis.avgCompletionHours).toBe(7);
+  });
+
+  it("uses server-side counts for callbacks, late, inspections, and completedToday", () => {
+    const snapshot = {
+      today,
+      scheduledToday: [],
+      inProgress: [],
+      onHold: [],
+      inspections: [makeJob({ id: "i1" })],
+      callbacks: [makeJob({ id: "c1" })],
+      unassigned: [],
+      late: [makeJob({ id: "l1" })],
+      completedToday: [makeJob({ id: "ct1" }), makeJob({ id: "ct2" })],
+      dispatchPlans: [],
+      // Server-side counts may differ from row arrays (which are capped)
+      counts: makeCounts({
+        inspections: 15,
+        callbacks: 10,
+        late: 42,
+        completedToday: 7,
+      }),
+    };
+    const kpis = computeKPIs(snapshot);
+    expect(kpis.waitingOnInspection).toBe(15);
+    expect(kpis.callbacks).toBe(10);
+    expect(kpis.jobsRunningLate).toBe(42);
+    expect(kpis.completedToday).toBe(7);
   });
 });
 

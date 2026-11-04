@@ -433,8 +433,7 @@ export async function listPropertiesByCustomerId(
 ): Promise<Property[]> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 50;
-  const linked = await loadLinkedPropertyIds(contextInput);
-  const ids = linked.get(customerId) ?? [];
+  const ids = await loadLinkedPropertyIdsForCustomer(customerId, contextInput);
   if (ids.length === 0) return [];
 
   const { supabase, orgId } = await getRepositoryContext(contextInput);
@@ -536,6 +535,73 @@ export async function countOpenJobsForProperty(
 
   if (error) throw new Error(error.message);
   return count ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Scoped property-customer link helpers (single-customer reads)
+// ---------------------------------------------------------------------------
+
+/**
+ * Property ids linked to a single customer — scoped version of
+ * loadLinkedPropertyIds that avoids full-table scans. Fetches only the
+ * properties with customer_id = customerId plus any properties referenced by
+ * jobs belonging to the customer (the "hint" path), so cost is bounded by the
+ * customer's own data.
+ */
+export async function loadLinkedPropertyIdsForCustomer(
+  customerId: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<string[]> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+
+  // 1. Properties with a direct FK to the customer
+  const directResult = await readPages<{ id: string }>(
+    (from, to) =>
+      supabase
+        .from("properties")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("customer_id", customerId)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
+
+  // 2. Jobs belonging to this customer may reference properties that lack a
+  //    customer_id FK (the "hint" path). Collect any property_ids from those
+  //    jobs that are not already in the direct set.
+  const directIds = new Set(directResult.map((row) => row.id));
+
+  const jobPropertyRows = await readPages<{ property_id: string | null }>(
+    (from, to) =>
+      supabase
+        .from("jobs")
+        .select("property_id")
+        .eq("org_id", orgId)
+        .eq("customer_id", customerId)
+        .not("property_id", "is", null)
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
+
+  for (const row of jobPropertyRows) {
+    if (row.property_id) {
+      directIds.add(row.property_id);
+    }
+  }
+
+  return Array.from(directIds);
+}
+
+/**
+ * Bounded property count for a single customer. Uses the scoped link helper
+ * instead of scanning all three tables.
+ */
+export async function countLinkedPropertiesForCustomer(
+  customerId: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<number> {
+  const ids = await loadLinkedPropertyIdsForCustomer(customerId, contextInput);
+  return ids.length;
 }
 
 // ---------------------------------------------------------------------------

@@ -38,6 +38,7 @@ export async function CommandCenterScreen() {
 
   const {
     kpis,
+    counts,
     scheduledToday,
     inProgress,
     onHold,
@@ -76,8 +77,8 @@ export async function CommandCenterScreen() {
 
       {/* 3 — Today's jobs + In Progress */}
       <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
-        <TodaysJobsWidget jobs={scheduledToday} />
-        <InProgressJobsWidget jobs={inProgress} />
+        <TodaysJobsWidget jobs={scheduledToday} totalCount={counts.scheduledToday} />
+        <InProgressJobsWidget jobs={inProgress} totalCount={counts.inProgress} />
       </div>
 
       {/* 4 — Crew Workload (full-width for table readability) */}
@@ -85,15 +86,15 @@ export async function CommandCenterScreen() {
 
       {/* 5 — Waiting queues: On Hold, Inspections */}
       <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
-        <OnHoldJobsWidget jobs={onHold} />
-        <WaitingOnInspectionWidget jobs={inspections} />
+        <OnHoldJobsWidget jobs={onHold} totalCount={counts.onHold} />
+        <WaitingOnInspectionWidget jobs={inspections} totalCount={counts.inspections} />
       </div>
 
       {/* 6 — Risk queues: Late, Unassigned, Callbacks */}
       <div className="grid gap-4 sm:gap-6 xl:grid-cols-3">
-        <LateJobsWidget jobs={late} />
-        <UnassignedJobsWidget jobs={unassigned} />
-        <CallbacksWidget jobs={callbacks} />
+        <LateJobsWidget jobs={late} totalCount={counts.late} />
+        <UnassignedJobsWidget jobs={unassigned} totalCount={counts.unassigned} />
+        <CallbacksWidget jobs={callbacks} totalCount={counts.callbacks} />
       </div>
     </div>
   );

@@ -8,10 +8,13 @@ import { joinAddressParts } from "@/lib/address";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { formatDateOnly } from "@/lib/dates";
 
+import { CustomerContactsList } from "../components/CustomerContactsList";
 import { CustomerDeleteButton } from "../components/CustomerDeleteButton";
 import { CustomerDetailTabs } from "../components/CustomerDetailTabs";
 import { CustomerMobileActionBar } from "../components/CustomerMobileActionBar";
+import { GcLedgerSection } from "@/features/gc-ledger/components/GcLedgerSection";
 import type { Customer } from "../types/customer";
+import type { CustomerContact } from "../types/customerContact";
 import type {
   CustomerInstalledSystemItem,
   CustomerJobItem,
@@ -22,6 +25,7 @@ import type { CustomerJobScopeCounts } from "@/services/customers";
 
 interface CustomerDetailScreenProps {
   customer: Customer;
+  contacts: CustomerContact[];
   properties: CustomerPropertyItem[];
   jobs: CustomerJobItem[];
   jobScopeCounts?: CustomerJobScopeCounts | null;
@@ -39,6 +43,7 @@ function formatDate(value: string) {
 
 export function CustomerDetailScreen({
   customer,
+  contacts,
   properties,
   jobs,
   jobScopeCounts,
@@ -252,6 +257,11 @@ export function CustomerDetailScreen({
         </div>
       </div>
 
+      <CustomerContactsList
+        customerId={customer.id}
+        initialContacts={contacts}
+      />
+
       <CustomerDetailTabs
         customer={customer}
         properties={properties}
@@ -264,6 +274,14 @@ export function CustomerDetailScreen({
         initialTab={initialTab}
         initialPropertyId={initialPropertyId}
       />
+
+      {/* GC Ledger section — shown only for parent (builder) customers. */}
+      {customer.childCustomers && customer.childCustomers.length > 0 ? (
+        <GcLedgerSection
+          customerId={customer.id}
+          customerName={customer.name}
+        />
+      ) : null}
 
       {/* F14: sticky phone action bar (Call / Directions). */}
       <CustomerMobileActionBar customer={customer} />

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Job } from "@/features/jobs/types/job";
 import type { DispatchPlan } from "@/features/dispatch/types/dispatch";
-import type { CommandCenterSnapshot } from "@/features/command-center/types/commandCenter";
+import type { CommandCenterSnapshot, CommandCenterCounts } from "@/features/command-center/types/commandCenter";
 import { getStatusVariants } from "@/lib/jobs/status";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
 import { CALLBACK_TYPE_QUERY_VARIANTS } from "@/lib/callbacks";
@@ -123,14 +123,55 @@ function mapDispatchPlanRow(row: DispatchPlanRow): DispatchPlan {
 }
 
 // ---------------------------------------------------------------------------
+// Minimal row shape for workload aggregation (avoids full-row selects)
+// ---------------------------------------------------------------------------
+
+interface WorkloadJobRow {
+  id: string;
+  status: string;
+  priority: string;
+  assigned_to: string;
+  scheduled_for: string | null;
+}
+
+const WORKLOAD_COLUMNS = "id,status,priority,assigned_to,scheduled_for";
+
+function mapWorkloadRow(row: WorkloadJobRow): Job {
+  return {
+    id: row.id,
+    jobNumber: "",
+    title: "",
+    type: "" as Job["type"],
+    status: row.status as Job["status"],
+    priority: row.priority as Job["priority"],
+    customerName: "",
+    propertyName: "",
+    assignedTo: row.assigned_to,
+    scheduledFor: row.scheduled_for ?? null,
+    summary: "",
+    location: "",
+    notes: "",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Widget display cap — widgets show at most 6 rows, so we fetch a small
+// buffer. The true total comes from the server-side count.
+// ---------------------------------------------------------------------------
+
+const WIDGET_ROW_LIMIT = 25;
+
+// ---------------------------------------------------------------------------
 // Main query
 // ---------------------------------------------------------------------------
 
 /**
  * Fetches all data required by the Command Center screen.
  *
- * Runs ~9 Supabase queries in parallel for a single-roundtrip feel.
- * All queries are scoped to the caller's org via the repository context.
+ * Uses server-side COUNT queries for KPIs instead of fetching full row sets
+ * and deriving counts from `.length`. Row fetches for widget display are
+ * capped at WIDGET_ROW_LIMIT. A separate lightweight query fetches minimal
+ * columns for all open jobs to compute workload aggregation.
  *
  * Throws on any query failure so the caller can handle the error uniformly
  * and fall back to an empty-state snapshot.
@@ -145,6 +186,9 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
   const onHoldStatuses = getStatusVariants(["On Hold"]);
   const completedStatuses = getStatusVariants(["Completed"]);
 
+  // Phase 1: Parallel count+row queries for each category.
+  // Using { count: "exact" } with .limit() gives us both the true total
+  // and a capped set of rows for widget display.
   const [
     scheduledTodayRes,
     inProgressRes,
@@ -156,79 +200,91 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     completedTodayFallbackRes,
     completionActivityRes,
     dispatchPlansRes,
+    workloadRes,
   ] = await Promise.all([
     // 1. Scheduled today (status ≠ Cancelled)
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .eq("scheduled_for", today)
       .neq("status", "Cancelled")
-      .order("priority", { ascending: true }),
+      .order("priority", { ascending: true })
+      .limit(WIDGET_ROW_LIMIT),
 
     // 2. In Progress
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .in("status", inProgressStatuses)
-      .order("scheduled_for", { ascending: true }),
+      .order("scheduled_for", { ascending: true })
+      .limit(WIDGET_ROW_LIMIT),
 
-    // 3. On Hold — label honestly kept as "On Hold" (not "Waiting on Parts")
+    // 3. On Hold
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .in("status", onHoldStatuses)
-      .order("scheduled_for", { ascending: true }),
+      .order("scheduled_for", { ascending: true })
+      .limit(WIDGET_ROW_LIMIT),
 
     // 4. Inspections (type=Inspection, open)
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .eq("type", "Inspection")
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
-      .order("scheduled_for", { ascending: true }),
+      .order("scheduled_for", { ascending: true })
+      .limit(WIDGET_ROW_LIMIT),
 
-    // 5. Open callbacks — shared definition: type Callback AND status open.
-    //    Counts by job TYPE (not title/notes keyword matching) so this panel
-    //    agrees with the Dashboard and the Jobs list. See src/lib/callbacks.ts.
+    // 5. Open callbacks
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .in("type", CALLBACK_TYPE_QUERY_VARIANTS)
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
-      .order("scheduled_for", { ascending: true }),
+      .order("scheduled_for", { ascending: true })
+      .limit(WIDGET_ROW_LIMIT),
 
-    // 6. Unassigned (assigned_to is null or empty string)
+    // 6. Unassigned — ACTIONABLE only: open status + blank assignee +
+    //    NOT scheduled in the past. Past-scheduled unassigned jobs are
+    //    covered by the "late" bucket. This excludes imported historical
+    //    jobs with blank assignees that inflate the count.
+    //    Matches the dashboard's aligned definition.
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
       .or("assigned_to.is.null,assigned_to.eq.")
-      .order("scheduled_for", { ascending: true }),
+      .or(`scheduled_for.gte.${today},scheduled_for.is.null`)
+      .order("scheduled_for", { ascending: true })
+      .limit(WIDGET_ROW_LIMIT),
 
     // 7. Late (scheduled_for < today AND status open)
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .lt("scheduled_for", today)
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
-      .order("scheduled_for", { ascending: true }),
+      .order("scheduled_for", { ascending: true })
+      .limit(WIDGET_ROW_LIMIT),
 
     // 8. Completed today
     //    Fallback source for legacy rows without explicit completion activity.
     supabase
       .from("jobs")
-      .select(JOB_COLUMNS)
+      .select(JOB_COLUMNS, { count: "exact" })
       .eq("org_id", orgId)
       .in("status", completedStatuses)
       .gte("updated_at", today)
-      .order("updated_at", { ascending: false }),
+      .order("updated_at", { ascending: false })
+      .limit(WIDGET_ROW_LIMIT),
 
     // 8b. Preferred completion signal for completed-today KPI/list.
     supabase
@@ -245,6 +301,16 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
       .select(DISPATCH_PLAN_COLUMNS)
       .eq("org_id", orgId)
       .order("created_at", { ascending: false }),
+
+    // 10. Workload query — minimal columns for all open jobs.
+    //     Used for per-person and per-team workload aggregation, which needs
+    //     the complete set of open jobs (not capped).
+    supabase
+      .from("jobs")
+      .select(WORKLOAD_COLUMNS)
+      .eq("org_id", orgId)
+      .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
+      .order("scheduled_for", { ascending: true }),
   ]);
 
   // Surface the first error encountered
@@ -258,12 +324,14 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     lateRes.error ??
     completedTodayFallbackRes.error ??
     completionActivityRes.error ??
-    dispatchPlansRes.error;
+    dispatchPlansRes.error ??
+    workloadRes.error;
 
   if (firstError) {
     throw new Error(firstError.message);
   }
 
+  // Map rows for widget display (capped at WIDGET_ROW_LIMIT)
   const scheduledToday = ((scheduledTodayRes.data ?? []) as JobRow[]).map(mapJobRow);
   const inProgress = ((inProgressRes.data ?? []) as JobRow[]).map(mapJobRow);
   const onHold = ((onHoldRes.data ?? []) as JobRow[]).map(mapJobRow);
@@ -277,6 +345,20 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
   const dispatchPlans = ((dispatchPlansRes.data ?? []) as DispatchPlanRow[]).map(
     mapDispatchPlanRow,
   );
+
+  // Server-side counts from the count queries.
+  // completedToday is computed below after merging activity + fallback sources.
+  const counts: CommandCenterCounts = {
+    scheduledToday: scheduledTodayRes.count ?? scheduledToday.length,
+    inProgress: inProgressRes.count ?? inProgress.length,
+    onHold: onHoldRes.count ?? onHold.length,
+    inspections: inspectionsRes.count ?? inspections.length,
+    callbacks: callbacksRes.count ?? callbacks.length,
+    unassigned: unassignedRes.count ?? unassigned.length,
+    late: lateRes.count ?? late.length,
+    completedTodayFallback: completedTodayFallbackRes.count ?? completedTodayFromFallback.length,
+    completedToday: 0,
+  };
 
   const completionJobIds = Array.from(
     new Set(
@@ -311,6 +393,32 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     ).values(),
   );
 
+  // Completed today count: union of activity-based ids and fallback ids
+  const completedTodayCount = new Set([
+    ...completionJobIds,
+    ...completedTodayFromFallback.map((job) => job.id),
+  ]).size;
+  counts.completedToday = completedTodayCount;
+
+  // Workload computation uses the minimal-column query for all open jobs
+  const workloadJobs = ((workloadRes.data ?? []) as WorkloadJobRow[]).map(mapWorkloadRow);
+
+  // Attach assignees only to the capped widget rows (not the full workload set)
+  const widgetJobs = [
+    ...scheduledToday,
+    ...inProgress,
+    ...onHold,
+    ...inspections,
+    ...callbacks,
+    ...unassigned,
+    ...late,
+  ];
+
+  await Promise.all([
+    attachAssignees(supabase, orgId, widgetJobs),
+    attachAssignees(supabase, orgId, workloadJobs),
+  ]);
+
   const rawSnapshot = {
     today,
     scheduledToday,
@@ -322,23 +430,12 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
     late,
     completedToday,
     dispatchPlans,
+    counts,
   };
 
-  const allOpenJobs = [
-    ...scheduledToday,
-    ...inProgress,
-    ...onHold,
-    ...inspections,
-    ...callbacks,
-    ...unassigned,
-    ...late,
-  ];
-
-  await attachAssignees(supabase, orgId, allOpenJobs);
-
   const kpis = computeKPIs(rawSnapshot);
-  const personWorkload = aggregatePersonWorkload(allOpenJobs, today);
-  const teamWorkload = aggregateTeamWorkload(allOpenJobs, today);
+  const personWorkload = aggregatePersonWorkload(workloadJobs, today);
+  const teamWorkload = aggregateTeamWorkload(workloadJobs, today);
   const problemJobs = buildProblemJobs(late, unassigned, onHold);
 
   return {
@@ -367,6 +464,17 @@ export function getEmptyCommandCenterSnapshot(): CommandCenterSnapshot {
     late: [],
     completedToday: [],
     dispatchPlans: [],
+    counts: {
+      scheduledToday: 0,
+      inProgress: 0,
+      onHold: 0,
+      inspections: 0,
+      callbacks: 0,
+      unassigned: 0,
+      late: 0,
+      completedTodayFallback: 0,
+      completedToday: 0,
+    },
     kpis: {
       jobsToday: 0,
       crewsDispatched: 0,

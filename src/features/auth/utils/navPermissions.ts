@@ -56,7 +56,11 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   [ROUTES.COMPANY_BRAIN]: ["owner", "manager"],
 
   // Insights
+  [ROUTES.BILLING]: ["owner", "manager", "office"],
   [ROUTES.REPORTING]: ["owner", "manager", "dispatch", "office", "sales"],
+
+  // GC Overview — same visibility as the ledger: owner, manager, dispatch, office, sales
+  [ROUTES.GC_OVERVIEW]: ["owner", "manager", "dispatch", "office", "sales"],
 
   // Feedback Inbox — manager/owner triage
   [ROUTES.OPS_FEEDBACK]: ["owner", "manager"],

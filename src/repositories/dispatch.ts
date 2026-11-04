@@ -1081,3 +1081,68 @@ export async function loadDispatchSnapshot(
     events: rawEvents.map(mapDispatchEvent),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Scoped dispatch data for the customer/property timeline.
+//
+// The timeline only needs plans + events that belong to a known set of job
+// IDs. Loading the full org-wide snapshot just to filter by job_id in memory
+// pulls thousands of rows the timeline will never display.
+// ---------------------------------------------------------------------------
+
+export interface DispatchEventsForJobsResult {
+  plans: DispatchPlan[];
+  events: DispatchEvent[];
+}
+
+/**
+ * Fetch dispatch plans and events scoped to specific job IDs.
+ * Used by the customer/property timeline so it no longer needs the full
+ * org-wide snapshot.
+ */
+export async function loadDispatchDataForJobs(
+  jobIds: string[],
+): Promise<DispatchEventsForJobsResult> {
+  if (jobIds.length === 0) return { plans: [], events: [] };
+
+  const { supabase, orgId } = await getRepositoryContext();
+
+  // 1. Fetch dispatch plans that belong to these jobs.
+  const rawPlans: DispatchPlanRow[] = [];
+  for (const chunk of idChunks(jobIds)) {
+    rawPlans.push(
+      ...(await fetchAllSnapshotRows<DispatchPlanRow>((from, to) =>
+        supabase
+          .from("dispatch_plans")
+          .select(DISPATCH_PLAN_SELECT)
+          .eq("org_id", orgId)
+          .in("job_id", chunk)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      )),
+    );
+  }
+
+  if (rawPlans.length === 0) return { plans: [], events: [] };
+
+  // 2. Fetch dispatch events scoped to those plan IDs.
+  const planIds = rawPlans.map((row) => row.id);
+  const rawEvents = await fetchSnapshotRowsForPlanIds<DispatchEventRow>(
+    planIds,
+    (chunk, from, to) =>
+      supabase
+        .from("dispatch_events")
+        .select(DISPATCH_EVENT_SELECT)
+        .eq("org_id", orgId)
+        .in("dispatch_plan_id", chunk)
+        .order("timestamp")
+        .order("id")
+        .range(from, to),
+  );
+
+  return {
+    plans: rawPlans.map(mapDispatchPlan),
+    events: rawEvents.map(mapDispatchEvent),
+  };
+}

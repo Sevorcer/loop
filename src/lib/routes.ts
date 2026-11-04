@@ -17,6 +17,7 @@ export const ROUTES = {
   INVENTORY: "/inventory",
   DISPATCH: "/dispatch",
   COMPANY_BRAIN: "/company-brain",
+  BILLING: "/billing",
   REPORTING: "/reporting",
   SETTINGS: "/settings",
   SETTINGS_USERS: "/settings/users",
@@ -24,6 +25,7 @@ export const ROUTES = {
   SETTINGS_ROLES: "/settings/roles",
   SETTINGS_FEEDBACK: "/settings/feedback",
   OPS_FEEDBACK: "/ops/feedback",
+  GC_OVERVIEW: "/gc-overview",
 } as const;
 
 export const ROUTE_BUILDERS = {

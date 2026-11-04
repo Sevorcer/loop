@@ -87,9 +87,17 @@ const pageContent: Record<string, PageMeta> = {
     description: "Search shared knowledge, procedures, and operational context.",
   },
   // Insights
+  [ROUTES.BILLING]: {
+    title: "Ready to Bill",
+    description: "Jobs completed and waiting to be invoiced in QuickBooks.",
+  },
   [ROUTES.REPORTING]: {
     title: "Reporting",
     description: "Interpret operational performance across time, domains, and teams.",
+  },
+  [ROUTES.GC_OVERVIEW]: {
+    title: "GC Overview",
+    description: "Track builder billing, outstanding balances, and retainer status across all GC accounts.",
   },
   // Workspace
   [ROUTES.SETTINGS]: {

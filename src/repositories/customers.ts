@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 
-import { loadLinkedPropertyIds } from "./properties";
+import { countLinkedPropertiesForCustomer } from "./properties";
 import {
   buildIlikeOrFilter,
   OPEN_JOB_STATUS_EXCLUSION_FILTER,
@@ -50,13 +50,13 @@ export interface CustomerWriteInput {
   lastActivity?: string | null;
 }
 
-function withLinkedPropertyCount(
+function withPropertyCount(
   customer: Customer,
-  linked: Map<string, string[]>,
+  count: number,
 ): Customer {
   return {
     ...customer,
-    propertyCount: linked.get(customer.id)?.length ?? 0,
+    propertyCount: count,
   };
 }
 
@@ -124,8 +124,9 @@ export async function listCustomers(
     throw new Error(error.message);
   }
 
-  const linked = await loadLinkedPropertyIds();
-  const items = ((data ?? []) as CustomerRow[]).map((row) => withLinkedPropertyCount(mapCustomer(row), linked));
+  // Use the stored property_count column directly — it is kept current by
+  // syncCustomerCounters. This avoids a full-table scan of properties + jobs.
+  const items = ((data ?? []) as CustomerRow[]).map((row) => mapCustomer(row));
   return { items, total: count ?? items.length, page, pageSize };
 }
 
@@ -195,8 +196,8 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
 
   if (!fallback.data) return null;
   const row = fallback.data as CustomerRow;
-  const linked = await loadLinkedPropertyIds();
-  const customer = withLinkedPropertyCount(mapCustomer(row), linked);
+  const propertyCount = await countLinkedPropertiesForCustomer(id);
+  const customer = withPropertyCount(mapCustomer(row), propertyCount);
   if (!detail.error && row.parent_customer_id) {
     const parent = await supabase
       .from("customers")
@@ -289,8 +290,8 @@ export async function updateCustomer(
   }
 
   if (!data) return null;
-  const linked = await loadLinkedPropertyIds();
-  return withLinkedPropertyCount(mapCustomer(data as CustomerRow), linked);
+  const propertyCount = await countLinkedPropertiesForCustomer(id);
+  return withPropertyCount(mapCustomer(data as CustomerRow), propertyCount);
 }
 
 /** Rows that reference this customer and will block a delete. Includes cancelled jobs. */
@@ -332,8 +333,7 @@ export async function deleteCustomer(id: string): Promise<boolean> {
 }
 
 export async function countPropertiesForCustomer(customerId: string): Promise<number> {
-  const linked = await loadLinkedPropertyIds();
-  return linked.get(customerId)?.length ?? 0;
+  return countLinkedPropertiesForCustomer(customerId);
 }
 
 export async function countOpenJobsForCustomer(customerId: string): Promise<number> {

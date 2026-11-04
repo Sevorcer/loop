@@ -18,6 +18,11 @@ interface JobListWidgetProps {
   emptyIsGood?: boolean;
   /** Optional badge/tag to render next to each row. */
   rowBadges?: (job: Job) => React.ReactNode;
+  /**
+   * Server-side total count. When provided, the badge and overflow text
+   * use this instead of jobs.length (which may be capped by the query limit).
+   */
+  totalCount?: number;
 }
 
 /**
@@ -35,18 +40,20 @@ export function JobListWidget({
   emptyDescription,
   emptyIsGood = false,
   rowBadges,
+  totalCount,
 }: JobListWidgetProps) {
+  const total = totalCount ?? jobs.length;
   const visibleJobs = jobs.slice(0, MAX_ROWS);
-  const overflowCount = jobs.length - visibleJobs.length;
+  const overflowCount = total - visibleJobs.length;
 
   const countBadge = (
     <span className="rounded-full border border-default bg-surface px-2 py-0.5 text-xs font-semibold text-muted">
-      {jobs.length}
+      {total}
     </span>
   );
 
   const viewAllLink =
-    jobs.length > 0 ? (
+    total > 0 ? (
       <Link
         href={viewAllHref}
         className="text-xs font-medium text-primary transition-colors hover:text-white"
@@ -65,7 +72,7 @@ export function JobListWidget({
         </div>
       }
     >
-      {jobs.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           title={emptyTitle}
           description={emptyDescription}

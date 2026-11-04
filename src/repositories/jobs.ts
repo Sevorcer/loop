@@ -390,6 +390,153 @@ export async function listJobs(
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
+// ─── Server-side filtered + paginated listing ─────────────────────────────────
+
+export interface JobListFilter {
+  status?: JobStatus | JobStatus[];
+  type?: JobType | JobType[];
+  priority?: JobPriority | JobPriority[];
+  search?: string;
+  assignee?: string;
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedJobsResult {
+  jobs: Job[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const ALLOWED_SORT_COLUMNS: Record<string, string> = {
+  created_at: "created_at",
+  scheduled_for: "scheduled_for",
+  customer_name: "customer_name",
+  job_number: "job_number",
+  status: "status",
+  type: "type",
+  priority: "priority",
+};
+
+/**
+ * Server-side filtered and paginated job listing. Pushes filtering, search,
+ * and pagination to the database so the client receives only the rows it
+ * renders. The scheduling-column fallback chain mirrors listJobs.
+ */
+export async function listJobsPaginated(
+  filter: JobListFilter = {},
+): Promise<PaginatedJobsResult> {
+  const page = Math.max(1, filter.page ?? 1);
+  const pageSize = Math.max(1, Math.min(filter.pageSize ?? 50, 200));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const sortCol = ALLOWED_SORT_COLUMNS[filter.sort ?? ""] ?? "created_at";
+  const ascending = (filter.order ?? "desc") === "asc";
+
+  const { supabase, orgId } = await getRepositoryContext();
+
+  // Helper: apply shared filters to a query builder (works for both data
+  // and count queries). The builder type is generic enough for both select
+  // overloads Supabase provides.
+  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function }>(
+    query: Q,
+  ): Q {
+    let q = query.eq("org_id", orgId) as Q;
+
+    // Status filter
+    const statuses = Array.isArray(filter.status) ? filter.status : filter.status ? [filter.status] : [];
+    if (statuses.length === 1) {
+      q = q.eq("status", statuses[0]) as Q;
+    } else if (statuses.length > 1) {
+      q = q.in("status", statuses) as Q;
+    }
+
+    // Type filter
+    const types = Array.isArray(filter.type) ? filter.type : filter.type ? [filter.type] : [];
+    if (types.length === 1) {
+      q = q.eq("type", types[0]) as Q;
+    } else if (types.length > 1) {
+      q = q.in("type", types) as Q;
+    }
+
+    // Priority filter
+    const priorities = Array.isArray(filter.priority) ? filter.priority : filter.priority ? [filter.priority] : [];
+    if (priorities.length === 1) {
+      q = q.eq("priority", priorities[0]) as Q;
+    } else if (priorities.length > 1) {
+      q = q.in("priority", priorities) as Q;
+    }
+
+    // Text search — ilike across multiple columns
+    const search = (filter.search ?? "").trim();
+    if (search) {
+      const pattern = `%${search}%`;
+      q = q.or(
+        `job_number.ilike.${pattern},customer_name.ilike.${pattern},property_name.ilike.${pattern},assigned_to.ilike.${pattern},title.ilike.${pattern}`,
+      ) as Q;
+    }
+
+    // Assignee filter (exact match on the assigned_to column)
+    if (filter.assignee) {
+      q = q.ilike("assigned_to", `%${filter.assignee}%`) as Q;
+    }
+
+    return q;
+  }
+
+  // Count query (head-only, no data returned)
+  const countResponse = await applyFilters(
+    supabase.from("jobs").select("id", { count: "exact", head: true }),
+  );
+  const total = countResponse.error ? 0 : (countResponse.count ?? 0);
+
+  // Data query with the full select, ordering, and range
+  const dataQuery = applyFilters(
+    supabase.from("jobs").select(JOB_SELECT),
+  )
+    .order(sortCol, { ascending })
+    .range(from, to);
+
+  const result = await dataQuery;
+  let data = toJobRows(result.data);
+  let error = result.error;
+
+  if (error && isSchedulingColumnMissingError(error)) {
+    console.warn(WARN_PR3C_FALLBACK_LEGACY);
+    const fallbackQuery = applyFilters(
+      supabase.from("jobs").select(JOB_SELECT_WITH_LEGACY),
+    )
+      .order(sortCol, { ascending })
+      .range(from, to);
+    const fallback = await fallbackQuery;
+    data = toJobRows(fallback.data);
+    error = fallback.error;
+
+    if (error && isSchedulingColumnMissingError(error)) {
+      console.warn(WARN_LEGACY_FALLBACK_BASE);
+      const baseQuery = applyFilters(
+        supabase.from("jobs").select(JOB_SELECT_BASE),
+      )
+        .order(sortCol, { ascending })
+        .range(from, to);
+      const base = await baseQuery;
+      data = toJobRows(base.data);
+      error = base.error;
+    }
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const jobsList = ((data ?? []) as JobRow[]).map(mapJob);
+  await attachAssignees(supabase, orgId, jobsList);
+  return { jobs: jobsList, total, page, pageSize };
+}
+
 /**
  * The most recently touched jobs, newest first, capped SERVER-SIDE with
  * `.limit`. Purpose-built for the dashboard "Recent Jobs" widget: unlike
