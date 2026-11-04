@@ -21,7 +21,7 @@ import type { JobCloseoutMode, JobStatus } from "../types/job";
 import type { JobCompletionChecklistStatus } from "../utils/jobCompletionChecklist";
 import {
   buildCloseoutSteps,
-  closeoutModeLabel,
+  closeoutPanelModeLabel,
   closeoutSectionKeyForStep,
   scrollToJobSection,
   type CloseoutSectionKey,
@@ -198,7 +198,7 @@ export function JobCloseoutPanel({
   }
 
   const steps = checklist ? buildCloseoutSteps(checklist) : [];
-  const modeLabel = closeoutModeLabel(checklist?.closeoutMode);
+  const modeLabel = closeoutPanelModeLabel(checklist?.closeoutMode);
   // The multi-day final-day block (same sentence as the completion refusal).
   // It is a still-needed item in both modes, and the payload's canComplete is
   // already false while it stands — the panel never shows "clear" past it.

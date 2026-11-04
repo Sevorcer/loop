@@ -1,5 +1,6 @@
 import type { CreateJobInput } from "@/features/jobs/types/jobStore";
 import type { JobPriority } from "@/features/jobs/types/job";
+import { companyCalendarDate } from "@/lib/timezone";
 
 const CALLBACK_ROLES = new Set(["owner", "manager", "office", "dispatch"]);
 const MAX_REASON_LENGTH = 500;
@@ -70,6 +71,7 @@ export function buildCallbackJobInput(
     location: original.location,
     summary: `Return visit for ${original.jobNumber}. ${reason}`,
     notes: reason,
+    scheduledFor: companyCalendarDate(request.scheduledStartAt) ?? undefined,
     scheduledStartAt: request.scheduledStartAt ?? null,
     scheduledEndAt: null,
     arrivalWindowStartAt: null,

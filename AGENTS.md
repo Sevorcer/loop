@@ -96,6 +96,22 @@ Business logic stays separate from presentation.
 
 ---
 
+# Authentication & Role Resolution
+
+Role is resolved in this order:
+
+1. `user_profiles.app_role` — the profile row is the source of truth.
+2. `app_metadata.app_role` (or `app_metadata.role`) — fallback only, used when the profile row has no role.
+
+`raw_user_meta_data` / `user_metadata` is NEVER read for role resolution. It is editable by the signed-in user and therefore untrusted.
+
+Reference implementations:
+
+- Client: `src/features/auth/utils/appRole.ts` → `resolveAuthoritativeRole()`
+- Server: `src/lib/api-auth.ts` → `resolveRequestAuth()`
+
+---
+
 # React Philosophy
 
 ## Server Components First

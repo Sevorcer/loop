@@ -173,9 +173,9 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     // tech: assigned jobs only — RLS enforces the row-scope restriction
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     insert: new Set<AppRole>(["owner", "manager", "tech", "office"]),
-    // append-only captures
+    // append-only captures; owner/manager may remove erroneous entries
     update: new Set<AppRole>([]),
-    delete: new Set<AppRole>([]),
+    delete: new Set<AppRole>(["owner", "manager"]),
   },
 
   job_callbacks: {

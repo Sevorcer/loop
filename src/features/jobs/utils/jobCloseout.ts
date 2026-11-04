@@ -136,11 +136,12 @@ export function jobCloseoutModeLabel(
 }
 
 /**
- * Human label for the closeout mode carried on the checklist payload.
- * The mode is a closed type ("full" | "visit"); an absent mode returns
- * null so the panel simply shows no mode badge.
+ * Human label for the closeout mode on the guided-closeout panel badge.
+ * Returns null when the mode is absent so the panel renders no badge.
+ * Compare with {@link jobCloseoutModeLabel} which always returns a label
+ * (defaulting to "Full closeout") for the read-only Overview field.
  */
-export function closeoutModeLabel(
+export function closeoutPanelModeLabel(
   mode: JobCloseoutMode | null | undefined,
 ): string | null {
   if (mode === "visit") return "Visit closeout — note only";

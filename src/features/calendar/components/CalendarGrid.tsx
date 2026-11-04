@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,10 @@ interface CalendarGridProps {
   onAdd?: () => void;
   onOpenTimeOff?: (entry: TimeOffEntry) => void;
   onOpenTask?: (entry: CalendarTaskEntry) => void;
+  /** Whether job cards on the calendar can be dragged to reschedule. */
+  canDragJobs?: boolean;
+  /** Called when a job is dropped onto a different day. */
+  onRescheduleJob?: (jobId: string, grabDay: string, dropDay: string) => void;
 }
 
 export function CalendarGrid({
@@ -70,6 +75,8 @@ export function CalendarGrid({
   onAdd,
   onOpenTimeOff = () => {},
   onOpenTask = () => {},
+  canDragJobs = false,
+  onRescheduleJob,
 }: CalendarGridProps) {
   const weeks =
     view === "week"
@@ -220,6 +227,8 @@ export function CalendarGrid({
                       onSelectDate={onSelectDate}
                       onOpenTimeOff={onOpenTimeOff}
                       onOpenTask={onOpenTask}
+                      canDragJobs={canDragJobs}
+                      onRescheduleJob={onRescheduleJob}
                     />
                   );
                 })}
@@ -232,6 +241,8 @@ export function CalendarGrid({
   );
 }
 
+const CALENDAR_JOB_MIME = "application/x-loop-calendar-job";
+
 function CalendarDay({
   date,
   items,
@@ -241,6 +252,8 @@ function CalendarDay({
   onSelectDate,
   onOpenTimeOff,
   onOpenTask,
+  canDragJobs = false,
+  onRescheduleJob,
 }: {
   date: string;
   items: CalendarBoardItem[];
@@ -250,25 +263,68 @@ function CalendarDay({
   onSelectDate: (date: string) => void;
   onOpenTimeOff: (entry: TimeOffEntry) => void;
   onOpenTask: (entry: CalendarTaskEntry) => void;
+  canDragJobs?: boolean;
+  onRescheduleJob?: (jobId: string, grabDay: string, dropDay: string) => void;
 }) {
   const dayNumber = Number(date.slice(8, 10));
   const jobs = items.flatMap((item) => (item.kind === "job" && item.job ? [item.job] : []));
   const unassigned = jobs.filter((job) => isCalendarJobUnassigned(job)).length;
   const weekday = weekdayLabel(date);
+  const [dropActive, setDropActive] = useState(false);
+
+  const handleDragOver = useCallback(
+    (event: React.DragEvent) => {
+      if (!onRescheduleJob) return;
+      if (event.dataTransfer.types.includes(CALENDAR_JOB_MIME)) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setDropActive(true);
+      }
+    },
+    [onRescheduleJob],
+  );
+
+  const handleDragLeave = useCallback(() => {
+    setDropActive(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent) => {
+      setDropActive(false);
+      if (!onRescheduleJob) return;
+      const raw = event.dataTransfer.getData(CALENDAR_JOB_MIME);
+      if (!raw) return;
+      event.preventDefault();
+      try {
+        const payload = JSON.parse(raw) as { jobId: string; grabDay: string };
+        if (payload.jobId && payload.grabDay && payload.grabDay !== date) {
+          onRescheduleJob(payload.jobId, payload.grabDay, date);
+        }
+      } catch {
+        // Invalid payload — ignore.
+      }
+    },
+    [date, onRescheduleJob],
+  );
 
   return (
     <div
       role="group"
       aria-label={`${weekday} ${date}, ${items.length} scheduled`}
       onClick={() => onSelectDate(date)}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       className={cn(
         "flex h-full min-w-0 cursor-pointer flex-col rounded-xl border px-1.5 py-1.5 text-left transition-colors",
         view === "week" ? "min-h-64 px-2 py-2" : "min-h-28",
-        isSelected
-          ? "border-blue-500/40 bg-blue-500/10"
-          : isToday
-            ? "border-blue-500/25 bg-blue-500/[0.06]"
-            : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
+        dropActive
+          ? "border-blue-400/60 bg-blue-500/20"
+          : isSelected
+            ? "border-blue-500/40 bg-blue-500/10"
+            : isToday
+              ? "border-blue-500/25 bg-blue-500/[0.06]"
+              : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
       )}
     >
       <div className="flex items-start justify-between gap-1">
@@ -313,6 +369,7 @@ function CalendarDay({
                   job={item.job}
                   onDate={date}
                   density={view === "week" ? "comfortable" : "compact"}
+                  canDrag={canDragJobs}
                 />
               ) : null}
               {item.kind === "time_off" && item.timeOff ? (

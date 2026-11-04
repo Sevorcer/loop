@@ -13,6 +13,6 @@ export { buildImportPlan } from "./plan";
 export type { ImportPlan, PlanInput } from "./plan";
 export { countRows, summarizeImport } from "./report";
 export { assertImportOptions } from "./scope";
-export { mapJobStatus, mapJobType, mapPriority, sfJobNumber } from "./status";
+export { closeoutModeForType, mapJobStatus, mapJobType, mapPriority, sfJobNumber } from "./status";
 export { SF_TECH_ALIASES, matchTechNames, normalizePersonName, personName } from "./techs";
 export { classifyCustomerRows, parseCustomerLinkCsv } from "./linkCustomers";

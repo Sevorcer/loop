@@ -1,6 +1,7 @@
 import { Users } from "lucide-react";
 
 import type { CrewProfile } from "../types/dailyPlan";
+import type { CrewGroup } from "../data/fieldCrews";
 
 function getAvailabilityClasses(availability: CrewProfile["availability"]): string {
   if (availability === "available") {
@@ -39,7 +40,7 @@ function CrewRow({ crew, jobCount }: CrewRowProps) {
               getAvailabilityClasses(crew.availability),
             ].join(" ")}
           >
-            {crew.rosterOnly ? "On roster" : availabilityLabel(crew.availability)}
+            {availabilityLabel(crew.availability)}
           </span>
         </div>
         <p className="mt-0.5 text-xs text-slate-500">
@@ -59,17 +60,35 @@ function CrewRow({ crew, jobCount }: CrewRowProps) {
   );
 }
 
+function FloaterRow({ name, jobCount }: { name: string; jobCount: number }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <span className="text-sm font-medium text-white">{name}</span>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-sm font-semibold tabular-nums text-white">{jobCount}</p>
+        <p className="text-[11px] text-slate-500">{jobCount === 1 ? "job" : "jobs"}</p>
+      </div>
+    </div>
+  );
+}
+
 interface CrewStatusPanelProps {
-  crews: CrewProfile[];
+  crewGroups: CrewGroup[];
+  floaters: string[];
   jobCountByTechnician: Record<string, number>;
 }
 
 /**
- * Crew roster for the selected day. Empty when the company has no crews,
- * technicians, or assigned names on file.
+ * Crew roster for the selected day. Shows only people assigned to today's jobs,
+ * grouped under their crew record. Floaters appear in an "Also working today"
+ * group with no invented truck, availability, or departure fields.
  */
-export function CrewStatusPanel({ crews, jobCountByTechnician }: CrewStatusPanelProps) {
-  if (crews.length === 0) {
+export function CrewStatusPanel({ crewGroups, floaters, jobCountByTechnician }: CrewStatusPanelProps) {
+  const totalCount = crewGroups.length + floaters.length;
+
+  if (totalCount === 0) {
     return (
       <section aria-label="Crew Status">
         <div className="mb-3 flex items-center gap-2 px-1">
@@ -79,7 +98,7 @@ export function CrewStatusPanel({ crews, jobCountByTechnician }: CrewStatusPanel
           </h2>
         </div>
         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm text-slate-300">
-          No crews or technicians are on file yet. Add technicians in Settings, or assign someone to a job, and they will show up here.
+          No one is assigned to jobs today.
         </div>
       </section>
     );
@@ -93,18 +112,35 @@ export function CrewStatusPanel({ crews, jobCountByTechnician }: CrewStatusPanel
           Crew Status
         </h2>
         <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-500">
-          {crews.length} crew{crews.length !== 1 ? "s" : ""}
+          {totalCount} crew{totalCount !== 1 ? "s" : ""}
         </span>
       </div>
       <div className="space-y-2">
-        {crews.map((crew) => (
+        {crewGroups.map((group) => (
           <CrewRow
-            key={crew.id}
-            crew={crew}
-            jobCount={jobCountByTechnician[crew.technician] ?? 0}
+            key={group.crew.id}
+            crew={group.crew}
+            jobCount={jobCountByTechnician[group.crew.technician] ?? 0}
           />
         ))}
       </div>
+
+      {floaters.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 px-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+            Also working today
+          </p>
+          <div className="space-y-2">
+            {floaters.map((name) => (
+              <FloaterRow
+                key={name}
+                name={name}
+                jobCount={jobCountByTechnician[name] ?? 0}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

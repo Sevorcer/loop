@@ -60,7 +60,6 @@ export interface CrewProfile {
   departureTime: string;
   truckChecks: ChecklistItem[];
   /** True when this row is a technician or assignee, not a crew record with truck details. */
-  rosterOnly?: boolean;
 }
 
 export interface DayOverview {

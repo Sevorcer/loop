@@ -6,6 +6,7 @@ import {
   getStatusVariants,
 } from "@/lib/jobs/status";
 import {
+  ACTIONABLE_VIEWS,
   DASHBOARD_METRIC_DEFINITIONS,
   COMMAND_CENTER_KPI_DEFINITIONS,
 } from "@/lib/operationsMetricDefinitions";
@@ -38,6 +39,21 @@ describe("shared operations metric definitions", () => {
     );
     expect(DASHBOARD_METRIC_DEFINITIONS.completedToday.label).toBe(
       COMMAND_CENTER_KPI_DEFINITIONS.completedToday.label,
+    );
+  });
+});
+
+describe("completedToday tile link", () => {
+  it("completedToday link carries the completedDate filter", () => {
+    const href = ACTIONABLE_VIEWS.completedToday;
+    const url = new URL(href, "http://localhost");
+    expect(url.searchParams.get("status")).toBe("Completed");
+    expect(url.searchParams.get("completedDate")).toBe("today");
+  });
+
+  it("dashboard completedToday href matches the actionable view", () => {
+    expect(DASHBOARD_METRIC_DEFINITIONS.completedToday.href).toBe(
+      ACTIONABLE_VIEWS.completedToday,
     );
   });
 });
