@@ -75,6 +75,42 @@ export async function insertJobSignature(
   return data as JobSignatureRow;
 }
 
+export async function getJobSignatureById(
+  signatureId: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<(JobSignatureRow & { org_id: string }) | null> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const { data, error } = await supabase
+    .from("job_signatures")
+    .select(`${JOB_SIGNATURE_COLUMNS},org_id`)
+    .eq("id", signatureId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  const row = data as JobSignatureRow & { org_id: string };
+  // Org-scoping: return null if the signature belongs to a different org
+  if (row.org_id !== orgId) return null;
+  return row;
+}
+
+export async function deleteJobSignatureById(
+  signatureId: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<boolean> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const { data, error } = await supabase
+    .from("job_signatures")
+    .delete()
+    .eq("org_id", orgId)
+    .eq("id", signatureId)
+    .select("id");
+
+  if (error) throw new Error(error.message);
+  return Array.isArray(data) && data.length > 0;
+}
+
 export function toJobSignature(row: JobSignatureRow, previewUrl: string | null): JobSignature {
   return mapJobSignature(row, previewUrl);
 }
