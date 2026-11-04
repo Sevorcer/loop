@@ -123,7 +123,7 @@ describe("POST /api/feedback — screenshot upload (P1 regression lock #308)", (
       { type: "image/png" },
     );
 
-    const { POST } = await import("../../route");
+    const { POST } = await import("../route");
     const res = await POST(makeMultipartRequest(file));
 
     expect(res.status).toBe(201);
@@ -159,7 +159,7 @@ describe("POST /api/feedback — screenshot upload (P1 regression lock #308)", (
       screenshotUrl: null,
     });
 
-    const { POST } = await import("../../route");
+    const { POST } = await import("../route");
     const res = await POST(
       new Request("http://localhost/api/feedback", {
         method: "POST",
@@ -186,7 +186,7 @@ describe("POST /api/feedback — screenshot upload (P1 regression lock #308)", (
       { type: "application/pdf" },
     );
 
-    const { POST } = await import("../../route");
+    const { POST } = await import("../route");
     const res = await POST(makeMultipartRequest(file));
 
     expect(res.status).toBe(400);
@@ -204,7 +204,7 @@ describe("POST /api/feedback — screenshot upload (P1 regression lock #308)", (
       { type: "image/png" },
     );
 
-    const { POST } = await import("../../route");
+    const { POST } = await import("../route");
     const res = await POST(makeMultipartRequest(file));
 
     expect(res.status).toBe(400);
@@ -225,7 +225,7 @@ describe("POST /api/feedback — screenshot upload (P1 regression lock #308)", (
       { type: "image/png" },
     );
 
-    const { POST } = await import("../../route");
+    const { POST } = await import("../route");
     const res = await POST(makeMultipartRequest(file));
 
     expect(res.status).toBe(500);
