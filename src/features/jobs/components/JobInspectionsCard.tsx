@@ -183,10 +183,9 @@ export function JobInspectionsCard({ jobId, canEdit }: JobInspectionsCardProps) 
                         {TYPE_LABELS[insp.inspectionType]}
                         {isReInspection ? " (Re-inspection)" : ""}
                       </span>
-                      <StatusBadge
-                        label={RESULT_LABELS[insp.result]}
-                        intent={RESULT_INTENT[insp.result]}
-                      />
+                      <StatusBadge variant={RESULT_INTENT[insp.result]}>
+                        {RESULT_LABELS[insp.result]}
+                      </StatusBadge>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted">
                       {insp.scheduledDate && <span>{insp.scheduledDate}</span>}
