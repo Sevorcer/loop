@@ -26,6 +26,8 @@ export const ROUTES = {
   SETTINGS_FEEDBACK: "/settings/feedback",
   OPS_FEEDBACK: "/ops/feedback",
   GC_OVERVIEW: "/gc-overview",
+  PERMITS_BOARD: "/permits",
+  INSPECTIONS_WEEK: "/inspections",
 } as const;
 
 export const ROUTE_BUILDERS = {

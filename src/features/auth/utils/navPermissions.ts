@@ -62,6 +62,10 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   // GC Overview — same visibility as the ledger: owner, manager, dispatch, office, sales
   [ROUTES.GC_OVERVIEW]: ["owner", "manager", "dispatch", "office", "sales"],
 
+  // Phase 3 — Permits & Inspections office views
+  [ROUTES.PERMITS_BOARD]: ["owner", "manager", "office"],
+  [ROUTES.INSPECTIONS_WEEK]: ["owner", "manager", "office"],
+
   // Feedback Inbox — manager/owner triage
   [ROUTES.OPS_FEEDBACK]: ["owner", "manager"],
 

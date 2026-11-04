@@ -18,6 +18,8 @@ import {
   MessageSquare,
   Receipt,
   Landmark,
+  FileCheck,
+  ClipboardCheck,
 } from "lucide-react";
 
 import { getNavItemsForRole, type NavGroup } from "@/features/auth";
@@ -45,6 +47,8 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
     label: "FIELD",
     items: [
       { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
+      { name: "Permits", href: ROUTES.PERMITS_BOARD, icon: FileCheck },
+      { name: "Inspections", href: ROUTES.INSPECTIONS_WEEK, icon: ClipboardCheck },
       { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
       { name: "Customers", href: ROUTES.CUSTOMERS, icon: Users },
       { name: "Contractors", href: ROUTES.CONTRACTORS, icon: HardHat },
