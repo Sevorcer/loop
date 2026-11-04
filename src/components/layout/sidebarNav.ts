@@ -135,8 +135,11 @@ export function composeSidebarNav({
   navOverride,
 }: ComposeSidebarNavOptions): NavGroup[] {
   const visibleGroups = getNavItemsForRole(role, groups);
-  const shouldBypassRoleFilter = role !== "portal" && visibleGroups.length === 0;
-  const resolvedGroups = shouldBypassRoleFilter ? groups : visibleGroups;
+  // Fail closed: unrecognized roles see tech-level nav (most restricted),
+  // never the full unfiltered sidebar.
+  const resolvedGroups = visibleGroups.length === 0
+    ? getNavItemsForRole("tech", groups)
+    : visibleGroups;
   const preferredOrder = getPreferredHrefOrder(role, navOverride);
 
   if (preferredOrder.length === 0) {

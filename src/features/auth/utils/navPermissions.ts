@@ -111,7 +111,17 @@ export function getNavItemsForRole(
   }
 
   if (!isAppRole(role)) {
-    return nonEmptyGroups;
+    // Fail closed: unrecognized or null roles see tech-level nav (most restricted).
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const allowed = NAV_ROUTE_ROLES[item.href];
+          if (!allowed) return INTERNAL_ROLES.includes("tech");
+          return allowed.includes("tech");
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
   }
 
   return groups
