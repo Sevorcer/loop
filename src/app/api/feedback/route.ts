@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { createApiErrorResponse, mapRouteError } from "@/lib/api/routeErrors";
 import { logWriteFailure } from "@/lib/observability/writes";
+import { verifyMimeType } from "@/lib/security/mimeVerify";
 import { uploadFile } from "@/repositories/storage";
 import type { FeedbackSeverity, FeedbackStatus } from "@/features/feedback/types/feedbackReport";
 import {
@@ -114,6 +115,12 @@ export async function POST(request: Request) {
         const fileName = normalizeScreenshotName(screenshot.name || "screenshot.jpg");
         const storagePath = `feedback/${randomUUID()}-${fileName}`;
         const bytes = new Uint8Array(await screenshot.arrayBuffer());
+
+        // Server-side MIME verification: check magic bytes match declared type
+        const mimeError = verifyMimeType(bytes, normalizedType);
+        if (mimeError) {
+          return createApiErrorResponse("VALIDATION_ERROR", mimeError, 400);
+        }
 
         const uploaded = await uploadFile({
           bucket: FEEDBACK_SCREENSHOTS_BUCKET,

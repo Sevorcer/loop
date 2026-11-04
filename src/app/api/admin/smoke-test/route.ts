@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { unauthorizedResponse } from "@/lib/api-auth";
+import { constantTimeCompare } from "@/lib/security/constantTimeCompare";
+import { createRateLimiter } from "@/lib/security/rateLimit";
 
 /**
  * POST /api/admin/smoke-test
@@ -74,7 +76,15 @@ function failResponse(
   });
 }
 
+// 10 requests per 60 seconds per IP
+const smokeTestRateLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
+
 export async function POST(request: Request): Promise<NextResponse> {
+  // ── Rate limit ─────────────────────────────────────────────────────────────
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rateLimited = smokeTestRateLimiter.check(clientIp);
+  if (rateLimited) return rateLimited;
+
   // ── Token auth ─────────────────────────────────────────────────────────────
   const token = process.env.LOOP_HEALTH_CHECK_TOKEN;
   if (!token) {
@@ -86,7 +96,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const authHeader = request.headers.get("Authorization") ?? "";
   const supplied = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  if (!supplied || supplied !== token) {
+  if (!supplied || !constantTimeCompare(supplied, token)) {
     return unauthorizedResponse(
       "A valid bearer token is required.",
       supplied ? "invalid_token" : "missing_token",

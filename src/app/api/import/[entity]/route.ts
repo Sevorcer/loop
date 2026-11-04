@@ -38,6 +38,13 @@ import { createJob } from "@/services/jobs";
 import { createProperty } from "@/services/properties";
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Maximum CSV file size: 10 MB */
+const MAX_CSV_SIZE_BYTES = 10 * 1024 * 1024;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -322,6 +329,18 @@ export async function POST(request: Request, { params }: RouteParams) {
         code: 400,
       },
       { status: 400 }
+    );
+  }
+
+  // ── Size cap ────────────────────────────────────────────────────────────────
+  if ((file as File).size > MAX_CSV_SIZE_BYTES) {
+    return NextResponse.json(
+      {
+        error: "PAYLOAD_TOO_LARGE",
+        message: `CSV file exceeds the maximum allowed size of ${MAX_CSV_SIZE_BYTES / (1024 * 1024)} MB.`,
+        code: 413,
+      },
+      { status: 413 }
     );
   }
 
