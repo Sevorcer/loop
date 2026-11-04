@@ -38,7 +38,11 @@ import type { Job, JobStatus } from "../types/job";
 import type { JobActivity } from "../types/jobActivity";
 import type { JobNote } from "../types/jobNote";
 import type { JobSignature } from "../types/jobSignature";
-import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCompletionChecklist";
+import {
+  parseLatestQaChecklist,
+  REQUIRED_QA_CHECKLIST_ITEMS,
+  type RequiredQaChecklist,
+} from "../utils/jobCompletionChecklist";
 import { finalScheduledDayBlocker } from "../utils/jobFinalDay";
 import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
@@ -184,7 +188,6 @@ export function JobDetailScreen({
   const [latestSignature, setLatestSignature] = useState<JobSignature | null>(null);
   const [activeTab, setActiveTab] = useState<JobDetailTab>("overview");
   const [taskCounts, setTaskCounts] = useState<{ done: number; total: number } | null>(null);
-  const [filesBadgeCount, setFilesBadgeCount] = useState<number | null>(null);
   const [systemsCount, setSystemsCount] = useState<number | null>(null);
 
   const handleTaskCounts = useCallback((counts: { done: number; total: number }) => {
@@ -208,10 +211,6 @@ export function JobDetailScreen({
     [],
   );
 
-  const handleFilesCount = useCallback((count: number) => {
-    setFilesBadgeCount(count);
-  }, []);
-
   const handleSystemsCount = useCallback((count: number) => {
     setSystemsCount(count);
   }, []);
@@ -234,21 +233,36 @@ export function JobDetailScreen({
     }
   }, []);
 
+  const qaChecklist = useMemo(() => parseLatestQaChecklist(activity), [activity]);
+
+  // QA item counts from the checklist — the badge should reflect both
+  // tasks and QA items since the tab is "Tasks & QA".
+  const qaTotal = REQUIRED_QA_CHECKLIST_ITEMS.length;
+  const qaDone = [
+    qaChecklist.startupVerificationComplete,
+    qaChecklist.safetyReviewComplete,
+    qaChecklist.workAreaCleaned,
+  ].filter(Boolean).length;
+
   const desktopBadge = (tab: JobDetailTab): string | null => {
     switch (tab) {
-      case "tasks":
-        return taskCounts && taskCounts.total > 0
-          ? `${taskCounts.done}/${taskCounts.total}`
-          : null;
+      case "tasks": {
+        const tasksDone = taskCounts?.done ?? 0;
+        const tasksTotal = taskCounts?.total ?? 0;
+        const totalDone = tasksDone + qaDone;
+        const totalItems = tasksTotal + qaTotal;
+        return totalItems > 0 ? `${totalDone}/${totalItems}` : null;
+      }
       case "photos":
-        return filesBadgeCount ? String(filesBadgeCount) : null;
+        return fileCount ? String(fileCount) : null;
       case "systems":
         return systemsCount ? String(systemsCount) : null;
       default:
         return null;
     }
   };
-  const tasksRemaining = taskCounts ? taskCounts.total - taskCounts.done : 0;
+  const tasksRemaining =
+    (taskCounts ? taskCounts.total - taskCounts.done : 0) + (qaTotal - qaDone);
 
   const noteHistory = useMemo(
     () => displayJobNotes(notes, job.notes, activity),
@@ -283,7 +297,6 @@ export function JobDetailScreen({
   const statusVariant = getStatusVariant(job.status);
   const priorityVariant = getPriorityVariant(job.priority);
   const statusIntent = getJobStatusIntent(job.status);
-  const qaChecklist = useMemo(() => parseLatestQaChecklist(activity), [activity]);
   const installedSystemsEntered =
     getInstalledSystemsForJob(job.id, job.propertyId ?? undefined).length > 0;
   const jobNotesCompleted =
@@ -723,7 +736,6 @@ export function JobDetailScreen({
             <JobFilesPanel
               jobId={job.id}
               onFilesChanged={handleFilesChanged}
-              onCountChange={handleFilesCount}
             />
           </div>
 
