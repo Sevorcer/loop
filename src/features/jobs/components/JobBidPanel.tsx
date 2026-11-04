@@ -208,7 +208,7 @@ export function JobBidPanel({ jobId }: JobBidPanelProps) {
 
   const currentBid = bids.find((b) => b.isCurrent) ?? null;
   const historyBids = bids.filter((b) => !b.isCurrent);
-  const canEdit = role === "owner" || role === "manager" || role === "office";
+  const canEdit = role === "owner" || role === "manager" || role === "office" || role === "sales";
 
   function handleSaved() {
     setShowForm(false);

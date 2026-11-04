@@ -55,7 +55,7 @@ export function PropertyDetailScreen({
         ? "warning"
         : "neutral";
 
-  const activeSystems = property.status === "Inactive" ? 0 : 1;
+  const activeSystems = installedSystems?.length ?? 0;
 
   const { location } = property;
 

@@ -22,6 +22,7 @@ interface CustomerFormValues {
   phone: string;
   phone2: string;
   city: string;
+  state: string;
   street: string;
   zip: string;
   notes: string;
@@ -36,6 +37,7 @@ function toFormValues(customer: Customer): CustomerFormValues {
     phone: customer.phone,
     phone2: customer.phone2,
     city: customer.city,
+    state: customer.state ?? "",
     street: customer.street,
     zip: customer.zip,
     notes: customer.notes,
@@ -52,6 +54,7 @@ function normalizeValues(values: CustomerFormValues): CustomerFormValues {
     phone: values.phone.trim(),
     phone2: values.phone2.trim(),
     city: values.city.trim(),
+    state: values.state.trim(),
     street: values.street.trim(),
     zip: values.zip.trim(),
     notes: values.notes.trim(),
@@ -176,6 +179,18 @@ export function CustomerEditForm({ customer }: CustomerEditFormProps) {
                 placeholder="Seattle"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-200">
+                State <span className="text-slate-500">(optional)</span>
+              </label>
+              <input
+                value={form.state}
+                onChange={(e) => updateField("state", e.target.value)}
+                placeholder="WA"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
               />
             </div>
 
