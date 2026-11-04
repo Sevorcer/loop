@@ -93,6 +93,36 @@ export interface ProblemJob {
 }
 
 // ------------------------------------------------------------------
+// Server-side counts
+// Derived from Supabase COUNT queries rather than .length on full
+// row arrays. Drives KPI computation without fetching all rows.
+// ------------------------------------------------------------------
+
+export interface CommandCenterCounts {
+  /** Jobs scheduled for today (status ≠ Cancelled). */
+  scheduledToday: number;
+  /** Jobs with status In Progress. */
+  inProgress: number;
+  /** Jobs with status On Hold. */
+  onHold: number;
+  /** Open inspection-type jobs. */
+  inspections: number;
+  /** Open callbacks. */
+  callbacks: number;
+  /**
+   * Actionable unassigned jobs: open status + blank assignee +
+   * NOT scheduled in the past. Excludes imported historical jobs.
+   */
+  unassigned: number;
+  /** Jobs past their scheduled date that are still open. */
+  late: number;
+  /** Completed today — fallback count from updated_at. */
+  completedTodayFallback: number;
+  /** Completed today — union of activity-based and fallback. */
+  completedToday: number;
+}
+
+// ------------------------------------------------------------------
 // Snapshot — the assembled result passed to CommandCenterScreen
 // ------------------------------------------------------------------
 
@@ -118,6 +148,9 @@ export interface CommandCenterSnapshot {
 
   // --- Dispatch context (for permit KPI + avg completion time) ---
   dispatchPlans: DispatchPlan[];
+
+  // --- Server-side counts ---
+  counts: CommandCenterCounts;
 
   // --- Derived aggregations ---
   kpis: CommandCenterKPIs;

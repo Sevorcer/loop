@@ -106,6 +106,9 @@ const { fakeSupabase, jobOrFilters } = vi.hoisted(() => {
     order() {
       return this;
     }
+    limit() {
+      return this;
+    }
 
     private execute() {
       const matched = this.rows.filter((row) => this.preds.every((p) => p(row)));

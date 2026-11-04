@@ -14,6 +14,7 @@ import { normalizeJobStatus as normalizeSharedJobStatus, isOpenStatus } from "@/
 import { COMMAND_CENTER_KPI_DEFINITIONS } from "@/lib/operationsMetricDefinitions";
 import { formatTeamLabel, splitTeamNames } from "@/lib/teamLabel";
 import type {
+  CommandCenterCounts,
   CommandCenterKPIs,
   CommandCenterSnapshot,
   NormalizedJobStatus,
@@ -74,7 +75,7 @@ export interface KPIDefinition {
    * Used by KPIStrip to make every metric actionable.
    */
   href: string;
-  /** Derivation logic run against the raw snapshot data. */
+  /** Derivation logic run against the raw snapshot data (uses server-side counts). */
   compute: (
     snapshot: Omit<CommandCenterSnapshot, "kpis" | "personWorkload" | "teamWorkload" | "problemJobs">,
   ) => number | null;
@@ -87,7 +88,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.jobsToday.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.jobsToday.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.jobsToday.href,
-    compute: ({ scheduledToday }) => scheduledToday.length,
+    compute: ({ counts }) => counts.scheduledToday,
   },
   {
     key: "crewsDispatched",
@@ -95,6 +96,8 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.crewsDispatched.href,
+    // Crews dispatched still uses row data — it counts distinct people,
+    // not distinct jobs, so a server-side COUNT is not sufficient.
     compute: ({ inProgress }) => countPeople(inProgress),
   },
   {
@@ -103,7 +106,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnInspection.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnInspection.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnInspection.href,
-    compute: ({ inspections }) => inspections.length,
+    compute: ({ counts }) => counts.inspections,
   },
   {
     key: "waitingOnPermit",
@@ -111,6 +114,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnPermit.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnPermit.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.waitingOnPermit.href,
+    // Permit count uses JSONB constraint inspection — still application-side.
     compute: ({ dispatchPlans }) => countWaitingOnPermit(dispatchPlans),
   },
   {
@@ -119,7 +123,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.callbacks.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.callbacks.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.callbacks.href,
-    compute: ({ callbacks }) => callbacks.length,
+    compute: ({ counts }) => counts.callbacks,
   },
   {
     key: "completedToday",
@@ -127,7 +131,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.completedToday.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.completedToday.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.completedToday.href,
-    compute: ({ completedToday }) => completedToday.length,
+    compute: ({ counts }) => counts.completedToday,
   },
   {
     key: "jobsRunningLate",
@@ -135,7 +139,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.jobsRunningLate.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.jobsRunningLate.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.jobsRunningLate.href,
-    compute: ({ late }) => late.length,
+    compute: ({ counts }) => counts.late,
   },
   {
     key: "avgCompletionHours",
@@ -143,6 +147,7 @@ export const KPI_DEFINITIONS: readonly KPIDefinition[] = [
     description: COMMAND_CENTER_KPI_DEFINITIONS.avgCompletionHours.description,
     helpText: COMMAND_CENTER_KPI_DEFINITIONS.avgCompletionHours.helpText,
     href: COMMAND_CENTER_KPI_DEFINITIONS.avgCompletionHours.href,
+    // Avg completion hours uses JSONB dispatch plan data — still application-side.
     compute: ({ dispatchPlans, today }) => computeAvgCompletionHours(dispatchPlans, today),
   },
 ] as const;

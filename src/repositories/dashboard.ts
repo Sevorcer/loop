@@ -116,13 +116,18 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       .eq("org_id", orgId)
       .in("status", getStatusVariants(["On Hold"])),
 
-    // Unassigned (assigned_to is blank)
+    // Unassigned — actionable only: open status + blank assignee +
+    // NOT scheduled in the past. Past-scheduled unassigned jobs are late,
+    // not actionable-unassigned. This excludes imported historical jobs
+    // with blank assignees that inflate the count. Aligned with Command
+    // Center's definition (Command Center definition won).
     supabase
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("org_id", orgId)
       .not("status", "in", OPEN_JOB_STATUS_EXCLUSION_FILTER)
-      .or("assigned_to.is.null,assigned_to.eq."),
+      .or("assigned_to.is.null,assigned_to.eq.")
+      .or(`scheduled_for.gte.${today},scheduled_for.is.null`),
 
     // New customers this month
     supabase
