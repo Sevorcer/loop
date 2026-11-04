@@ -486,6 +486,17 @@ export function CalendarScreen() {
     [role],
   );
 
+  // The month grid only plots dates inside the displayed month, and the
+  // week view plots exactly its seven dates — fetch just that window and
+  // refetch when navigation changes it.
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const rangeFrom = view === "week" ? visibleWeek[0] : `${monthKey}-01`;
+  const rangeTo =
+    view === "week"
+      ? visibleWeek[6]
+      : `${monthKey}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
+  const rangeKey = `${rangeFrom}|${rangeTo}`;
+
   const reloadEntries = useCallback(async () => {
     if (!role) return;
     try {
@@ -547,17 +558,6 @@ export function CalendarScreen() {
       cancelled = true;
     };
   }, [office, role]);
-
-  // The month grid only plots dates inside the displayed month, and the
-  // week view plots exactly its seven dates — fetch just that window and
-  // refetch when navigation changes it.
-  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const rangeFrom = view === "week" ? visibleWeek[0] : `${monthKey}-01`;
-  const rangeTo =
-    view === "week"
-      ? visibleWeek[6]
-      : `${monthKey}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
-  const rangeKey = `${rangeFrom}|${rangeTo}`;
 
   useEffect(() => {
     if (!role) return;
