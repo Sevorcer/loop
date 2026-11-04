@@ -200,7 +200,8 @@ export async function rescheduleJobByDayShift(
   if (!job) throw new Error(`Job '${jobId}' not found.`);
 
   // Find the job's dispatch plan(s); use the most recent one.
-  const plans = await listDispatchPlansByJobId(jobId);
+  const plansResult = await listDispatchPlansByJobId(jobId);
+  const plans = plansResult.ok ? plansResult.data : [];
   if (plans.length > 0) {
     const plan = plans[plans.length - 1];
     // schedulePlan handles shift math, job update, block upsert, and
