@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { PageHeader, SectionCard } from "@/components/atlas";
-import { AtlasTabs } from "@/components/atlas";
+import { pushToast } from "@/components/ui/toast";
 import { ReadyToBillTable } from "../components/ReadyToBillTable";
 import type { ReadyToBillJob } from "../types/billing";
 
@@ -48,30 +48,50 @@ export function BillingScreen() {
   }, []);
 
   useEffect(() => {
-    loadJobs(activeTab);
+    // Load both tabs on initial mount so counts are available for the inactive tab
+    if (installJobs.length === 0 && serviceJobs.length === 0) {
+      Promise.all([loadJobs("install"), loadJobs("service")]);
+    } else {
+      loadJobs(activeTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, loadJobs]);
 
   const handleMarkBilled = useCallback(
     async (jobId: string, qbInvoiceNumber: string, billedAt: string) => {
-      await postBillingAction({
-        action: "mark_billed",
-        jobId,
-        qbInvoiceNumber,
-        billedAt,
-      });
-      // Refresh the current tab
-      await loadJobs(activeTab);
+      try {
+        await postBillingAction({
+          action: "mark_billed",
+          jobId,
+          qbInvoiceNumber,
+          billedAt,
+        });
+        // Refresh the current tab
+        await loadJobs(activeTab);
+      } catch (err) {
+        pushToast(
+          err instanceof Error ? err.message : "Failed to mark job as billed.",
+          "error",
+        );
+      }
     },
     [activeTab, loadJobs],
   );
 
   const handleExclude = useCallback(
     async (jobId: string) => {
-      await postBillingAction({
-        action: "exclude",
-        jobId,
-      });
-      await loadJobs(activeTab);
+      try {
+        await postBillingAction({
+          action: "exclude",
+          jobId,
+        });
+        await loadJobs(activeTab);
+      } catch (err) {
+        pushToast(
+          err instanceof Error ? err.message : "Failed to exclude job.",
+          "error",
+        );
+      }
     },
     [activeTab, loadJobs],
   );
