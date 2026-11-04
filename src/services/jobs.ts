@@ -536,6 +536,33 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   return updatedJob;
 }
 
+/**
+ * The multi-day completion block (B1): a job that spans several scheduled
+ * days cannot be completed before its final scheduled day. Day boundaries are
+ * the company timezone (America/Los_Angeles), matching how dispatch windowing
+ * counts calendar days and how the DB gate (guard_job_completion_gate) reads
+ * the scheduled dates. The final day is the scheduled end; a job with no end
+ * falls back to its start day. Single-day jobs (no end, or an end on the start
+ * day) are never gated, so this applies equally to full and visit closeout.
+ *
+ * Returns the blocker sentence (the detail of the completion refusal) while
+ * the block stands, or null when the job may be completed today. Shared by
+ * the completion path and the completion-checklist payload so the guided
+ * closeout panel never reports "clear" while completion would be refused.
+ */
+export function finalScheduledDayBlocker(
+  job: { scheduledStartAt?: string | null; scheduledEndAt?: string | null },
+  today: string = todayInCompanyTimeZone(),
+): string | null {
+  const startDay = companyCalendarDate(job.scheduledStartAt);
+  const endDay = companyCalendarDate(job.scheduledEndAt);
+  const finalDay = endDay ?? startDay;
+  if (startDay && finalDay && finalDay > startDay && today < finalDay) {
+    return `this job runs through ${formatDateOnly(finalDay)} and cannot be completed before its final scheduled day`;
+  }
+  return null;
+}
+
 export async function updateJobStatus(id: string, status: JobStatus, context?: JobMutationContext) {
   if (!JOB_STATUSES.has(status)) {
     throw new Error("Invalid job status.");
@@ -567,24 +594,11 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
 
   if (status === "Completed") {
     // A multi-day job must not be completable before its final scheduled day.
-    // Day boundaries are the company timezone (America/Los_Angeles), matching
-    // how dispatch windowing counts calendar days. The final day is the
-    // scheduled end; a job with no end falls back to its start day. Single-day
-    // jobs (no end, or an end on the start day) are never gated, so this
-    // applies equally to full and visit closeout. Checked before the checklist
-    // gate so the day block reads ahead of any "still needed" message.
-    const startDay = companyCalendarDate(existing.scheduledStartAt);
-    const endDay = companyCalendarDate(existing.scheduledEndAt);
-    const finalDay = endDay ?? startDay;
-    if (
-      startDay &&
-      finalDay &&
-      finalDay > startDay &&
-      todayInCompanyTimeZone() < finalDay
-    ) {
-      throw new Error(
-        `Cannot complete job — this job runs through ${formatDateOnly(finalDay)} and cannot be completed before its final scheduled day.`,
-      );
+    // Checked before the checklist gate so the day block reads ahead of any
+    // "still needed" message. See finalScheduledDayBlocker for the rule.
+    const finalDayBlocker = finalScheduledDayBlocker(existing);
+    if (finalDayBlocker) {
+      throw new Error(`Cannot complete job — ${finalDayBlocker}.`);
     }
 
     const checklist = await getJobCompletionChecklist(id, context?.role);
@@ -903,6 +917,17 @@ export async function getJobCompletionChecklist(
   // migration lands) keeps the full four-gate closeout.
   const closeoutMode: JobCloseoutMode = job.closeoutMode === "visit" ? "visit" : "full";
 
+  const gatesComplete =
+    closeoutMode === "visit"
+      ? jobNotesCompleted
+      : photosUploaded &&
+        installedSystemsEntered &&
+        jobNotesCompleted &&
+        requiredQaItemsComplete;
+  // The multi-day final-day block applies in both modes, same as the
+  // completion path — canComplete must never be true while it stands.
+  const finalDayBlocker = finalScheduledDayBlocker(job);
+
   return {
     closeoutMode,
     photosUploaded,
@@ -910,13 +935,8 @@ export async function getJobCompletionChecklist(
     jobNotesCompleted,
     requiredQaItemsComplete,
     customerSignaturePlaceholder: "optional",
-    canComplete:
-      closeoutMode === "visit"
-        ? jobNotesCompleted
-        : photosUploaded &&
-          installedSystemsEntered &&
-          jobNotesCompleted &&
-          requiredQaItemsComplete,
+    finalDayBlocker,
+    canComplete: gatesComplete && finalDayBlocker === null,
   };
 }
 

@@ -101,6 +101,7 @@ const ALL_MISSING: ChecklistPayload = {
   jobNotesCompleted: false,
   requiredQaItemsComplete: false,
   customerSignaturePlaceholder: "optional",
+  finalDayBlocker: null,
   canComplete: false,
   closeoutMode: "full",
 };
