@@ -540,10 +540,12 @@ export function JobDetailScreen({
               <JobBidPanel jobId={job.id} />
             </PermissionGuard>
 
-            <PermissionGuard table="job_inspections" action="select">
-              <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
             <PermissionGuard table="job_permits" action="select">
               <JobPermitsCard jobId={job.id} canEdit={canEditPermitsForRole} />
+            </PermissionGuard>
+
+            <PermissionGuard table="job_inspections" action="select">
+              <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
             </PermissionGuard>
 
             {priceVisible && canViewJobPrice(role) ? (
