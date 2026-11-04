@@ -1,24 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Funnel } from "lucide-react";
+import { ChevronLeft, ChevronRight, Funnel } from "lucide-react";
 
 import { DataTable, ErrorState } from "@/components/atlas";
 import { DataTableToolbar } from "@/components/atlas/data-table";
-import { useAuth, useCurrentRole } from "@/features/auth";
-import { isOpenStatus, normalizeJobStatus } from "@/lib/jobs/status";
+import { useCurrentRole } from "@/features/auth";
+import { normalizeJobStatus } from "@/lib/jobs/status";
 import { ROUTE_BUILDERS } from "@/lib/routes";
-import { todayInCompanyTimeZone } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
-import { lookupProfileName } from "@/services/profileDirectory";
+import { requestJson } from "@/lib/api/client";
 
-import { useJobs } from "../state/JobsProvider";
-import type { JobPriority, JobStatus, JobType } from "../types/job";
+import type { Job, JobPriority, JobStatus, JobType } from "../types/job";
 import { jobTypeFilterLabel } from "@/features/jobs/utils/callbackJob";
 import { CALLBACK_LABELS, CALLBACK_TYPE } from "@/lib/callbacks";
 
 import { jobColumns } from "./JobColumns";
+
+const PAGE_SIZE = 50;
 
 const statusOptions: Array<JobStatus | "All"> = [
   "All",
@@ -52,6 +52,13 @@ interface JobTableProps {
   initialSearchParams?: Record<string, SearchParamValue>;
 }
 
+interface PaginatedResponse {
+  jobs: Job[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 function readSearchParam(
   params: Record<string, SearchParamValue>,
   key: string,
@@ -64,22 +71,12 @@ function readSearchParam(
 export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
-  const { user } = useAuth();
-  const { jobs, loading, hydrated, error, refreshJobs } = useJobs();
-  const [profileFullName, setProfileFullName] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void lookupProfileName({ id: user?.id, email: user?.email }).then((fullName) => {
-      if (!cancelled && fullName) setProfileFullName(fullName);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.email]);
 
+  // ── Filter state ────────────────────────────────────────────────────
   const [searchValue, setSearchValue] = useState(
     () => readSearchParam(initialSearchParams, "q") ?? "",
   );
+  const [debouncedSearch, setDebouncedSearch] = useState(searchValue);
   const [statusFilter, setStatusFilter] = useState<JobStatus | "All">(() => {
     const normalized = normalizeJobStatus(
       readSearchParam(initialSearchParams, "status"),
@@ -96,113 +93,82 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
       ? (value as JobPriority)
       : "All";
   });
-  const [openOnly, setOpenOnly] = useState(
-    () => readSearchParam(initialSearchParams, "open") === "true",
-  );
-  const [unassignedOnly, setUnassignedOnly] = useState(
-    () => readSearchParam(initialSearchParams, "unassigned") === "true",
-  );
-  const [lateOnly, setLateOnly] = useState(
-    () => readSearchParam(initialSearchParams, "late") === "true",
-  );
-  const [problemOnly, setProblemOnly] = useState(
-    () => readSearchParam(initialSearchParams, "problem") === "true",
-  );
-  const [todayOnly, setTodayOnly] = useState(
-    () => readSearchParam(initialSearchParams, "when") === "today",
-  );
 
-  const filteredJobs = useMemo(() => {
-    const query = searchValue.trim().toLowerCase();
-    const isTechView = role === "tech";
-    const todayIso = todayInCompanyTimeZone();
-    const scopedTechnicianNames = new Set<string>();
-    const fullName = user?.user_metadata?.full_name;
-    if (typeof fullName === "string" && fullName.trim()) {
-      scopedTechnicianNames.add(fullName.trim().toLowerCase());
-    }
-    if (typeof user?.email === "string" && user.email.trim()) {
-      scopedTechnicianNames.add(user.email.trim().toLowerCase()); } if (profileFullName?.trim()) { scopedTechnicianNames.add(profileFullName.trim().toLowerCase());
-    }
+  // ── Pagination state ────────────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(1);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const fetchIdRef = useRef(0);
 
-    return jobs.filter((job) => {
-      if (isTechView) {
-        const assigned = job.assignedTo.trim().toLowerCase();
-        const assignedNames = assigned.split(",").map((part) => part.trim()).filter(Boolean);
-        const assigneeIds = new Set((job.assignees ?? []).map((assignee) => assignee.id));
-        const matchesAssigneeId = Boolean(user?.id && assigneeIds.has(user.id));
-        const matchesName =
-          scopedTechnicianNames.size === 0 ||
-          assignedNames.some((name) => scopedTechnicianNames.has(name)) ||
-          scopedTechnicianNames.has(assigned);
-        if (!matchesAssigneeId && !matchesName) {
-          return false;
-        }
-      }
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchValue);
+      setCurrentPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchValue]);
 
-      const matchesSearch =
-        query.length === 0 ||
-        job.jobNumber.toLowerCase().includes(query) ||
-        job.title.toLowerCase().includes(query) ||
-        job.customerName.toLowerCase().includes(query) ||
-        job.propertyName.toLowerCase().includes(query) ||
-        job.assignedTo.toLowerCase().includes(query);
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, typeFilter, priorityFilter]);
 
-      const normalizedStatus = normalizeJobStatus(job.status);
-      const matchesStatus = statusFilter === "All" || normalizedStatus === statusFilter;
-      const matchesType = typeFilter === "All" || job.type === typeFilter;
-      const matchesPriority =
-        priorityFilter === "All" || job.priority === priorityFilter;
-      const openStatus = isOpenStatus(job.status);
-      const isUnassigned = job.assignedTo.trim().length === 0;
-      const isLate = openStatus && !!job.scheduledFor && job.scheduledFor.slice(0, 10) < todayIso;
-      const isProblem = isLate || isUnassigned || normalizedStatus === "On Hold";
+  // ── Fetch paginated data ────────────────────────────────────────────
+  const fetchJobs = useCallback(async () => {
+    if (!role) return;
 
-      const matchesOpenOnly = !openOnly || openStatus;
-      const matchesUnassignedOnly = !unassignedOnly || isUnassigned;
-      const matchesLateOnly = !lateOnly || isLate;
-      const matchesProblemOnly = !problemOnly || isProblem;
-      const matchesTodayOnly = !todayOnly || (job.scheduledFor?.slice(0, 10) ?? null) === todayIso;
+    const id = ++fetchIdRef.current;
+    setLoading(true);
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesType &&
-        matchesPriority &&
-        matchesOpenOnly &&
-        matchesUnassignedOnly &&
-        matchesLateOnly &&
-        matchesProblemOnly &&
-        matchesTodayOnly
+    try {
+      setError(null);
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("pageSize", String(PAGE_SIZE));
+
+      if (statusFilter !== "All") params.set("status", statusFilter);
+      if (typeFilter !== "All") params.set("type", typeFilter);
+      if (priorityFilter !== "All") params.set("priority", priorityFilter);
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+
+      const response = await requestJson<PaginatedResponse>(
+        `/api/jobs?${params.toString()}`,
+        { role, cache: "no-store" },
       );
-    });
-  }, [
-    jobs,
-    lateOnly,
-    openOnly,
-    priorityFilter,
-    problemOnly,
-    role,
-    searchValue,
-    statusFilter,
-    todayOnly,
-    typeFilter,
-    unassignedOnly, profileFullName,
-    user,
-  ]);
+
+      // Only apply if this is still the latest fetch
+      if (id === fetchIdRef.current) {
+        setJobs(response.jobs);
+        setTotal(response.total);
+      }
+    } catch (loadError) {
+      if (id === fetchIdRef.current) {
+        setError(loadError instanceof Error ? loadError.message : "Failed to load jobs.");
+      }
+    } finally {
+      if (id === fetchIdRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [role, currentPage, statusFilter, typeFilter, priorityFilter, debouncedSearch]);
+
+  useEffect(() => {
+    void fetchJobs();
+  }, [fetchJobs]);
+
+  // ── Derived values ──────────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const hasActiveFilters =
     searchValue.length > 0 ||
     statusFilter !== "All" ||
     typeFilter !== "All" ||
-    priorityFilter !== "All" ||
-    openOnly ||
-    unassignedOnly ||
-    lateOnly ||
-    problemOnly ||
-    todayOnly;
+    priorityFilter !== "All";
 
-  if (loading || !hydrated) {
+  if (loading && jobs.length === 0) {
     return (
       <div className="rounded-lg border bg-card">
         <div className="space-y-3 p-4">
@@ -216,13 +182,13 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
     );
   }
 
-  if (error) {
+  if (error && jobs.length === 0) {
     return (
       <ErrorState
         title="Unable to load jobs"
         description={error}
         action={
-          <Button variant="outline" onClick={() => void refreshJobs()}>
+          <Button variant="outline" onClick={() => void fetchJobs()}>
             Try again
           </Button>
         }
@@ -293,11 +259,6 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
                   setStatusFilter("All");
                   setTypeFilter("All");
                   setPriorityFilter("All");
-                  setOpenOnly(false);
-                  setUnassignedOnly(false);
-                  setLateOnly(false);
-                  setProblemOnly(false);
-                  setTodayOnly(false);
                 }}
                 className="w-full text-slate-300 hover:bg-white/5 hover:text-white sm:w-auto"
               >
@@ -310,18 +271,56 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
 
       {typeFilter === CALLBACK_TYPE ? (
         <p className="px-4 pb-1 pt-3 text-xs text-slate-400 md:px-6">
-          {openOnly ? CALLBACK_LABELS.open : CALLBACK_LABELS.all}:{" "}
-          <span className="font-semibold text-slate-200">{filteredJobs.length}</span>
-          {openOnly ? null : " — includes completed and cancelled"}
+          {CALLBACK_LABELS.all}:{" "}
+          <span className="font-semibold text-slate-200">{total}</span>
+          {" — includes completed and cancelled"}
         </p>
       ) : null}
 
       <DataTable
         columns={jobColumns}
-        data={filteredJobs}
+        data={jobs}
         getRowHref={(job) => ROUTE_BUILDERS.JOB_DETAIL(job.id)}
         onRowClick={(job) => router.push(ROUTE_BUILDERS.JOB_DETAIL(job.id))}
+        disableInternalPagination
       />
+
+      {/* Server-side pagination controls */}
+      <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 md:px-6">
+        <p className="text-sm text-slate-400">
+          {total === 0
+            ? "No jobs found"
+            : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, total)} of ${total}`}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage <= 1}
+            className="gap-1 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.07] disabled:opacity-40"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Previous</span>
+          </Button>
+
+          <span className="min-w-[4rem] text-center text-sm text-slate-300">
+            {currentPage} / {totalPages}
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+            className="gap-1 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.07] disabled:opacity-40"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
