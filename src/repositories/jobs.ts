@@ -1125,19 +1125,19 @@ export async function deleteJob(id: string): Promise<boolean> {
  */
 export async function softDeleteJob(id: string): Promise<boolean> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("jobs")
     .update({ deleted_at: new Date().toISOString() })
     .eq("org_id", orgId)
     .eq("id", id)
     .is("deleted_at", null)
-    .select("id", { count: "exact", head: true });
+    .select("id");
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (count ?? 0) > 0;
+  return (data ?? []).length > 0;
 }
 
 /**
@@ -1146,19 +1146,19 @@ export async function softDeleteJob(id: string): Promise<boolean> {
  */
 export async function restoreJob(id: string): Promise<boolean> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("jobs")
     .update({ deleted_at: null })
     .eq("org_id", orgId)
     .eq("id", id)
     .not("deleted_at", "is", null)
-    .select("id", { count: "exact", head: true });
+    .select("id");
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (count ?? 0) > 0;
+  return (data ?? []).length > 0;
 }
 
 
