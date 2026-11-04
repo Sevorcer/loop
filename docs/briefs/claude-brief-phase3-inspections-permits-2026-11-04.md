@@ -17,7 +17,7 @@ A permit belongs to a job (and a job can have several). Fields mirror Zowe's she
 - Dates: applied, intake appointment, issued; a corrections note per round; a free notes field.
 - The standing EL permit is NOT a job permit — don't model it as one; a job permit may reference "under EL" as its type/coverage if the sheet shows that pattern (flag on #337 if unclear).
 - On the job page: a Permits section (office-and-above edit; techs read-only).
-- Removal is a **void**, never a hard delete (Collin, 2026-11-04): office-and-above can void a permit — it leaves the permits board and the job's active list, carries a voided timestamp (and who voided it, through the usual audit fields), and stays recoverable/unn-voidable by office-and-above. Same soft pattern as job soft-delete. Voided permits never block anything.
+- Removal is a **void**, never a hard delete (Collin, 2026-11-04): office-and-above can void a permit — it leaves the permits board and the job's active list, carries a voided timestamp (and who voided it, through the usual audit fields), and stays recoverable/un-voidable by office-and-above. Same soft pattern as job soft-delete. Voided permits never block anything.
 
 ## Task 2 — Inspection records on the job
 - Fields: inspection type (rough-in / cover / final / other), scheduled date + window, **booked_by** (Office / GC or Super / Customer — her workflow has all three), inspector name when known, result (`scheduled` / `passed` / `failed` / `partial` / `rescheduled_by_city`), result date.
