@@ -8,6 +8,7 @@ import {
   updateCustomerContact,
   deleteCustomerContact,
 } from "@/services/customerContacts";
+import { readContactRole } from "@/features/customers/types/customerContact";
 
 export async function PUT(
   request: Request,
@@ -27,18 +28,16 @@ export async function PUT(
     const { id, contactId } = await params;
     const contact = await updateCustomerContact(contactId, {
       name: body.name !== undefined ? String(body.name).trim() : undefined,
-      role: body.role !== undefined ? String(body.role) : undefined,
+      role: body.role !== undefined ? readContactRole(body.role) : undefined,
       phone: body.phone !== undefined ? String(body.phone).trim() : undefined,
       email: body.email !== undefined ? String(body.email).trim() : undefined,
     });
-
     if (!contact) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Contact '${contactId}' not found.`, code: 404 },
         { status: 404 },
       );
     }
-
     emitAuditEvent({
       role: guard.ctx.role,
       action: "update",
@@ -46,7 +45,6 @@ export async function PUT(
       resourceId: id,
       details: { contactId, ...body },
     });
-
     return NextResponse.json({ contact });
   } catch (error) {
     logWriteFailure({ route: "/api/customers/[id]/contacts/[contactId]", request }, error);
@@ -64,14 +62,12 @@ export async function DELETE(
   try {
     const { id, contactId } = await params;
     const deleted = await deleteCustomerContact(contactId);
-
     if (!deleted) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: `Contact '${contactId}' not found.`, code: 404 },
         { status: 404 },
       );
     }
-
     emitAuditEvent({
       role: guard.ctx.role,
       action: "delete",
@@ -79,7 +75,6 @@ export async function DELETE(
       resourceId: id,
       details: { contactId },
     });
-
     return NextResponse.json({ message: "Contact deleted.", id: contactId });
   } catch (error) {
     logWriteFailure({ route: "/api/customers/[id]/contacts/[contactId]", request }, error);
