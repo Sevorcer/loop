@@ -658,6 +658,10 @@ export async function listJobsInRange(from: string, to: string): Promise<Job[]> 
     `and(scheduled_start_at.is.null,scheduled_for.gte.${legacyFrom},scheduled_for.lt.${legacyToExclusive})`,
   ].join(",");
 
+  // Supabase (PostgREST) returns at most 1 000 rows by default. Page with
+  // `.range()` so a year view with >1 000 jobs in the window gets them all.
+  const RANGE_PAGE = 1000;
+
   const runQuery = (select: string, withTimestamps: boolean) => {
     const query = supabase.from("jobs").select(select).eq("org_id", orgId);
     const filtered = withTimestamps
@@ -666,23 +670,34 @@ export async function listJobsInRange(from: string, to: string): Promise<Job[]> 
     return filtered.order("created_at", { ascending: false });
   };
 
-  const result = await runQuery(JOB_SELECT, true);
-  let data = toJobRows(result.data);
-  let error = result.error;
+  const runPaginatedQuery = async (
+    select: string,
+    withTimestamps: boolean,
+  ): Promise<{ data: JobRow[]; error: { message: string; code?: string } | null }> => {
+    const allRows: JobRow[] = [];
+    let offset = 0;
+    for (;;) {
+      const result = await runQuery(select, withTimestamps).range(offset, offset + RANGE_PAGE - 1);
+      if (result.error) return { data: allRows, error: result.error };
+      const page = toJobRows(result.data) as JobRow[];
+      allRows.push(...page);
+      if (page.length < RANGE_PAGE) break;
+      offset += RANGE_PAGE;
+    }
+    return { data: allRows, error: null };
+  };
+
+  let { data, error } = await runPaginatedQuery(JOB_SELECT, true);
 
   if (error && isSchedulingColumnMissingError(error)) {
     console.warn(WARN_PR3C_FALLBACK_LEGACY);
     // The PR3C columns do not exist in this environment, so timestamps
     // cannot be filtered on — legacy jobs are the only scheduled kind.
-    const fallback = await runQuery(JOB_SELECT_WITH_LEGACY, false);
-    data = toJobRows(fallback.data);
-    error = fallback.error;
+    ({ data, error } = await runPaginatedQuery(JOB_SELECT_WITH_LEGACY, false));
 
     if (error && isSchedulingColumnMissingError(error)) {
       console.warn(WARN_LEGACY_FALLBACK_BASE);
-      const base = await runQuery(JOB_SELECT_BASE, false);
-      data = toJobRows(base.data);
-      error = base.error;
+      ({ data, error } = await runPaginatedQuery(JOB_SELECT_BASE, false));
     }
   }
 
@@ -690,7 +705,7 @@ export async function listJobsInRange(from: string, to: string): Promise<Job[]> 
     throw new Error(error.message);
   }
 
-  const jobsList = ((data ?? []) as JobRow[])
+  const jobsList = (data as JobRow[])
     .map(mapJob)
     .filter((job) => jobOverlapsDateRange(job, from, to));
   await attachAssignees(supabase, orgId, jobsList);

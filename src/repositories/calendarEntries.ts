@@ -4,6 +4,13 @@ import type { CalendarPerson, CalendarTaskEntry, TimeOffEntry } from "@/features
 
 import { getRepositoryContext } from "./supabaseContext";
 
+/**
+ * Supabase (PostgREST) defaults to returning at most 1 000 rows per request.
+ * To fetch every row matching a filter we page with `.range()` until a page
+ * comes back shorter than the page size, which means we have reached the end.
+ */
+const PAGE_SIZE = 1000;
+
 interface TimeOffRow {
   id: string;
   user_id: string;
@@ -36,16 +43,41 @@ const TIME_OFF_COLUMNS = "id,user_id,starts_at,ends_at,all_day,reason,note";
 const TASK_COLUMNS =
   "id,title,description,starts_at,ends_at,all_day,assign_everyone,job_id,customer_id,done_at";
 
-export async function listTimeOff(): Promise<TimeOffEntry[]> {
+export async function listTimeOff(dateRange?: {
+  from: string;
+  to: string;
+}): Promise<TimeOffEntry[]> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
-    .from("time_off")
-    .select(TIME_OFF_COLUMNS)
-    .eq("org_id", orgId)
-    .order("starts_at", { ascending: true })
-    .limit(1000);
-  if (error) throw new Error(error.message);
-  const rows = (data ?? []) as TimeOffRow[];
+
+  const rows: TimeOffRow[] = [];
+  let offset = 0;
+
+  for (;;) {
+    let query = supabase
+      .from("time_off")
+      .select(TIME_OFF_COLUMNS)
+      .eq("org_id", orgId);
+
+    // When a date window is provided, fetch only entries whose span overlaps
+    // the requested range. This avoids loading the entire history for views
+    // that only need one month or week.
+    if (dateRange) {
+      query = query
+        .lte("starts_at", `${dateRange.to}T23:59:59.999Z`)
+        .gte("ends_at", `${dateRange.from}T00:00:00.000Z`);
+    }
+
+    const { data, error } = await query
+      .order("starts_at", { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as TimeOffRow[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
   const names = await profileNames(rows.map((row) => row.user_id));
   return rows.map((row) => ({
     id: row.id,
@@ -115,16 +147,37 @@ export async function deleteTimeOff(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function listCalendarTasks(): Promise<CalendarTaskEntry[]> {
+export async function listCalendarTasks(dateRange?: {
+  from: string;
+  to: string;
+}): Promise<CalendarTaskEntry[]> {
   const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
-    .from("calendar_tasks")
-    .select(TASK_COLUMNS)
-    .eq("org_id", orgId)
-    .order("starts_at", { ascending: true })
-    .limit(1000);
-  if (error) throw new Error(error.message);
-  const rows = (data ?? []) as TaskRow[];
+
+  const rows: TaskRow[] = [];
+  let offset = 0;
+
+  for (;;) {
+    let query = supabase
+      .from("calendar_tasks")
+      .select(TASK_COLUMNS)
+      .eq("org_id", orgId);
+
+    if (dateRange) {
+      query = query
+        .lte("starts_at", `${dateRange.to}T23:59:59.999Z`)
+        .gte("ends_at", `${dateRange.from}T00:00:00.000Z`);
+    }
+
+    const { data, error } = await query
+      .order("starts_at", { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as TaskRow[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
   const taskIds = rows.map((row) => row.id);
   const assignees = await taskAssignees(taskIds);
   const profileIds = assignees.map((row) => row.user_id);

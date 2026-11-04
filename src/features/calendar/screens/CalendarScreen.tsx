@@ -486,11 +486,22 @@ export function CalendarScreen() {
     [role],
   );
 
+  // The month grid only plots dates inside the displayed month, and the
+  // week view plots exactly its seven dates — fetch just that window and
+  // refetch when navigation changes it.
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const rangeFrom = view === "week" ? visibleWeek[0] : `${monthKey}-01`;
+  const rangeTo =
+    view === "week"
+      ? visibleWeek[6]
+      : `${monthKey}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
+  const rangeKey = `${rangeFrom}|${rangeTo}`;
+
   const reloadEntries = useCallback(async () => {
     if (!role) return;
     try {
       const data = await requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>(
-        "/api/calendar",
+        `/api/calendar?from=${rangeFrom}&to=${rangeTo}`,
         { role, cache: "no-store" },
       );
       setTimeOff(data.timeOff);
@@ -504,15 +515,15 @@ export function CalendarScreen() {
       }
       setEntriesNote("Time off and tasks could not be loaded. Scheduled jobs are still shown.");
     }
-  }, [role]);
+  }, [role, rangeFrom, rangeTo]);
 
   useEffect(() => {
     if (!role) return;
     let cancelled = false;
-    void requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>("/api/calendar", {
-      role,
-      cache: "no-store",
-    })
+    void requestJson<{ timeOff: TimeOffEntry[]; tasks: CalendarTaskEntry[] }>(
+      `/api/calendar?from=${rangeFrom}&to=${rangeTo}`,
+      { role, cache: "no-store" },
+    )
       .then((data) => {
         if (cancelled) return;
         setTimeOff(data.timeOff);
@@ -531,7 +542,7 @@ export function CalendarScreen() {
     return () => {
       cancelled = true;
     };
-  }, [role]);
+  }, [role, rangeFrom, rangeTo]);
 
   useEffect(() => {
     if (!office) return;
@@ -547,17 +558,6 @@ export function CalendarScreen() {
       cancelled = true;
     };
   }, [office, role]);
-
-  // The month grid only plots dates inside the displayed month, and the
-  // week view plots exactly its seven dates — fetch just that window and
-  // refetch when navigation changes it.
-  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const rangeFrom = view === "week" ? visibleWeek[0] : `${monthKey}-01`;
-  const rangeTo =
-    view === "week"
-      ? visibleWeek[6]
-      : `${monthKey}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
-  const rangeKey = `${rangeFrom}|${rangeTo}`;
 
   useEffect(() => {
     if (!role) return;
