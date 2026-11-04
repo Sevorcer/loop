@@ -75,6 +75,8 @@ export type CoreTable =
   | "db_health_check_runs"
   // Sprint 7 Mini-Epic — In-app feedback capture
   | "feedback_reports"
+  // Money Layer — job bids
+  | "job_bids"
   // Sprint 7 Settings Enhancements — user management
   // owner/manager may manage org users; owner alone may delete.
   | "user_profiles";
@@ -319,6 +321,16 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>(["owner", "manager"]),
     delete: new Set<AppRole>(["owner"]),
   },
+  // ── Money Layer — job bids ─────────────────────────────────────────────────
+  // Read: owner/manager/dispatch/office/sales. Write: owner/manager/office.
+  // Delete: owner only.
+  job_bids: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+
   // ── Sprint 7 Settings Enhancements — user management ─────────────────────
   // owner/manager may view and manage org users.
   // Only `owner` may remove a user profile from the org.

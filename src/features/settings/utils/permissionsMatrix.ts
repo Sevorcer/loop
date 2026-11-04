@@ -105,6 +105,7 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   organizations: "Organizations",
   db_health_check_runs: "DB Health Checks",
   feedback_reports: "Feedback Reports",
+  job_bids: "Job Bids",
   user_profiles: "User Profiles",
 };
 
