@@ -21,6 +21,7 @@ import type {
 import {
   appendDispatchEvent,
   createDispatchPlan,
+  listDispatchPlansByJobId,
   loadDispatchSnapshot,
   upsertCrewAssignment,
   upsertScheduleBlock,
@@ -206,11 +207,16 @@ export async function rescheduleJobByDayShift(
     // plan placement update — the same path the dispatch board uses.
     await schedulePlan(
       {
+        dispatchPlanId: plan.id,
         jobId,
         scheduledDate: dropDay,
         scheduledStartTime: "07:00",
         scheduledEndTime: "16:00",
         estimatedDurationHours: plan.estimatedDurationHours ?? 4,
+        crewName: "",
+        jobType: plan.jobType ?? job.type ?? "",
+        customerName: plan.customerName ?? job.customerName ?? "",
+        propertyName: plan.propertyName ?? job.propertyName ?? "",
         dispatchStatus: "scheduled",
       },
       plan.id,
