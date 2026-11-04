@@ -63,6 +63,11 @@ const EXEMPT_ROUTES: Record<string, string> = {
   // input, and submissions are rate-limited per token (5 per 15 min).
   "portal/[token]/submit/route.ts":
     "Public GC portal submission: authorized by the per-job share token, rate-limited per token; the job is stamped from the token, never from client input.",
+  // GC builder portal — public by design. The unguessable per-job share
+  // token (32 random bytes, SHA-256 hashed at rest, revocable) IS the
+  // credential; the route resolves it server-side to exactly one job.
+  "portal/[token]/route.ts":
+    "Public GC portal read: authorized by the per-job share token in the URL, resolved server-side to a single job; no session exists for builders.",
 };
 
 // ---------------------------------------------------------------------------
