@@ -36,6 +36,7 @@ const {
       order: (...args: unknown[]) => terminal(orderMock(...args)),
       in: () => terminal({ data: [], error: null }),
       eq: () => terminal({ data: [], error: null }),
+      is: () => terminal(result),
     });
   }
 
@@ -47,12 +48,14 @@ const {
     eq: () => typeof eqChain;
     in: () => ReturnType<typeof terminal>;
     range: () => ReturnType<typeof terminal>;
+    is: () => typeof eqChain;
   } = {
     order,
     maybeSingle: maybeSingleMock,
     eq: () => eqChain,
     in: () => terminal({ data: [], error: null }),
     range: () => terminal(orderMock()),
+    is: () => eqChain,
   };
 
   const selectFn = vi.fn(() => eqChain);
