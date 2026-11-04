@@ -96,7 +96,7 @@ export function BillingScreen() {
         description="Jobs completed and awaiting billing. Mark each billed with a QuickBooks invoice number, or exclude jobs that don't need invoicing."
       />
 
-      <SectionCard>
+      <SectionCard title="Completed Jobs">
         <div className="space-y-4">
           <div className="flex gap-1 border-b border-white/10 px-4">
             {tabs.map((tab) => (
