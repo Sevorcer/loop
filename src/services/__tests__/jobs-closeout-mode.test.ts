@@ -85,6 +85,10 @@ vi.mock("@/repositories/jobNotes", () => ({
   insertJobNote: vi.fn(),
 }));
 
+vi.mock("@/repositories/billing", () => ({
+  setBillingEligible: vi.fn(),
+}));
+
 import { getJobCompletionChecklist, updateJobStatus } from "@/services/jobs";
 import { completionBlockers } from "@/features/jobs/utils/jobCompletionChecklist";
 

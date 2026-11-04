@@ -86,6 +86,10 @@ vi.mock("@/repositories/jobNotes", () => ({
   insertJobNote: vi.fn(),
 }));
 
+vi.mock("@/repositories/billing", () => ({
+  setBillingEligible: vi.fn(),
+}));
+
 import {
   finalScheduledDayBlocker,
   getJobCompletionChecklist,
