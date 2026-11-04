@@ -7,7 +7,7 @@ import { buildImportPlan } from "../plan";
 import { summarizeImport } from "../report";
 import { jobScopeDecision, resolveImportOptions } from "../scope";
 import { scheduleJob } from "../schedule";
-import { mapJobStatus, mapJobType, sfJobNumber } from "../status";
+import { closeoutModeForType, mapJobStatus, mapJobType, sfJobNumber } from "../status";
 import { matchTechNames } from "../techs";
 
 describe("address normalization", () => {
@@ -71,6 +71,15 @@ describe("status mapping", () => {
     expect(mapJobType("Meeting").type).toBe("Service");
     expect(sfJobNumber("1042", "SF-")).toBe("SF-1042");
     expect(sfJobNumber("SF-1042", "SF-")).toBe("SF-1042");
+  });
+
+  it("derives closeout mode from mapped job type", () => {
+    expect(closeoutModeForType("Install")).toBe("full");
+    expect(closeoutModeForType("Service")).toBe("full");
+    expect(closeoutModeForType("Maintenance")).toBe("full");
+    expect(closeoutModeForType("Callback")).toBe("full");
+    expect(closeoutModeForType("Inspection")).toBe("visit");
+    expect(closeoutModeForType("Estimate")).toBe("visit");
   });
 });
 
@@ -344,6 +353,9 @@ describe("import plan", () => {
     expect(priced?.sf_status).toBe("Paid in Full");
     expect(priced?.assigned_user_id).toBe("user-casey");
     expect(priced?.sf_tech_names).toBe("Kameron K.");
+    expect(priced?.closeout_mode).toBe("full");
+    // Install jobs also get full closeout
+    expect(plan.jobs.find((job) => job.sf_id === 102)?.closeout_mode).toBe("full");
     expect(priced?.property_sf_key).toBe(plan.properties.find((property) => property.customer_sf_id === 2)?.sf_key);
     expect(plan.jobFinancials).toEqual([{ job_sf_id: 100, revenue_cents: 10050 }]);
     expect(plan.jobLineItems.map((line) => line.kind)).toEqual(["service", "other_charge"]);
@@ -376,6 +388,67 @@ describe("import plan", () => {
     expect(summary).not.toContain("ada@example.test");
     expect(summary).not.toContain("office@acme.test");
     expect(summary).toContain("Kameron K.");
+  });
+});
+
+describe("imported job closeout_mode", () => {
+  it("sets visit closeout for Inspection jobs and full closeout for Install jobs", () => {
+    const plan = buildImportPlan({
+      customers: [{
+        id: 1,
+        customer_name: "Test Customer",
+        contacts: [],
+        locations: [{ street_1: "1 Main St", city: "Seattle", state_prov: "WA", postal_code: "98101", is_primary: true }],
+      }],
+      jobs: [
+        {
+          id: 200,
+          number: "200",
+          customer_id: 1,
+          status: "Paid in Full",
+          start_date: "2025-06-01",
+          category: "Site Visit",
+          description: "Final inspection",
+        },
+        {
+          id: 201,
+          number: "201",
+          customer_id: 1,
+          status: "Paid in Full",
+          start_date: "2025-06-02",
+          category: "Install",
+          description: "Full system install",
+        },
+        {
+          id: 202,
+          number: "202",
+          customer_id: 1,
+          status: "Paid in Full",
+          start_date: "2025-06-03",
+          category: "Estimate",
+          description: "Estimate visit",
+        },
+      ],
+      estimates: [],
+      invoices: [],
+      equipment: [],
+      calendarTasks: [],
+      techs: [],
+      profiles: [],
+      options: { asOfDate: "2026-11-01" },
+    });
+
+    const inspection = plan.jobs.find((job) => job.sf_id === 200);
+    expect(inspection?.type).toBe("Inspection");
+    expect(inspection?.closeout_mode).toBe("visit");
+
+    const install = plan.jobs.find((job) => job.sf_id === 201);
+    expect(install?.type).toBe("Install");
+    expect(install?.closeout_mode).toBe("full");
+
+    const estimate = plan.jobs.find((job) => job.sf_id === 202);
+    expect(estimate?.type).toBe("Estimate");
+    expect(estimate?.closeout_mode).toBe("visit");
   });
 });
 

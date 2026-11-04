@@ -17,7 +17,7 @@ import {
 import { dollarsToCents } from "./money";
 import { scheduleJob, scheduleTask, timestampOrNull } from "./schedule";
 import { jobScopeDecision, parentRef, recordOnOrAfter } from "./scope";
-import { mapJobStatus, mapJobType, mapPriority, sfJobNumber } from "./status";
+import { closeoutModeForType, mapJobStatus, mapJobType, mapPriority, sfJobNumber } from "./status";
 import {
   type LoopProfile,
   type MatchedTech,
@@ -111,6 +111,7 @@ export interface JobDraft {
   // mapped status is Completed and Service Fusion has a usable timestamp — never
   // fabricated, so a completed job without updated_at emits no event.
   completed_at: string | null;
+  closeout_mode: "full" | "visit";
 }
 
 export interface FinancialDraft {
@@ -590,6 +591,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
       ...schedule,
       created_at: timestampOrNull(job.created_at),
       completed_at: status.status === "Completed" ? timestampOrNull(job.updated_at) : null,
+      closeout_mode: closeoutModeForType(jobType.type),
     });
 
     const cents = dollarsToCents(job.total);

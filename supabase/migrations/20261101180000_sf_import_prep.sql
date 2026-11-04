@@ -833,7 +833,7 @@ BEGIN
       org_id, sf_id, job_number, title, summary, notes, type, status, sf_status, priority,
       customer_id, customer_name, property_id, property_name, location, assigned_to,
       assigned_user_id, sf_tech_names, scheduled_for, scheduled_start_at, scheduled_end_at,
-      arrival_window_start_at, arrival_window_end_at, created_at
+      arrival_window_start_at, arrival_window_end_at, created_at, closeout_mode
     )
     SELECT
       company_id, r.sf_id, r.job_number, r.title, coalesce(r.summary, ''), coalesce(r.notes, ''),
@@ -841,14 +841,15 @@ BEGIN
       coalesce(r.customer_name, ''), property.id, coalesce(r.property_name, ''),
       coalesce(r.location, ''), coalesce(r.assigned_to, ''), r.assigned_user_id,
       coalesce(r.sf_tech_names, ''), r.scheduled_for, r.scheduled_start_at, r.scheduled_end_at,
-      r.arrival_window_start_at, r.arrival_window_end_at, coalesce(r.created_at, now())
+      r.arrival_window_start_at, r.arrival_window_end_at, coalesce(r.created_at, now()),
+      coalesce(r.closeout_mode, 'full')
     FROM jsonb_to_recordset(payload->'rows') AS r(
       sf_id bigint, customer_sf_id bigint, property_sf_key text, job_number text, title text,
       summary text, notes text, type text, status text, sf_status text, priority text,
       customer_name text, property_name text, location text, assigned_to text,
       assigned_user_id uuid, sf_tech_names text, scheduled_for date, scheduled_start_at timestamptz,
       scheduled_end_at timestamptz, arrival_window_start_at timestamptz,
-      arrival_window_end_at timestamptz, created_at timestamptz
+      arrival_window_end_at timestamptz, created_at timestamptz, closeout_mode text
     )
     JOIN public.customers customer
       ON customer.org_id = company_id AND customer.sf_id = r.customer_sf_id
@@ -876,6 +877,7 @@ BEGIN
       scheduled_end_at = EXCLUDED.scheduled_end_at,
       arrival_window_start_at = EXCLUDED.arrival_window_start_at,
       arrival_window_end_at = EXCLUDED.arrival_window_end_at,
+      closeout_mode = EXCLUDED.closeout_mode,
       updated_at = now();
   ELSIF table_name = 'job_financials' THEN
     INSERT INTO public.job_financials (org_id, job_id, sf_id, revenue_cents)
