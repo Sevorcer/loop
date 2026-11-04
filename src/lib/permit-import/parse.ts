@@ -306,7 +306,20 @@ export function parsePermitCsv(csvContent: string): ParseResult {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
     const sourceRow = i + 2; // +2 for header row + 0-index
-
+    // Flag low confidence rows FIRST: extraction trust is independent of
+    // importability, so a row that will be skipped (e.g. blank customer
+    // name) is still flagged for human review.
+    const confidence = row.confidence.toLowerCase() === "low" ? "low" : "high";
+    if (confidence === "low") {
+      flagged.push({
+        sourceRow,
+        customerName: row.customerName,
+        reason: "low_confidence",
+        detail: `Row has low extraction confidence`,
+        rawRow: row,
+      });
+    }
+    
     // Skip empty customer names
     if (!row.customerName.trim()) {
       skipped.push({
