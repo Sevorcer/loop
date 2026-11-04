@@ -2,7 +2,6 @@
  * S4.2 — Endpoint contract tests: Dispatch routes
  *
  * Covered routes:
- *   GET    /api/dispatch
  *   GET    /api/dispatch-plans
  *   POST   /api/dispatch-plans
  *   PATCH  /api/dispatch-plans/[id]  (actions: assign_crew, schedule, update_status + invalid)
@@ -27,7 +26,6 @@ const {
   schedulePlanMock,
   emitDispatchEventMock,
   updateDispatchPlanStatusMock,
-  listJobsForDispatchServiceMock,
 } = vi.hoisted(() => ({
   requirePermissionMock: vi.fn(),
   readJsonObjectMock: vi.fn(),
@@ -37,7 +35,6 @@ const {
   schedulePlanMock: vi.fn(),
   emitDispatchEventMock: vi.fn(),
   updateDispatchPlanStatusMock: vi.fn(),
-  listJobsForDispatchServiceMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api-auth", async () => {
@@ -73,11 +70,6 @@ vi.mock("@/repositories/dispatch", () => ({
   updateDispatchPlanStatus: updateDispatchPlanStatusMock,
 }));
 
-vi.mock("@/services/jobs", () => ({
-  listJobsForDispatchService: listJobsForDispatchServiceMock,
-}));
-
-import { GET as getDispatchBoard } from "@/app/api/dispatch/route";
 import {
   GET as getDispatchPlans,
   POST as postDispatchPlan,
@@ -115,38 +107,6 @@ function authorizedCtx(role = "dispatch") {
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) };
 }
-
-// ---------------------------------------------------------------------------
-// GET /api/dispatch
-// ---------------------------------------------------------------------------
-
-describe("GET /api/dispatch — contract", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("returns 401 when unauthenticated", async () => {
-    requirePermissionMock.mockResolvedValue(unauthorizedResponse());
-    const res = await getDispatchBoard(new Request("http://localhost/api/dispatch"));
-    expect(res.status).toBe(401);
-    const body = await res.json() as { error: string; code: number };
-    expect(body.error).toBe("UNAUTHORIZED");
-    expect(body.code).toBe(401);
-  });
-
-  it("returns 403 for a disallowed role", async () => {
-    requirePermissionMock.mockResolvedValue(forbiddenResponse());
-    const res = await getDispatchBoard(new Request("http://localhost/api/dispatch"));
-    expect(res.status).toBe(403);
-  });
-
-  it("returns 200 with jobs array for an authorized request", async () => {
-    requirePermissionMock.mockResolvedValue(authorizedCtx());
-    listJobsForDispatchServiceMock.mockResolvedValue([{ id: "j-1" }]);
-    const res = await getDispatchBoard(new Request("http://localhost/api/dispatch"));
-    expect(res.status).toBe(200);
-    const body = await res.json() as { jobs: unknown[] };
-    expect(Array.isArray(body.jobs)).toBe(true);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // GET /api/dispatch-plans

@@ -44,7 +44,6 @@ import {
   listJobs,
   listJobsByCustomerId,
   listJobsByPropertyId,
-  listJobsForDispatch,
   listJobsInRange,
   listRecentJobs as listRecentJobRecords,
   toJob,
@@ -260,10 +259,6 @@ async function ensureDispatchPlanForJob(
     return;
   }
 }
-  export async function listJobsForDispatchService() {
-  return listJobsForDispatch();
-}
-
 /**
  * The jobs list pages until the schedule is complete (or a high safety cap):
  * the repository default of 50 rows hid the rest of a busy month. The

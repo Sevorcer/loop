@@ -320,25 +320,6 @@ export async function listJobsByCustomerId(
   const jobsList = ((data ?? []) as JobRow[]).map(mapJob); await attachAssignees(supabase, orgId, jobsList); return jobsList;
 }
 
-export async function listJobsForDispatch(
-  options?: { page?: number; pageSize?: number },
-): Promise<Job[]> {
-  const page = options?.page ?? 1;
-  const pageSize = options?.pageSize ?? 50;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  const { supabase, orgId } = await getRepositoryContext();
-  const { data, error } = await supabase
-    .from("jobs")
-    .select(JOB_SELECT)
-    .eq("org_id", orgId)
-    .order("scheduled_start_at", { ascending: true })
-    .range(from, to);
-  if (error) throw new Error(error.message);
-  return (toJobRows(data) ?? []).map(mapJob);
-}
-
 export async function listJobs(
   options?: { page?: number; pageSize?: number },
 ): Promise<Job[]> {
