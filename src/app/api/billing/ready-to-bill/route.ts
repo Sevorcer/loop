@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { createForbiddenResponse } from "@/lib/auth/errorContract";
 import { mapRouteError } from "@/lib/api/routeErrors";
 import { getReadyToBillJobs } from "@/services/billing";
 
 const VALID_TYPES = new Set(["install", "service"]);
+const BILLING_ROLES = new Set(["owner", "manager", "office"]);
 
 export async function GET(request: Request) {
   // Billing lists are visible to office and above (same as jobs select).
   const guard = await requirePermission(request, "jobs", "select");
   if (!guard.ok) return guard.response;
+
+  // Explicit role check — jobs permission is too broad for billing.
+  if (!BILLING_ROLES.has(guard.ctx.role)) {
+    return createForbiddenResponse("Billing access requires owner, manager, or office role.");
+  }
 
   try {
     const url = new URL(request.url);

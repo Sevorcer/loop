@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
+import { createForbiddenResponse } from "@/lib/auth/errorContract";
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import {
   markBilled,
@@ -10,11 +11,17 @@ import {
 } from "@/services/billing";
 
 const VALID_ACTIONS = new Set(["mark_billed", "unmark_billed", "exclude", "unexclude"]);
+const BILLING_ROLES = new Set(["owner", "manager", "office"]);
 
 export async function POST(request: Request) {
   // Billing actions require office-level update permission on jobs.
   const guard = await requirePermission(request, "jobs", "update");
   if (!guard.ok) return guard.response;
+
+  // Explicit role check — jobs permission is too broad for billing.
+  if (!BILLING_ROLES.has(guard.ctx.role)) {
+    return createForbiddenResponse("Billing access requires owner, manager, or office role.");
+  }
 
   try {
     const body = await readJsonObject(request);

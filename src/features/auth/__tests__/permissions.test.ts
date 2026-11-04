@@ -32,10 +32,14 @@ describe("null role (loading state)", () => {
 });
 
 describe("unknown role", () => {
-  it("returns baseline nav instead of an unusable empty result", () => {
+  it("fails closed to tech-level nav instead of the baseline", () => {
+    // Fail-closed contract (simulation fix batch): an unrecognized role
+    // gets the most restricted internal visibility (tech-level), never
+    // the full baseline. Owner/manager-only routes stay hidden.
     const hrefs = allVisibleHrefs("invalid-role" as AppRole);
     expect(hrefs).toContain(ROUTES.DASHBOARD);
-    expect(hrefs).toContain(ROUTES.SETTINGS);
+    expect(hrefs).toContain(ROUTES.JOBS);
+    expect(hrefs).not.toContain(ROUTES.SETTINGS);
   });
 });
 

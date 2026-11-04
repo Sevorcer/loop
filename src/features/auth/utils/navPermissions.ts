@@ -101,7 +101,7 @@ export interface NavGroup {
 // Groups that end up with zero visible items are omitted entirely.
 //
 // portal role: returns empty array — portal users see nothing in the ops shell.
-// null/unknown role: returns the baseline nav instead of a blank sidebar.
+// null/unknown role: fails closed to tech-level nav (most restricted internal role).
 // ---------------------------------------------------------------------------
 
 export function getNavItemsForRole(
@@ -115,7 +115,17 @@ export function getNavItemsForRole(
   }
 
   if (!isAppRole(role)) {
-    return nonEmptyGroups;
+    // Fail closed: unrecognized or null roles see tech-level nav (most restricted).
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const allowed = NAV_ROUTE_ROLES[item.href];
+          if (!allowed) return INTERNAL_ROLES.includes("tech");
+          return allowed.includes("tech");
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
   }
 
   return groups

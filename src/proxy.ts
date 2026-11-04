@@ -32,7 +32,7 @@ import {
   isShellRoute,
   isTokenAuthenticatedApiRoute,
 } from "@/lib/auth/routeAccess";
-import { isTechDeniedApiPath, isTechDeniedPath } from "@/lib/auth/shellAccess";
+import { isRoleDeniedPath, isTechDeniedApiPath } from "@/lib/auth/shellAccess";
 import { ROUTES } from "@/lib/routes";
 import {
   applyTraceHeaders,
@@ -160,16 +160,14 @@ export async function proxy(request: NextRequest) {
     });
   }
 
-  if (
-    isAuthenticated &&
-    resolved.user?.id &&
-    (isTechDeniedPath(pathname) || isTechDeniedApiPath(pathname))
-  ) {
+  if (isAuthenticated && resolved.user?.id) {
     const role = await lookupAppRole(supabase, resolved.user.id);
-    if (role === "tech") {
+
+    // Check role-based denied paths (tech, sales, office restrictions)
+    if (isRoleDeniedPath(role, pathname) || (role === "tech" && isTechDeniedApiPath(pathname))) {
       const denied = isTechDeniedApiPath(pathname)
         ? NextResponse.json(
-            { error: "forbidden", message: "Technicians cannot use this office endpoint." },
+            { error: "forbidden", message: "Your role does not have access to this endpoint." },
             { status: 403 },
           )
         : NextResponse.redirect(new URL(ROUTES.JOBS, request.url));

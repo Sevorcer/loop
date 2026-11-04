@@ -5,12 +5,16 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { getCurrentOperator } from "@/services/currentOperator";
 
-import { isTechDeniedPath } from "./shellAccess";
+import { isRoleDeniedPath } from "./shellAccess";
 
-/** Send technicians away from office-only screens. Other roles are unchanged. */
+/**
+ * Redirect users whose role is denied access to the given path.
+ * Checks the current operator's role against the role-based denied-path map.
+ *
+ * @deprecated name kept for call-site compatibility — now enforces all roles,
+ * not just tech.
+ */
 export async function redirectTechFromOfficePath(pathname: string): Promise<void> {
-  if (!isTechDeniedPath(pathname)) return;
-
   let appRole: string | null = null;
   try {
     appRole = (await getCurrentOperator()).appRole;
@@ -20,7 +24,7 @@ export async function redirectTechFromOfficePath(pathname: string): Promise<void
     return;
   }
 
-  if (appRole === "tech") {
+  if (isRoleDeniedPath(appRole, pathname)) {
     redirect(ROUTES.JOBS);
   }
 }

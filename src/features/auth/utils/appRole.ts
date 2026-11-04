@@ -2,7 +2,7 @@ import type { AuthUser } from "@/services/authClient";
 import type { AppRole } from "@/services/authorization";
 
 export const DEV_ROLE_KEY = "loop_dev_role";
-export const DEFAULT_APP_ROLE: AppRole = "owner";
+export const DEFAULT_APP_ROLE: AppRole = "tech";
 
 const VALID_APP_ROLES: ReadonlySet<AppRole> = new Set<AppRole>([
   "owner",
