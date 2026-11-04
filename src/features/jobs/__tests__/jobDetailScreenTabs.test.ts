@@ -10,6 +10,7 @@ import type { JobCompletionChecklistStatus } from "../utils/jobCompletionCheckli
 import {
   buildCloseoutSteps,
   closeoutSectionKeyForStep,
+  jobCloseoutModeLabel,
 } from "../utils/jobCloseout";
 
 const authState = vi.hoisted(() => ({ role: "owner" }));
@@ -184,10 +185,10 @@ async function render(node: ReactElement) {
   return container;
 }
 
-async function renderScreen() {
+async function renderScreen(job: Job = JOB) {
   return render(
     createElement(JobDetailScreen, {
-      job: JOB,
+      job,
       activity: [],
       notes: NOTES,
       onUpdateStatus: vi.fn(async () => {}),
@@ -490,5 +491,41 @@ describe("JobDetailScreen Edit Job navigation", () => {
 
     expect(editLink).toBeUndefined();
     expect(editButton).toBeUndefined();
+  });
+});
+
+describe("Overview closeout mode", () => {
+  function closeoutField(container: HTMLElement) {
+    return panel(container, "overview")?.querySelector<HTMLElement>(
+      '[data-job-detail-field="closeout-mode"]',
+    );
+  }
+
+  it("shows a Full closeout job's mode read-only on Overview", async () => {
+    const container = await renderScreen({ ...JOB, closeoutMode: "full" });
+
+    const field = closeoutField(container);
+    expect(field).toBeTruthy();
+    expect(field?.textContent).toContain("Closeout");
+    expect(field?.textContent).toContain("Full closeout");
+    // Display only — no edit control on Overview.
+    expect(field?.querySelector("select, input, button")).toBeNull();
+  });
+
+  it("shows a Visit closeout job's mode read-only on Overview", async () => {
+    const container = await renderScreen({ ...JOB, closeoutMode: "visit" });
+
+    const field = closeoutField(container);
+    expect(field?.textContent).toContain("Visit closeout");
+    expect(field?.textContent).not.toContain("Full closeout");
+  });
+});
+
+describe("jobCloseoutModeLabel", () => {
+  it("uses the Edit Job vocabulary and defaults a missing mode to full", () => {
+    expect(jobCloseoutModeLabel("full")).toBe("Full closeout");
+    expect(jobCloseoutModeLabel("visit")).toBe("Visit closeout");
+    expect(jobCloseoutModeLabel(undefined)).toBe("Full closeout");
+    expect(jobCloseoutModeLabel(null)).toBe("Full closeout");
   });
 });

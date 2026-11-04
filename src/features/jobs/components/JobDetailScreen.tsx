@@ -6,6 +6,7 @@ import {
   Briefcase,
   CalendarClock,
   Camera,
+  ClipboardCheck,
   ClipboardList,
   ExternalLink,
   HardHat,
@@ -43,6 +44,7 @@ import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
 import {
   JOB_CLOSEOUT_SECTION_IDS,
+  jobCloseoutModeLabel,
   scrollToJobSection,
   type CloseoutSectionKey,
 } from "../utils/jobCloseout";
@@ -540,6 +542,19 @@ export function JobDetailScreen({
                         Appointment Hour
                       </p>
                       <p className="mt-1 text-sm text-slate-200">{appointmentDisplay}</p>
+                    </div>
+                  </div>
+
+                  {/* Read-only: the mode is edited in Edit Job. */}
+                  <div className="flex items-start gap-3" data-job-detail-field="closeout-mode">
+                    <ClipboardCheck className="mt-0.5 h-4 w-4 text-slate-400" />
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Closeout
+                      </p>
+                      <p className="mt-1 text-sm text-slate-200">
+                        {jobCloseoutModeLabel(job.closeoutMode)}
+                      </p>
                     </div>
                   </div>
 

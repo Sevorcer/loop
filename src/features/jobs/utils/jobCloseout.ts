@@ -109,6 +109,33 @@ export function buildCloseoutSteps(
 }
 
 /**
+ * The closeout-mode vocabulary: the options the Edit Job picker offers and
+ * the labels every read-only display of a job's mode uses.
+ */
+export const CLOSEOUT_MODE_OPTIONS: ReadonlyArray<{
+  value: JobCloseoutMode;
+  label: string;
+}> = [
+  { value: "full", label: "Full closeout" },
+  { value: "visit", label: "Visit closeout" },
+];
+
+/**
+ * Read-only label for a job's closeout mode (e.g. the job Overview).
+ * Anything that is not an explicit "visit" is a full closeout — the same
+ * default the server's completion checklist applies.
+ */
+export function jobCloseoutModeLabel(
+  mode: JobCloseoutMode | null | undefined,
+): string {
+  const resolved: JobCloseoutMode = mode === "visit" ? "visit" : "full";
+  return (
+    CLOSEOUT_MODE_OPTIONS.find((option) => option.value === resolved)?.label ??
+    "Full closeout"
+  );
+}
+
+/**
  * Human label for the closeout mode carried on the checklist payload.
  * The mode is a closed type ("full" | "visit"); an absent mode returns
  * null so the panel simply shows no mode badge.

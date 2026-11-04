@@ -37,13 +37,10 @@ import {
 } from "@/features/jobs/utils/jobFormSubmit";
 
 import type { JobAppointmentHour, JobCloseoutMode, JobPriority, JobType } from "../types/job"; import { RecordCombobox } from "./RecordCombobox";
+import { CLOSEOUT_MODE_OPTIONS } from "../utils/jobCloseout";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"];
 const priorities: JobPriority[] = ["Low", "Medium", "High"];
-const closeoutModes: Array<{ value: JobCloseoutMode; label: string }> = [
-  { value: "full", label: "Full closeout" },
-  { value: "visit", label: "Visit closeout" },
-];
 
 export interface JobFormValues {
   estimateId?: string;
@@ -676,7 +673,7 @@ export function JobForm({
                 onChange={(e) => updateField("closeoutMode", e.target.value as JobCloseoutMode)}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
               >
-                {closeoutModes.map((option) => (
+                {CLOSEOUT_MODE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
