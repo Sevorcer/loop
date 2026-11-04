@@ -21,6 +21,7 @@ import {
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import { formatDateOnly } from "@/lib/dates"; import { actorDisplayName } from "@/lib/actors";
 import { companyCalendarDate, todayInCompanyTimeZone } from "@/lib/timezone";
+import { finalScheduledDayBlocker } from "@/features/jobs/utils/jobFinalDay";
 import { chooseDispatchPlanToKeep } from "@/features/dispatch/utils/dispatchPlanIdentity";
 import { dispatchStatusForJob, scheduledWindowClock, scheduledWindowHours } from "@/features/dispatch/utils/jobSchedule";
 import {
@@ -536,32 +537,9 @@ export async function updateJob(id: string, input: UpdateJobInput) {
   return updatedJob;
 }
 
-/**
- * The multi-day completion block (B1): a job that spans several scheduled
- * days cannot be completed before its final scheduled day. Day boundaries are
- * the company timezone (America/Los_Angeles), matching how dispatch windowing
- * counts calendar days and how the DB gate (guard_job_completion_gate) reads
- * the scheduled dates. The final day is the scheduled end; a job with no end
- * falls back to its start day. Single-day jobs (no end, or an end on the start
- * day) are never gated, so this applies equally to full and visit closeout.
- *
- * Returns the blocker sentence (the detail of the completion refusal) while
- * the block stands, or null when the job may be completed today. Shared by
- * the completion path and the completion-checklist payload so the guided
- * closeout panel never reports "clear" while completion would be refused.
- */
-export function finalScheduledDayBlocker(
-  job: { scheduledStartAt?: string | null; scheduledEndAt?: string | null },
-  today: string = todayInCompanyTimeZone(),
-): string | null {
-  const startDay = companyCalendarDate(job.scheduledStartAt);
-  const endDay = companyCalendarDate(job.scheduledEndAt);
-  const finalDay = endDay ?? startDay;
-  if (startDay && finalDay && finalDay > startDay && today < finalDay) {
-    return `this job runs through ${formatDateOnly(finalDay)} and cannot be completed before its final scheduled day`;
-  }
-  return null;
-}
+// The B1 rule lives in a client-safe feature util so the job page can show
+// it too; re-exported here for existing server-side callers.
+export { finalScheduledDayBlocker };
 
 export async function updateJobStatus(id: string, status: JobStatus, context?: JobMutationContext) {
   if (!JOB_STATUSES.has(status)) {
