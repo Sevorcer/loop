@@ -106,6 +106,7 @@ beforeEach(() => {
       return { groups: [] };
     }
     if (path.includes("/api/calendar/team")) return { team: [] };
+    if (path.includes("/api/calendar/jobs")) return { jobs: [], unscheduledCount: 0 };
     return { timeOff: [], tasks: [] };
   });
 });
@@ -293,6 +294,7 @@ describe("calendar screen store render", () => {
         };
       }
       if (path.includes("/api/calendar/groups")) return { groups: [] };
+      if (path.includes("/api/calendar/jobs")) return { jobs: [], unscheduledCount: 0 };
       return { timeOff: [], tasks: [] };
     });
 
@@ -339,6 +341,7 @@ describe("calendar screen store render", () => {
         return { groups: [{ id: "shared", name: "Morning route", personIds: ["alex"] }] };
       }
       if (path.includes("/api/calendar/team")) return { team: [] };
+      if (path.includes("/api/calendar/jobs")) return { jobs: [], unscheduledCount: 0 };
       return { timeOff: [], tasks: [] };
     });
 
