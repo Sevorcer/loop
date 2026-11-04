@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/api-auth";
 import { createApiErrorResponse, mapRouteError } from "@/lib/api/routeErrors";
 import { validateJobFile } from "@/lib/fileValidation";
 import { logWriteFailure } from "@/lib/observability/writes";
+import { verifyMimeType } from "@/lib/security/mimeVerify";
 import { listJobFiles, recordJobFileUpload } from "@/services/jobs";
 import { uploadStorageFile, withPhotoPreviewUrls } from "@/services/storage";
 
@@ -71,6 +72,12 @@ export async function POST(
     const fileName = normalizeFileName(file.name);
     const storagePath = `jobs/${id}/${randomUUID()}-${fileName}`;
     const bytes = new Uint8Array(await file.arrayBuffer());
+
+    // Server-side MIME verification: check magic bytes match declared type
+    const mimeError = verifyMimeType(bytes, mimeType);
+    if (mimeError) {
+      return createApiErrorResponse("VALIDATION_ERROR", mimeError, 400);
+    }
 
     const uploaded = await uploadStorageFile(guard.ctx.role, {
       bucket: JOB_FILES_BUCKET,

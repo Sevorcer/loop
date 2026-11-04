@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { unauthorizedResponse } from "@/lib/api-auth";
+import { constantTimeCompare } from "@/lib/security/constantTimeCompare";
+import { createRateLimiter } from "@/lib/security/rateLimit";
 import { runDbHealthChecks } from "@/services/dbHealth";
 import type { RunTrigger } from "@/features/admin/db-health/types";
 
@@ -23,7 +25,15 @@ import type { RunTrigger } from "@/features/admin/db-health/types";
  *   gitSha    — Git commit SHA at the time of the check
  *   expectedMigrationCount — number of migrations that should be applied
  */
+// 10 requests per 60 seconds per IP
+const rateLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
+
 export async function POST(request: Request) {
+  // ── Rate limit ─────────────────────────────────────────────────────────────
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rateLimited = rateLimiter.check(clientIp);
+  if (rateLimited) return rateLimited;
+
   // ── Token auth ─────────────────────────────────────────────────────────────
   const token = process.env.LOOP_HEALTH_CHECK_TOKEN;
 
@@ -37,7 +47,7 @@ export async function POST(request: Request) {
   const authHeader = request.headers.get("Authorization") ?? "";
   const supplied = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
 
-  if (!supplied || supplied !== token) {
+  if (!supplied || !constantTimeCompare(supplied, token)) {
     return unauthorizedResponse(
       "A valid bearer token is required.",
       supplied ? "invalid_token" : "missing_token",
