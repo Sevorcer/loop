@@ -8,11 +8,12 @@ import { JobListWidget } from "./JobListWidget";
  * are not Completed/Cancelled). Classification is by job type via the shared
  * definitions in src/lib/callbacks.ts, not by title/notes keyword matching.
  */
-export function CallbacksWidget({ jobs }: { jobs: Job[] }) {
+export function CallbacksWidget({ jobs, totalCount }: { jobs: Job[]; totalCount?: number }) {
   return (
     <JobListWidget
       title={CALLBACK_LABELS.open}
       jobs={jobs}
+      totalCount={totalCount}
       viewAllHref={ACTIONABLE_VIEWS.callbacks}
       emptyTitle="No open callbacks"
       emptyDescription="No callback jobs are currently open."
