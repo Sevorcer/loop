@@ -379,6 +379,8 @@ export interface JobListFilter {
   priority?: JobPriority | JobPriority[];
   search?: string;
   assignee?: string;
+  /** Filter to jobs completed on or after this date (YYYY-MM-DD). */
+  completedDate?: string;
   sort?: string;
   order?: "asc" | "desc";
   page?: number;
@@ -463,6 +465,13 @@ export async function listJobsPaginated(
     // Assignee filter (exact match on the assigned_to column)
     if (filter.assignee) {
       q = q.ilike("assigned_to", `%${filter.assignee}%`) as Q;
+    }
+
+    // Completed-date filter: restrict to jobs whose updated_at is on or after
+    // the given company-timezone date. Used by the "Completed today" tile link
+    // so the jobs list matches the dashboard count.
+    if (filter.completedDate) {
+      q = q.gte("updated_at", filter.completedDate) as Q;
     }
 
     return q;
