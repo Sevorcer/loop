@@ -26,8 +26,18 @@ import {
   movePersonBetweenJobs,
   schedulePlan,
 } from "@/services/dispatch";
-import { updateDispatchPlanStatus } from "@/repositories/dispatch";
+import { getDispatchPlanById, updateDispatchPlanStatus } from "@/repositories/dispatch";
 import type { DispatchStatus } from "@/features/dispatch/types/dispatch";
+import type { AppRole } from "@/services/authorization";
+import { getJobCompletionChecklist } from "@/services/jobs";
+
+/** Roles that bypass the job-completion-gate check on dispatch plan completion. */
+const COMPLETION_GATE_BYPASS_ROLES: ReadonlySet<AppRole> = new Set([
+  "owner",
+  "manager",
+  "office",
+  "dispatch",
+]);
 
 export async function PATCH(
   request: Request,
@@ -162,6 +172,48 @@ export async function PATCH(
 
       case "update_status": {
         const status = String(body.status ?? "") as DispatchStatus;
+
+        // A tech must not complete a dispatch plan while the job's own
+        // completion gates are unmet. Office and above bypass this check.
+        if (
+          status === "completed" &&
+          !COMPLETION_GATE_BYPASS_ROLES.has(guard.ctx.role)
+        ) {
+          const planResult = await getDispatchPlanById(id);
+          if (!planResult.ok) return mapRepositoryError(planResult.error);
+          if (!planResult.data) {
+            return createApiErrorResponse("NOT_FOUND", `Dispatch plan ${id} not found.`, 404);
+          }
+
+          const checklist = await getJobCompletionChecklist(
+            planResult.data.jobId,
+            guard.ctx.role,
+          );
+
+          if (!checklist.canComplete) {
+            const blockers: string[] = [];
+
+            if (checklist.finalDayBlocker) {
+              blockers.push(checklist.finalDayBlocker);
+            }
+
+            if (checklist.closeoutMode === "visit") {
+              if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
+            } else {
+              if (!checklist.photosUploaded) blockers.push("missing at least one photo");
+              if (!checklist.installedSystemsEntered) blockers.push("missing installed systems");
+              if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
+              if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
+            }
+
+            return createApiErrorResponse(
+              "INVALID_INPUT",
+              `Cannot complete dispatch plan — ${blockers.join(", ")}.`,
+              422,
+            );
+          }
+        }
+
         const result = await updateDispatchPlanStatus(id, status);
         if (!result.ok) {
           return mapRepositoryError(result.error);
