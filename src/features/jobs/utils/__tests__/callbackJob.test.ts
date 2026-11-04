@@ -71,6 +71,26 @@ describe("callback jobs", () => {
     expect(draft.scheduledStartAt).toBeNull();
   });
 
+  it("derives scheduledFor from scheduledStartAt", () => {
+    const draft = buildCallbackJobInput(original, {
+      reason: "Compressor replaced under warranty",
+      scheduledStartAt: "2025-07-15T14:30:00Z",
+    });
+
+    expect(draft.scheduledStartAt).toBe("2025-07-15T14:30:00Z");
+    expect(draft.scheduledFor).toBe("2025-07-15");
+  });
+
+  it("leaves scheduledFor undefined when scheduledStartAt is null", () => {
+    const draft = buildCallbackJobInput(original, {
+      reason: "Follow-up check",
+      scheduledStartAt: null,
+    });
+
+    expect(draft.scheduledStartAt).toBeNull();
+    expect(draft.scheduledFor).toBeUndefined();
+  });
+
   it("labels callback jobs for filters", () => {
     expect(isCallbackJob("Callback")).toBe(true);
     expect(isCallbackJob("Service")).toBe(false);
