@@ -16,4 +16,14 @@ describe("completion blockers", () => {
       [],
     );
   });
+
+  it("keeps the multi-day final-day refusal as one item, date intact", () => {
+    expect(
+      completionBlockers(
+        "Cannot complete job — this job runs through Nov 4, 2026 and cannot be completed before its final scheduled day.",
+      ),
+    ).toEqual([
+      "This job runs through Nov 4, 2026 and cannot be completed before its final scheduled day",
+    ]);
+  });
 });

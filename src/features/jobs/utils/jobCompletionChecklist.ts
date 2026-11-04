@@ -75,15 +75,25 @@ const COMPLETION_BLOCKER_LABELS: Record<string, string> = {
   "incomplete required qa items": "Required QA items",
 };
 
-/** Turns the server's completion rejection into the list of what is still missing. */
+/**
+ * Turns the server's completion rejection into the list of what is still
+ * missing. Items are comma-separated, but a comma followed by a digit belongs
+ * to a date inside an item ("runs through Nov 4, 2026 …"), so it never splits.
+ * Items without a short label (e.g. the multi-day final-day block) are shown
+ * as their sentence, capitalized.
+ */
 export function completionBlockers(message: string): string[] {
   const detail = message.split(/—| - /).slice(1).join("—").trim().replace(/\.$/, "");
   if (!detail || !message.toLowerCase().includes("cannot complete")) return [];
   return detail
-    .split(",")
+    .split(/,(?!\s*\d)/)
     .map((part) => part.trim())
     .filter((part) => part.length > 0)
-    .map((part) => COMPLETION_BLOCKER_LABELS[part.toLowerCase()] ?? part);
+    .map(
+      (part) =>
+        COMPLETION_BLOCKER_LABELS[part.toLowerCase()] ??
+        part.charAt(0).toUpperCase() + part.slice(1),
+    );
 }
 
 export function parseLatestQaChecklist(activity: JobActivity[]): RequiredQaChecklist {
