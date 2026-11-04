@@ -6,7 +6,7 @@ import { createApiErrorResponse, mapRouteError } from "@/lib/api/routeErrors";
 import { validateJobFile } from "@/lib/fileValidation";
 import { logWriteFailure } from "@/lib/observability/writes";
 import { verifyMimeType } from "@/lib/security/mimeVerify";
-import { listJobFiles, recordJobFileUpload } from "@/services/jobs";
+import { getJob, listJobFiles, recordJobFileUpload } from "@/services/jobs";
 import { uploadStorageFile, withPhotoPreviewUrls } from "@/services/storage";
 
 const JOB_FILES_BUCKET = "job-files";
