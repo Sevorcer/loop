@@ -9,22 +9,35 @@
  * Designed to be embedded in the layout or header area of any Operations page.
  */
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
+import { useCurrentRole } from "@/features/auth";
+import { NAV_ROUTE_ROLES } from "@/features/auth/utils/navPermissions";
 import { OPERATIONS_NAV_ITEMS } from "../config/operationsNav";
 
 export function OperationsNavBar() {
   const pathname = usePathname();
+  const { role } = useCurrentRole();
+
+  const visibleItems = useMemo(() => {
+    if (!role) return OPERATIONS_NAV_ITEMS;
+    return OPERATIONS_NAV_ITEMS.filter((item) => {
+      const allowed = NAV_ROUTE_ROLES[item.href];
+      if (!allowed) return true;
+      return allowed.includes(role);
+    });
+  }, [role]);
 
   return (
     <nav
       aria-label="Operations navigation"
       className="flex items-center gap-0.5 overflow-x-auto rounded-xl border border-default bg-surface px-2 py-1.5 scrollbar-none"
     >
-      {OPERATIONS_NAV_ITEMS.map((item) => {
+      {visibleItems.map((item) => {
         const isActive =
           item.href === ROUTES.OPERATIONS
             ? pathname === item.href

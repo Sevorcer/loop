@@ -22,6 +22,10 @@ import {
   formatDateShort,
 } from "../utils/planUtils";
 
+// TODO(perf): DailyPlansScreen loads ALL workspace jobs via useJobs().
+// Migrate to ranged server-side fetches (today + upcoming window) similar to
+// the Calendar screen's approach. This avoids transferring the full job set
+// when only a small date range is needed.
 export function DailyPlansScreen() {
   const { role } = useCurrentRole();
   const { hydrated, jobs, updateJob } = useJobs();
