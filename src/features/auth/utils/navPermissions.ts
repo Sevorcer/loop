@@ -97,7 +97,7 @@ export interface NavGroup {
 // Groups that end up with zero visible items are omitted entirely.
 //
 // portal role: returns empty array — portal users see nothing in the ops shell.
-// null/unknown role: returns the baseline nav instead of a blank sidebar.
+// null/unknown role: fails closed to tech-level nav (most restricted internal role).
 // ---------------------------------------------------------------------------
 
 export function getNavItemsForRole(
