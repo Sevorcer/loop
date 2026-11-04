@@ -8,7 +8,7 @@ const SO: PermitStatus[] = ["corrections_needed", "waiting_on_city", "intake_sch
 const SL: Record<PermitStatus, string> = { applied: "Applied", intake_scheduled: "Intake Scheduled", corrections_needed: "Corrections Needed", resubmitted: "Resubmitted", waiting_on_city: "Waiting on City", issued: "Issued" };
 const SI: Record<PermitStatus, "info" | "warning" | "success" | "danger" | "neutral"> = { applied: "info", intake_scheduled: "info", corrections_needed: "warning", resubmitted: "info", waiting_on_city: "warning", issued: "success" };
 function dis(p: Permit): number { return Math.max(0, Math.floor((Date.now() - new Date(p.updatedAt || p.createdAt).getTime()) / 86400000)); }
-function gbs(ps: Permit[]): Record<PermitStatus, Permit[]> { const g = {} as Record<PermitStatus, Permit[]>; for (const s of SO) g[s] = []; for (const p of ps) { if (g[p.status]) g[p.status].push(p); } return g; }
+function gbs(ps: Permit[]): Record<PermitStatus, Permit[]> { const g = {} as Record<PermitStatus, Permit[]>; for (const s of SO) g[s] = []; for (const p of ps) { if (g[p.status]) g[p.status].push(p); } for (const s of SO) g[s].sort((a, b) => dis(b) - dis(a)); return g; }
 export function PermitsBoardScreen() {
 const [permits, setPermits] = useState<Permit[]>([]); const [loading, setLoading] = useState(true);
 const f = useCallback(async () => { try { const r = await fetch("/api/permits"); if (!r.ok) return; const j = (await r.json()) as { permits: Permit[] }; setPermits(j.permits ?? []); } finally { setLoading(false); } }, []);
