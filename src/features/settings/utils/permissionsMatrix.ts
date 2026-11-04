@@ -57,6 +57,7 @@ export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
 /** Core tables exposed in the permission view (operational focus) */
 export const DISPLAY_TABLES: readonly CoreTable[] = [
   "customers",
+  "customer_contacts",
   "properties",
   "jobs",
   "job_activity",
@@ -68,6 +69,9 @@ export const DISPLAY_TABLES: readonly CoreTable[] = [
   "calendar_saved_groups",
   "job_financials",
   "job_financials_history",
+  "job_bids",
+  "gc_ledger_entries",
+  "gc_change_orders",
   "contractors",
   "installed_systems",
   "user_profiles",
@@ -79,6 +83,7 @@ export const DISPLAY_TABLES: readonly CoreTable[] = [
 /** Display labels for tables */
 export const TABLE_LABELS: Record<CoreTable, string> = {
   customers: "Customers",
+  customer_contacts: "Customer Contacts",
   properties: "Properties",
   property_documents: "Property Documents",
   property_photos: "Property Photos",
@@ -106,6 +111,8 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   db_health_check_runs: "DB Health Checks",
   feedback_reports: "Feedback Reports",
   job_bids: "Job Bids",
+  gc_ledger_entries: "GC Ledger Entries",
+  gc_change_orders: "GC Change Orders",
   user_profiles: "User Profiles",
 };
 
