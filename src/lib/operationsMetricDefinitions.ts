@@ -16,7 +16,7 @@ export const ACTIONABLE_VIEWS = {
   unassigned: buildHref(ROUTES.JOBS, { unassigned: "true", open: "true" }),
   late: buildHref(ROUTES.JOBS, { late: "true", open: "true" }),
   problemJobs: buildHref(ROUTES.JOBS, { problem: "true", open: "true" }),
-  completedToday: buildHref(ROUTES.JOBS, { status: "Completed" }),
+  completedToday: buildHref(ROUTES.JOBS, { status: "Completed", completedDate: "today" }),
   waitingOnPermit: ROUTES.DISPATCH,
   avgCompletion: ROUTES.DISPATCH,
 } as const;
