@@ -87,6 +87,10 @@ const pageContent: Record<string, PageMeta> = {
     description: "Search shared knowledge, procedures, and operational context.",
   },
   // Insights
+  [ROUTES.BILLING]: {
+    title: "Ready to Bill",
+    description: "Jobs completed and waiting to be invoiced in QuickBooks.",
+  },
   [ROUTES.REPORTING]: {
     title: "Reporting",
     description: "Interpret operational performance across time, domains, and teams.",

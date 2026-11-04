@@ -110,6 +110,10 @@ vi.mock("@/repositories/jobNotes", () => ({
   insertJobNote: insertJobNoteMock,
 }));
 
+vi.mock("@/repositories/billing", () => ({
+  setBillingEligible: vi.fn(),
+}));
+
 vi.mock("@/repositories/dispatch", () => ({
   updateDispatchPlanStatusByJobId: updateDispatchPlanStatusByJobIdMock,
   listDispatchPlansByJobId: listDispatchPlansByJobIdMock,

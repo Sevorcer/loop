@@ -119,8 +119,9 @@ describe("INSIGHTS group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Reporting, GC Overview, and Feedback Reports", () => {
+  it("contains Ready to Bill, Reporting, GC Overview, and Feedback Reports", () => {
     expect(group.items.map((i) => i.href)).toEqual([
+      ROUTES.BILLING,
       ROUTES.REPORTING,
       ROUTES.GC_OVERVIEW,
       ROUTES.OPS_FEEDBACK,

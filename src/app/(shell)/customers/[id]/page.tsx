@@ -7,6 +7,7 @@ import {
   getCustomerJobScopeCounts,
   getCustomerProperties,
 } from "@/services/customers";
+import { listCustomerContacts } from "@/services/customerContacts";
 import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
 import { buildCustomerTimelineEvents } from "@/services/timeline";
 
@@ -19,7 +20,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
   const { id } = await params;
   const query = await searchParams;
 
-  const [customer, properties, jobs, jobScopeCounts] = await Promise.all([
+  const [customer, properties, jobs, jobScopeCounts, contacts] = await Promise.all([
     getCustomer(id),
     getCustomerProperties(id),
     getCustomerJobs(id).catch((err: unknown) => {
@@ -37,6 +38,13 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
         error: err instanceof Error ? err.message : String(err),
       });
       return null;
+    }),
+    listCustomerContacts(id).catch((err: unknown) => {
+      console.error("[customers/detail] contacts fetch failed", {
+        customerId: id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return [] as Awaited<ReturnType<typeof listCustomerContacts>>;
     }),
   ]);
 
@@ -89,6 +97,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
   return (
     <CustomerDetailScreen
       customer={customer}
+      contacts={contacts}
       properties={properties}
       jobs={jobs}
       jobScopeCounts={jobScopeCounts}

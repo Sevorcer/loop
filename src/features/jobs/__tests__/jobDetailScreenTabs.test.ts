@@ -89,6 +89,11 @@ vi.mock("../components/JobSignatureCard", async () => {
   return { JobSignatureCard: () => ce("div", null, "Signature stub") };
 });
 
+vi.mock("../components/JobBidPanel", async () => {
+  const { createElement: ce } = await import("react");
+  return { JobBidPanel: () => ce("div", null, "Bid panel stub") };
+});
+
 import { JobCloseoutPanel } from "../components/JobCloseoutPanel";
 import { JobDetailScreen } from "../components/JobDetailScreen";
 

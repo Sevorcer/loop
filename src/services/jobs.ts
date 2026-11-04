@@ -67,6 +67,7 @@ import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { redactJobPriceActivity } from "@/features/jobs/utils/jobPrice";
 import { listFiles } from "@/services/storage";
 import { insertJobNote, listJobNotes } from "@/repositories/jobNotes";
+import { setBillingEligible } from "@/repositories/billing";
 
 const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_STATUSES = new Set<JobStatus>([
@@ -619,6 +620,11 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
 
   if (existing.status !== updatedJob.status) {
     sideEffects.push(syncRelatedCounters(updatedJob));
+    // Mark newly-completed jobs as billing-eligible so they appear in
+    // the ready-to-bill list. Historical completed jobs remain ineligible.
+    if (updatedJob.status === "Completed") {
+      sideEffects.push(setBillingEligible(updatedJob.id));
+    }
     if (updatedJob.status === "In Progress" || updatedJob.status === "Completed" || updatedJob.status === "On Hold") {
       const dispatchStatus =
         updatedJob.status === "In Progress"
