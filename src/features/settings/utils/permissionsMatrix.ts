@@ -89,6 +89,8 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   property_photos: "Property Photos",
   contractors: "Contractors",
   jobs: "Jobs",
+  job_inspections: "Job Inspections",
+  inspection_corrections: "Inspection Corrections",
   job_permits: "Job Permits",
   job_activity: "Job Activity",
   job_notes: "Job Notes",

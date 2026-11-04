@@ -68,6 +68,7 @@ import { JobStatusActions } from "./JobStatusActions";
 import { JobTasksCard } from "./JobTasksCard";
 import { JobDayByDay } from "./JobDayByDay";
 import { JobBidPanel } from "./JobBidPanel";
+import { JobInspectionsCard } from "./JobInspectionsCard";
 import { JobPermitsCard } from "./JobPermitsCard";
 import { JobPriceEditor } from "./JobPriceEditor";
 import { JobTimeline } from "./JobTimeline";
@@ -188,6 +189,7 @@ export function JobDetailScreen({
 }: JobDetailScreenProps) {
   const { role } = useCurrentRole();
   const isTech = role === "tech";
+  const canEditInspectionsForRole = role === "owner" || role === "manager" || role === "office";
   const canEditPermitsForRole = role === "owner" || role === "manager" || role === "office";
   const { getInstalledSystemsForJob } = useInstalledSystems();
   const { contractors } = useContractors();
@@ -538,6 +540,8 @@ export function JobDetailScreen({
               <JobBidPanel jobId={job.id} />
             </PermissionGuard>
 
+            <PermissionGuard table="job_inspections" action="select">
+              <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
             <PermissionGuard table="job_permits" action="select">
               <JobPermitsCard jobId={job.id} canEdit={canEditPermitsForRole} />
             </PermissionGuard>
