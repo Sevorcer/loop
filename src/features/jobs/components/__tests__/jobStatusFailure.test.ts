@@ -33,4 +33,27 @@ describe("job status failure", () => {
       root.unmount();
     });
   });
+
+  it("shows the multi-day final-day refusal as one item with the date intact", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(JobStatusFailure, {
+          message:
+            "Cannot complete job — this job runs through Nov 4, 2026 and cannot be completed before its final scheduled day.",
+        }),
+      );
+    });
+
+    const items = [...container.querySelectorAll("li")].map((li) => li.textContent);
+    expect(items).toEqual([
+      "This job runs through Nov 4, 2026 and cannot be completed before its final scheduled day",
+    ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
 });
