@@ -127,7 +127,7 @@ vi.mock("@/repositories/supabaseContext", () => ({
 }));
 
 import { addCalendarDays, todayInCompanyTimeZone } from "@/lib/timezone";
-import { loadDispatchSnapshot } from "@/repositories/dispatch";
+import { loadDispatchSnapshot, loadDispatchDataForJobs } from "@/repositories/dispatch";
 import { loadBoardDispatchSnapshot } from "@/services/dispatch";
 
 // ---------------------------------------------------------------------------
@@ -427,5 +427,83 @@ describe("dispatch board window", () => {
     const planCalls = queryCalls.filter((call) => call.table === "dispatch_plans");
     expect(planCalls.some((call) => call.method === "not")).toBe(false);
     expect(planCalls.some((call) => call.method === "gte")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadDispatchDataForJobs — scoped read for timelines
+// ---------------------------------------------------------------------------
+
+describe("loadDispatchDataForJobs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    for (const key of Object.keys(tables)) delete tables[key];
+    queryCalls.length = 0;
+    seedTables();
+  });
+
+  it("returns only plans and events for the requested job IDs", async () => {
+    const result = await loadDispatchDataForJobs([
+      `job-${PLAN_IDS.recentCompleted}`,
+    ]);
+
+    expect(result.plans).toHaveLength(1);
+    expect(result.plans[0].id).toBe(PLAN_IDS.recentCompleted);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].id).toBe("event-recent-completed");
+  });
+
+  it("returns empty when no job IDs are given", async () => {
+    const result = await loadDispatchDataForJobs([]);
+    expect(result.plans).toHaveLength(0);
+    expect(result.events).toHaveLength(0);
+  });
+
+  it("returns plans and events for multiple jobs", async () => {
+    const result = await loadDispatchDataForJobs([
+      `job-${PLAN_IDS.oldCompleted}`,
+      `job-${PLAN_IDS.recentCompleted}`,
+    ]);
+
+    expect(result.plans).toHaveLength(2);
+    const planIds = result.plans.map((p) => p.id);
+    expect(planIds).toContain(PLAN_IDS.oldCompleted);
+    expect(planIds).toContain(PLAN_IDS.recentCompleted);
+    expect(result.events).toHaveLength(2);
+  });
+
+  it("scopes queries to the requested job IDs via .in()", async () => {
+    await loadDispatchDataForJobs([`job-${PLAN_IDS.recentCompleted}`]);
+
+    const planInCalls = queryCalls.filter(
+      (call) => call.table === "dispatch_plans" && call.method === "in",
+    );
+    expect(planInCalls.length).toBeGreaterThan(0);
+    for (const call of planInCalls) {
+      expect(call.args[0]).toBe("job_id");
+      expect(call.args[1]).toEqual([`job-${PLAN_IDS.recentCompleted}`]);
+    }
+
+    const eventInCalls = queryCalls.filter(
+      (call) => call.table === "dispatch_events" && call.method === "in",
+    );
+    expect(eventInCalls.length).toBeGreaterThan(0);
+    for (const call of eventInCalls) {
+      expect(call.args[0]).toBe("dispatch_plan_id");
+    }
+  });
+
+  it("does not read the entire org-wide snapshot", async () => {
+    await loadDispatchDataForJobs([`job-${PLAN_IDS.recentCompleted}`]);
+
+    // Should NOT read crew_assignments or schedule_blocks (timeline doesn't need them).
+    const assignmentCalls = queryCalls.filter(
+      (call) => call.table === "crew_assignments",
+    );
+    const blockCalls = queryCalls.filter(
+      (call) => call.table === "schedule_blocks",
+    );
+    expect(assignmentCalls).toHaveLength(0);
+    expect(blockCalls).toHaveLength(0);
   });
 });

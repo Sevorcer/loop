@@ -79,7 +79,9 @@ export type CoreTable =
   | "job_bids"
   // Sprint 7 Settings Enhancements — user management
   // owner/manager may manage org users; owner alone may delete.
-  | "user_profiles";
+  | "user_profiles"
+  // Money Layer — multiple contacts per customer
+  | "customer_contacts";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -321,7 +323,16 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>(["owner", "manager"]),
     delete: new Set<AppRole>(["owner"]),
   },
-  // ── Money Layer — job bids ─────────────────────────────────────────────────
+   // ── Money Layer — multiple contacts per customer ─────────────────────────
+  // All internal roles (including tech) can read contacts.
+  // office and above can add, edit, and delete.
+  customer_contacts: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
+ // ── Money Layer — job bids ─────────────────────────────────────────────────
   // Read: owner/manager/dispatch/office/sales. Write: owner/manager/office.
   // Delete: owner only.
   job_bids: {

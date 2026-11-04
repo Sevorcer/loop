@@ -11,7 +11,7 @@ import type { TimelineEventItem } from "@/lib/timeline";
 import { redactJobPriceActivity } from "@/features/jobs/utils/jobPrice";
 import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { listActivityByJobIds } from "@/repositories/jobs";
-import { loadDispatchSnapshot } from "@/services/dispatch";
+import { loadDispatchDataForJobs } from "@/repositories/dispatch";
 import { getCurrentOperator } from "@/services/currentOperator";
 
 function getDispatchEventTitle(type: string) {
@@ -38,22 +38,20 @@ async function buildJobEventFeed(jobIds: string[]) {
     return { activity: [], dispatchEvents: [] };
   }
 
-  const [activity, dispatchSnapshot, operator] = await Promise.all([
+  const [activity, dispatchData, operator] = await Promise.all([
     listActivityByJobIds(jobIds),
-    loadDispatchSnapshot(),
+    loadDispatchDataForJobs(jobIds),
     getCurrentOperator().catch(() => ({ name: "Team", appRole: null })),
   ]);
   const visibleActivity = redactJobPriceActivity(activity, canSeeJobRevenue(operator.appRole));
 
-  const jobIdSet = new Set(jobIds);
-  const planById = new Map(dispatchSnapshot.plans.map((plan) => [plan.id, plan]));
+  const planById = new Map(dispatchData.plans.map((plan) => [plan.id, plan]));
 
   const dispatchEvents: Array<{ event: DispatchEvent; plan: DispatchPlan }> = [];
 
-  for (const event of dispatchSnapshot.events) {
+  for (const event of dispatchData.events) {
     const plan = planById.get(event.dispatchPlanId);
     if (!plan) continue;
-    if (!jobIdSet.has(plan.jobId)) continue;
     dispatchEvents.push({ event, plan });
   }
 

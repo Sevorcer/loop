@@ -21,7 +21,7 @@ vi.mock("server-only", () => ({}));
 const {
   requirePermissionMock,
   readJsonObjectMock,
-  loadDispatchSnapshotMock,
+  loadBoardDispatchSnapshotMock,
   createPlanMock,
   assignCrewToPlanMock,
   schedulePlanMock,
@@ -31,7 +31,7 @@ const {
 } = vi.hoisted(() => ({
   requirePermissionMock: vi.fn(),
   readJsonObjectMock: vi.fn(),
-  loadDispatchSnapshotMock: vi.fn(),
+  loadBoardDispatchSnapshotMock: vi.fn(),
   createPlanMock: vi.fn(),
   assignCrewToPlanMock: vi.fn(),
   schedulePlanMock: vi.fn(),
@@ -62,7 +62,7 @@ vi.mock("@/lib/api/routeErrors", () => ({
 }));
 
 vi.mock("@/services/dispatch", () => ({
-  loadDispatchSnapshot: loadDispatchSnapshotMock,
+  loadBoardDispatchSnapshot: loadBoardDispatchSnapshotMock,
   createPlan: createPlanMock,
   assignCrewToPlan: assignCrewToPlanMock,
   schedulePlan: schedulePlanMock,
@@ -171,7 +171,7 @@ describe("GET /api/dispatch-plans — contract", () => {
 
   it("returns 200 with snapshot payload for an authorized request", async () => {
     requirePermissionMock.mockResolvedValue(authorizedCtx());
-    loadDispatchSnapshotMock.mockResolvedValue({
+    loadBoardDispatchSnapshotMock.mockResolvedValue({
       plans: [{ id: "dp-1" }],
       crews: [],
       assignments: [],

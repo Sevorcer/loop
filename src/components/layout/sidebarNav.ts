@@ -16,6 +16,7 @@ import {
   Truck,
   Workflow,
   MessageSquare,
+  Receipt,
 } from "lucide-react";
 
 import { getNavItemsForRole, type NavGroup } from "@/features/auth";
@@ -60,6 +61,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
   {
     label: "INSIGHTS",
     items: [
+      { name: "Ready to Bill", href: ROUTES.BILLING, icon: Receipt },
       { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
       { name: "Feedback Reports", href: ROUTES.OPS_FEEDBACK, icon: MessageSquare },
     ],
