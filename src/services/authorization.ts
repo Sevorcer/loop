@@ -84,7 +84,10 @@ export type CoreTable =
   | "customer_contacts"
 // GC Ledger — Money Layer Task 4
 | "gc_ledger_entries"
-| "gc_change_orders";
+| "gc_change_orders"
+// Phase 3 — Inspections
+| "job_inspections"
+| "inspection_corrections";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -368,6 +371,19 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner"]),
+  },
+  // Phase 3 — Inspections: read for all internal roles; write for office+
+  job_inspections: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  inspection_corrections: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
   },
 };
 

@@ -68,6 +68,7 @@ import { JobStatusActions } from "./JobStatusActions";
 import { JobTasksCard } from "./JobTasksCard";
 import { JobDayByDay } from "./JobDayByDay";
 import { JobBidPanel } from "./JobBidPanel";
+import { JobInspectionsCard } from "./JobInspectionsCard";
 import { JobPriceEditor } from "./JobPriceEditor";
 import { JobTimeline } from "./JobTimeline";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
@@ -187,6 +188,7 @@ export function JobDetailScreen({
 }: JobDetailScreenProps) {
   const { role } = useCurrentRole();
   const isTech = role === "tech";
+  const canEditInspectionsForRole = role === "owner" || role === "manager" || role === "office";
   const { getInstalledSystemsForJob } = useInstalledSystems();
   const { contractors } = useContractors();
   const [fileCount, setFileCount] = useState(0);
@@ -534,6 +536,10 @@ export function JobDetailScreen({
           <div className="min-w-0 space-y-6">
             <PermissionGuard table="job_bids" action="select">
               <JobBidPanel jobId={job.id} />
+            </PermissionGuard>
+
+            <PermissionGuard table="job_inspections" action="select">
+              <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
             </PermissionGuard>
 
             {priceVisible && canViewJobPrice(role) ? (
