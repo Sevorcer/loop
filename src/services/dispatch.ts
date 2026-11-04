@@ -204,13 +204,24 @@ export async function rescheduleJobByDayShift(
   const plans = plansResult.ok ? plansResult.data : [];
   if (plans.length > 0) {
     const plan = plans[plans.length - 1];
-    // schedulePlan handles shift math, job update, block upsert, and
-    // plan placement update — the same path the dispatch board uses.
+    // schedulePlan computes its shift delta from the job's START day, so
+    // we must translate the grab-day / drop-day delta into the new start
+    // day. Without this, grabbing day 3 of a Mon–Wed job and dropping on
+    // Friday would yield +4 (Mon→Fri) instead of +2 (Wed→Fri).
+    const jobStartDay = companyCalendarDate(job.scheduledStartAt) ?? grabDay;
+    const dayDelta =
+      Math.round(
+        (new Date(dropDay + "T00:00:00Z").getTime() -
+          new Date(grabDay + "T00:00:00Z").getTime()) /
+          86_400_000,
+      );
+    const newStartDay = addCalendarDays(jobStartDay, dayDelta);
+
     await schedulePlan(
       {
         dispatchPlanId: plan.id,
         jobId,
-        scheduledDate: dropDay,
+        scheduledDate: newStartDay,
         scheduledStartTime: "07:00",
         scheduledEndTime: "16:00",
         estimatedDurationHours: plan.estimatedDurationHours ?? 4,

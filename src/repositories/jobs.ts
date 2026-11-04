@@ -281,6 +281,7 @@ export async function listJobsByCustomerId(
     .select(JOB_SELECT)
     .eq("org_id", orgId)
     .eq("customer_id", customerId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -294,6 +295,7 @@ export async function listJobsByCustomerId(
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
       .eq("customer_id", customerId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(from, to);
     data = toJobRows(fallback.data);
@@ -306,6 +308,7 @@ export async function listJobsByCustomerId(
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
         .eq("customer_id", customerId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .range(from, to);
       data = toJobRows(base.data);
@@ -334,6 +337,7 @@ export async function listJobs(
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -346,6 +350,7 @@ export async function listJobs(
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(from, to);
     data = toJobRows(fallback.data);
@@ -357,6 +362,7 @@ export async function listJobs(
         .from("jobs")
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .range(from, to);
       data = toJobRows(base.data);
@@ -422,10 +428,11 @@ export async function listJobsPaginated(
   // Helper: apply shared filters to a query builder (works for both data
   // and count queries). The builder type is generic enough for both select
   // overloads Supabase provides.
-  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function }>(
+  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function; is: Function }>(
     query: Q,
   ): Q {
-    let q = query.eq("org_id", orgId) as Q;
+    let q = (query.eq("org_id", orgId) as Q);
+    q = q.is("deleted_at", null) as Q;
 
     // Status filter
     const statuses = Array.isArray(filter.status) ? filter.status : filter.status ? [filter.status] : [];
@@ -535,6 +542,7 @@ export async function listRecentJobs(limit = 5): Promise<Job[]> {
     .from("jobs")
     .select(JOB_SELECT)
     .eq("org_id", orgId)
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false })
     .limit(take);
 
@@ -547,6 +555,7 @@ export async function listRecentJobs(limit = 5): Promise<Job[]> {
       .from("jobs")
       .select(JOB_SELECT_WITH_LEGACY)
       .eq("org_id", orgId)
+      .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(take);
     data = toJobRows(fallback.data);
@@ -558,6 +567,7 @@ export async function listRecentJobs(limit = 5): Promise<Job[]> {
         .from("jobs")
         .select(JOB_SELECT_BASE)
         .eq("org_id", orgId)
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(take);
       data = toJobRows(base.data);
@@ -596,6 +606,7 @@ export async function listJobsByIds(ids: string[]): Promise<Job[]> {
         .select(select)
         .eq("org_id", orgId)
         .in("id", chunk)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
     const result = await runChunk(JOB_SELECT);
@@ -663,7 +674,7 @@ export async function listJobsInRange(from: string, to: string): Promise<Job[]> 
   const RANGE_PAGE = 1000;
 
   const runQuery = (select: string, withTimestamps: boolean) => {
-    const query = supabase.from("jobs").select(select).eq("org_id", orgId);
+    const query = supabase.from("jobs").select(select).eq("org_id", orgId).is("deleted_at", null);
     const filtered = withTimestamps
       ? query.or(rangeFilter)
       : query.gte("scheduled_for", legacyFrom).lt("scheduled_for", legacyToExclusive);
