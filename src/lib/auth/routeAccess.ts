@@ -28,6 +28,8 @@ export const SHELL_ROUTE_PREFIXES = [
   ROUTES.BILLING,
   ROUTES.REPORTING,
   ROUTES.GC_OVERVIEW,
+  ROUTES.PERMITS_BOARD,
+  ROUTES.INSPECTIONS_WEEK,
   ROUTES.SETTINGS,
 ] as const;
 
@@ -35,7 +37,6 @@ export const SHELL_ROUTE_PREFIXES = [
  * API routes authenticated by the LOOP_HEALTH_CHECK_TOKEN bearer token inside
  * the route handler. The session guard must not answer these first: CI sends
  * no session cookie, and a middleware 401 would hide the token check.
- *
  * Exact match only. Sibling routes such as /api/admin/db-health/runs stay on
  * the session guard.
  */
@@ -66,12 +67,12 @@ export function isTokenAuthenticatedApiRoute(pathname: string): boolean {
 
 /** Internal API routes that must reject unauthenticated requests. */
 export function isProtectedApiRoute(pathname: string): boolean {
-  if (withoutTrailingSlash(pathname) === "/api/auth/sign-out") return false;
   if (isTokenAuthenticatedApiRoute(pathname)) return false;
+  if (isShellRoute(pathname)) return false;
   return pathname.startsWith("/api/");
 }
 
-/** Routes that are always public (no session required). */
+/** Routes that are always reachable without a session. */
 export function isPublicRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/sign-in") ||
