@@ -4,10 +4,12 @@ import { listContractors } from "@/repositories/contractors";
 import { createJobActivity, getJobById, listJobsByIds, setJobPeople, updateJob } from "@/repositories/jobs";
 import {
   addCalendarDays,
+  companyCalendarDate,
   companyTimeOfDay,
   shiftIsoToCompanyDate,
   todayInCompanyTimeZone,
 } from "@/lib/timezone";
+import { computeRescheduleShift } from "@/lib/rescheduleShift";
 import { scheduledWindowClock, scheduledWindowHours } from "@/features/dispatch/utils/jobSchedule";
 
 import type {
@@ -19,6 +21,7 @@ import type {
 import {
   appendDispatchEvent,
   createDispatchPlan,
+  listDispatchPlansByJobId,
   loadDispatchSnapshot,
   upsertCrewAssignment,
   upsertScheduleBlock,
@@ -180,6 +183,75 @@ export async function assignCrewToPlan(
   return upsertCrewAssignment(input);
 }
 
+/**
+ * Reschedule a job by shifting its dates to a new target day. If the job has
+ * dispatch plans, the most recent one's schedule block and placement are moved
+ * too (via schedulePlan). If it has no plans, the job dates are updated
+ * directly. Used by the calendar drag-to-reschedule so that dispatch plans
+ * stay in sync.
+ */
+export async function rescheduleJobByDayShift(
+  jobId: string,
+  grabDay: string,
+  dropDay: string,
+) {
+  if (grabDay === dropDay) return;
+  const job = await getJobById(jobId);
+  if (!job) throw new Error(`Job '${jobId}' not found.`);
+
+  // Find the job's dispatch plan(s); use the most recent one.
+  const plansResult = await listDispatchPlansByJobId(jobId);
+  const plans = plansResult.ok ? plansResult.data : [];
+  if (plans.length > 0) {
+    const plan = plans[plans.length - 1];
+    // schedulePlan computes its shift delta from the job's START day, so
+    // we must translate the grab-day / drop-day delta into the new start
+    // day. Without this, grabbing day 3 of a Mon–Wed job and dropping on
+    // Friday would yield +4 (Mon→Fri) instead of +2 (Wed→Fri).
+    const jobStartDay = companyCalendarDate(job.scheduledStartAt) ?? grabDay;
+    const dayDelta =
+      Math.round(
+        (new Date(dropDay + "T00:00:00Z").getTime() -
+          new Date(grabDay + "T00:00:00Z").getTime()) /
+          86_400_000,
+      );
+    const newStartDay = addCalendarDays(jobStartDay, dayDelta);
+
+    await schedulePlan(
+      {
+        dispatchPlanId: plan.id,
+        jobId,
+        scheduledDate: newStartDay,
+        scheduledStartTime: "07:00",
+        scheduledEndTime: "16:00",
+        estimatedDurationHours: plan.estimatedDurationHours ?? 4,
+        crewName: "",
+        jobType: plan.jobType ?? job.type ?? "",
+        customerName: plan.customerName ?? job.customerName ?? "",
+        propertyName: plan.propertyName ?? job.propertyName ?? "",
+        dispatchStatus: "scheduled",
+      },
+      plan.id,
+    );
+  } else {
+    // No dispatch plan — move the job dates directly.
+    const shifted = job.scheduledStartAt
+      ? computeRescheduleShift({
+          scheduledStartAt: job.scheduledStartAt,
+          scheduledEndAt: job.scheduledEndAt ?? null,
+          grabDay,
+          dropDay,
+        })
+      : null;
+
+    await updateJob(jobId, {
+      scheduledFor: dropDay,
+      ...(shifted?.scheduledStartAt ? { scheduledStartAt: shifted.scheduledStartAt } : {}),
+      ...(shifted?.scheduledEndAt ? { scheduledEndAt: shifted.scheduledEndAt } : {}),
+    });
+  }
+}
+
 export async function schedulePlan(
   input: ScheduleBlockWriteInput,
   planId: string
@@ -194,12 +266,35 @@ export async function schedulePlan(
   let estimatedDurationHours = input.estimatedDurationHours;
 
   if (job) {
-    const shiftedStart = job.scheduledStartAt
-      ? shiftIsoToCompanyDate(job.scheduledStartAt, input.scheduledDate)
-      : null;
-    const shiftedEnd = job.scheduledEndAt
-      ? shiftIsoToCompanyDate(job.scheduledEndAt, input.scheduledDate)
-      : null;
+    // When the job already has a scheduledStartAt, compute the day delta
+    // between its current start date and the target date, then shift both
+    // start and end by that delta. This preserves multi-day job spans —
+    // the old code pinned both to the drop date, collapsing multi-day jobs.
+    let shiftedStart: string | null = null;
+    let shiftedEnd: string | null = null;
+
+    if (job.scheduledStartAt) {
+      const grabDay = companyCalendarDate(job.scheduledStartAt);
+      if (grabDay) {
+        const shifted = computeRescheduleShift({
+          scheduledStartAt: job.scheduledStartAt,
+          scheduledEndAt: job.scheduledEndAt ?? null,
+          grabDay,
+          dropDay: input.scheduledDate,
+        });
+        shiftedStart = shifted.scheduledStartAt;
+        shiftedEnd = shifted.scheduledEndAt;
+      } else {
+        shiftedStart = shiftIsoToCompanyDate(job.scheduledStartAt, input.scheduledDate);
+      }
+    }
+
+    // Jobs without a scheduledStartAt but with a scheduledEndAt: pin end to
+    // the target date (legacy single-day behaviour, preserving time of day).
+    if (!shiftedEnd && job.scheduledEndAt && !job.scheduledStartAt) {
+      shiftedEnd = shiftIsoToCompanyDate(job.scheduledEndAt, input.scheduledDate);
+    }
+
     const clock = scheduledWindowClock(
       shiftedStart ?? job.scheduledStartAt,
       shiftedEnd ?? job.scheduledEndAt,

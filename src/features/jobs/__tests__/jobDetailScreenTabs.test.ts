@@ -348,14 +348,14 @@ describe("JobDetailScreen tabs", () => {
     const desktopSystems = container.querySelector("#job-detail-tab-desktop-systems");
     const mobileTasks = container.querySelector("#job-detail-tab-mobile-tasks");
 
-    // 1 of 3 tasks done across the field + office lists.
-    expect(desktopTasks?.textContent).toContain("1/3");
+    // 1 of 3 tasks done + 0 of 3 QA items done = 1/6 across Tasks & QA.
+    expect(desktopTasks?.textContent).toContain("1/6");
     // 3 files loaded by the files panel.
     expect(desktopPhotos?.textContent).toContain("3");
     // 2 systems reported by the systems panel stub.
     expect(desktopSystems?.textContent).toContain("2");
-    // Mobile flags what's left on Tasks.
-    expect(mobileTasks?.textContent).toContain("2 left");
+    // Mobile flags what's left on Tasks & QA: 2 tasks + 3 QA = 5 remaining.
+    expect(mobileTasks?.textContent).toContain("5 left");
   });
 
   it("keeps the notes history under Activity, not Overview", async () => {

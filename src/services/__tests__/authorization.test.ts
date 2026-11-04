@@ -446,6 +446,11 @@ describe("privilege escalation — denied paths", () => {
     const roles: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"];
     for (const role of roles) {
       expect(hasPermission(role, "job_signatures", "update")).toBe(false);
+    }
+    expect(hasPermission("owner", "job_signatures", "delete")).toBe(true);
+    expect(hasPermission("manager", "job_signatures", "delete")).toBe(true);
+    const nonDeleteRoles: AppRole[] = ["dispatch", "tech", "office", "sales", "portal"];
+    for (const role of nonDeleteRoles) {
       expect(hasPermission(role, "job_signatures", "delete")).toBe(false);
     }
     expect(hasPermission("portal", "job_signatures", "select")).toBe(false);

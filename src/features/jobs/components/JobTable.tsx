@@ -94,6 +94,12 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
       : "All";
   });
 
+  // completedDate is a pass-through URL param (e.g. "today") used by the
+  // dashboard "Completed today" tile to scope the listing to today's completions.
+  const [completedDateFilter] = useState(
+    () => readSearchParam(initialSearchParams, "completedDate") ?? undefined,
+  );
+
   // ── Pagination state ────────────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -132,6 +138,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
       if (statusFilter !== "All") params.set("status", statusFilter);
       if (typeFilter !== "All") params.set("type", typeFilter);
       if (priorityFilter !== "All") params.set("priority", priorityFilter);
+      if (completedDateFilter) params.set("completedDate", completedDateFilter);
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
 
       const response = await requestJson<PaginatedResponse>(
@@ -153,7 +160,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
         setLoading(false);
       }
     }
-  }, [role, currentPage, statusFilter, typeFilter, priorityFilter, debouncedSearch]);
+  }, [role, currentPage, statusFilter, typeFilter, priorityFilter, completedDateFilter, debouncedSearch]);
 
   useEffect(() => {
     void fetchJobs();
@@ -166,7 +173,8 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
     searchValue.length > 0 ||
     statusFilter !== "All" ||
     typeFilter !== "All" ||
-    priorityFilter !== "All";
+    priorityFilter !== "All" ||
+    !!completedDateFilter;
 
   if (loading && jobs.length === 0) {
     return (

@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/api-auth";
 import { createApiErrorResponse, mapRouteError } from "@/lib/api/routeErrors";
 import { validateJobFile } from "@/lib/fileValidation";
 import { logWriteFailure } from "@/lib/observability/writes";
-import { listJobFiles, recordJobFileUpload } from "@/services/jobs";
+import { getJob, listJobFiles, recordJobFileUpload } from "@/services/jobs";
 import { uploadStorageFile, withPhotoPreviewUrls } from "@/services/storage";
 
 const JOB_FILES_BUCKET = "job-files";
@@ -55,6 +55,25 @@ export async function POST(
 
   try {
     const { id } = await params;
+
+    // Techs may only upload files to jobs they are assigned to.
+    if (guard.ctx.role === "tech") {
+      const job = await getJob(id);
+      if (!job) {
+        return createApiErrorResponse("NOT_FOUND", "Job not found.", 404);
+      }
+      const isAssigned = (job.assignees ?? []).some(
+        (a) => a.id === guard.ctx.userId,
+      );
+      if (!isAssigned) {
+        return createApiErrorResponse(
+          "FORBIDDEN",
+          "You are not assigned to this job.",
+          403,
+        );
+      }
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
 

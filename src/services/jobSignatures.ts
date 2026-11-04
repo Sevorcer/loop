@@ -6,6 +6,8 @@ import type { JobSignature } from "@/features/jobs/types/jobSignature";
 import { signatureCaptureError } from "@/features/jobs/utils/jobSignature";
 import { createJobActivity, jobExists } from "@/repositories/jobs";
 import {
+  deleteJobSignatureById,
+  getJobSignatureById,
   insertJobSignature,
   listJobSignatures,
   toJobSignature,
@@ -136,4 +138,19 @@ export async function captureJobSignature(
     if (denied) throw denied;
     throw error;
   }
+}
+
+/**
+ * Delete a job signature by ID.
+ *
+ * The repository layer enforces org-scoping — a signature belonging to a
+ * different organization will not be found and the call returns `false`.
+ */
+export async function deleteJobSignature(
+  signatureId: string,
+  jobId: string,
+): Promise<boolean> {
+  const sig = await getJobSignatureById(signatureId);
+  if (!sig || sig.job_id !== jobId) return false;
+  return deleteJobSignatureById(signatureId);
 }

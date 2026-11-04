@@ -385,6 +385,8 @@ export interface JobListFilter {
   priority?: JobPriority | JobPriority[];
   search?: string;
   assignee?: string;
+  /** Filter to jobs completed on or after this date (YYYY-MM-DD). */
+  completedDate?: string;
   sort?: string;
   order?: "asc" | "desc";
   page?: number;
@@ -425,10 +427,33 @@ export async function listJobsPaginated(
 
   const { supabase, orgId } = await getRepositoryContext();
 
+  // When a completed-date filter is requested, resolve today's completion
+  // activity ids first (the Command Center count's preferred signal), so
+  // applyFilters can OR them into the jobs query.
+  let completedActivityJobIds: string[] = [];
+  if (filter.completedDate) {
+    const activityRes = await supabase
+      .from("job_activity")
+      .select("job_id")
+      .eq("org_id", orgId)
+      .eq("type", "status")
+      .ilike("title", "Job completed%")
+      .gte("created_at", filter.completedDate);
+    if (!activityRes.error) {
+      completedActivityJobIds = Array.from(
+        new Set(
+          ((activityRes.data ?? []) as { job_id: string }[])
+            .map((row) => row.job_id)
+            .filter((id): id is string => typeof id === "string" && id.length > 0),
+        ),
+      );
+    }
+  }
+
   // Helper: apply shared filters to a query builder (works for both data
   // and count queries). The builder type is generic enough for both select
   // overloads Supabase provides.
-  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function; is: Function }>(
+  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function; is: Function; gte: Function }>(
     query: Q,
   ): Q {
     let q = (query.eq("org_id", orgId) as Q);
@@ -470,6 +495,22 @@ export async function listJobsPaginated(
     // Assignee filter (exact match on the assigned_to column)
     if (filter.assignee) {
       q = q.ilike("assigned_to", `%${filter.assignee}%`) as Q;
+    }
+
+    // Completed-date filter: the "Completed today" rule, matching the
+    // Command Center count — a job counts when its completion signal was
+    // recorded today: either a "Job completed" status activity today
+    // (preferred signal) or, as a fallback for legacy rows, an updated_at
+    // on/after today. The two halves are ORed, exactly as commandCenter
+    // merges them.
+    if (filter.completedDate) {
+      if (completedActivityJobIds.length > 0) {
+        q = q.or(
+          `updated_at.gte.${filter.completedDate},id.in.(${completedActivityJobIds.join(",")})`,
+        ) as Q;
+      } else {
+        q = q.gte("updated_at", filter.completedDate) as Q;
+      }
     }
 
     return q;

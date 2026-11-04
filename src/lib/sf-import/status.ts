@@ -86,6 +86,19 @@ export function mapPriority(priority: string): LoopPriority {
   return "Medium";
 }
 
+/**
+ * Derive the closeout mode from the mapped Loop job type.
+ *
+ * Single-visit job types (Inspection, Estimate) use "visit" closeout — the
+ * tech only needs a job note to close. Multi-step work (Install, Service,
+ * Maintenance, Callback) uses "full" closeout — photos, installed systems,
+ * QA items, and a job note.
+ */
+export function closeoutModeForType(type: LoopJobType): "full" | "visit" {
+  if (type === "Inspection" || type === "Estimate") return "visit";
+  return "full";
+}
+
 export function sfJobNumber(number: string, prefix: string): string {
   const trimmed = number.trim();
   if (!trimmed) return "";

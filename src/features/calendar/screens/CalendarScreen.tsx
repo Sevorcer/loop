@@ -9,7 +9,9 @@ import { PageHeader, StatusBadge } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
 import type { Job } from "@/features/jobs/types/job";
 import { ApiRequestError, requestJson } from "@/lib/api/client";
-import { todayInCompanyTimeZone } from "@/lib/timezone";
+import { companyCalendarDate, todayInCompanyTimeZone } from "@/lib/timezone";
+import { computeRescheduleShift } from "@/lib/rescheduleShift";
+import { pushToast } from "@/components/ui/toast";
 import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 
 import { CalendarEntryDialog, type CalendarEditor } from "../components/CalendarEntryDialog";
@@ -685,6 +687,63 @@ export function CalendarScreen() {
     focusDate(todayInCompanyTimeZone());
   }, [focusDate]);
 
+  const handleRescheduleJob = useCallback(
+    async (jobId: string, grabDay: string, dropDay: string) => {
+      if (!role || grabDay === dropDay) return;
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job) return;
+
+      // Compute shifted dates for the optimistic UI update.
+      const startAt = job.scheduledStartAt ?? null;
+      const shifted = startAt
+        ? computeRescheduleShift({
+            scheduledStartAt: startAt,
+            scheduledEndAt: job.scheduledEndAt ?? null,
+            grabDay,
+            dropDay,
+          })
+        : null;
+
+      // Optimistic update
+      const previousJobs = jobs;
+      const newScheduledFor = shifted
+        ? (companyCalendarDate(shifted.scheduledStartAt) ?? dropDay)
+        : dropDay;
+      setJobs((current) =>
+        current.map((j) =>
+          j.id === jobId
+            ? {
+                ...j,
+                scheduledFor: newScheduledFor,
+                ...(shifted ? {
+                  scheduledStartAt: shifted.scheduledStartAt,
+                  scheduledEndAt: shifted.scheduledEndAt,
+                } : {}),
+              }
+            : j,
+        ),
+      );
+
+      try {
+        // Use the reschedule endpoint so dispatch-plan schedule blocks
+        // move with the job — the same path the dispatch board uses.
+        await requestJson(`/api/jobs/${jobId}/reschedule`, {
+          role,
+          method: "POST",
+          body: { grabDay, dropDay },
+        });
+      } catch (error) {
+        // Revert on failure
+        setJobs(previousJobs);
+        pushToast(
+          error instanceof Error ? error.message : "Could not reschedule the job.",
+          "error",
+        );
+      }
+    },
+    [jobs, role],
+  );
+
   return (
     <div className="min-w-0 space-y-6">
       <div className="print:hidden">
@@ -734,6 +793,10 @@ export function CalendarScreen() {
             onAdd={office ? () => setEditor({ mode: "choose", date: selectedDate }) : undefined}
             onOpenTimeOff={(entry) => setEditor({ mode: "time_off", date: selectedDate, entry })}
             onOpenTask={(entry) => setEditor({ mode: "task", date: selectedDate, entry })}
+            canDragJobs={office}
+            onRescheduleJob={(jobId, grabDay, dropDay) => {
+              void handleRescheduleJob(jobId, grabDay, dropDay);
+            }}
           />
           {entriesNote ? <p className="text-sm text-muted">{entriesNote}</p> : null}
           {jobsNote ? <p className="text-sm text-muted">{jobsNote}</p> : null}

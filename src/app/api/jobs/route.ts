@@ -7,6 +7,7 @@ import {
 import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { parseOptionalTimestamp } from "@/lib/api/parseRequestFields";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { todayInCompanyTimeZone } from "@/lib/timezone";
 import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
 import { createJob, listJobsWithActivity, listJobsPage } from "@/services/jobs";
@@ -83,6 +84,13 @@ export async function GET(request: Request) {
       const priorities = parseMultiParam(url.searchParams.get("priority"), VALID_PRIORITIES);
       const search = url.searchParams.get("search") ?? undefined;
       const assignee = url.searchParams.get("assignee") ?? undefined;
+      const completedDateRaw = url.searchParams.get("completedDate") ?? undefined;
+      const completedDate =
+        completedDateRaw === "today"
+          ? todayInCompanyTimeZone()
+          : completedDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(completedDateRaw)
+            ? completedDateRaw
+            : undefined;
       const sort = url.searchParams.get("sort") ?? undefined;
       const order = url.searchParams.get("order") === "asc" ? "asc" as const : "desc" as const;
       const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
@@ -94,6 +102,7 @@ export async function GET(request: Request) {
         priority: priorities.length > 0 ? priorities : undefined,
         search,
         assignee,
+        completedDate,
         sort,
         order,
         page,

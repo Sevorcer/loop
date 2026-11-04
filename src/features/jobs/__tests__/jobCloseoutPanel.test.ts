@@ -7,7 +7,7 @@ import type { JobCloseoutMode } from "../types/job";
 import type { JobCompletionChecklistStatus } from "../utils/jobCompletionChecklist";
 import {
   buildCloseoutSteps,
-  closeoutModeLabel,
+  closeoutPanelModeLabel,
   JOB_CLOSEOUT_SECTION_IDS,
 } from "../utils/jobCloseout";
 
@@ -164,12 +164,12 @@ describe("buildCloseoutSteps", () => {
   });
 });
 
-describe("closeoutModeLabel", () => {
+describe("closeoutPanelModeLabel", () => {
   it("labels known modes and tolerates a missing field", () => {
-    expect(closeoutModeLabel(undefined)).toBeNull();
-    expect(closeoutModeLabel(null)).toBeNull();
-    expect(closeoutModeLabel("visit")).toBe("Visit closeout — note only");
-    expect(closeoutModeLabel("full")).toBe("Full closeout");
+    expect(closeoutPanelModeLabel(undefined)).toBeNull();
+    expect(closeoutPanelModeLabel(null)).toBeNull();
+    expect(closeoutPanelModeLabel("visit")).toBe("Visit closeout — note only");
+    expect(closeoutPanelModeLabel("full")).toBe("Full closeout");
   });
 });
 
