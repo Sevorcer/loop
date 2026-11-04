@@ -29,6 +29,14 @@ export interface JobCompletionChecklistStatus {
   jobNotesCompleted: boolean;
   requiredQaItemsComplete: boolean;
   customerSignaturePlaceholder: "optional";
+  /**
+   * The multi-day final-day block, while it stands: the same sentence the
+   * completion refusal carries ("this job runs through … and cannot be
+   * completed before its final scheduled day"). Null when the job may be
+   * completed today. Applies in both closeout modes.
+   */
+  finalDayBlocker: string | null;
+  /** All gates satisfied and no final-day block — mirrors the server. */
   canComplete: boolean;
 }
 

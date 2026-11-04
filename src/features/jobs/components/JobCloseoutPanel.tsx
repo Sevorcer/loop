@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  CalendarClock,
   CheckCircle2,
   Circle,
   ClipboardCheck,
@@ -51,6 +52,10 @@ interface JobCloseoutPanelProps {
    * panel keeps the original scroll-to-section behaviour.
    */
   onShowSection?: (section: CloseoutSectionKey) => void;
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function StepRow({
@@ -194,7 +199,11 @@ export function JobCloseoutPanel({
 
   const steps = checklist ? buildCloseoutSteps(checklist) : [];
   const modeLabel = closeoutModeLabel(checklist?.closeoutMode);
-  const canComplete = Boolean(checklist?.canComplete);
+  // The multi-day final-day block (same sentence as the completion refusal).
+  // It is a still-needed item in both modes, and the payload's canComplete is
+  // already false while it stands — the panel never shows "clear" past it.
+  const finalDayBlocker = checklist?.finalDayBlocker ?? null;
+  const canComplete = Boolean(checklist?.canComplete) && !finalDayBlocker;
 
   return (
     <SurfaceCard>
@@ -255,6 +264,24 @@ export function JobCloseoutPanel({
             {checklist ? (
               <>
                 <div className="space-y-2">
+                  {finalDayBlocker ? (
+                    <div
+                      data-closeout-blocker="final-day"
+                      className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3"
+                    >
+                      <div className="flex items-start gap-2">
+                        <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-100">
+                            Final scheduled day
+                          </p>
+                          <p className="mt-0.5 text-xs leading-5 text-amber-200/80">
+                            {capitalize(finalDayBlocker)}.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   {steps.map((step) => (
                     <StepRow key={step.key} step={step}>
                       {!step.complete && step.key === "note" ? (
@@ -336,7 +363,9 @@ export function JobCloseoutPanel({
                 <p className="mt-2 text-xs text-slate-500">
                   {canComplete
                     ? "Everything's in place — you're clear to complete this job."
-                    : "Complete unlocks when every step above is done."}
+                    : finalDayBlocker
+                      ? "Complete unlocks on the job's final scheduled day, once every step above is done."
+                      : "Complete unlocks when every step above is done."}
                 </p>
               </>
             ) : null}

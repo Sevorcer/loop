@@ -43,6 +43,7 @@ const ALL_MISSING: ChecklistPayload = {
   jobNotesCompleted: false,
   requiredQaItemsComplete: false,
   customerSignaturePlaceholder: "optional",
+  finalDayBlocker: null,
   canComplete: false,
   closeoutMode: "full",
 };
@@ -53,9 +54,13 @@ const ALL_DONE: ChecklistPayload = {
   jobNotesCompleted: true,
   requiredQaItemsComplete: true,
   customerSignaturePlaceholder: "optional",
+  finalDayBlocker: null,
   canComplete: true,
   closeoutMode: "full",
 };
+
+const FINAL_DAY_BLOCKER =
+  "this job runs through Nov 4, 2026 and cannot be completed before its final scheduled day";
 
 const roots: Root[] = [];
 let currentChecklist: ChecklistPayload = ALL_MISSING;
@@ -285,6 +290,61 @@ describe("JobCloseoutPanel", () => {
 
     expect(onUpdateStatus).toHaveBeenCalledWith("Completed");
     expect(container.textContent).toContain("Job closed out");
+  });
+
+  it("lists the final-day blocker and never shows clear while it stands (full mode)", async () => {
+    // Rehearsal repro: every step done on Nov 3, job runs Nov 3–4.
+    currentChecklist = {
+      ...ALL_DONE,
+      finalDayBlocker: FINAL_DAY_BLOCKER,
+      canComplete: false,
+    };
+    const container = await renderPanel();
+    await openPanel(container);
+
+    const blocker = container.querySelector('[data-closeout-blocker="final-day"]');
+    expect(blocker).toBeTruthy();
+    expect(blocker?.textContent).toContain(
+      "This job runs through Nov 4, 2026 and cannot be completed before its final scheduled day.",
+    );
+    expect(container.textContent).not.toContain("you're clear to complete");
+    expect(findButton(container, "Complete job")?.disabled).toBe(true);
+  });
+
+  it("keeps Complete disabled on the blocker even if canComplete were true", async () => {
+    currentChecklist = { ...ALL_DONE, finalDayBlocker: FINAL_DAY_BLOCKER };
+    const container = await renderPanel();
+    await openPanel(container);
+
+    expect(container.textContent).not.toContain("you're clear to complete");
+    expect(findButton(container, "Complete job")?.disabled).toBe(true);
+  });
+
+  it("lists the final-day blocker for a visit-mode multi-day job too", async () => {
+    currentChecklist = {
+      ...ALL_MISSING,
+      closeoutMode: "visit",
+      jobNotesCompleted: true,
+      finalDayBlocker: FINAL_DAY_BLOCKER,
+      canComplete: false,
+    };
+    const container = await renderPanel();
+    await openPanel(container);
+
+    expect(
+      container.querySelector('[data-closeout-blocker="final-day"]')?.textContent,
+    ).toContain("Nov 4, 2026");
+    expect(container.textContent).not.toContain("you're clear to complete");
+    expect(findButton(container, "Complete job")?.disabled).toBe(true);
+  });
+
+  it("shows no final-day blocker when the payload carries none", async () => {
+    currentChecklist = ALL_DONE;
+    const container = await renderPanel();
+    await openPanel(container);
+
+    expect(container.querySelector('[data-closeout-blocker="final-day"]')).toBeNull();
+    expect(container.textContent).toContain("you're clear to complete this job");
   });
 
   it("renders nothing when completing is not a valid transition", async () => {
