@@ -46,14 +46,22 @@ export function JobDetailClient({
   };
 
   async function handleUpdateStatus(status: JobStatus) {
-    await requestJson(`/api/jobs/${job.id}`, {
-      method: "PATCH",
-      role,
-      body: { action: "status", status },
-    });
-    setConfirmedStatus(status);
-    pushToast(`Job moved to ${status}.`, "success");
-    router.refresh();
+    try {
+      await requestJson(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        role,
+        body: { action: "status", status },
+      });
+      setConfirmedStatus(status);
+      pushToast(`Job moved to ${status}.`, "success");
+      router.refresh();
+    } catch (err) {
+      console.error("[JobDetailClient] status update failed", err);
+      pushToast(
+        err instanceof Error ? err.message : "Failed to update job status.",
+        "error",
+      );
+    }
   }
 
   function handlePriceRecorded(entry: JobActivity) {

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { PermissionGuard, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { pushToast } from "@/components/ui/toast";
 import { useCurrentRole } from "@/features/auth";
 import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
@@ -376,7 +377,9 @@ function WarrantyRegisterButton({ systemId }: { systemId: string }) {
       });
       if (!res.ok) throw new Error("Failed to mark warranty registered");
       window.location.reload();
-    } catch {
+    } catch (err) {
+      console.error("[WarrantyRegisterButton] registration failed", err);
+      pushToast("Failed to register warranty. Please try again.", "error");
       setSaving(false);
     }
   }
