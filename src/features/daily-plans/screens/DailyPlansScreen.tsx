@@ -12,8 +12,7 @@ import { CrewStatusPanel } from "../components/CrewStatusPanel";
 import { MorningBriefing } from "../components/MorningBriefing";
 import { NeedsAttentionPanel } from "../components/NeedsAttentionPanel";
 import { ScheduleSection } from "../components/ScheduleSection";
-import { buildFieldCrews, type CrewRecord, type TechnicianRecord } from "../data/fieldCrews";
-import type { CrewProfile } from "../types/dailyPlan";
+import { buildDailyCrewRoster, type CrewRecord, type DailyCrewRoster } from "../data/fieldCrews";
 import {
   countBriefingAtRisk,
   getAllUnscheduledJobs,
@@ -27,7 +26,7 @@ export function DailyPlansScreen() {
   const { role } = useCurrentRole();
   const { hydrated, jobs, updateJob } = useJobs();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const [crewOptions, setCrewOptions] = useState<CrewProfile[]>([]);
+  const [roster, setRoster] = useState<DailyCrewRoster>({ crewGroups: [], floaters: [], allProfiles: [] });
 
   useEffect(() => {
     if (!actionNotice) return;
@@ -45,30 +44,29 @@ export function DailyPlansScreen() {
     let cancelled = false;
 
     async function loadCrews() {
-      const assignedNames = jobs.map((job) => job.assignedTo);
+      const assignedNames = todayJobs.map((job) => job.assignedTo);
       if (!role) {
         if (!cancelled) {
-          setCrewOptions(buildFieldCrews({ crews: [], technicians: [], assignedNames }));
+          setRoster(buildDailyCrewRoster({ crews: [], assignedNames }));
         }
         return;
       }
 
       try {
-        const roster = await requestJson<{ crews: CrewRecord[]; technicians: TechnicianRecord[] }>(
+        const fetched = await requestJson<{ crews: CrewRecord[] }>(
           "/api/field-roster",
           { role, cache: "no-store" },
         );
         if (cancelled) return;
-        setCrewOptions(
-          buildFieldCrews({
-            crews: roster.crews ?? [],
-            technicians: roster.technicians ?? [],
+        setRoster(
+          buildDailyCrewRoster({
+            crews: fetched.crews ?? [],
             assignedNames,
           }),
         );
       } catch {
         if (!cancelled) {
-          setCrewOptions(buildFieldCrews({ crews: [], technicians: [], assignedNames }));
+          setRoster(buildDailyCrewRoster({ crews: [], assignedNames }));
         }
       }
     }
@@ -77,7 +75,7 @@ export function DailyPlansScreen() {
     return () => {
       cancelled = true;
     };
-  }, [jobs, role]);
+  }, [todayJobs, role]);
 
   // ── Morning Briefing KPI metrics ──────────────────────────────────────────
 
@@ -97,14 +95,14 @@ export function DailyPlansScreen() {
   /** Active crews: on the roster and not marked out. */
   const activeCrews = useMemo(
     () =>
-      crewOptions.filter(
-        (c) =>
-          c.availability !== "vacation" &&
-          c.availability !== "sick" &&
-          c.availability !== "training" &&
-          c.availability !== "unavailable"
-      ).length,
-    [crewOptions]
+      roster.crewGroups.filter(
+        (g) =>
+          g.crew.availability !== "vacation" &&
+          g.crew.availability !== "sick" &&
+          g.crew.availability !== "training" &&
+          g.crew.availability !== "unavailable"
+      ).length + roster.floaters.length,
+    [roster]
   );
 
   /** Job count per technician name for CrewStatusPanel. */
@@ -183,7 +181,8 @@ export function DailyPlansScreen() {
 
           {/* ── Crew Status ─────────────────────────────────────────────────── */}
           <CrewStatusPanel
-            crews={crewOptions}
+            crewGroups={roster.crewGroups}
+            floaters={roster.floaters}
             jobCountByTechnician={jobCountByTechnician}
           />
 
@@ -193,7 +192,7 @@ export function DailyPlansScreen() {
             icon={Sun}
             jobs={todayJobs}
             emptyMessage="No jobs scheduled for today."
-            crewOptions={crewOptions}
+            crewOptions={roster.allProfiles}
             onReschedule={handleReschedule}
             onAssign={handleAssign}
           />
@@ -203,7 +202,7 @@ export function DailyPlansScreen() {
             icon={CalendarDays}
             jobs={upcomingJobs}
             emptyMessage="No upcoming jobs scheduled."
-            crewOptions={crewOptions}
+            crewOptions={roster.allProfiles}
             onReschedule={handleReschedule}
             onAssign={handleAssign}
             groupByDate
@@ -214,7 +213,7 @@ export function DailyPlansScreen() {
             icon={CircleAlert}
             jobs={unscheduledJobs}
             emptyMessage="All jobs have been scheduled — nothing in the backlog."
-            crewOptions={crewOptions}
+            crewOptions={roster.allProfiles}
             onReschedule={handleReschedule}
             onAssign={handleAssign}
             isUnscheduled
@@ -224,4 +223,3 @@ export function DailyPlansScreen() {
     </div>
   );
 }
-

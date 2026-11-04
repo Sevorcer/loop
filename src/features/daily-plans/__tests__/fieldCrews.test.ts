@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFieldCrews } from "../data/fieldCrews";
+import { buildDailyCrewRoster } from "../data/fieldCrews";
 import { buildPlannedJob } from "../utils/planUtils";
 import type { Job } from "@/features/jobs/types/job";
 
-describe("field crews", () => {
-  it("returns an empty roster when nothing is on file", () => {
-    expect(buildFieldCrews({ crews: [], technicians: [], assignedNames: ["", "  "] })).toEqual([]);
+describe("daily crew roster", () => {
+  it("returns empty roster when no one is assigned today", () => {
+    const roster = buildDailyCrewRoster({ crews: [], assignedNames: ["", "  "] });
+    expect(roster.crewGroups).toEqual([]);
+    expect(roster.floaters).toEqual([]);
+    expect(roster.allProfiles).toEqual([]);
   });
 
-  it("uses crew records and does not invent helpers or truck checks", () => {
-    const [crew] = buildFieldCrews({
+  it("groups an assigned person under their crew record", () => {
+    const roster = buildDailyCrewRoster({
       crews: [
         {
           id: "crew-1",
@@ -22,30 +25,84 @@ describe("field crews", () => {
           truck_name: "Van 2",
         },
       ],
-      technicians: [{ id: "tech-1", full_name: "Alex Kim", email: "alex@example.com" }],
-      assignedNames: ["Jordan Lee"],
+      assignedNames: ["Alex Kim"],
     });
 
-    expect(crew).toMatchObject({
+    expect(roster.crewGroups).toHaveLength(1);
+    expect(roster.crewGroups[0].crew).toMatchObject({
       technician: "Alex Kim",
       helper: "Sam Ortiz",
       truckName: "Van 2",
       availability: "half day",
-      truckChecks: [],
-      departureTime: "—",
     });
+    expect(roster.crewGroups[0].assignedMembers).toEqual(["Alex Kim"]);
+    expect(roster.floaters).toEqual([]);
   });
 
-  it("adds technicians and assigned names that are not already a crew", () => {
-    const crews = buildFieldCrews({
+  it("places assigned person with no crew in floaters group", () => {
+    const roster = buildDailyCrewRoster({
       crews: [],
-      technicians: [{ id: "tech-1", full_name: "Priya Shah", email: null }],
       assignedNames: ["Casey Ng"],
     });
 
-    expect(crews.map((crew) => crew.technician)).toEqual(["Casey Ng", "Priya Shah"]);
-    expect(crews.every((crew) => crew.rosterOnly)).toBe(true);
-    expect(crews.every((crew) => crew.truckName === "—")).toBe(true);
+    expect(roster.crewGroups).toEqual([]);
+    expect(roster.floaters).toEqual(["Casey Ng"]);
+    // Floaters have no invented truck, availability, or departure fields
+    const profile = roster.allProfiles.find((p) => p.technician === "Casey Ng");
+    expect(profile).toBeDefined();
+    expect(profile!.truckName).toBe("—");
+    expect(profile!.departureTime).toBe("—");
+  });
+
+  it("people not assigned today do not appear", () => {
+    const roster = buildDailyCrewRoster({
+      crews: [
+        {
+          id: "crew-1",
+          name: "Install",
+          lead_installer: "Alex Kim",
+          members: ["Sam Ortiz"],
+          certifications: ["EPA"],
+          availability: "available",
+          truck_name: "Van 2",
+        },
+      ],
+      assignedNames: [], // no one assigned today
+    });
+
+    expect(roster.crewGroups).toEqual([]);
+    expect(roster.floaters).toEqual([]);
+    expect(roster.allProfiles).toEqual([]);
+  });
+
+  it("empty day produces empty panel", () => {
+    const roster = buildDailyCrewRoster({ crews: [], assignedNames: [] });
+    expect(roster.crewGroups).toEqual([]);
+    expect(roster.floaters).toEqual([]);
+    expect(roster.allProfiles).toEqual([]);
+  });
+
+  it("crew member assigned today appears under their crew, not as a floater", () => {
+    const roster = buildDailyCrewRoster({
+      crews: [
+        {
+          id: "crew-1",
+          name: "Alpha Crew",
+          lead_installer: "Alex Kim",
+          members: ["Sam Ortiz"],
+          certifications: [],
+          availability: "available",
+          truck_name: "Van 1",
+        },
+      ],
+      assignedNames: ["Sam Ortiz", "Jordan Lee"],
+    });
+
+    // Sam is a member of crew-1 so appears under the crew
+    expect(roster.crewGroups).toHaveLength(1);
+    expect(roster.crewGroups[0].assignedMembers).toContain("Sam Ortiz");
+    // Jordan has no crew so is a floater
+    expect(roster.floaters).toEqual(["Jordan Lee"]);
   });
 });
 
