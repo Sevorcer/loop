@@ -35,6 +35,10 @@ const { fakeSupabase, calls } = vi.hoisted(() => {
       return this;
     }
 
+    is() {
+      return this;
+    }
+
     order(field: string, options?: { ascending?: boolean }) {
       this.orderField = field;
       this.ascending = options?.ascending ?? true;
