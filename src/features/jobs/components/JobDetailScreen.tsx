@@ -38,6 +38,7 @@ import type { JobActivity } from "../types/jobActivity";
 import type { JobNote } from "../types/jobNote";
 import type { JobSignature } from "../types/jobSignature";
 import { parseLatestQaChecklist, type RequiredQaChecklist } from "../utils/jobCompletionChecklist";
+import { finalScheduledDayBlocker } from "../utils/jobFinalDay";
 import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
@@ -674,6 +675,7 @@ export function JobDetailScreen({
               installedSystemsEntered={installedSystemsEntered}
               jobNotesCompleted={jobNotesCompleted}
               closeoutMode={job.closeoutMode ?? "full"}
+              finalDayBlocker={finalScheduledDayBlocker(job)}
               signatureCaption={
                 latestSignature
                   ? formatSignatureCaption({

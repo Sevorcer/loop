@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Circle, ShieldCheck } from "lucide-react";
+import { CalendarClock, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export function JobCompletionChecklistCard({
   installedSystemsEntered,
   jobNotesCompleted,
   closeoutMode = "full",
+  finalDayBlocker = null,
   signatureCaption,
   signaturePreviewUrl,
   initialChecklist,
@@ -39,6 +40,11 @@ export function JobCompletionChecklistCard({
   installedSystemsEntered: boolean;
   jobNotesCompleted: boolean;
   closeoutMode?: JobCloseoutMode;
+  /**
+   * The multi-day final-day block while it stands (see
+   * finalScheduledDayBlocker) — applies in both closeout modes.
+   */
+  finalDayBlocker?: string | null;
   signatureCaption?: string | null;
   signaturePreviewUrl?: string | null;
   initialChecklist: RequiredQaChecklist;
@@ -51,13 +57,16 @@ export function JobCompletionChecklistCard({
 
   const visitMode = closeoutMode === "visit";
   const qaComplete = isRequiredQaChecklistComplete(qaChecklist);
-  const canComplete = useMemo(
+  const gatesComplete = useMemo(
     () =>
       visitMode
         ? jobNotesCompleted
         : photosUploaded && installedSystemsEntered && jobNotesCompleted && qaComplete,
     [installedSystemsEntered, jobNotesCompleted, photosUploaded, qaComplete, visitMode],
   );
+  // Mirrors the server: the final-day block keeps the card from reading
+  // "ready" even when every checklist item is done.
+  const canComplete = gatesComplete && !finalDayBlocker;
 
   async function saveChecklist() {
     try {
@@ -91,6 +100,20 @@ export function JobCompletionChecklistCard({
         </div>
 
         <div className="mt-4 space-y-2">
+          {finalDayBlocker ? (
+            <div
+              data-checklist-blocker="final-day"
+              className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2"
+            >
+              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <div>
+                <p className="text-sm text-amber-100">Final scheduled day</p>
+                <p className="mt-0.5 text-xs leading-5 text-amber-200/80">
+                  {finalDayBlocker.charAt(0).toUpperCase() + finalDayBlocker.slice(1)}.
+                </p>
+              </div>
+            </div>
+          ) : null}
           <ChecklistRow label="Photos uploaded" complete={photosUploaded} />
           <ChecklistRow label="Installed systems entered" complete={installedSystemsEntered} />
           <ChecklistRow label="Job notes completed" complete={jobNotesCompleted} />
@@ -169,7 +192,9 @@ export function JobCompletionChecklistCard({
             ? visitMode
               ? "Job note recorded — this visit job can be marked complete."
               : "Completion checklist ready."
-            : visitMode
+            : finalDayBlocker && gatesComplete
+              ? "Checklist done — this job can be marked complete on its final scheduled day."
+              : visitMode
               ? "Add a job note to finish this visit job."
               : "Complete all checklist items before finishing this job."}
         </p>
