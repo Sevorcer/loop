@@ -147,10 +147,9 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
                     <span className="text-sm font-medium text-primary truncate">
                       {permit.jurisdiction} — {permit.permitType}
                     </span>
-                    <StatusBadge
-                      label={STATUS_LABELS[permit.status]}
-                      intent={STATUS_INTENT[permit.status]}
-                    />
+                    <StatusBadge variant={STATUS_INTENT[permit.status]}>
+                      {STATUS_LABELS[permit.status]}
+                    </StatusBadge>
                   </div>
                   {permit.permitNumber && (
                     <p className="text-xs text-muted">#{permit.permitNumber}</p>
