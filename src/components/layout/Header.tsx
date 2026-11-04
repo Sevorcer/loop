@@ -95,6 +95,10 @@ const pageContent: Record<string, PageMeta> = {
     title: "Reporting",
     description: "Interpret operational performance across time, domains, and teams.",
   },
+  [ROUTES.GC_OVERVIEW]: {
+    title: "GC Overview",
+    description: "Track builder billing, outstanding balances, and retainer status across all GC accounts.",
+  },
   // Workspace
   [ROUTES.SETTINGS]: {
     title: "Settings",
