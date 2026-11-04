@@ -8,6 +8,7 @@ import {
   listCustomerContacts,
   createCustomerContact,
 } from "@/services/customerContacts";
+import { readContactRole } from "@/features/customers/types/customerContact";
 
 export async function GET(
   request: Request,
@@ -15,7 +16,6 @@ export async function GET(
 ) {
   const guard = await requirePermission(request, "customer_contacts", "select");
   if (!guard.ok) return guard.response;
-
   try {
     const { id } = await params;
     const contacts = await listCustomerContacts(id);
@@ -31,23 +31,20 @@ export async function POST(
 ) {
   const guard = await requirePermission(request, "customer_contacts", "insert");
   if (!guard.ok) return guard.response;
-
   let body: Record<string, unknown>;
   try {
     body = await readJsonObject(request);
   } catch {
     return invalidJsonResponse();
   }
-
   try {
     const { id } = await params;
     const contact = await createCustomerContact(id, {
       name: String(body.name ?? "").trim(),
-      role: String(body.role ?? "other"),
+      role: readContactRole(body.role),
       phone: String(body.phone ?? "").trim(),
       email: String(body.email ?? "").trim(),
     });
-
     emitAuditEvent({
       role: guard.ctx.role,
       action: "create",
@@ -55,7 +52,6 @@ export async function POST(
       resourceId: id,
       details: { contactId: contact.id, name: contact.name },
     });
-
     return NextResponse.json({ contact }, { status: 201 });
   } catch (error) {
     logWriteFailure({ route: "/api/customers/[id]/contacts", request }, error);
