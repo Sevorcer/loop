@@ -63,14 +63,12 @@ describe("customer_contacts permissions", () => {
     expectAllowed("owner", ["select", "insert", "update", "delete"]);
   });
 
-  it("manager can read, add, and edit but not delete", () => {
-    expectAllowed("manager", ["select", "insert", "update"]);
-    expectDenied("manager", ["delete"]);
+  it("manager has full CRUD", () => {
+    expectAllowed("manager", ["select", "insert", "update", "delete"]);
   });
 
-  it("office can read, add, and edit but not delete", () => {
-    expectAllowed("office", ["select", "insert", "update"]);
-    expectDenied("office", ["delete"]);
+  it("office has full CRUD", () => {
+    expectAllowed("office", ["select", "insert", "update", "delete"]);
   });
 
   it("tech can read only", () => {

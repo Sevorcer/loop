@@ -72,9 +72,9 @@ BEGIN
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'customer_contacts'
-      AND policyname = 'customer_contacts: delete for owner only'
+      AND policyname = 'customer_contacts: delete for office and above'
       AND cmd = 'DELETE'
-  ), 'DELETE policy for owner only must still exist';
+  ), 'DELETE policy for office and above must exist';
 
   -- 7. Backfill correctness: no customer with contact info is left without a
   --    row in customer_contacts.

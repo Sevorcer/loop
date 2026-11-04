@@ -323,12 +323,12 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
   },
   // ── Money Layer — multiple contacts per customer ─────────────────────────
   // All internal roles (including tech) can read contacts.
-  // office/manager/owner can add and edit. Only owner can delete.
+  // office and above can add, edit, and delete.
   customer_contacts: {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>(["owner", "manager", "office"]),
-    delete: new Set<AppRole>(["owner"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
   },
 
   // ── Sprint 7 Settings Enhancements — user management ─────────────────────

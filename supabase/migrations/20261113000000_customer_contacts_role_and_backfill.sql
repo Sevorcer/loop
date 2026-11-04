@@ -73,6 +73,20 @@ CREATE POLICY "customer_contacts: read for tech"
     AND org_id = current_org_id()
   );
 
+-- ---------------------------------------------------------------------------
+-- 4. RLS — widen delete to office and above (Collin's ruling 2026-11-03)
+-- The existing policy ("customer_contacts: delete for owner only") restricts
+-- DELETE to owner. Collin ruled office+ should be able to delete contacts.
+-- ---------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS "customer_contacts: delete for owner only" ON public.customer_contacts;
+CREATE POLICY "customer_contacts: delete for office and above"
+  ON public.customer_contacts FOR DELETE
+  USING (
+    current_app_role() IN ('owner', 'manager', 'office')
+    AND org_id = current_org_id()
+  );
+
 -- =============================================================================
 -- POST-MIGRATION CHECKLIST
 --
