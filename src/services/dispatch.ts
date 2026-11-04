@@ -182,6 +182,58 @@ export async function assignCrewToPlan(
   return upsertCrewAssignment(input);
 }
 
+/**
+ * Reschedule a job by shifting its dates to a new target day. If the job has
+ * dispatch plans, the most recent one's schedule block and placement are moved
+ * too (via schedulePlan). If it has no plans, the job dates are updated
+ * directly. Used by the calendar drag-to-reschedule so that dispatch plans
+ * stay in sync.
+ */
+export async function rescheduleJobByDayShift(
+  jobId: string,
+  grabDay: string,
+  dropDay: string,
+) {
+  if (grabDay === dropDay) return;
+  const job = await getJobById(jobId);
+  if (!job) throw new Error(`Job '${jobId}' not found.`);
+
+  // Find the job's dispatch plan(s); use the most recent one.
+  const plans = await listDispatchPlansByJobId(jobId);
+  if (plans.length > 0) {
+    const plan = plans[plans.length - 1];
+    // schedulePlan handles shift math, job update, block upsert, and
+    // plan placement update — the same path the dispatch board uses.
+    await schedulePlan(
+      {
+        jobId,
+        scheduledDate: dropDay,
+        scheduledStartTime: "07:00",
+        scheduledEndTime: "16:00",
+        estimatedDurationHours: plan.estimatedDurationHours ?? 4,
+        dispatchStatus: "scheduled",
+      },
+      plan.id,
+    );
+  } else {
+    // No dispatch plan — move the job dates directly.
+    const shifted = job.scheduledStartAt
+      ? computeRescheduleShift({
+          scheduledStartAt: job.scheduledStartAt,
+          scheduledEndAt: job.scheduledEndAt ?? null,
+          grabDay,
+          dropDay,
+        })
+      : null;
+
+    await updateJob(jobId, {
+      scheduledFor: dropDay,
+      ...(shifted?.scheduledStartAt ? { scheduledStartAt: shifted.scheduledStartAt } : {}),
+      ...(shifted?.scheduledEndAt ? { scheduledEndAt: shifted.scheduledEndAt } : {}),
+    });
+  }
+}
+
 export async function schedulePlan(
   input: ScheduleBlockWriteInput,
   planId: string

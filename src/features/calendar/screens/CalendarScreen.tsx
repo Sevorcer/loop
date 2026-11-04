@@ -693,65 +693,44 @@ export function CalendarScreen() {
       const job = jobs.find((j) => j.id === jobId);
       if (!job) return;
 
-      // Compute shifted dates using the same shift math as the dispatch board.
+      // Compute shifted dates for the optimistic UI update.
       const startAt = job.scheduledStartAt ?? null;
-      const endAt = job.scheduledEndAt ?? null;
-
-      if (!startAt) {
-        // Jobs without a start timestamp cannot be shifted — only date-only
-        // scheduling applies. Move the legacy scheduledFor field.
-        try {
-          await requestJson(`/api/jobs/${jobId}`, {
-            role,
-            method: "PATCH",
-            body: { scheduledFor: dropDay },
-          });
-          setJobs((current) =>
-            current.map((j) =>
-              j.id === jobId ? { ...j, scheduledFor: dropDay } : j,
-            ),
-          );
-        } catch (error) {
-          pushToast(
-            error instanceof Error ? error.message : "Could not reschedule the job.",
-            "error",
-          );
-        }
-        return;
-      }
-
-      const shifted = computeRescheduleShift({
-        scheduledStartAt: startAt,
-        scheduledEndAt: endAt,
-        grabDay,
-        dropDay,
-      });
+      const shifted = startAt
+        ? computeRescheduleShift({
+            scheduledStartAt: startAt,
+            scheduledEndAt: job.scheduledEndAt ?? null,
+            grabDay,
+            dropDay,
+          })
+        : null;
 
       // Optimistic update
       const previousJobs = jobs;
-      const newScheduledFor = companyCalendarDate(shifted.scheduledStartAt) ?? dropDay;
+      const newScheduledFor = shifted
+        ? (companyCalendarDate(shifted.scheduledStartAt) ?? dropDay)
+        : dropDay;
       setJobs((current) =>
         current.map((j) =>
           j.id === jobId
             ? {
                 ...j,
-                scheduledStartAt: shifted.scheduledStartAt,
-                scheduledEndAt: shifted.scheduledEndAt,
                 scheduledFor: newScheduledFor,
+                ...(shifted ? {
+                  scheduledStartAt: shifted.scheduledStartAt,
+                  scheduledEndAt: shifted.scheduledEndAt,
+                } : {}),
               }
             : j,
         ),
       );
 
       try {
-        await requestJson(`/api/jobs/${jobId}`, {
+        // Use the reschedule endpoint so dispatch-plan schedule blocks
+        // move with the job — the same path the dispatch board uses.
+        await requestJson(`/api/jobs/${jobId}/reschedule`, {
           role,
-          method: "PATCH",
-          body: {
-            scheduledFor: newScheduledFor,
-            scheduledStartAt: shifted.scheduledStartAt,
-            scheduledEndAt: shifted.scheduledEndAt,
-          },
+          method: "POST",
+          body: { grabDay, dropDay },
         });
       } catch (error) {
         // Revert on failure

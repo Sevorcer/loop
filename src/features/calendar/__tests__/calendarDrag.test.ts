@@ -4,8 +4,12 @@ import { computeRescheduleShift } from "@/lib/rescheduleShift";
 /**
  * Calendar drag-to-reschedule tests.
  *
- * The calendar uses the same computeRescheduleShift utility as the dispatch
- * board (via services/dispatch.ts) so both surfaces share identical shift math.
+ * The calendar calls POST /api/jobs/{id}/reschedule with { grabDay, dropDay },
+ * which goes through rescheduleJobByDayShift in services/dispatch.ts. That
+ * function finds the job's dispatch plan (if any) and calls schedulePlan —
+ * the same path the dispatch board uses — so dispatch-plan schedule blocks
+ * move with the job. Both surfaces share computeRescheduleShift for the
+ * shift math.
  */
 describe("calendar drag reschedule", () => {
   describe("uses the same shift math as dispatch", () => {
