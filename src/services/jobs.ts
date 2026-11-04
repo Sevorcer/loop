@@ -46,10 +46,12 @@ import {
   listJobsByPropertyId,
   listJobsForDispatch,
   listJobsInRange,
+  listJobsPaginated,
   listRecentJobs as listRecentJobRecords,
   toJob,
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
+import type { JobListFilter, PaginatedJobsResult } from "@/repositories/jobs";
 import {
   createDispatchPlan,
   deleteDispatchPlansByJobId,
@@ -310,6 +312,17 @@ export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: J
     viewerCanSeePrice(),
   ]);
   return { jobs, activity: redactJobPriceActivity(activity, canSeePrice) };
+}
+
+/**
+ * Server-side filtered and paginated job listing for the jobs board.
+ * Pushes filtering, search, and pagination to the database so only the
+ * rows the client renders are shipped over the wire.
+ */
+export async function listJobsPage(
+  filter: JobListFilter,
+): Promise<PaginatedJobsResult> {
+  return listJobsPaginated(filter);
 }
 
 /**
