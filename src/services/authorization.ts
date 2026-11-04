@@ -77,7 +77,10 @@ export type CoreTable =
   | "feedback_reports"
   // Sprint 7 Settings Enhancements — user management
   // owner/manager may manage org users; owner alone may delete.
-  | "user_profiles";
+  | "user_profiles"
+  // GC Ledger — Money Layer Task 4
+  | "gc_ledger_entries"
+  | "gc_change_orders";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -326,6 +329,21 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     select: new Set<AppRole>(["owner", "manager"]),
     insert: new Set<AppRole>(["owner", "manager"]),
     update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // ── GC Ledger — Money Layer Task 4 ────────────────────────────────────────
+  // Read: owner, manager, dispatch, office, sales (same as customers).
+  // Write: owner, manager, office. Delete: owner only.
+  gc_ledger_entries: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  gc_change_orders: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner"]),
   },
 };

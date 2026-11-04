@@ -24,6 +24,7 @@ export const ROUTES = {
   SETTINGS_ROLES: "/settings/roles",
   SETTINGS_FEEDBACK: "/settings/feedback",
   OPS_FEEDBACK: "/ops/feedback",
+  GC_OVERVIEW: "/gc-overview",
 } as const;
 
 export const ROUTE_BUILDERS = {

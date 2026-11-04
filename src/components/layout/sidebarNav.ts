@@ -16,6 +16,7 @@ import {
   Truck,
   Workflow,
   MessageSquare,
+  Landmark,
 } from "lucide-react";
 
 import { getNavItemsForRole, type NavGroup } from "@/features/auth";
@@ -61,6 +62,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
     label: "INSIGHTS",
     items: [
       { name: "Reporting", href: ROUTES.REPORTING, icon: BarChart3 },
+      { name: "GC Overview", href: ROUTES.GC_OVERVIEW, icon: Landmark },
       { name: "Feedback Reports", href: ROUTES.OPS_FEEDBACK, icon: MessageSquare },
     ],
   },

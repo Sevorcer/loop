@@ -11,6 +11,7 @@ import { formatDateOnly } from "@/lib/dates";
 import { CustomerDeleteButton } from "../components/CustomerDeleteButton";
 import { CustomerDetailTabs } from "../components/CustomerDetailTabs";
 import { CustomerMobileActionBar } from "../components/CustomerMobileActionBar";
+import { GcLedgerSection } from "@/features/gc-ledger/components/GcLedgerSection";
 import type { Customer } from "../types/customer";
 import type {
   CustomerInstalledSystemItem,
@@ -264,6 +265,14 @@ export function CustomerDetailScreen({
         initialTab={initialTab}
         initialPropertyId={initialPropertyId}
       />
+
+      {/* GC Ledger section — shown only for parent (builder) customers. */}
+      {customer.childCustomers && customer.childCustomers.length > 0 ? (
+        <GcLedgerSection
+          customerId={customer.id}
+          customerName={customer.name}
+        />
+      ) : null}
 
       {/* F14: sticky phone action bar (Call / Directions). */}
       <CustomerMobileActionBar customer={customer} />
