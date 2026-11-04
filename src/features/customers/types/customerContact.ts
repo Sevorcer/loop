@@ -9,6 +9,14 @@ export const CONTACT_ROLE_LABELS: Record<ContactRole, string> = {
   other: "Other",
 };
 
+/** Parse an untrusted value into a ContactRole, defaulting to "other". */
+export function readContactRole(value: unknown): ContactRole {
+  const raw = String(value ?? "other");
+  return (CONTACT_ROLES as readonly string[]).includes(raw)
+    ? (raw as ContactRole)
+    : "other";
+}
+
 export interface CustomerContact {
   id: string;
   customerId: string;
