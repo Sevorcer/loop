@@ -29,18 +29,17 @@ import {
   type ScheduleBlockWriteInput,
 } from "@/repositories/dispatch";
 
-export { loadDispatchSnapshot };
-
 /** How many days of completed work the dispatch board keeps on screen. */
 export const DISPATCH_BOARD_COMPLETED_WINDOW_DAYS = 7;
 
 /**
- * The dispatch board's snapshot: all active plans (any date) plus completed
- * plans from the last DISPATCH_BOARD_COMPLETED_WINDOW_DAYS days, counted in
- * the company timezone. The full snapshot loads thousands of completed
- * plans going back years, which a working board never displays; other
- * consumers (customer timeline, snapshot API) keep the unwindowed read via
- * loadDispatchSnapshot.
+ * The dispatch board's windowed snapshot: all active plans (any date) plus
+ * completed plans from the last DISPATCH_BOARD_COMPLETED_WINDOW_DAYS days,
+ * counted in the company timezone.
+ *
+ * Both the server-rendered board page and the /api/dispatch-plans snapshot
+ * API use this windowed read. The customer/property timeline uses the
+ * scoped loadDispatchDataForJobs() in the repository layer instead.
  */
 export async function loadBoardDispatchSnapshot() {
   const completedSince = addCalendarDays(
