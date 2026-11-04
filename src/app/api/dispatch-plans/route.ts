@@ -1,8 +1,11 @@
 /**
  * Dispatch snapshot API.
  *
- * GET  /api/dispatch-plans — load full dispatch snapshot (plans, crews,
- *                             assignments, schedule blocks, events).
+ * GET  /api/dispatch-plans — windowed dispatch snapshot: all active plans
+ *                             plus the last N days of completed work,
+ *                             matching the board page's own window so the
+ *                             client-side refresh never loads unbounded
+ *                             history.
  * POST /api/dispatch-plans — create a new dispatch plan.
  */
 
@@ -16,7 +19,7 @@ import {
   readJsonObject,
 } from "@/lib/api/routeErrors";
 import { logWriteFailure } from "@/lib/observability/writes";
-import { loadDispatchSnapshot, createPlan } from "@/services/dispatch";
+import { loadBoardDispatchSnapshot, createPlan } from "@/services/dispatch";
 import type { DispatchPlanWriteInput } from "@/services/dispatch";
 
 export async function GET(request: Request) {
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    const snapshot = await loadDispatchSnapshot();
+    const snapshot = await loadBoardDispatchSnapshot();
     return NextResponse.json(snapshot);
   } catch (error) {
     return mapRouteError(error);
