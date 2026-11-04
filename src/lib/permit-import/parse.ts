@@ -343,18 +343,6 @@ export function parsePermitCsv(csvContent: string): ParseResult {
       continue;
     }
 
-    // Flag low confidence rows
-    const confidence = row.confidence.toLowerCase() === "low" ? "low" : "high";
-    if (confidence === "low") {
-      flagged.push({
-        sourceRow,
-        customerName: row.customerName,
-        reason: "low_confidence",
-        detail: `Row has low extraction confidence`,
-        rawRow: row,
-      });
-    }
-
     const status = deriveStatus(row);
     const installDate = parseInstallDate(row.installDate);
     const permitNumbers = splitPermitNumbers(row.permitNo);
