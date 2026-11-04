@@ -1,8 +1,6 @@
 import { Activity, CalendarDays, FileText, RefreshCcw, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas/PageHeader";
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/routes";
 import type { DashboardSummary } from "@/repositories/dashboard";
 import { getCurrentOperator } from "@/services/currentOperator";
 
@@ -22,7 +20,6 @@ interface DashboardHeaderProps {
 
 export async function DashboardHeader({ summary }: DashboardHeaderProps) {
   const operator = await getCurrentOperator();
-  if (operator.appRole === "tech") redirect(ROUTES.JOBS);
   const userName = operator.name;
 
   const currentHour = Number(

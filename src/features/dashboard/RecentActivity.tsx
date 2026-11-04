@@ -17,6 +17,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { requestJson } from "@/lib/api/client";
 import type { Job } from "@/features/jobs/types/job";
 import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActivity";
 
@@ -64,9 +65,7 @@ export function RecentActivity() {
 
     async function load() {
       try {
-        const res = await fetch("/api/jobs");
-        if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
-        const data = (await res.json()) as { jobs?: Job[]; activity?: JobActivity[] };
+        const data = await requestJson<{ jobs?: Job[]; activity?: JobActivity[] }>("/api/jobs/recent?limit=5");
         const jobs = Array.isArray(data.jobs) ? data.jobs : [];
         const activity = Array.isArray(data.activity) ? data.activity : [];
         const jobsById = new Map(jobs.map((job) => [job.id, job]));

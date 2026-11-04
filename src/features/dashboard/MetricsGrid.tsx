@@ -52,6 +52,8 @@ export function MetricsGrid({ summary }: MetricsGridProps) {
           title={metric.title}
           value={metric.value}
           description={metric.description}
+          href={metric.href}
+          helpText={metric.helpText}
           trend={metric.trend}
         />
       ))}

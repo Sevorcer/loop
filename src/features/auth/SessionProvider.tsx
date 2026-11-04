@@ -41,7 +41,7 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-function useDerivedSessionValue(): SessionContextValue {
+function useDerivedSessionValue(skip = false): SessionContextValue {
   const { session, user, isLoading } = useAuth();
   const [devRole] = useState<AppRole | null>(() => readStoredDevRole());
   const authUser = session?.user ?? user;
@@ -49,7 +49,9 @@ function useDerivedSessionValue(): SessionContextValue {
   const [profile, setProfile] = useState<{ userId: string; name: string | null; role: AppRole | null } | null>(null);
 
   useEffect(() => {
-    if (!authUserId) return;
+    // When `skip` is true the provider context is available — avoid a
+    // duplicate profile fetch that would never be consumed.
+    if (skip || !authUserId) return;
     let cancelled = false;
     void loadOwnProfile(authUserId)
       .then((loaded) => {
@@ -61,7 +63,7 @@ function useDerivedSessionValue(): SessionContextValue {
     return () => {
       cancelled = true;
     };
-  }, [authUserId]);
+  }, [authUserId, skip]);
 
   const activeProfile = authUserId && profile?.userId === authUserId ? profile : null;
 
@@ -118,9 +120,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
  */
 export function useSession(): SessionContextValue {
   const contextValue = useContext(SessionContext);
-  const derivedValue = useDerivedSessionValue();
-  // Sidebar and other legacy callers still consume this hook without mounting
-  // SessionProvider, so fall back to the auth-derived value instead of hanging
-  // in the default loading state from an uninitialized context.
+  // `useDerivedSessionValue` is called unconditionally (rules of hooks) but
+  // passes `skip = true` when the provider context is available, which
+  // prevents the duplicate profile fetch.
+  const derivedValue = useDerivedSessionValue(contextValue !== null);
   return contextValue ?? derivedValue;
 }
