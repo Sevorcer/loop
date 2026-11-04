@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { PermissionGuard, PhoneLink } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { pushToast } from "@/components/ui/toast";
 
 import type {
   ContactRole,
@@ -160,6 +161,7 @@ export function CustomerContactsList({
       try {
         const res = await fetch(`/api/customers/${customerId}/contacts`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
@@ -172,6 +174,7 @@ export function CustomerContactsList({
         setShowAddForm(false);
       } catch (err) {
         console.error("[CustomerContactsList] add failed", err);
+        pushToast(err instanceof Error ? err.message : "Failed to add contact.", "error");
       } finally {
         setSubmitting(false);
       }
@@ -185,6 +188,7 @@ export function CustomerContactsList({
       try {
         const res = await fetch(`/api/customers/${customerId}/contacts/${contactId}`, {
           method: "PUT",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
@@ -197,6 +201,7 @@ export function CustomerContactsList({
         setEditingId(null);
       } catch (err) {
         console.error("[CustomerContactsList] update failed", err);
+        pushToast(err instanceof Error ? err.message : "Failed to update contact.", "error");
       } finally {
         setSubmitting(false);
       }
@@ -206,9 +211,11 @@ export function CustomerContactsList({
 
   const handleDelete = useCallback(
     async (contactId: string) => {
+      if (!window.confirm("Remove this contact? This action cannot be undone.")) return;
       try {
         const res = await fetch(`/api/customers/${customerId}/contacts/${contactId}`, {
           method: "DELETE",
+          credentials: "include",
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -217,6 +224,7 @@ export function CustomerContactsList({
         setContacts((prev) => prev.filter((c) => c.id !== contactId));
       } catch (err) {
         console.error("[CustomerContactsList] delete failed", err);
+        pushToast(err instanceof Error ? err.message : "Failed to delete contact.", "error");
       }
     },
     [customerId],
