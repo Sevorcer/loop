@@ -44,25 +44,16 @@ const SALES_DENIED_PREFIXES: readonly string[] = [
   ADMIN_BASE,
 ];
 
-const OFFICE_DENIED_PREFIXES: readonly string[] = [
-  ROUTES.DISPATCH,
-  ROUTES.CONTRACTORS,
-  ROUTES.VEHICLE_ALERTS,
-  ROUTES.COMPANY_BRAIN,
-  ROUTES.SETTINGS,
-  ROUTES.OPS_FEEDBACK,
-  ROUTES.LIVE_OPERATIONS,
-  ADMIN_BASE,
-];
-
 /**
  * Map of roles to their denied path prefixes. Roles not listed here
- * (owner, manager, dispatch) have unrestricted shell access.
+ * (owner, manager, dispatch, office) have unrestricted shell access.
+ * Office is unrestricted by Collin's ruling (2026-11-04): the office
+ * staff keep access to every shell area, including dispatch, feedback,
+ * contractors, vehicle alerts, company brain, settings, and live ops.
  */
 const ROLE_DENIED_PREFIXES: Partial<Record<AppRole, readonly string[]>> = {
   tech: TECH_DENIED_PREFIXES,
   sales: SALES_DENIED_PREFIXES,
-  office: OFFICE_DENIED_PREFIXES,
 };
 
 function normalizePath(pathname: string): string {
