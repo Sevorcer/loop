@@ -91,6 +91,7 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   jobs: "Jobs",
   job_inspections: "Job Inspections",
   inspection_corrections: "Inspection Corrections",
+  job_permits: "Job Permits",
   job_activity: "Job Activity",
   job_notes: "Job Notes",
   job_signatures: "Job Signatures",
