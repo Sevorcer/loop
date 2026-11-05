@@ -338,7 +338,7 @@ export async function getPortalJobData(
     status: jobRow.status as string,
     type: jobRow.type as string,
     scheduledDate: jobRow.scheduled_for as string | null,
-    completedDate,
+    completedDate: await getCompletionTimestamp(admin, jobId),
     propertyAddress,
     customerName,
     crewFirstNames,
