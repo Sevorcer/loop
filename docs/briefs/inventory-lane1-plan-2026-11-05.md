@@ -1,6 +1,8 @@
 # Inventory Lane 1 (Foundation) — Implementation Plan
 
-Status: **PLAN ONLY — awaiting Collin's approval.** No code, no migration files until approved (AGENTS.md sprint workflow).
+Status: **APPROVED by Collin 2026-11-05 (as written, with the vehicles amendment below).** Build sequence PR A–D. D2 stands: `catalog_price_tiers` is in Lane 1.
+
+> **Amendment (Collin, 2026-11-05) — vehicles: NO backfill, NO seed vans.** M3 only adds the nullable FK columns (`crews.vehicle_id`, `vehicle_alerts.vehicle_id`); it creates **no** `vehicles` rows from `truck_name` / `vehicle_name`. No van list is coming — Collin adds the real vans himself on the Locations & vans screen. `jjj` and `Unmarked Van` alerts stay unlinked. M4 (drop the text fields) stays gated on the cutover being live-checked. This supersedes the backfill wording in §3 (M3) and decisions D4/D5; the seed script (§3) loads categories, catalog items, and the warehouse/quarantine locations only.
 Date: 2026-11-05
 Sources read: `field-service-inventory-design-2026-11-05.md`, `loop-inventory-design-review-2026-11-05.md`, `claude-brief-inventory-amendments-2026-11-05.md` (the Lane 1 approval brief calls it `loop-inventory-design-amendments-…`; the repo file is the `claude-brief-…` name), `claude-brief-inventory-lane1-approval-2026-11-05.md`. Where design and amendments disagree, amendments win.
 
