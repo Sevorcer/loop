@@ -89,6 +89,7 @@ describe("POST /api/portal/[token]/submit — issue submission", () => {
     const res = await POST(
       postRequest(VALID_TOKEN, {
         name: "Jordan Lee",
+        company: "Lee Builders",
         contact: "jordan@builder.com",
         message: "The ductwork in unit 3B needs adjustment.",
       }),
@@ -108,6 +109,7 @@ describe("POST /api/portal/[token]/submit — issue submission", () => {
         name: "Jordan Lee",
         contact: "jordan@builder.com",
         message: "The ductwork in unit 3B needs adjustment.",
+        submitter_company: "Lee Builders",
       }),
     );
   });
@@ -119,6 +121,7 @@ describe("POST /api/portal/[token]/submit — issue submission", () => {
     const res = await POST(
       postRequest(INVALID_TOKEN, {
         name: "Test",
+        company: "Test Co",
         message: "Test message",
       }),
       { params: Promise.resolve({ token: INVALID_TOKEN }) },
@@ -147,6 +150,7 @@ describe("POST /api/portal/[token]/submit — issue submission", () => {
     const res = await POST(
       postRequest(VALID_TOKEN, {
         name: "Spammer",
+        company: "Spam Inc",
         message: "spam",
       }),
       { params: Promise.resolve({ token: VALID_TOKEN }) },
@@ -166,6 +170,7 @@ describe("POST /api/portal/[token]/submit — issue submission", () => {
     await POST(
       postRequest(VALID_TOKEN, {
         name: "Test Builder",
+        company: "Builder Co",
         message: "Issue with HVAC unit",
         // A malicious client might try to specify a different job:
         jobId: "different-job-id",
@@ -192,6 +197,7 @@ describe("POST /api/portal/[token]/submit — issue submission", () => {
     const res = await POST(
       postRequest(VALID_TOKEN, {
         name: "",
+        company: "Some Co",
         message: "Some message",
       }),
       { params: Promise.resolve({ token: VALID_TOKEN }) },
@@ -211,7 +217,28 @@ describe("POST /api/portal/[token]/submit — issue submission", () => {
     const res = await POST(
       postRequest(VALID_TOKEN, {
         name: "Test",
+        company: "Test Co",
         message: "",
+      }),
+      { params: Promise.resolve({ token: VALID_TOKEN }) },
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects submission with missing company", async () => {
+    resolveShareTokenMock.mockResolvedValue({
+      id: LINK_ID,
+      orgId: ORG_ID,
+      jobId: JOB_ID,
+    });
+
+    const { POST } = await import("@/app/api/portal/[token]/submit/route");
+    const res = await POST(
+      postRequest(VALID_TOKEN, {
+        name: "Test",
+        company: "",
+        message: "Some message",
       }),
       { params: Promise.resolve({ token: VALID_TOKEN }) },
     );
