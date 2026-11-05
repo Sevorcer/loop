@@ -7,6 +7,7 @@ import {
   type TechnicalManualMatch,
   type TechnicalSectionKey,
 } from "../types/jobMaterials";
+import type { InstalledSystemManual } from "@/features/manuals/types/manuals";
 
 // ------------------------------------------------------------------
 // Inputs — the minimum the builder needs from the live tables
@@ -259,6 +260,8 @@ export function buildJobTechnicalData(input: {
   profiles: ReadonlyArray<TechnicalProfileInput>;
   knowledge: ReadonlyArray<KnowledgeItemInput>;
   links: ReadonlyArray<KnowledgeLinkInput>;
+  /** #8: Drive manuals per installed system id (linked + best matches). */
+  driveManuals?: ReadonlyMap<string, InstalledSystemManual[]>;
 }): JobTechnicalData {
   const profilesById = new Map(input.profiles.map((profile) => [profile.id, profile]));
   const linksBySystem = new Map<string, Set<string>>();
@@ -300,6 +303,7 @@ export function buildJobTechnicalData(input: {
       sections,
       recordFields: recordFields(system.attributes),
       manuals: manualsForSystem(system, input.knowledge, linked),
+      driveManuals: input.driveManuals?.get(system.id) ?? [],
     };
   });
 
@@ -323,8 +327,8 @@ export function buildJobTechnicalData(input: {
         "Equipment is on file, but no charge, clearance or electrical specs are recorded for it yet.",
       );
     }
-    if (!systems.some((system) => system.manuals.length > 0)) {
-      gaps.push("No Company Brain manuals match this equipment yet.");
+    if (!systems.some((system) => system.manuals.length > 0 || system.driveManuals.length > 0)) {
+      gaps.push("No Company Brain or Drive manuals match this equipment yet.");
     }
   }
 

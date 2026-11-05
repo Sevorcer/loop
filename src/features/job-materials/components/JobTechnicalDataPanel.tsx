@@ -1,12 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, Cpu, Info, Loader2 } from "lucide-react";
+import { BookOpen, Cpu, FileText, Info, Loader2 } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import type { InstalledSystemManual } from "@/features/manuals/types/manuals";
 
 import { useJobTechnicalData } from "../state/JobTechnicalDataProvider";
 import type { TechnicalDataSystem, TechnicalManualMatch } from "../types/jobMaterials";
+
+const DRIVE_STATUS_LABEL: Record<InstalledSystemManual["status"], string> = {
+  confirmed: "Drive · confirmed",
+  auto_linked: "Drive · auto-linked",
+  suggested: "Drive · suggested",
+  rejected: "Drive · unlinked",
+  match: "Drive · possible",
+};
 
 const MATCH_LABEL: Record<TechnicalManualMatch["matchedBy"], string> = {
   linked: "Linked",
@@ -94,6 +103,35 @@ function SystemCard({ system }: { system: TechnicalDataSystem }) {
           ))}
         </ul>
       ) : null}
+
+      {system.driveManuals.length > 0 ? (
+        <ul className="mt-2 space-y-1 border-t border-white/5 pt-2" aria-label="Drive manuals">
+          {system.driveManuals.map((item) => (
+            <li key={item.manual.id} className="flex items-center gap-2 text-xs text-slate-300">
+              <FileText className="h-3.5 w-3.5 shrink-0 text-sky-300" />
+              {item.manual.webViewLink ? (
+                <a
+                  href={item.manual.webViewLink}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="min-w-0 flex-1 truncate hover:underline"
+                  title={item.reason ? `${item.manual.name} — ${item.reason}` : item.manual.name}
+                >
+                  {item.manual.name}
+                </a>
+              ) : (
+                <span className="min-w-0 flex-1 truncate" title={item.manual.name}>
+                  {item.manual.name}
+                </span>
+              )}
+              <span className="shrink-0 rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] text-slate-400">
+                {DRIVE_STATUS_LABEL[item.status]}
+                {item.status === "match" || item.status === "suggested" ? ` · ${Math.round(item.confidence * 100)}%` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </li>
   );
 }
@@ -125,7 +163,7 @@ export function JobTechnicalDataPanel({ compact = false }: { compact?: boolean }
           </h2>
           {!compact ? (
             <p className="mt-1 text-sm text-slate-400">
-              Pulled automatically from the equipment on file and Company Brain.
+              Pulled automatically from the equipment on file, Company Brain and the Drive manuals.
             </p>
           ) : null}
         </div>

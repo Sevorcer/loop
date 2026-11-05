@@ -8,6 +8,10 @@ import type {
   JobTechnicalData,
 } from "@/features/job-materials/types/jobMaterials";
 import { buildJobTechnicalData, knowledgeSearchTokens } from "@/features/job-materials/utils/technicalData";
+import type { DriveManualFile, InstalledSystemManual } from "@/features/manuals/types/manuals";
+import { driveManualsForTechnicalPanel } from "@/features/manuals/utils/composeManuals";
+import { listDriveManualFiles } from "@/repositories/driveManuals";
+import { listManualLinksForSystems, type StoredManualLink } from "@/repositories/installedSystemManuals";
 import {
   createJobMaterialLine,
   deleteJobMaterialLine,
@@ -74,7 +78,7 @@ export async function getJobTechnicalData(jobId: string): Promise<JobTechnicalDa
 
   const systems = await listTechnicalSystemsForJob(anchor.id, anchor.propertyId);
   const tokens = knowledgeSearchTokens(systems);
-  const [profiles, knowledge] = await Promise.all([
+  const [profiles, knowledge, drive] = await Promise.all([
     listTechnicalProfilesByIds(
       systems.map((system) => system.technicalProfileId).filter((id): id is string => !!id),
     ),
@@ -84,7 +88,20 @@ export async function getJobTechnicalData(jobId: string): Promise<JobTechnicalDa
       tags: tokens.tags,
       titleModels: tokens.titleModels,
     }),
+    loadDriveManualsForSystems(systems.map((system) => system.id)),
   ]);
+
+  const driveManuals = new Map<string, InstalledSystemManual[]>();
+  for (const system of systems) {
+    driveManuals.set(
+      system.id,
+      driveManualsForTechnicalPanel(
+        { manufacturer: system.manufacturer, modelNumber: system.modelNumber, systemName: system.systemName },
+        drive.links.filter((link) => link.installedSystemId === system.id),
+        drive.files,
+      ),
+    );
+  }
 
   return buildJobTechnicalData({
     jobId: anchor.id,
@@ -93,7 +110,25 @@ export async function getJobTechnicalData(jobId: string): Promise<JobTechnicalDa
     profiles,
     knowledge: knowledge.items,
     links: knowledge.links,
+    driveManuals,
   });
+}
+
+/**
+ * #8: Drive manuals + stored links for the panel. Non-fatal — until the
+ * manuals migrations are applied (or with no systems) the panel simply shows
+ * no Drive manuals.
+ */
+async function loadDriveManualsForSystems(
+  systemIds: string[],
+): Promise<{ files: DriveManualFile[]; links: StoredManualLink[] }> {
+  if (systemIds.length === 0) return { files: [], links: [] };
+  try {
+    const [files, links] = await Promise.all([listDriveManualFiles(), listManualLinksForSystems(systemIds)]);
+    return { files, links };
+  } catch {
+    return { files: [], links: [] };
+  }
 }
 
 export async function getSystemCountsForProperties(propertyIds: ReadonlyArray<string>) {

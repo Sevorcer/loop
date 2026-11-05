@@ -6,7 +6,7 @@
  *
  * Roles: owner, manager, dispatch, office. 503 until the
  * GOOGLE_DRIVE_SERVICE_ACCOUNT_* / GOOGLE_DRIVE_MANUAL_FOLDER_IDS env vars
- * are set.
+ * are set. After a sync, Copilot re-matches equipment (#8).
  */
 
 import { NextResponse } from "next/server";
@@ -16,6 +16,7 @@ import { emitAuditEvent } from "@/lib/audit";
 import { canManageManuals } from "@/features/manuals/utils/manualRoles";
 import { forbiddenResponse, manualErrorResponse } from "@/lib/manuals/routeHelpers";
 import { syncDriveManuals } from "@/services/driveManuals";
+import { autoMatchAllSystems } from "@/services/manualAutoMatch";
 
 export async function POST(request: Request) {
   const guard = await requirePermission(request, "knowledge_items", "select");
@@ -23,7 +24,12 @@ export async function POST(request: Request) {
   if (!canManageManuals(guard.ctx.role)) return forbiddenResponse("Only office staff can sync Drive manuals.");
 
   try {
-    const run = await syncDriveManuals();
+    // #8: after the index refreshes, Copilot re-matches equipment to manuals.
+    const run = await syncDriveManuals({
+      afterSync: async () => {
+        await autoMatchAllSystems();
+      },
+    });
     emitAuditEvent({ role: guard.ctx.role, action: "update", resource: "drive_manual_files", resourceId: run.id });
     return NextResponse.json({ run });
   } catch (error) {

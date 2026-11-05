@@ -8,6 +8,7 @@
 // ============================================================
 
 import type { ReadinessState } from "@/features/dispatch/types/dispatch";
+import type { InstalledSystemManual } from "@/features/manuals/types/manuals";
 
 export const JOB_MATERIAL_STATES = ["needed", "on_truck", "used"] as const;
 export type JobMaterialState = (typeof JOB_MATERIAL_STATES)[number];
@@ -127,6 +128,8 @@ export interface TechnicalDataSystem {
   /** Extra fields carried on the equipment record (e.g. filter size from Service Fusion). */
   recordFields: { label: string; value: string }[];
   manuals: TechnicalManualMatch[];
+  /** Google Drive manuals (#32/#8): linked first, then the best possible matches. */
+  driveManuals: InstalledSystemManual[];
 }
 
 export interface JobTechnicalData {

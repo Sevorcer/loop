@@ -1,13 +1,9 @@
 import "server-only";
 
-import type {
-  DriveManualFile,
-  InstalledSystemManual,
-  InstalledSystemManualsView,
-  ManualMatch,
-} from "@/features/manuals/types/manuals";
+import type { InstalledSystemManualsView } from "@/features/manuals/types/manuals";
 import { ManualValidationError } from "@/features/manuals/utils/manualErrors";
-import { confidenceLevel, matchManualsForSystem } from "@/features/manuals/utils/manualMatch";
+import { composeSystemManuals, fromStoredLink, MAX_SUGGESTIONS } from "@/features/manuals/utils/composeManuals";
+import { matchManualsForSystem } from "@/features/manuals/utils/manualMatch";
 import { canManageManuals } from "@/features/manuals/utils/manualRoles";
 import { buildSystemPlacement } from "@/features/manuals/utils/systemPlacement";
 import { readDriveSyncConfig } from "@/lib/manuals/driveConfig";
@@ -20,95 +16,9 @@ import {
   loadSystemPlacementRow,
   upsertOfficeManualDecision,
   type PlacementJobRow,
-  type StoredManualLink,
 } from "@/repositories/installedSystemManuals";
 
-export const MAX_SUGGESTIONS = 5;
-
-function manualSummary(file: DriveManualFile): InstalledSystemManual["manual"] {
-  return {
-    id: file.id,
-    name: file.name,
-    webViewLink: file.webViewLink,
-    docType: file.docType,
-    manufacturer: file.manufacturer,
-    models: file.models,
-    folderPath: file.folderPath,
-    mimeType: file.mimeType,
-    status: file.status,
-  };
-}
-
-function fromStored(link: StoredManualLink): InstalledSystemManual | null {
-  if (!link.manual) return null;
-  return {
-    manual: manualSummary(link.manual),
-    status: link.status,
-    source: link.source,
-    kind: link.kind,
-    confidence: link.confidence,
-    level: confidenceLevel(link.confidence),
-    reason: link.reason,
-    decidedAt: link.decidedAt,
-  };
-}
-
-function fromMatch(match: ManualMatch, file: DriveManualFile): InstalledSystemManual {
-  return {
-    manual: manualSummary(file),
-    status: "match",
-    source: "live",
-    kind: match.kind,
-    confidence: match.confidence,
-    level: match.level,
-    reason: match.reason,
-    decidedAt: null,
-  };
-}
-
-const LINKED_ORDER = { confirmed: 0, auto_linked: 1 } as const;
-
-/**
- * Split stored decisions + live matches into what the system card shows.
- * Pure apart from its inputs — exported for tests and for #8.
- */
-export function composeSystemManuals(
-  stored: StoredManualLink[],
-  matches: ManualMatch[],
-  files: DriveManualFile[],
-): Pick<InstalledSystemManualsView, "linked" | "suggestions" | "rejectedCount"> {
-  const byId = new Map(files.map((f) => [f.id, f]));
-  const decided = new Set(stored.map((s) => s.manualId));
-
-  const linked = stored
-    .filter((s) => s.status === "confirmed" || s.status === "auto_linked")
-    .map(fromStored)
-    .filter((m): m is InstalledSystemManual => !!m)
-    .sort(
-      (a, b) =>
-        LINKED_ORDER[a.status as keyof typeof LINKED_ORDER] - LINKED_ORDER[b.status as keyof typeof LINKED_ORDER] ||
-        b.confidence - a.confidence,
-    );
-
-  const storedSuggestions = stored
-    .filter((s) => s.status === "suggested")
-    .map(fromStored)
-    .filter((m): m is InstalledSystemManual => !!m);
-
-  const liveSuggestions = matches
-    .filter((m) => !decided.has(m.manualId) && byId.has(m.manualId))
-    .map((m) => fromMatch(m, byId.get(m.manualId)!));
-
-  const suggestions = [...storedSuggestions, ...liveSuggestions]
-    .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, MAX_SUGGESTIONS);
-
-  return {
-    linked,
-    suggestions,
-    rejectedCount: stored.filter((s) => s.status === "rejected").length,
-  };
-}
+export { composeSystemManuals, MAX_SUGGESTIONS };
 
 function mapJob(row: PlacementJobRow | null) {
   if (!row) return null;
@@ -209,7 +119,7 @@ export async function decideInstalledSystemManual(
           ? `Unlinked by office. ${match.reason}`
           : "Unlinked by office.",
   });
-  const view = fromStored(stored);
+  const view = fromStoredLink(stored);
   if (!view) throw Object.assign(new Error("Manual not found."), { status: 404 });
   return view;
 }

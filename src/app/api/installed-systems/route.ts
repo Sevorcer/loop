@@ -16,6 +16,7 @@ import {
   getInstalledSystemsSnapshot,
 } from "@/services/installedSystems";
 import { getJob } from "@/services/jobs";
+import { tryAutoMatchManualsForSystem } from "@/services/manualAutoMatch";
 
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "installed_systems", "select");
@@ -172,7 +173,10 @@ export async function POST(request: Request) {
       resourceId: installedSystem.id,
     });
 
-    return NextResponse.json({ installedSystem }, { status: 201 });
+    // #8 Copilot: link the matching Drive manual (or suggest one) right away.
+    const manualMatch = await tryAutoMatchManualsForSystem(installedSystem.id);
+
+    return NextResponse.json({ installedSystem, manualMatch }, { status: 201 });
   } catch (error) {
     return mapRouteError(error);
   }
