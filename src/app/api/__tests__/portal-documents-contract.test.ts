@@ -1,9 +1,7 @@
 /**
- * S4.2 — Endpoint contract tests: Customer Portal and Document routes
+ * S4.2 — Endpoint contract tests: Document routes
  *
  * Covered routes:
- *   GET  /api/portal-projects          — list all portal projects
- *   GET  /api/portal-projects?projectId — load full project bundle
  *   GET  /api/documents
  *   POST /api/documents
  *
@@ -19,14 +17,10 @@ vi.mock("server-only", () => ({}));
 
 const {
   requirePermissionMock,
-  getPortalProjectsMock,
-  getPortalProjectBundleMock,
   documentsServiceListMock,
   documentsServiceCreateMock,
 } = vi.hoisted(() => ({
   requirePermissionMock: vi.fn(),
-  getPortalProjectsMock: vi.fn(),
-  getPortalProjectBundleMock: vi.fn(),
   documentsServiceListMock: vi.fn(),
   documentsServiceCreateMock: vi.fn(),
 }));
@@ -50,11 +44,6 @@ vi.mock("@/lib/api/routeErrors", () => ({
 
 vi.mock("@/lib/audit", () => ({ emitAuditEvent: vi.fn() }));
 
-vi.mock("@/services/portalProjects", () => ({
-  getPortalProjects: getPortalProjectsMock,
-  getPortalProjectBundle: getPortalProjectBundleMock,
-}));
-
 // The documents route calls createDocumentsService() at module level.
 // Return a factory mock so the module-level call yields our mock service.
 vi.mock("@/services/domain/documentsService", () => ({
@@ -64,7 +53,6 @@ vi.mock("@/services/domain/documentsService", () => ({
   }),
 }));
 
-import { GET as getPortalProjects } from "@/app/api/portal-projects/route";
 import {
   GET as getDocuments,
   POST as postDocument,
@@ -97,67 +85,6 @@ function forbiddenResponse() {
 function authorizedCtx(role = "owner") {
   return { ok: true, ctx: { userId: "user-1", role } };
 }
-
-// ---------------------------------------------------------------------------
-// GET /api/portal-projects — list
-// ---------------------------------------------------------------------------
-
-describe("GET /api/portal-projects — list contract", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("returns 401 when unauthenticated", async () => {
-    requirePermissionMock.mockResolvedValue(unauthorizedResponse());
-    const res = await getPortalProjects(new Request("http://localhost/api/portal-projects"));
-    expect(res.status).toBe(401);
-    const body = await res.json() as { error: string; code: number };
-    expect(body.error).toBe("UNAUTHORIZED");
-    expect(body.code).toBe(401);
-  });
-
-  it("returns 403 for a disallowed role", async () => {
-    requirePermissionMock.mockResolvedValue(forbiddenResponse());
-    const res = await getPortalProjects(new Request("http://localhost/api/portal-projects"));
-    expect(res.status).toBe(403);
-    const body = await res.json() as { error: string };
-    expect(body.error).toBe("FORBIDDEN");
-  });
-
-  it("returns 200 with projects array for an authorized request", async () => {
-    requirePermissionMock.mockResolvedValue(authorizedCtx());
-    getPortalProjectsMock.mockResolvedValue([{ id: "proj-1" }]);
-    const res = await getPortalProjects(new Request("http://localhost/api/portal-projects"));
-    expect(res.status).toBe(200);
-    const body = await res.json() as { projects: Array<{ id: string }> };
-    expect(Array.isArray(body.projects)).toBe(true);
-    expect(body.projects[0].id).toBe("proj-1");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// GET /api/portal-projects?projectId= — bundle
-// ---------------------------------------------------------------------------
-
-describe("GET /api/portal-projects?projectId — bundle contract", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("returns 200 with project bundle when projectId is provided", async () => {
-    requirePermissionMock.mockResolvedValue(authorizedCtx());
-    getPortalProjectBundleMock.mockResolvedValue({
-      project: { id: "proj-1" },
-      milestones: [],
-      documents: [],
-      photos: [],
-    });
-    const res = await getPortalProjects(
-      new Request("http://localhost/api/portal-projects?projectId=proj-1"),
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json() as { project: { id: string } };
-    expect(body.project.id).toBe("proj-1");
-    expect(getPortalProjectBundleMock).toHaveBeenCalledWith("proj-1");
-    expect(getPortalProjectsMock).not.toHaveBeenCalled();
-  });
-});
 
 // ---------------------------------------------------------------------------
 // GET /api/documents

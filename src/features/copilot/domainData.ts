@@ -7,9 +7,6 @@
  *   - Jobs             → listJobsWithActivity() service
  *   - Installed Systems→ listInstalledSystems() repository (Sprint 27)
  *   - Knowledge Items  → listKnowledgeItems() repository (Sprint 27)
- *   - Portal Projects  → listPortalProjects() repository (Sprint 27)
- *   - Portal Documents → listAllPortalDocuments() repository (Sprint 27)
- *   - Portal Photos    → listAllPortalPhotos() repository (Sprint 27)
  *   - Performance Models → listPerformanceModels() repository (Sprint 27)
  *
  * STATIC SOURCES (intentional deviations — not user data):
@@ -34,11 +31,6 @@ import { mockProperties } from "@/features/properties/data/mockProperties";
 import { mockPropertyDetails } from "@/features/properties/data/mockPropertyDetails";
 import { mockKnowledgeItems } from "@/features/company-brain/data/mockKnowledgeItems";
 import { seedInstalledSystems } from "@/features/installed-systems/data/seedInstalledSystems";
-import {
-  fakeDocumentsProjectionRecords,
-  fakePhotosProjectionRecords,
-} from "@/features/project-portal/data/fakePortalArtifacts";
-import { mockPortalProjects } from "@/features/project-portal/data/mockPortalProjects";
 import { mockPerformanceModels } from "@/features/reporting/data/mockReporting";
 
 import { listCustomers } from "@/services/customers";
@@ -48,14 +40,9 @@ import { listProperties } from "@/services/properties";
 import { listInstalledSystems } from "@/repositories/installedSystems";
 import { listKnowledgeItems } from "@/repositories/knowledgeItems";
 import { listPerformanceModels } from "@/repositories/performanceReporting";
-import {
-  listPortalProjects,
-  listAllPortalDocuments,
-  listAllPortalPhotos,
-} from "@/repositories/portalProjects";
 
 import { joinAddressParts } from "@/lib/address";
-import { PORTAL_ROUTES, ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
+import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 import type { SearchRecord } from "./types";
 
 const NAVIGATION_TARGETS: Array<{ label: string; href: string; aliases: string[] }> = [
@@ -69,7 +56,6 @@ const NAVIGATION_TARGETS: Array<{ label: string; href: string; aliases: string[]
   { label: "Inventory", href: ROUTES.INVENTORY, aliases: ["inventory", "materials"] },
   { label: "Company Brain", href: ROUTES.COMPANY_BRAIN, aliases: ["company brain", "knowledge"] },
   { label: "Reporting", href: ROUTES.REPORTING, aliases: ["reporting", "reports"] },
-  { label: "Project Portal", href: PORTAL_ROUTES.ROOT, aliases: ["portal", "projects"] },
 ];
 
 function sanitizeTokenStrings(value: Array<string | null | undefined>) {
@@ -166,18 +152,6 @@ export function getFallbackSearchRecords(): SearchRecord[] {
 }
 
 function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
-  const projectRecords: SearchRecord[] = mockPortalProjects.map((project) => ({
-    id: `project-${project.id}`,
-    title: project.name,
-    subtitle: `${project.status.replaceAll("_", " ")} • ${project.projectManager}`,
-    domain: "projects" as const,
-    sourceLabel: "Project Portal",
-    href: PORTAL_ROUTES.PROJECT(project.id),
-    recordType: "entity" as const,
-    tokens: sanitizeTokenStrings([project.name, project.address, project.projectManager, project.nextMilestone]),
-    contextRefs: { projectId: project.id },
-  }));
-
   const reportRecords: SearchRecord[] = mockPerformanceModels.map((model) => ({
     id: `report-${model.id}`,
     title: model.title,
@@ -297,30 +271,6 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
     })),
   );
 
-  const portalDocumentRecords: SearchRecord[] = fakeDocumentsProjectionRecords.map((document) => ({
-    id: `portal-document-${document.documentId}`,
-    title: document.title,
-    subtitle: `${document.category} • Portal project ${document.projectId}`,
-    domain: "documents" as const,
-    sourceLabel: "Project Portal",
-    href: PORTAL_ROUTES.DOCUMENTS(document.projectId),
-    recordType: "document" as const,
-    tokens: sanitizeTokenStrings([document.title, document.category, document.visibility, document.projectId]),
-    contextRefs: { projectId: document.projectId },
-  }));
-
-  const portalPhotoRecords: SearchRecord[] = fakePhotosProjectionRecords.map((photo) => ({
-    id: `portal-photo-${photo.photoId}`,
-    title: photo.caption,
-    subtitle: `Portal project ${photo.projectId}`,
-    domain: "photos" as const,
-    sourceLabel: "Project Portal",
-    href: PORTAL_ROUTES.PHOTOS(photo.projectId),
-    recordType: "photo" as const,
-    tokens: sanitizeTokenStrings([photo.caption, photo.projectId]),
-    contextRefs: { projectId: photo.projectId },
-  }));
-
   const navigationRecords: SearchRecord[] = NAVIGATION_TARGETS.map((target) => ({
     id: `navigation-${target.href}`,
     title: target.label,
@@ -334,15 +284,12 @@ function buildStaticSearchRecords(liveRecords: SearchRecord[]): SearchRecord[] {
 
   return [
     ...liveRecords,
-    ...projectRecords,
     ...reportRecords,
     ...knowledgeRecords,
     ...manualRecords,
     ...installedSystemRecords,
     ...propertyDocumentRecords,
     ...propertyPhotoRecords,
-    ...portalDocumentRecords,
-    ...portalPhotoRecords,
     ...navigationRecords,
   ];
 }
@@ -354,9 +301,6 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     customersPage,
     installedSystemsRaw,
     knowledgeItems,
-    portalProjects,
-    portalDocuments,
-    portalPhotos,
     performanceModels,
     propertyArtifacts,
   ] = await Promise.all([
@@ -365,9 +309,6 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
     listCustomers(),
     listInstalledSystems().catch(() => []),
     listKnowledgeItems().catch(() => []),
-    listPortalProjects().catch(() => []),
-    listAllPortalDocuments().catch(() => []),
-    listAllPortalPhotos().catch(() => []),
     listPerformanceModels({ status: "active" }).catch(() => []),
     getAllPropertyArtifacts().catch(() => ({ documents: [], photos: [] })),
   ]);
@@ -534,39 +475,6 @@ export async function getSearchRecords(): Promise<SearchRecord[]> {
       },
       recordType: "document" as const,
       tokens: sanitizeTokenStrings([item.title, item.summary, item.body, ...item.tags, ...item.relatedDomains]),
-    })),
-    ...portalProjects.map((project) => ({
-      id: `project-${project.id}`,
-      title: project.name,
-      subtitle: `${project.status.replaceAll("_", " ")} • ${project.projectManager}`,
-      domain: "projects" as const,
-      sourceLabel: "Project Portal",
-      href: PORTAL_ROUTES.PROJECT(project.id),
-      recordType: "entity" as const,
-      tokens: sanitizeTokenStrings([project.name, project.address, project.projectManager, project.nextMilestone]),
-      contextRefs: { projectId: project.id },
-    })),
-    ...portalDocuments.map((doc) => ({
-      id: `portal-document-${doc.id}`,
-      title: doc.name,
-      subtitle: `${doc.documentType} • Portal project ${doc.projectId}`,
-      domain: "documents" as const,
-      sourceLabel: "Project Portal",
-      href: PORTAL_ROUTES.DOCUMENTS(doc.projectId),
-      recordType: "document" as const,
-      tokens: sanitizeTokenStrings([doc.name, doc.documentType, doc.visibility, doc.projectId]),
-      contextRefs: { projectId: doc.projectId },
-    })),
-    ...portalPhotos.map((photo) => ({
-      id: `portal-photo-${photo.id}`,
-      title: photo.caption ?? photo.category,
-      subtitle: `Portal project ${photo.projectId}`,
-      domain: "photos" as const,
-      sourceLabel: "Project Portal",
-      href: PORTAL_ROUTES.PHOTOS(photo.projectId),
-      recordType: "photo" as const,
-      tokens: sanitizeTokenStrings([photo.caption ?? "", photo.category, photo.projectId]),
-      contextRefs: { projectId: photo.projectId },
     })),
     ...performanceModels.map((model) => ({
       id: `report-${model.id}`,
