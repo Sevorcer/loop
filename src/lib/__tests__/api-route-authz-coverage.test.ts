@@ -68,6 +68,8 @@ const EXEMPT_ROUTES: Record<string, string> = {
   // credential; the route resolves it server-side to exactly one job.
   "portal/[token]/route.ts":
     "Public GC portal read: authorized by the per-job share token in the URL, resolved server-side to a single job; no session exists for builders.",
+  "portal/[token]/manuals/route.ts":
+    "Public GC portal digital manuals: authorized by the per-job share token (same resolveShareToken as portal/[token]); returns only confirmed/auto-linked Customer-manuals links for that job's equipment in the token's org.",
 };
 
 // ---------------------------------------------------------------------------

@@ -130,7 +130,13 @@ async function getFile(token: string, fileId: string, fetchImpl: FetchLike): Pro
   }
 }
 
-function toListed(file: DriveApiFile, folderPath: string, rootFolderId: string, parentFolderId: string): DriveListedFile {
+function toListed(
+  file: DriveApiFile,
+  folderPath: string,
+  rootFolderId: string,
+  parentFolderId: string,
+  portalEligible: boolean,
+): DriveListedFile {
   const size = file.size ? Number(file.size) : null;
   return {
     driveFileId: file.id,
@@ -142,6 +148,7 @@ function toListed(file: DriveApiFile, folderPath: string, rootFolderId: string, 
     modifiedTime: file.modifiedTime ?? null,
     webViewLink: file.webViewLink?.startsWith("https://") ? file.webViewLink : "",
     sizeBytes: size !== null && Number.isFinite(size) ? size : null,
+    portalEligible,
   };
 }
 
@@ -151,24 +158,41 @@ export interface DriveTreeResult {
   truncated: boolean;
 }
 
-/** Breadth-first walk of every configured root folder. */
+/**
+ * Breadth-first walk of every configured root folder.
+ *
+ * Portal eligibility: a file is portal-eligible when it sits directly in the
+ * configured Customer manuals folder or one of its subfolders. Files reached
+ * through a Drive SHORTCUT are never eligible: the shortcut target keeps its
+ * own sharing, so an "anyone with the link" folder does not open it. When the
+ * Customer manuals folder is not inside a manual root, it is walked as an
+ * extra root (it must then be shared with the service account too).
+ */
 export async function listManualFolderTree(
   config: DriveSyncConfig,
   options: { fetchImpl?: FetchLike; token?: string } = {},
 ): Promise<DriveTreeResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const token = options.token ?? (await getDriveAccessToken(config, fetchImpl));
+  const customerFolderId = config.customerFolderId ?? null;
 
   const files = new Map<string, DriveListedFile>();
   const seenFolders = new Set<string>();
   let truncated = false;
 
-  for (const rootId of config.folderIds) {
+  const roots = [...config.folderIds];
+  if (customerFolderId && !roots.includes(customerFolderId)) roots.push(customerFolderId);
+
+  for (const rootId of roots) {
+    // The Customer manuals folder may already have been walked as a subfolder.
+    if (seenFolders.has(rootId)) continue;
     const root = await getFile(token, rootId, fetchImpl);
     if (!root) {
       throw new DriveSyncError(`Drive folder ${rootId} is not shared with the service account.`, 403);
     }
-    const queue: Array<{ id: string; path: string; depth: number }> = [{ id: rootId, path: root.name, depth: 0 }];
+    const queue: Array<{ id: string; path: string; depth: number; portal: boolean }> = [
+      { id: rootId, path: root.name, depth: 0, portal: rootId === customerFolderId },
+    ];
     while (queue.length > 0) {
       const folder = queue.shift()!;
       if (seenFolders.has(folder.id)) continue;
@@ -181,26 +205,41 @@ export async function listManualFolderTree(
       for (const child of children) {
         if (child.mimeType === FOLDER_MIME) {
           if (folder.depth + 1 <= DRIVE_LIMITS.maxDepth) {
-            queue.push({ id: child.id, path: `${folder.path} / ${child.name}`, depth: folder.depth + 1 });
+            queue.push({
+              id: child.id,
+              path: `${folder.path} / ${child.name}`,
+              depth: folder.depth + 1,
+              portal: folder.portal || child.id === customerFolderId,
+            });
           } else {
             truncated = true;
           }
           continue;
         }
         let target = child;
+        let viaShortcut = false;
         if (child.mimeType === SHORTCUT_MIME) {
           const targetId = child.shortcutDetails?.targetId;
           if (!targetId || child.shortcutDetails?.targetMimeType === FOLDER_MIME) continue;
           const resolved = await getFile(token, targetId, fetchImpl);
           if (!resolved) continue; // target not shared with the service account
           target = { ...resolved, name: resolved.name || child.name };
+          viaShortcut = true;
         }
-        if (files.has(target.id)) continue;
+        const portalEligible = folder.portal && !viaShortcut;
+        const existing = files.get(target.id);
+        if (existing) {
+          // A direct copy inside Customer manuals wins over a shortcut / internal sighting.
+          if (portalEligible && !existing.portalEligible) {
+            files.set(target.id, toListed(target, folder.path, rootId, folder.id, true));
+          }
+          continue;
+        }
         if (files.size >= DRIVE_LIMITS.maxFiles) {
           truncated = true;
           break;
         }
-        files.set(target.id, toListed(target, folder.path, rootId, folder.id));
+        files.set(target.id, toListed(target, folder.path, rootId, folder.id, portalEligible));
       }
     }
   }

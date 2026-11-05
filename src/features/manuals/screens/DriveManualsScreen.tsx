@@ -75,6 +75,13 @@ function ConnectionCard() {
                 : "Not synced yet."}
             </p>
           ) : null}
+          {canManage ? (
+            <p className="text-xs text-slate-500">
+              {config.customerFolderConfigured
+                ? "Customer manuals folder set — manuals in it can be linked from the builder portal."
+                : "No Customer manuals folder set — nothing is shown in the builder portal."}
+            </p>
+          ) : null}
           {syncError ? <p className="text-xs text-red-300">{syncError}</p> : null}
         </div>
         {canManage ? (
@@ -168,6 +175,11 @@ function ManualRow({ file, canManage }: { file: DriveManualFile; canManage: bool
           <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
             <FolderOpen className="h-3 w-3" />
             {file.folderPath || "Drive"} · updated {formatWhen(file.driveModifiedAt)}
+            {file.portalEligible ? (
+              <span className="ml-1 rounded-full border border-sky-400/30 px-1.5 py-px text-[10px] font-medium text-sky-200">
+                Builder portal
+              </span>
+            ) : null}
           </p>
         </div>
         {canManage && !editing ? (

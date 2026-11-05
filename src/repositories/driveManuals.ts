@@ -34,6 +34,8 @@ export interface DriveManualFileRow {
   manufacturer_override: string | null;
   model_override: string | null;
   status: string;
+  /** 20261121500000; absent on rows read before that migration. */
+  portal_eligible?: boolean | null;
   last_seen_at: string;
   updated_at: string;
 }
@@ -52,7 +54,7 @@ interface SyncRunRow {
 }
 
 export const DRIVE_MANUAL_COLUMNS =
-  "id,drive_file_id,name,mime_type,folder_path,drive_modified_at,web_view_link,size_bytes,parsed_manufacturer,parsed_manufacturers,parsed_models,parsed_doc_type,manufacturer_override,model_override,status,last_seen_at,updated_at";
+  "id,drive_file_id,name,mime_type,folder_path,drive_modified_at,web_view_link,size_bytes,parsed_manufacturer,parsed_manufacturers,parsed_models,parsed_doc_type,manufacturer_override,model_override,status,portal_eligible,last_seen_at,updated_at";
 
 const SYNC_RUN_COLUMNS =
   "id,started_at,finished_at,status,folder_count,files_seen,files_added,files_updated,files_removed,error";
@@ -86,6 +88,7 @@ export function mapDriveManualFile(row: DriveManualFileRow): DriveManualFile {
     manufacturer: row.manufacturer_override?.trim() || row.parsed_manufacturer || null,
     models: row.model_override?.trim() ? [row.model_override.trim().toUpperCase()] : parsedModels,
     status: row.status === "removed" ? "removed" : "active",
+    portalEligible: row.portal_eligible === true,
     lastSeenAt: row.last_seen_at,
     updatedAt: row.updated_at,
   };
@@ -175,6 +178,7 @@ export async function upsertDriveManualFiles(
       parsed_manufacturers: parsed.manufacturers,
       parsed_models: parsed.models,
       parsed_doc_type: parsed.docType,
+      portal_eligible: listed.portalEligible === true,
       status: "active",
       last_seen_at: seenAt,
     }));

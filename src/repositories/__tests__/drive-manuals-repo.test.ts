@@ -114,3 +114,21 @@ describe("driveManuals repository", () => {
     await expect(listDriveManualFiles()).rejects.toMatchObject({ status: 403 });
   });
 });
+
+describe("driveManuals repository — portal eligibility (20261121500000)", () => {
+  it("reads portal_eligible and maps it (missing → false)", () => {
+    expect(mapDriveManualFile({ ...baseRow, portal_eligible: true }).portalEligible).toBe(true);
+    expect(mapDriveManualFile(baseRow).portalEligible).toBe(false);
+  });
+
+  it("writes portal_eligible from the Drive walk on every sync", async () => {
+    const listed = { driveFileId: "d1", name: "n", mimeType: "application/pdf", folderPath: "F / Customer manuals", rootFolderId: "R", parentFolderId: "C", modifiedTime: null, webViewLink: "", sizeBytes: null };
+    const parsed = { manufacturer: null, manufacturers: [], models: [], docType: "other" as const };
+    await upsertDriveManualFiles(
+      [{ listed: { ...listed, portalEligible: true }, parsed }, { listed: { ...listed, driveFileId: "d2", portalEligible: false }, parsed }],
+      "2026-11-04T00:00:00Z",
+    );
+    const [[rows]] = opArgs(state.calls[0], "upsert") as [[Array<Record<string, unknown>>]];
+    expect(rows.map((r) => r.portal_eligible)).toEqual([true, false]);
+  });
+});
