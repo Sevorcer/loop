@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   ExternalLink,
+  Globe,
   HardHat,
   History,
   LayoutGrid,
@@ -72,6 +73,9 @@ import { JobInspectionsCard } from "./JobInspectionsCard";
 import { JobPermitsCard } from "./JobPermitsCard";
 import { JobPriceEditor } from "./JobPriceEditor";
 import { JobTimeline } from "./JobTimeline";
+import { ShareLinkControls } from "./ShareLinkControls";
+import { PortalMoneyToggle } from "./PortalMoneyToggle";
+import { PortalSubmissions } from "./PortalSubmissions";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
@@ -547,6 +551,28 @@ export function JobDetailScreen({
             <PermissionGuard table="job_inspections" action="select">
               <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
             </PermissionGuard>
+
+            {/* GC Portal section — office+ only */}
+            {(role === "owner" || role === "manager" || role === "office") ? (
+              <SurfaceCard>
+                <div className="space-y-5 p-6">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-slate-400" />
+                    <h2 className="text-lg font-semibold text-white">GC Portal</h2>
+                  </div>
+
+                  <ShareLinkControls jobId={job.id} />
+
+                  <div className="border-t border-white/10" />
+
+                  <PortalMoneyToggle jobId={job.id} />
+
+                  <div className="border-t border-white/10" />
+
+                  <PortalSubmissions jobId={job.id} />
+                </div>
+              </SurfaceCard>
+            ) : null}
 
             {priceVisible && canViewJobPrice(role) ? (
               <JobPriceEditor

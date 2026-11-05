@@ -7,12 +7,13 @@
  * Only visible to office+ roles.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link2, Copy, Trash2, Loader2, Check } from "lucide-react";
 
 interface ShareLinkControlsProps {
   jobId: string;
-  hasActiveLink: boolean;
+  /** Optional — when omitted, the component fetches its own initial state. */
+  hasActiveLink?: boolean;
   onLinkCreated?: (token: string) => void;
   onLinkRevoked?: () => void;
 }
@@ -26,7 +27,32 @@ export function ShareLinkControls({
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [active, setActive] = useState(hasActiveLink);
+  const [active, setActive] = useState(hasActiveLink ?? false);
+  const [ready, setReady] = useState(hasActiveLink !== undefined);
+
+  /* Self-contained fetch when no initial value is provided */
+  useEffect(() => {
+    if (hasActiveLink !== undefined) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}/share-link`);
+        if (!res.ok) {
+          if (!cancelled) setReady(true);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) {
+          setActive(Boolean(data.shareLink));
+          setReady(true);
+        }
+      } catch {
+        if (!cancelled) setReady(true);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [jobId, hasActiveLink]);
 
   const createLink = useCallback(async () => {
     setLoading(true);
@@ -62,11 +88,13 @@ export function ShareLinkControls({
 
   const copyLink = useCallback(async () => {
     if (!token) return;
-    const url = `${window.location.origin}/portal/${token}`;
+    const url = `${window.location.origin}/gc-portal/${token}`;
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [token]);
+
+  if (!ready) return null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,7 +108,7 @@ export function ShareLinkControls({
       {token && (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
           <code className="flex-1 truncate text-xs text-muted-foreground">
-            {`${typeof window !== "undefined" ? window.location.origin : ""}/portal/${token}`}
+            {`${typeof window !== "undefined" ? window.location.origin : ""}/gc-portal/${token}`}
           </code>
           <button
             type="button"

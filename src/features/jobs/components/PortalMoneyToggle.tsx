@@ -8,12 +8,13 @@
  * Only visible to office+ roles.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { DollarSign, Loader2 } from "lucide-react";
 
 interface PortalMoneyToggleProps {
   jobId: string;
-  initialVisible: boolean;
+  /** Optional — when omitted, the component fetches its own initial state. */
+  initialVisible?: boolean;
   onToggle?: (visible: boolean) => void;
 }
 
@@ -22,8 +23,30 @@ export function PortalMoneyToggle({
   initialVisible,
   onToggle,
 }: PortalMoneyToggleProps) {
-  const [visible, setVisible] = useState(initialVisible);
+  const [visible, setVisible] = useState(initialVisible ?? false);
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(initialVisible !== undefined);
+
+  /* Self-contained fetch when no initial value is provided */
+  useEffect(() => {
+    if (initialVisible !== undefined) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}/portal-money`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setVisible(Boolean(data.portalMoneyVisible));
+          setReady(true);
+        }
+      } catch {
+        if (!cancelled) setReady(true);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [jobId, initialVisible]);
 
   const toggle = useCallback(async () => {
     const next = !visible;
@@ -43,6 +66,8 @@ export function PortalMoneyToggle({
       setLoading(false);
     }
   }, [jobId, visible, onToggle]);
+
+  if (!ready) return null;
 
   return (
     <div className="flex items-center gap-3">
