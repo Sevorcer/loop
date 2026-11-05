@@ -25,8 +25,11 @@ export async function getProductionReport(
   // Revenue totals follow the org's financial-visibility setting
   // (owner-only by default — Collin, 2026-11-04).
   const includeRevenue = canSeeFinancials(role, await getFinancialsVisibility());
-  const source = await listProductionSources(includeRevenue);
-  const report = computeProductionReport(source.jobs, source.completions, range, companyTimeZone());
+  const timeZone = companyTimeZone();
+  // Pass the window down so only jobs completed in it get enriched (the
+  // report filters to the same window below; results are identical).
+  const source = await listProductionSources(includeRevenue, undefined, { range, timeZone });
+  const report = computeProductionReport(source.jobs, source.completions, range, timeZone);
   return includeRevenue ? report : redactProductionReport(report);
 }
 

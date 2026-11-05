@@ -323,6 +323,24 @@ function latestCompletions(events: readonly ProductionCompletion[], timeZone: st
   return dates;
 }
 
+/**
+ * Predicate: does this job's completion day (latest "Job completed" event,
+ * else its updated_at day — exactly the rule computeProductionReport uses)
+ * fall inside the range? Lets the data layer skip enrichment reads for jobs
+ * the report would drop anyway. Status is NOT checked here.
+ */
+export function completedInRangePredicate(
+  completions: readonly ProductionCompletion[],
+  range: DateRange,
+  timeZone = companyTimeZone(),
+): (job: Pick<ProductionSourceJob, "id" | "updatedAt">) => boolean {
+  const completedOn = latestCompletions(completions, timeZone);
+  return (job) => {
+    const day = completedOn.get(job.id) ?? datePart(job.updatedAt, timeZone);
+    return day != null && day >= range.from && day <= range.to;
+  };
+}
+
 interface Running {
   jobs: number;
   minutes: number;
