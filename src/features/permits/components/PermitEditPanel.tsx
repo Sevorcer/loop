@@ -4,6 +4,8 @@ import { type FormEvent, useCallback, useState } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+
+import { CappedSelect } from "./CappedSelect";
 type PermitStatus =
   | "applied"
   | "intake_scheduled"
@@ -217,17 +219,13 @@ export function PermitEditPanel({
               <label className="mb-1.5 block text-xs font-medium text-muted">
                 Status
               </label>
-              <select
+              <CappedSelect
                 value={status}
-                onChange={(e) => setStatus(e.target.value as PermitStatus)}
-                className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                options={STATUS_OPTIONS}
+                onChange={(v) => setStatus(v as PermitStatus)}
+                ariaLabel="Status"
+                triggerClassName="w-full rounded-lg border border-border bg-surface-elevated px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
             </fieldset>
 
             {/* Applied At */}
