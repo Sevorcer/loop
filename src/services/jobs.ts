@@ -48,6 +48,7 @@ import {
   listJobsByCustomerId,
   listJobsByPropertyId,
   listJobsInRange,
+  listUnscheduledJobs,
   listJobsPaginated,
   listRecentJobs as listRecentJobRecords,
   toJob,
@@ -348,6 +349,18 @@ export async function listJobsForCalendar(
     countUnscheduledJobs(),
   ]);
   return { jobs, unscheduledCount };
+}
+
+/** Daily Plans board: today→upcoming window plus unscheduled jobs (not the full workspace). */
+export async function listJobsForDailyPlans(
+  from: string,
+  to: string,
+): Promise<{ jobs: Job[]; unscheduled: Job[] }> {
+  const [jobs, unscheduled] = await Promise.all([
+    listJobsInRange(from, to),
+    listUnscheduledJobs(200),
+  ]);
+  return { jobs, unscheduled };
 }
 
 export async function listJobsForCustomer(customerId: string): Promise<Job[]> {
