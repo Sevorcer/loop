@@ -285,6 +285,9 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
         </p>
       ) : null}
 
+      {/* #29: the list is a bounded scroll region (~10 rows tall)
+          instead of stretching the page for all 50 rows of the page. */}
+      <div className="max-h-[620px] overflow-y-auto">
       <DataTable
         columns={jobColumns}
         data={jobs}
@@ -292,6 +295,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
         onRowClick={(job) => router.push(ROUTE_BUILDERS.JOB_DETAIL(job.id))}
         disableInternalPagination
       />
+      </div>
 
       {/* Server-side pagination controls */}
       <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 md:px-6">
