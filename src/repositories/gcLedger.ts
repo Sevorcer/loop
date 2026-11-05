@@ -602,47 +602,166 @@ export async function getBuilderRollup(
 }
 
 /**
- * List all builders (parent customers that have child customers with jobs)
- * with their roll-up stats.
+ * List all builders (parent customers that have child customers) with
+ * their roll-up stats.
+ *
+ * Performance (Zoinks fix, 2026-11-04): this used to call
+ * getBuilderRollup() once per builder in a sequential loop — ~6 queries
+ * per builder, 240+ sequential round trips at production volumes, and
+ * the GC Overview took ~25 s to load. The roll-up inputs are now fetched
+ * in a handful of org-wide paginated queries and grouped in memory.
+ * The per-builder math is IDENTICAL to getBuilderRollup():
+ *  - totalJobCount / ledger / bids / callbacks count CHILD customers'
+ *    jobs only;
+ *  - openJobCount also includes jobs filed directly on the parent;
+ *  - billed sums current bids for jobs that have ledger entries.
+ * getBuilderRollup() itself is unchanged for the single-builder page.
  */
 export async function listBuildersWithRollups(
   ctx?: SessionRepositoryContextInput,
 ): Promise<GcBuilderRollup[]> {
   const { orgId, supabase } = await getRepositoryContext(ctx);
+  const PAGE_SIZE = 1000;
 
-  // Find all customers that are parents (have at least one child customer)
+  // All child customers in the org — this one query yields both the
+  // parent set AND each parent's child ids (previously re-queried per
+  // builder).
   const { data: childCustomers } = await supabase
     .from("customers")
-    .select("parent_customer_id")
+    .select("id,parent_customer_id")
     .eq("org_id", orgId)
     .not("parent_customer_id", "is", null);
 
   if (!childCustomers || childCustomers.length === 0) return [];
 
-  // Unique parent ids
-  const parentIds = [
-    ...new Set(
-      (childCustomers as { parent_customer_id: string }[]).map((c) => c.parent_customer_id),
-    ),
-  ];
+  const childrenByParent = new Map<string, string[]>();
+  for (const child of childCustomers as { id: string; parent_customer_id: string }[]) {
+    const list = childrenByParent.get(child.parent_customer_id) ?? [];
+    list.push(child.id);
+    childrenByParent.set(child.parent_customer_id, list);
+  }
+  const parentIds = [...childrenByParent.keys()];
 
-  // Load parent customer names
+  // Parent names
   const { data: parents } = await supabase
     .from("customers")
     .select("id,name")
     .in("id", parentIds);
-
   const parentMap = new Map(
     (parents ?? []).map((p: { id: string; name: string }) => [p.id, p.name]),
   );
 
-  // Compute roll-ups for each builder
-  const rollups: GcBuilderRollup[] = [];
-  for (const parentId of parentIds) {
-    const name = parentMap.get(parentId) ?? "Unknown";
-    const rollup = await getBuilderRollup(parentId, name, ctx);
-    rollups.push(rollup);
+  const familyCustomerIds = new Set([
+    ...parentIds,
+    ...childCustomers.map((c) => c.id as string),
+  ]);
+
+  // Every job in the org (4 paginated requests at current volumes),
+  // filtered to builder families in memory. Fetching org-wide avoids a
+  // ~500-id `in (...)` filter whose URL length proxies reject; the
+  // chunked id queries below stay at 100 ids per request for the same
+  // reason.
+  type JobRow = { id: string; customer_id: string; status: string; type: string };
+  const jobs: JobRow[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data: page } = await supabase
+      .from("jobs")
+      .select("id,customer_id,status,type")
+      .eq("org_id", orgId)
+      .range(offset, offset + PAGE_SIZE - 1);
+    const rows = ((page ?? []) as JobRow[]).filter((j) => familyCustomerIds.has(j.customer_id));
+    jobs.push(...rows);
+    if ((page ?? []).length < PAGE_SIZE) break;
   }
 
-  return rollups;
+  // Ledger entries for those jobs, in 100-id chunks.
+  type EntryRow = { balance_cents: number; retainer_cents: number; job_id: string };
+  const entries: EntryRow[] = [];
+  const jobIds = jobs.map((j) => j.id);
+  for (let chunkStart = 0; chunkStart < jobIds.length; chunkStart += 100) {
+    const chunk = jobIds.slice(chunkStart, chunkStart + 100);
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      const { data: page } = await supabase
+        .from("gc_ledger_entries")
+        .select("balance_cents,retainer_cents,job_id")
+        .eq("org_id", orgId)
+        .in("job_id", chunk)
+        .range(offset, offset + PAGE_SIZE - 1);
+      const rows = (page ?? []) as EntryRow[];
+      entries.push(...rows);
+      if (rows.length < PAGE_SIZE) break;
+    }
+  }
+  const entriesByJob = new Map<string, EntryRow[]>();
+  for (const entry of entries) {
+    const list = entriesByJob.get(entry.job_id) ?? [];
+    list.push(entry);
+    entriesByJob.set(entry.job_id, list);
+  }
+
+  // Current bids — summed only for jobs that have ledger entries,
+  // matching getBuilderRollup().
+  const ledgerJobIds = [...entriesByJob.keys()];
+  const bidByJob = new Map<string, number>();
+  for (let chunkStart = 0; chunkStart < ledgerJobIds.length; chunkStart += 100) {
+    const chunk = ledgerJobIds.slice(chunkStart, chunkStart + 100);
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      const { data: page } = await supabase
+        .from("job_bids")
+        .select("amount_cents,job_id")
+        .eq("org_id", orgId)
+        .eq("is_current", true)
+        .in("job_id", chunk)
+        .range(offset, offset + PAGE_SIZE - 1);
+      const rows = (page ?? []) as { amount_cents: number; job_id: string }[];
+      for (const bid of rows) {
+        bidByJob.set(bid.job_id, (bidByJob.get(bid.job_id) ?? 0) + bid.amount_cents);
+      }
+      if (rows.length < PAGE_SIZE) break;
+    }
+  }
+
+  const openStatuses = new Set(getStatusVariants(GC_OPEN_JOB_STATUSES) as string[]);
+  const callbackTypes = new Set(CALLBACK_TYPE_QUERY_VARIANTS as string[]);
+  const nonCallbackStatuses = new Set(
+    OPEN_JOB_STATUS_EXCLUSION_FILTER.replace(/^\(/, "").replace(/\)$/, "").split(","),
+  );
+
+  const jobsByCustomer = new Map<string, JobRow[]>();
+  for (const job of jobs) {
+    const list = jobsByCustomer.get(job.customer_id) ?? [];
+    list.push(job);
+    jobsByCustomer.set(job.customer_id, list);
+  }
+
+  return parentIds.map((parentId) => {
+    const childIds = childrenByParent.get(parentId) ?? [];
+    const childJobs = childIds.flatMap((id) => jobsByCustomer.get(id) ?? []);
+    const parentJobs = jobsByCustomer.get(parentId) ?? [];
+
+    const childEntries = childJobs.flatMap((j) => entriesByJob.get(j.id) ?? []);
+    // Bids are per job — dedupe job ids so a job with two ledger
+    // entries doesn't double-count its bid (the old .in() query
+    // returned each bid once).
+    const childLedgerJobIds = [...new Set(childEntries.map((e) => e.job_id))];
+
+    return {
+      customerId: parentId,
+      customerName: parentMap.get(parentId) ?? "Unknown",
+      totalBilledCents: childLedgerJobIds.reduce(
+        (sum, jobId) => sum + (bidByJob.get(jobId) ?? 0),
+        0,
+      ),
+      totalOutstandingCents: childEntries.reduce((sum, e) => sum + e.balance_cents, 0),
+      totalRetainerCents: childEntries.reduce((sum, e) => sum + e.retainer_cents, 0),
+      callbackCount: childJobs.filter(
+        (j) => callbackTypes.has(j.type) && !nonCallbackStatuses.has(j.status),
+      ).length,
+      entryCount: childEntries.length,
+      siteCount: childIds.length,
+      totalJobCount: childJobs.length,
+      openJobCount: [...parentJobs, ...childJobs].filter((j) => openStatuses.has(j.status))
+        .length,
+    } satisfies GcBuilderRollup;
+  });
 }

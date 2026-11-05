@@ -102,6 +102,15 @@ function buildFakeQuery(table: string, rows: Row[]) {
 
     order() { return this; }
 
+    private rangeFrom: number | undefined;
+    private rangeTo: number | undefined;
+
+    range(from: number, to: number) {
+      this.rangeFrom = from;
+      this.rangeTo = to;
+      return this;
+    }
+
     maybeSingle() {
       const matched = this.allRows.filter((row) => this.filters.every((f) => f(row)));
       return Promise.resolve({ data: matched[0] ?? null, error: null });
@@ -116,6 +125,12 @@ function buildFakeQuery(table: string, rows: Row[]) {
       const matched = this.allRows.filter((row) => this.filters.every((f) => f(row)));
       if (this.headMode) {
         resolve({ data: null, error: null, count: matched.length });
+      } else if (this.rangeFrom !== undefined && this.rangeTo !== undefined) {
+        resolve({
+          data: matched.slice(this.rangeFrom, this.rangeTo + 1),
+          error: null,
+          count: matched.length,
+        });
       } else {
         resolve({ data: matched, error: null, count: matched.length });
       }
@@ -252,6 +267,13 @@ describe("GC Ledger Repository", () => {
       expect(builders).toHaveLength(1);
       expect(builders[0].customerId).toBe(BUILDER_ID);
       expect(builders[0].customerName).toBe("Builder Corp");
+    });
+
+    it("batched overview matches the per-builder rollup exactly", async () => {
+      const builders = await listBuildersWithRollups();
+      const single = await getBuilderRollup(BUILDER_ID, "Builder Corp");
+      expect(builders).toHaveLength(1);
+      expect(builders[0]).toEqual(single);
     });
 
     it("empty when no customers have parent_customer_id", async () => {
