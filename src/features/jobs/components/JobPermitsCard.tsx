@@ -204,7 +204,7 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
                       {STATUS_LABELS[permit.status as PermitStatus]}
                     </StatusBadge>
                     {permit.documentStorageId && (
-                      <Paperclip className="h-3 w-3 text-muted" title="Document attached" />
+                      <span title="Document attached"><Paperclip className="h-3 w-3 text-muted" /></span>
                     )}
                   </div>
                   {permit.permitNumber && (
