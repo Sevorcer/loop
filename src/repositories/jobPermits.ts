@@ -230,17 +230,40 @@ export async function unvoidPermit(permitId: string): Promise<JobPermit> {
 }
 
 /**
- * List all non-voided permits across jobs for the org (used by office views).
+ * A permit enriched with the parent job's customer/property names,
+ * used by the permits board screen where permits may lack jurisdiction/type.
  */
-export async function listActivePermits(): Promise<JobPermit[]> {
+export interface ActivePermit extends JobPermit {
+  jobCustomerName: string | null;
+  jobPropertyName: string | null;
+}
+
+interface ActivePermitRow extends JobPermitRow {
+  jobs: { customer_name: string; property_name: string } | null;
+}
+
+const ACTIVE_COLUMNS = `${COLUMNS},jobs!inner(customer_name,property_name)`;
+
+/**
+ * List all non-voided permits across jobs for the org (used by office views).
+ * Joins with jobs to surface customer/property names for display fallback.
+ */
+export async function listActivePermits(): Promise<ActivePermit[]> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
     .from("job_permits")
-    .select(COLUMNS)
+    .select(ACTIVE_COLUMNS)
     .eq("org_id", orgId)
     .is("voided_at", null)
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => mapRow(row as JobPermitRow));
+  return (data ?? []).map((row) => {
+    const r = row as ActivePermitRow;
+    return {
+      ...mapRow(r),
+      jobCustomerName: r.jobs?.customer_name ?? null,
+      jobPropertyName: r.jobs?.property_name ?? null,
+    };
+  });
 }

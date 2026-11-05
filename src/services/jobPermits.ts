@@ -11,9 +11,10 @@ import {
   type JobPermit,
   type PermitStatus,
   type UpdatePermitInput,
+  type ActivePermit,
 } from "@/repositories/jobPermits";
 
-export type { JobPermit, PermitStatus, CreatePermitInput, UpdatePermitInput };
+export type { JobPermit, PermitStatus, CreatePermitInput, UpdatePermitInput, ActivePermit };
 export { isPermitStatus };
 
 // ---------------------------------------------------------------------------
@@ -103,7 +104,7 @@ export async function unvoidJobPermit(permitId: string): Promise<JobPermit> {
 // Office views
 // ---------------------------------------------------------------------------
 
-export async function listActivePermits(): Promise<JobPermit[]> {
+export async function listActivePermits(): Promise<ActivePermit[]> {
   return listActivePermitsRecord();
 }
 
