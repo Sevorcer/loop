@@ -38,6 +38,7 @@ export function JobDetailClient({
   const [confirmedStatus, setConfirmedStatus] = useState<JobStatus | null>(null);
   const [recordedActivity, setRecordedActivity] = useState<JobActivity[]>([]);
   const [pendingNotes, setPendingNotes] = useState<JobNote[]>([]);
+    const [deleteRestorePending, setDeleteRestorePending] = useState(false);
   const activityItems = mergeRecordedActivity(recordedActivity, activity, job.id);
   const visibleNotes = mergePendingJobNotes(notes, pendingNotes);
   const liveJob: Job = {
@@ -124,6 +125,10 @@ export function JobDetailClient({
   }
 
   async function handleSoftDelete() {
+        // Re-entry guard: a double-tap must not fire the action twice
+        // (the duplicate restore used to surface a bogus "job not found").
+        if (deleteRestorePending) return;
+        setDeleteRestorePending(true);
     try {
       await requestJson(`/api/jobs/${job.id}`, {
         method: "PATCH",
@@ -135,10 +140,14 @@ export function JobDetailClient({
       router.refresh();
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Couldn't delete the job.", "error");
+    } finally {
+            setDeleteRestorePending(false);
     }
-  }
-
+    }
+    
   async function handleRestore() {
+    if (deleteRestorePending) return;
+        setDeleteRestorePending(true);
     try {
       await requestJson(`/api/jobs/${job.id}`, {
         method: "PATCH",
@@ -149,6 +158,8 @@ export function JobDetailClient({
       router.refresh();
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Couldn't restore the job.", "error");
+    } finally {
+      setDeleteRestorePending(false);
     }
   }
 
@@ -164,6 +175,7 @@ export function JobDetailClient({
       onUpdateQaChecklist={handleUpdateQaChecklist}
       onSoftDelete={handleSoftDelete}
       onRestore={handleRestore}
+            deleteRestorePending={deleteRestorePending}
       priceVisible={priceVisible}
       priceCents={priceCents}
     />

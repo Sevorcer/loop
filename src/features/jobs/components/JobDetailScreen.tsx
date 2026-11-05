@@ -174,6 +174,7 @@ interface JobDetailScreenProps {
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
   onSoftDelete?: () => Promise<void>;
   onRestore?: () => Promise<void>;
+    deleteRestorePending?: boolean;
   priceVisible?: boolean;
   priceCents?: number | null;
 }
@@ -189,6 +190,7 @@ export function JobDetailScreen({
   onUpdateQaChecklist,
   onSoftDelete,
   onRestore,
+    deleteRestorePending = false,
   priceVisible = false,
   priceCents = null,
 }: JobDetailScreenProps) {
@@ -375,6 +377,7 @@ export function JobDetailScreen({
             <Button
               type="button"
               variant="ghost"
+              disabled={deleteRestorePending}
               className="min-h-[44px] gap-2 text-red-400 hover:bg-red-500/10 hover:text-red-300"
               data-testid="soft-delete-job-btn"
               onClick={() => {
@@ -393,6 +396,7 @@ export function JobDetailScreen({
           <Button
             type="button"
             variant="ghost"
+            disabled={deleteRestorePending}
             className="min-h-[44px] gap-2 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
             data-testid="restore-job-btn"
             onClick={() => {
