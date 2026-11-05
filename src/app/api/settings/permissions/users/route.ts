@@ -29,7 +29,7 @@ async function requireOwner(request: Request): Promise<PermissionResult> {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "FORBIDDEN", message: "Only owners can manage permission overrides." },
+        { error: "FORBIDDEN", message: "Only owners can manage permission overrides.", code: 403 },
         { status: 403 },
       ),
     };
