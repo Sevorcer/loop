@@ -105,7 +105,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
 
   // Reset page when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    setCurrentPage(() => 1);
   }, [statusFilter, typeFilter]);
 
   // ── Fetch paginated data ────────────────────────────────────────────
