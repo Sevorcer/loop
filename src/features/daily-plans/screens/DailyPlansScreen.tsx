@@ -5,7 +5,7 @@ import { CalendarDays, CircleAlert, Sun } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
-import { useJobsList } from "@/features/jobs/state/JobsProvider";
+import type { Job } from "@/features/jobs/types/job";
 import { requestJson } from "@/lib/api/client";
 
 import { CrewStatusPanel } from "../components/CrewStatusPanel";
@@ -15,22 +15,51 @@ import { ScheduleSection } from "../components/ScheduleSection";
 import { buildDailyCrewRoster, type CrewRecord, type DailyCrewRoster } from "../data/fieldCrews";
 import {
   countBriefingAtRisk,
-  getAllUnscheduledJobs,
   getScheduledTodayJobs,
   getTodayDate,
   getUpcomingJobs,
+  addDays,
+  DAILY_PLANS_UPCOMING_DAYS,
   formatDateShort,
 } from "../utils/planUtils";
 
-// TODO(perf): DailyPlansScreen loads ALL workspace jobs via useJobs().
-// Migrate to ranged server-side fetches (today + upcoming window) similar to
-// the Calendar screen's approach. This avoids transferring the full job set
-// when only a small date range is needed.
+/**
+ * Daily Plans loads today + the next DAILY_PLANS_UPCOMING_DAYS days (and
+ * unscheduled jobs) from /api/daily-plans/jobs — the same idea as Calendar's
+ * ranged fetch. It no longer downloads every job in the company.
+ */
 export function DailyPlansScreen() {
   const { role } = useCurrentRole();
-  const { hydrated, jobs, updateJob } = useJobsList();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [unscheduledJobs, setUnscheduledJobs] = useState<Job[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [roster, setRoster] = useState<DailyCrewRoster>({ crewGroups: [], floaters: [], allProfiles: [] });
+
+  const today = getTodayDate();
+  const rangeTo = addDays(today, DAILY_PLANS_UPCOMING_DAYS);
+
+  const reloadBoard = useCallback(async () => {
+    if (!role) return;
+    try {
+      setLoadError(null);
+      const response = await requestJson<{ jobs: Job[]; unscheduled: Job[] }>(
+        `/api/daily-plans/jobs?from=${today}&to=${rangeTo}`,
+        { role, cache: "no-store" },
+      );
+      setJobs(response.jobs ?? []);
+      setUnscheduledJobs(response.unscheduled ?? []);
+      setHydrated(true);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Failed to load daily plans.");
+      setHydrated(true);
+    }
+  }, [role, today, rangeTo]);
+
+  useEffect(() => {
+    void reloadBoard();
+  }, [reloadBoard]);
 
   useEffect(() => {
     if (!actionNotice) return;
@@ -38,11 +67,8 @@ export function DailyPlansScreen() {
     return () => window.clearTimeout(timeout);
   }, [actionNotice]);
 
-  const today = getTodayDate();
-
   const todayJobs = useMemo(() => getScheduledTodayJobs(jobs), [jobs]);
   const upcomingJobs = useMemo(() => getUpcomingJobs(jobs), [jobs]);
-  const unscheduledJobs = useMemo(() => getAllUnscheduledJobs(jobs), [jobs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,28 +152,57 @@ export function DailyPlansScreen() {
     [todayJobs, unscheduledJobs]
   );
 
+  const patchJobLocal = useCallback((jobId: string, patch: Partial<Job>) => {
+    setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, ...patch } : job)));
+    setUnscheduledJobs((prev) => {
+      const next = prev
+        .map((job) => (job.id === jobId ? { ...job, ...patch } : job))
+        .filter((job) => job.scheduledFor == null);
+      // If a previously scheduled job became unscheduled, leave it out of this
+      // list until reload; reschedule off the unscheduled list removes it here.
+      return next.filter((job) => job.id !== jobId || job.scheduledFor == null);
+    });
+  }, []);
+
   const handleReschedule = useCallback(
     (jobId: string, date: string) => {
-      const job = jobs.find((j) => j.id === jobId);
-      if (!job) return;
-      updateJob(jobId, { ...job, scheduledFor: date });
+      const job =
+        jobs.find((j) => j.id === jobId) ?? unscheduledJobs.find((j) => j.id === jobId);
+      if (!job || !role) return;
+      patchJobLocal(jobId, { scheduledFor: date });
+      setUnscheduledJobs((prev) => prev.filter((j) => j.id !== jobId));
       setActionNotice(`${job.jobNumber} rescheduled to ${formatDateShort(date)}.`);
+      void requestJson(`/api/jobs/${jobId}`, {
+        role,
+        method: "PATCH",
+        body: { scheduledFor: date },
+      }).catch(() => {
+        void reloadBoard();
+      });
     },
-    [jobs, updateJob]
+    [jobs, unscheduledJobs, role, patchJobLocal, reloadBoard],
   );
 
   const handleAssign = useCallback(
     (jobId: string, technician: string) => {
-      const job = jobs.find((j) => j.id === jobId);
-      if (!job || job.assignedTo === technician) return;
-      updateJob(jobId, { ...job, assignedTo: technician });
+      const job =
+        jobs.find((j) => j.id === jobId) ?? unscheduledJobs.find((j) => j.id === jobId);
+      if (!job || job.assignedTo === technician || !role) return;
+      patchJobLocal(jobId, { assignedTo: technician });
       setActionNotice(
         technician
           ? `${job.jobNumber} assigned to ${technician}.`
-          : `${job.jobNumber} moved to unassigned.`
+          : `${job.jobNumber} moved to unassigned.`,
       );
+      void requestJson(`/api/jobs/${jobId}`, {
+        role,
+        method: "PATCH",
+        body: { assignedTo: technician },
+      }).catch(() => {
+        void reloadBoard();
+      });
     },
-    [jobs, updateJob]
+    [jobs, unscheduledJobs, role, patchJobLocal, reloadBoard],
   );
 
   return (
@@ -160,6 +215,12 @@ export function DailyPlansScreen() {
       {actionNotice ? (
         <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.08] px-4 py-3 text-sm text-blue-100">
           {actionNotice}
+        </div>
+      ) : null}
+
+      {loadError ? (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.08] px-4 py-3 text-sm text-red-100">
+          {loadError}
         </div>
       ) : null}
 

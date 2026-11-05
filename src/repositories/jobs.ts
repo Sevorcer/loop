@@ -806,6 +806,43 @@ export async function countUnscheduledJobs(): Promise<number> {
   return legacy.count ?? 0;
 }
 
+
+/**
+ * Unscheduled jobs for Daily Plans (no scheduled_for and no scheduled_start_at).
+ * Paged so the board never downloads the full workspace. Soft-deleted rows skipped.
+ */
+export async function listUnscheduledJobs(limit = 200): Promise<Job[]> {
+  const pageSize = Math.max(1, Math.min(limit, 500));
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const run = async (select: string, withStartAt: boolean) => {
+    let query = supabase
+      .from("jobs")
+      .select(select)
+      .eq("org_id", orgId)
+      .is("deleted_at", null)
+      .is("scheduled_for", null);
+    if (withStartAt) query = query.is("scheduled_start_at", null);
+    const { data, error } = await query
+      .order("created_at", { ascending: false })
+      .range(0, pageSize - 1);
+    return { data: toJobRows(data), error };
+  };
+
+  let { data, error } = await run(JOB_SELECT, true);
+  if (error && isSchedulingColumnMissingError(error)) {
+    ({ data, error } = await run(JOB_SELECT_WITH_LEGACY, false));
+    if (error && isSchedulingColumnMissingError(error)) {
+      ({ data, error } = await run(JOB_SELECT_BASE, false));
+    }
+  }
+  if (error) throw new Error(error.message);
+  const jobsList = (data as JobRow[]).map(mapJob);
+  await attachAssignees(supabase, orgId, jobsList);
+  return jobsList;
+}
+
+
 export async function listJobActivity(
   options?: { page?: number; pageSize?: number },
 ): Promise<JobActivity[]> {

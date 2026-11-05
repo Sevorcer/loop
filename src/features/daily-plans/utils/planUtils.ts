@@ -32,6 +32,9 @@ export function getTodayDate(): string {
   return formatLocalDate(new Date());
 }
 
+/** How many future days Daily Plans loads (today inclusive on the API). */
+export const DAILY_PLANS_UPCOMING_DAYS = 14;
+
 export function addDays(date: string, days: number): string {
   const d = new Date(date + "T00:00:00");
   d.setDate(d.getDate() + days);
