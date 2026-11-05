@@ -59,8 +59,8 @@ export function GcLedgerSection({ customerId, customerName }: GcLedgerSectionPro
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(() => true);
+    setError(() => null);
     try {
       const [entriesRes, overviewRes, contactsRes] = await Promise.all([
         fetch(`/api/customers/${customerId}/gc-ledger`),
@@ -70,7 +70,7 @@ export function GcLedgerSection({ customerId, customerName }: GcLedgerSectionPro
 
       if (entriesRes.ok) {
         const { entries: fetchedEntries } = await entriesRes.json();
-        setEntries(fetchedEntries ?? []);
+        setEntries(() => fetchedEntries ?? []);
       }
 
       if (overviewRes.ok) {
@@ -78,17 +78,17 @@ export function GcLedgerSection({ customerId, customerName }: GcLedgerSectionPro
         const builderRollup = (builders ?? []).find(
           (b: GcBuilderRollup) => b.customerId === customerId,
         );
-        if (builderRollup) setRollup(builderRollup);
+        if (builderRollup) setRollup(() => builderRollup);
       }
 
       if (contactsRes.ok) {
         const { contacts: fetchedContacts } = await contactsRes.json();
-        setContacts(fetchedContacts ?? []);
+        setContacts(() => fetchedContacts ?? []);
       }
     } catch {
-      setError("Failed to load GC ledger data.");
+      setError(() => "Failed to load GC ledger data.");
     } finally {
-      setLoading(false);
+      setLoading(() => false);
     }
   }, [customerId]);
 

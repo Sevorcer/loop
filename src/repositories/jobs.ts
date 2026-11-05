@@ -463,6 +463,7 @@ export async function listJobsPaginated(
   // Helper: apply shared filters to a query builder (works for both data
   // and count queries). The builder type is generic enough for both select
   // overloads Supabase provides.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- deliberate: precise signatures for the two Supabase builder overloads trip TS2589 (excessively deep type instantiation); the loose Function types are the working abstraction for this helper.
   function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function; is: Function; gte: Function }>(
     query: Q,
   ): Q {
