@@ -100,6 +100,7 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   calendar_tasks: "Calendar Tasks",
   calendar_saved_groups: "Calendar Groups",
   calendar_saved_group_members: "Calendar Group Members",
+  job_change_orders: "Job Change Orders",
   job_financials: "Job Revenue",
   job_financials_history: "Job Price History",
   portal_users: "Portal Users",
