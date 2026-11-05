@@ -12,7 +12,25 @@ import {
   CALLBACK_TYPE_QUERY_VARIANTS,
   OPEN_JOB_STATUS_EXCLUSION_FILTER,
 } from "@/lib/callbacks";
+import { getStatusVariants, type CanonicalJobStatus } from "@/lib/jobs/status";
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
+
+// ---------------------------------------------------------------------------
+// GC open-job definition
+// ---------------------------------------------------------------------------
+
+/**
+ * Canonical statuses that count as an "open" job on the GC Overview. Mirrors
+ * the app-wide definition (isOpenStatus / OPEN_JOB_STATUS_EXCLUSION_FILTER):
+ * anything not Completed or Cancelled. Production stores Title Case values
+ * ("Scheduled", "In Progress", "On Hold"), so the query must use
+ * getStatusVariants() — never hand-written lowercase literals.
+ */
+export const GC_OPEN_JOB_STATUSES: readonly CanonicalJobStatus[] = [
+  "Scheduled",
+  "In Progress",
+  "On Hold",
+];
 
 // ---------------------------------------------------------------------------
 // Row shapes (database snake_case)
@@ -506,13 +524,16 @@ export async function getBuilderRollup(
 
   const jobIds = (jobs ?? []).map((j: { id: string }) => j.id);
 
-  // Open jobs count (scheduled or in_progress)
+  // Open jobs count — Scheduled / In Progress / On Hold in every stored
+  // casing (STATUS_QUERY_VARIANTS). Rolls up jobs filed directly on the
+  // builder parent as well as its child sites, matching how the app's
+  // account-level open count works (countOpenJobsForCustomers).
   const { count: openJobCount } = await supabase
     .from("jobs")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
-    .in("customer_id", childIds)
-    .in("status", ["scheduled", "in_progress"]);
+    .in("customer_id", [parentCustomerId, ...childIds])
+    .in("status", getStatusVariants(GC_OPEN_JOB_STATUSES));
 
   if (jobIds.length === 0) {
     return {

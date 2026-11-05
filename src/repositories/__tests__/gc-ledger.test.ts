@@ -5,6 +5,7 @@
  *   1. Roll-up math with multiple change orders
  *   2. Ledger reads price from job_bids, invoice from jobs (not duplicated)
  *   3. Builder overview lists only parent customers with child jobs
+ *   4. Open-job count matches production's Title Case statuses
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -152,7 +153,9 @@ const {
   listLedgerEntriesForBuilder,
   getBuilderRollup,
   listBuildersWithRollups,
+  GC_OPEN_JOB_STATUSES,
 } = await import("@/repositories/gcLedger");
+const { getStatusVariants } = await import("@/lib/jobs/status");
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -269,6 +272,64 @@ describe("GC Ledger Repository", () => {
 
       // Restore
       fakeSupabase.from = origFrom;
+    });
+  });
+
+  describe("Open job count (production Title Case statuses)", () => {
+    it("counts the default fixture's Title Case open jobs (was 0 with lowercase filter)", async () => {
+      const rollup = await getBuilderRollup(BUILDER_ID, "Builder Corp");
+      // JOB_1 "In Progress" + JOB_2 "Scheduled"
+      expect(rollup.openJobCount).toBe(2);
+    });
+
+    it("pins the exact Title Case values production stores", () => {
+      const variants = getStatusVariants(GC_OPEN_JOB_STATUSES);
+      // Open: these exact strings are what prod jobs.status contains.
+      expect(variants).toContain("Scheduled");
+      expect(variants).toContain("In Progress");
+      expect(variants).toContain("On Hold");
+      // Legacy lowercase variants still match.
+      expect(variants).toContain("scheduled");
+      expect(variants).toContain("in_progress");
+      // Closed statuses must never be counted as open.
+      expect(variants).not.toContain("Completed");
+      expect(variants).not.toContain("Cancelled");
+      expect(variants).not.toContain("completed");
+      expect(variants).not.toContain("cancelled");
+    });
+
+    it("counts Scheduled / In Progress / On Hold across parent + child sites, excluding Completed / Cancelled", async () => {
+      const titleCaseJobs: Row[] = [
+        { id: "t-1", org_id: ORG_ID, customer_id: CHILD_1, status: "Scheduled" },
+        { id: "t-2", org_id: ORG_ID, customer_id: CHILD_1, status: "In Progress" },
+        { id: "t-3", org_id: ORG_ID, customer_id: CHILD_2, status: "On Hold" },
+        { id: "t-4", org_id: ORG_ID, customer_id: CHILD_2, status: "Completed" },
+        { id: "t-5", org_id: ORG_ID, customer_id: CHILD_2, status: "Cancelled" },
+        // Job filed directly against the builder parent counts too.
+        { id: "t-6", org_id: ORG_ID, customer_id: BUILDER_ID, status: "In Progress" },
+        // Legacy lowercase row still counts.
+        { id: "t-7", org_id: ORG_ID, customer_id: CHILD_1, status: "scheduled" },
+        // Other org / unrelated customer never counts.
+        { id: "t-8", org_id: "other-org", customer_id: CHILD_1, status: "Scheduled" },
+        { id: "t-9", org_id: ORG_ID, customer_id: "cust-unrelated", status: "Scheduled" },
+      ];
+
+      const origFrom = fakeSupabase.from;
+      fakeSupabase.from = (table: string) => {
+        if (table === "jobs") {
+          const QueryClass = buildFakeQuery(table, titleCaseJobs);
+          return new QueryClass();
+        }
+        return origFrom(table);
+      };
+
+      try {
+        const rollup = await getBuilderRollup(BUILDER_ID, "Builder Corp");
+        // t-1, t-2, t-3, t-6, t-7
+        expect(rollup.openJobCount).toBe(5);
+      } finally {
+        fakeSupabase.from = origFrom;
+      }
     });
   });
 });
