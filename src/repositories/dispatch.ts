@@ -13,6 +13,8 @@ import type {
   ScheduleBlock,
 } from "@/features/dispatch/types/dispatch";
 
+import { CREW_VEHICLE_EMBED, resolveVehicleName } from "@/features/inventory/utils/vehicleName";
+
 import { wrapRepositoryError } from "./shared";
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
@@ -29,6 +31,8 @@ interface CrewRow {
   certifications: string[];
   availability: string;
   truck_name: string;
+  vehicle_id?: string | null;
+  vehicle?: { name: string | null } | null;
 }
 
 interface DispatchPlanRow {
@@ -103,7 +107,8 @@ function mapCrew(row: CrewRow): Crew {
     members: (row.members as Crew["members"]) ?? [],
     certifications: row.certifications ?? [],
     availability: row.availability as Crew["availability"],
-    truckName: row.truck_name,
+    truckName: resolveVehicleName(row.vehicle, row.truck_name),
+    vehicleId: row.vehicle_id ?? null,
   };
 }
 
@@ -191,7 +196,7 @@ export async function listCrews(options?: { page?: number; pageSize?: number }) 
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
       .from("crews")
-      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
+      .select(CREW_SELECT)
       .eq("org_id", orgId)
       .order("name")
       .range(from, to);
@@ -224,7 +229,7 @@ export async function createCrew(input: CrewWriteInput) {
         availability: input.availability,
         truck_name: input.truckName,
       })
-      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
+      .select(CREW_SELECT)
       .single();
 
     if (error) throw new Error(error.message);
@@ -705,7 +710,7 @@ export interface DispatchRepositorySnapshot {
 const DISPATCH_PLAN_SELECT =
   "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at";
 const CREW_SELECT =
-  "id,org_id,name,lead_installer,members,certifications,availability,truck_name";
+  `id,org_id,name,lead_installer,members,certifications,availability,truck_name,${CREW_VEHICLE_EMBED}`;
 const CREW_ASSIGNMENT_SELECT =
   "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history";
 const SCHEDULE_BLOCK_SELECT =

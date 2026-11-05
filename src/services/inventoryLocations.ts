@@ -19,6 +19,7 @@ import {
   createVehicle as createVehicleRecord,
   getVehicle,
   listVehicles as listVehicleRecords,
+  relinkCrewVehicle,
   updateVehicle as updateVehicleRecord,
 } from "@/repositories/vehicles";
 
@@ -72,6 +73,16 @@ export async function updateLocation(
 // Vehicles — each vehicle owns one van location (created with it, idempotent)
 // ---------------------------------------------------------------------------
 
+function messageOf(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : "Unknown error.";
+}
+
+/** Rethrows with a new message, keeping the original HTTP status. */
+function withMessage(error: unknown, message: string): Error {
+  const status = (error as { status?: unknown } | null)?.status;
+  return Object.assign(new Error(message), typeof status === "number" ? { status } : {});
+}
+
 export async function listVehicles(includeRetired = false): Promise<Vehicle[]> {
   return listVehicleRecords(includeRetired);
 }
@@ -99,20 +110,39 @@ export async function createVehicle(input: VehicleInput): Promise<{ vehicle: Veh
   if (!name) badRequest("name is required.");
   if (input.status !== undefined && !VEHICLE_STATUSES.includes(input.status)) badRequest("status is not valid.");
 
-  const vehicle = await createVehicleRecord({
+  // The crew link is applied after the vehicle exists, through relinkCrewVehicle,
+  // so crews.vehicle_id and vehicles.crew_id are always written together.
+  const crewId = input.crewId ?? null;
+  const created = await createVehicleRecord({
     ...input,
+    crewId: null,
     name,
     plate: clean(input.plate),
     vin: clean(input.vin),
     notes: clean(input.notes),
   });
-  const location = await ensureVanLocation(vehicle);
+  const location = await ensureVanLocation(created);
+  if (!crewId) return { vehicle: created, location };
+
+  try {
+    await relinkCrewVehicle(created.id, crewId);
+  } catch (error) {
+    throw withMessage(error, `"${name}" was added, but it could not be assigned to the crew. ${messageOf(error)}`);
+  }
+  const vehicle = (await updateVehicleRecord(created.id, { crewId })) ?? created;
   return { vehicle, location };
 }
 
 export async function updateVehicle(id: string, patch: Partial<VehicleInput>): Promise<Vehicle> {
   if (patch.name !== undefined && !patch.name.trim()) badRequest("name cannot be blank.");
   if (patch.status !== undefined && !VEHICLE_STATUSES.includes(patch.status)) badRequest("status is not valid.");
+
+  // Crew assignment changes both pointers; the crew write goes first (see relinkCrewVehicle).
+  // Skipped when the crew is unchanged, so editing other fields never needs crew-write access.
+  if (patch.crewId !== undefined) {
+    const current = await getVehicleOrThrow(id);
+    if ((current.crewId ?? null) !== patch.crewId) await relinkCrewVehicle(id, patch.crewId);
+  }
 
   const updated = await updateVehicleRecord(id, {
     ...patch,

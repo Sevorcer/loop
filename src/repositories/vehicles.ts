@@ -87,3 +87,47 @@ export async function updateVehicle(id: string, patch: Partial<VehicleInput>): P
   const first = ((data ?? []) as VehicleRow[])[0];
   return first ? mapVehicle(first) : null;
 }
+
+/**
+ * Keeps the two crew <-> vehicle pointers consistent: `crews.vehicle_id` (what
+ * dispatch and daily plans read) and `vehicles.crew_id` (what the Locations &
+ * vans screen edits). One crew per vehicle and one vehicle per crew.
+ *
+ * Crews are writable only by owner/manager/dispatch (RLS), so the crew write
+ * goes FIRST: a role that cannot write crews fails here with a 403 before any
+ * other row has changed. Every step is idempotent, so a retry converges.
+ */
+export async function relinkCrewVehicle(vehicleId: string, crewId: string | null): Promise<void> {
+  const { supabase, orgId } = await getRepositoryContext();
+
+  // Release whichever crew is currently on this vehicle.
+  const release = await supabase
+    .from("crews")
+    .update({ vehicle_id: null })
+    .eq("org_id", orgId)
+    .eq("vehicle_id", vehicleId);
+  if (release.error) throwInventoryDbError(release.error, "Could not release the crew from this vehicle.");
+
+  if (!crewId) return;
+
+  // Put the crew on this vehicle (displaces its previous vehicle).
+  const assign = await supabase
+    .from("crews")
+    .update({ vehicle_id: vehicleId })
+    .eq("org_id", orgId)
+    .eq("id", crewId)
+    .select("id");
+  if (assign.error) throwInventoryDbError(assign.error, "Could not assign the crew to this vehicle.");
+  if (!assign.data || assign.data.length === 0) {
+    throw Object.assign(new Error("Crew not found."), { status: 404 });
+  }
+
+  // The crew's previous vehicle no longer points at it.
+  const detach = await supabase
+    .from("vehicles")
+    .update({ crew_id: null })
+    .eq("org_id", orgId)
+    .eq("crew_id", crewId)
+    .neq("id", vehicleId);
+  if (detach.error) throwInventoryDbError(detach.error, "Could not update the crew's previous vehicle.");
+}
