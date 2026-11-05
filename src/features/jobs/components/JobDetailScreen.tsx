@@ -57,6 +57,7 @@ import {
   type CloseoutSectionKey,
 } from "../utils/jobCloseout";
 import { AssignContractorPanel } from "./AssignContractorPanel";
+import { JobNotificationsCard } from "./JobNotificationsCard";
 import { JobCloseoutPanel } from "./JobCloseoutPanel";
 import { JobNotesHistory } from "./JobNotesHistory";
 import { JobCompletionChecklistCard } from "./JobCompletionChecklistCard";
@@ -770,6 +771,7 @@ export function JobDetailScreen({
             />
 
             {isTech ? null : <AssignContractorPanel jobId={job.id} />}
+          <JobNotificationsCard jobId={job.id} />
 
             <JobSignatureCard jobId={job.id} onLatestChange={setLatestSignature} />
           </div>
