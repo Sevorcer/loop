@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FollowUpsCard } from "@/features/follow-ups/components/FollowUpsCard";
 import { getDashboardSummary, listDashboardAttentionJobs } from "@/repositories/dashboard";
 
 import { DashboardHeader } from "./DashboardHeader";
@@ -51,6 +52,8 @@ export async function DashboardScreen() {
       <DashboardHeader summary={summary} />
 
       <NeedsAttention items={attention} />
+
+      <FollowUpsCard />
 
       <MetricsGrid summary={summary} />
 

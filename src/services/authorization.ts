@@ -91,7 +91,8 @@ export type CoreTable =
 | "inspection_corrections"
   | "vehicle_alerts"
   // Change Orders — per-job change order tracking
-  | "job_change_orders";
+  | "job_change_orders"
+  | "customer_invoices";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -403,6 +404,15 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner", "manager"]),
+  },
+  // Customer invoices — read-only view of imported invoices on a customer
+  // account (invoicing stays in QuickBooks). Mirrors the invoices RLS policy
+  // ("invoices: finance read"); no role can write here.
+  customer_invoices: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>([]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
   },
   // Vehicle Alerts — staff list/create; office+dispatch update status; owner delete
   vehicle_alerts: {

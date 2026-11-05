@@ -92,6 +92,7 @@ import { PortalPhotosToggle } from "./PortalPhotosToggle";
 import { PortalSubmissions } from "./PortalSubmissions";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
+import { FollowUpControl } from "@/features/follow-ups/components/FollowUpControl";
 import { formatDateOnly } from "@/lib/dates";
 import { companyTimeZone } from "@/lib/timezone";
 
@@ -814,6 +815,8 @@ export function JobDetailScreen({
                 </div>
               </div>
             </SurfaceCard>
+
+            <FollowUpControl jobId={job.id} />
 
             {/* Crew card */}
             <SurfaceCard>
