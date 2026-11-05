@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Camera, Download, FileText, Loader2, Paperclip, Trash2, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Download, FileText, Loader2, Paperclip, Trash2, Upload, RotateCcw, X } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,13 @@ import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 import { ALLOWED_FILE_ACCEPT, MAX_JOB_FILE_SIZE_BYTES, validateJobFile, formatFileSize } from "@/lib/fileValidation";
 import { applyFileDownload } from "@/features/jobs/utils/fileDownload";
+import {
+  createPendingUpload,
+  formatPendingUploadError,
+  revokePendingPreview,
+  uploadFailureMessage,
+  type PendingJobUpload,
+} from "@/features/jobs/utils/jobFileUploadQueue";
 
 import { JobPhotoGrid } from "./JobPhotoGrid";
 
@@ -23,6 +30,12 @@ interface JobFileMeta {
   previewUrl?: string | null;
 }
 
+let pendingIdCounter = 0;
+function nextPendingId(): string {
+  pendingIdCounter += 1;
+  return `pending-${Date.now()}-${pendingIdCounter}`;
+}
+
 export function JobFilesPanel({
   jobId,
   onFilesChanged,
@@ -35,17 +48,21 @@ export function JobFilesPanel({
 }) {
   const { role } = useCurrentRole();
   const [files, setFiles] = useState<JobFileMeta[]>([]);
+  const [pending, setPending] = useState<PendingJobUpload[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
 
   const imageCount = useMemo(
     () => files.filter((file) => file.mimeType.toLowerCase().startsWith("image/")).length,
     [files],
   );
+
+  const uploading = pending.some((item) => item.status === "uploading");
 
   const loadFiles = useCallback(async () => {
     if (!role) return;
@@ -74,86 +91,136 @@ export function JobFilesPanel({
     });
   }, [loadFiles]);
 
+  useEffect(() => {
+    return () => {
+      for (const item of pendingRef.current) {
+        revokePendingPreview(item);
+      }
+    };
+  }, []);
+
+  function patchPending(clientId: string, patch: Partial<PendingJobUpload>) {
+    setPending((current) =>
+      current.map((item) => (item.clientId === clientId ? { ...item, ...patch } : item)),
+    );
+  }
+
+  function discardPending(clientId: string) {
+    setPending((current) => {
+      const target = current.find((item) => item.clientId === clientId);
+      if (target) revokePendingPreview(target);
+      return current.filter((item) => item.clientId !== clientId);
+    });
+  }
+
+  async function uploadOne(item: PendingJobUpload): Promise<boolean> {
+    if (!role) return false;
+
+    patchPending(item.clientId, { status: "uploading", error: null });
+
+    const headers = new Headers();
+    if (process.env.NODE_ENV !== "production" && role) {
+      headers.set("x-loop-role", role);
+    }
+
+    const formData = new FormData();
+    formData.set("file", item.file);
+
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/files`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+        headers,
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: string; error?: string }
+        | null;
+
+      if (!response.ok) {
+        const reason = uploadFailureMessage(payload, `Upload failed (HTTP ${response.status}).`);
+        patchPending(item.clientId, {
+          status: "failed",
+          error: formatPendingUploadError(item.file.name, reason),
+        });
+        return false;
+      }
+
+      revokePendingPreview(item);
+      setPending((current) => current.filter((row) => row.clientId !== item.clientId));
+      return true;
+    } catch (fileError) {
+      const reason =
+        fileError instanceof Error && fileError.message.trim()
+          ? fileError.message
+          : "Network error — check your connection and retry.";
+      patchPending(item.clientId, {
+        status: "failed",
+        error: formatPendingUploadError(item.file.name, reason),
+      });
+      return false;
+    }
+  }
+
   async function handleUpload(fileList: FileList | null) {
     if (!fileList || fileList.length === 0 || !role) {
       return;
     }
 
     const filesToUpload = Array.from(fileList);
+    const accepted: PendingJobUpload[] = [];
 
-    // Client-side validation — mirrors server checks for fast, actionable feedback.
-    // Validate all files up front so the user knows about problems before any upload starts.
     for (const file of filesToUpload) {
       const validationError = validateJobFile({
         mimeType: file.type || "application/octet-stream",
         sizeBytes: file.size,
       });
       if (validationError) {
-        setError(`${file.name}: ${validationError}`);
-        return;
+        // Keep invalid files visible too so the tech can see why and discard.
+        accepted.push({
+          ...createPendingUpload(file, nextPendingId()),
+          status: "failed",
+          error: formatPendingUploadError(file.name, validationError),
+        });
+        continue;
       }
+      accepted.push(createPendingUpload(file, nextPendingId()));
     }
 
-    try {
-      setUploading(true);
-      setError(null);
-      setSuccess(null);
+    if (accepted.length === 0) return;
 
-      const headers = new Headers();
-      if (process.env.NODE_ENV !== "production" && role) {
-        headers.set("x-loop-role", role);
-      }
+    setSuccess(null);
+    setError(null);
+    setPending((current) => [...current, ...accepted]);
 
-      let uploadedCount = 0;
-      const errors: string[] = [];
+    let uploadedCount = 0;
+    for (const item of accepted) {
+      if (item.status === "failed") continue;
+      const ok = await uploadOne(item);
+      if (ok) uploadedCount += 1;
+    }
 
-      // Upload each file individually so one failure doesn't block the rest.
-      for (const file of filesToUpload) {
-        const formData = new FormData();
-        formData.set("file", file);
+    await loadFiles();
 
-        try {
-          const response = await fetch(`/api/jobs/${jobId}/files`, {
-            method: "POST",
-            credentials: "include",
-            body: formData,
-            headers,
-          });
+    if (uploadedCount > 0) {
+      setSuccess(
+        uploadedCount === 1
+          ? "File uploaded successfully."
+          : `${uploadedCount} files uploaded successfully.`,
+      );
+    }
+  }
 
-          const payload = (await response.json().catch(() => null)) as
-            | { message?: string; error?: string }
-            | null;
-
-          if (!response.ok) {
-            throw new Error(payload?.message ?? payload?.error ?? "Upload failed.");
-          }
-          uploadedCount++;
-        } catch (fileError) {
-          errors.push(
-            `${file.name}: ${fileError instanceof Error ? fileError.message : "Upload failed."}`,
-          );
-        }
-      }
-
-      await loadFiles();
-
-      if (errors.length > 0) {
-        setError(
-          uploadedCount > 0
-            ? `${uploadedCount} of ${filesToUpload.length} files uploaded. Failed: ${errors.join("; ")}`
-            : `Upload failed: ${errors.join("; ")}`,
-        );
-      } else {
-        setSuccess(
-          filesToUpload.length === 1
-            ? "File uploaded successfully."
-            : `${uploadedCount} files uploaded successfully.`,
-        );
-      }
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload failed. Please try again.");
-    } finally {
-      setUploading(false);
+  async function handleRetry(clientId: string) {
+    const item = pendingRef.current.find((row) => row.clientId === clientId);
+    if (!item || item.status === "uploading") return;
+    setError(null);
+    setSuccess(null);
+    const ok = await uploadOne({ ...item, status: "queued", error: null });
+    await loadFiles();
+    if (ok) {
+      setSuccess("File uploaded successfully.");
     }
   }
 
@@ -165,7 +232,6 @@ export function JobFilesPanel({
         `/api/jobs/${jobId}/files/${file.id}`,
         { role, cache: "no-store" },
       );
-      // Use programmatic anchor click to avoid popup blocker
       const a = document.createElement("a");
       applyFileDownload(a, result.url, result.fileName);
       document.body.appendChild(a);
@@ -214,9 +280,6 @@ export function JobFilesPanel({
           </div>
         </div>
 
-        {/* Upload controls — two affordances for mobile (camera vs file picker).
-            `multiple` lets the OS picker select several files at once (and on Android
-            surfaces the gallery grid instead of just camera/files). */}
         <div className="mt-4 flex gap-2">
           <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/[0.06]">
             <Upload className="h-4 w-4" />
@@ -228,8 +291,10 @@ export function JobFilesPanel({
               multiple
               onChange={(event) => {
                 const input = event.target;
-                void handleUpload(input.files).finally(() => {
-                  // Clear so the same files can be selected again
+                const list = input.files;
+                // Clear the input so the same files can be picked again later,
+                // but the File objects live on in `pending` until success/discard.
+                void handleUpload(list).finally(() => {
                   input.value = "";
                 });
               }}
@@ -237,7 +302,6 @@ export function JobFilesPanel({
             />
           </label>
 
-          {/* Camera shortcut — on mobile, accept="image/*" automatically prompts camera */}
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/[0.06]">
             <Camera className="h-4 w-4" />
             <span className="sr-only">Take photo</span>
@@ -248,8 +312,8 @@ export function JobFilesPanel({
               multiple
               onChange={(event) => {
                 const input = event.target;
-                void handleUpload(input.files).finally(() => {
-                  // Clear so the same files can be selected again
+                const list = input.files;
+                void handleUpload(list).finally(() => {
                   input.value = "";
                 });
               }}
@@ -262,6 +326,70 @@ export function JobFilesPanel({
           JPEG, PNG, WebP, HEIC, PDF · max {formatFileSize(MAX_JOB_FILE_SIZE_BYTES)} per file ·
           select multiple files at once
         </p>
+
+        {pending.length > 0 ? (
+          <div className="mt-4 space-y-2" data-testid="pending-uploads">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Pending uploads
+            </p>
+            {pending.map((item) => (
+              <div
+                key={item.clientId}
+                data-pending-status={item.status}
+                className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2"
+              >
+                {item.previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.previewUrl}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                  />
+                ) : item.file.type.toLowerCase().startsWith("image/") ? (
+                  <Camera className="h-4 w-4 shrink-0 text-amber-300" />
+                ) : (
+                  <Paperclip className="h-4 w-4 shrink-0 text-amber-300" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-slate-200">{item.file.name}</p>
+                  <p className="text-xs text-amber-200/90">
+                    {item.status === "uploading"
+                      ? "Uploading…"
+                      : item.status === "queued"
+                        ? "Waiting…"
+                        : item.error ?? "Upload failed."}
+                  </p>
+                </div>
+                {item.status === "uploading" ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-300" />
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-[44px] min-w-[44px] shrink-0 p-0 text-amber-200 hover:text-white"
+                      onClick={() => void handleRetry(item.clientId)}
+                      aria-label={`Retry ${item.file.name}`}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-[44px] min-w-[44px] shrink-0 p-0 text-slate-400 hover:text-red-300"
+                      onClick={() => discardPending(item.clientId)}
+                      aria-label={`Discard ${item.file.name}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <JobPhotoGrid photos={files} />
 
@@ -306,7 +434,6 @@ export function JobFilesPanel({
                 <Button
                   variant="ghost"
                   size="sm"
-                  // F14: glove-sized file action target.
                   className="min-h-[44px] min-w-[44px] shrink-0 p-0 text-slate-400 hover:text-white"
                   onClick={() => void handleDownload(file)}
                   disabled={downloadingId === file.id}
