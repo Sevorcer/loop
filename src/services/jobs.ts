@@ -13,6 +13,7 @@ import {
   type JobCompletionChecklistStatus,
   type RequiredQaChecklist,
 } from "@/features/jobs/utils/jobCompletionChecklist";
+import { notifyJobCompleted } from "@/services/customerNotifications";
 import { resolveCustomerIdByName } from "@/repositories/properties";
 import {
   DEFAULT_JOB_APPOINTMENT_HOUR,
@@ -652,6 +653,13 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
 
   await Promise.all(sideEffects);
 
+    // Customer notifications (#35): the Finished email fires on the
+    // transition into Completed, only when the job opted in. The helper
+    // never throws — email can't break completion.
+    if (updatedJob.status === "Completed" && existing.status !== "Completed") {
+          await notifyJobCompleted(updatedJob);
+    }
+  
   return updatedJob;
 }
 
