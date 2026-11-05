@@ -172,6 +172,6 @@ The test file `src/lib/__tests__/api-route-authz-coverage.test.ts` enforces cove
 
 ## Changelog
 
-- **2.1 (2026-11-05):** Inventory Lane 1 PR A adds 12 route files under `inventory/` (items, tiers, categories, vehicles, locations, stock, transactions), each guarded by `requirePermission` on its own table. The legacy `inventory/route.ts` stub (borrows `jobs`) is removed in PR B; the totals below are not recounted until then.
+- **2.1 (2026-11-05):** Inventory Lane 1 PR A adds 12 route files under `inventory/` (items, tiers, categories, vehicles, locations, stock, transactions), each guarded by `requirePermission` on its own table. PR B removes the legacy `inventory/route.ts` stub (it borrowed the `jobs` permission). The totals below were already out of date before this change (main has 107 route files, not 46) and are not recounted here.
 - **2.0 (2026-10-03):** Full re-inventory — all 46 route files mapped (was 20). Added bearer-token CI endpoints, file delete route, warranty registration PATCH, settings/users routes. Documented Vercel NODE_ENV verification and known RLS gaps.
 - **1.0 (2026-07-25):** Initial inventory (20 endpoints, Sprint 26).

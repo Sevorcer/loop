@@ -1,5 +1,4 @@
-export { InventoryScreen } from "./screens/InventoryScreen";
-export { InventoryProvider, useInventory } from "./state/InventoryProvider";
+export { StockScreen } from "./screens/StockScreen";
 export type {
   InventoryItem,
   InventoryAllocation,
