@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -21,6 +22,7 @@ import { validateCreateContractorInput } from "../utils/contractorUtils";
 interface ContractorsContextValue {
   hydrated: boolean;
   contractors: Contractor[];
+  refreshContractors: () => Promise<void>;
   getContractorById: (id: string) => Contractor | undefined;
   createContractor: (
     input: CreateContractorInput
@@ -75,36 +77,57 @@ export function ContractorsProvider({ children }: { children: ReactNode }) {
   // F19: contractors live in the real `contractors` table. Load them once the
   // session role is known; on failure keep the local/mock fallback so the
   // directory UI still renders (e.g. before login).
+  //
+  // #13 fix (2026-11-04): the list used to load exactly once per mount.
+  // Creating a contractor happens in a NEW TAB (the panel's "Add one"
+  // link is target=_blank) under a different provider mount, so the job
+  // tab's list stayed stale and the new contractor could never be
+  // assigned — Collin: "takes you to make a NEW contractor; no way to
+  // assign an existing one." The list now also refetches when the tab
+  // regains focus, and consumers can call refreshContractors().
+  const loadContractors = useCallback(async () => {
+    try {
+      const response = await requestJson<{ contractors: Contractor[] }>(
+        "/api/contractors",
+        { cache: "no-store", role },
+      );
+      setContractors(response.contractors);
+      setLoadedFromServer(true);
+      window.localStorage.setItem(
+        CONTRACTORS_STORAGE_KEY,
+        JSON.stringify(response.contractors),
+      );
+    } catch {
+      // Graceful fallback: keep localStorage/mock data.
+    }
+  }, [role]);
+
   useEffect(() => {
     if (!role || loadedFromServer) {
       return;
     }
+    void loadContractors();
+  }, [role, loadedFromServer, loadContractors]);
 
-    let cancelled = false;
-
-    requestJson<{ contractors: Contractor[] }>("/api/contractors", {
-      cache: "no-store",
-    })
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-
-        setContractors(response.contractors);
-        setLoadedFromServer(true);
-        window.localStorage.setItem(
-          CONTRACTORS_STORAGE_KEY,
-          JSON.stringify(response.contractors)
-        );
-      })
-      .catch(() => {
-        // Graceful fallback: keep localStorage/mock data.
-      });
-
-    return () => {
-      cancelled = true;
+  useEffect(() => {
+    if (!loadedFromServer) {
+      return;
+    }
+    const onFocus = () => {
+      void loadContractors();
     };
-  }, [role, loadedFromServer]);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadContractors();
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [loadedFromServer, loadContractors]);
 
   const value = useMemo<ContractorsContextValue>(() => {
     function getContractorById(id: string) {
@@ -154,10 +177,11 @@ export function ContractorsProvider({ children }: { children: ReactNode }) {
     return {
       hydrated,
       contractors,
+      refreshContractors: loadContractors,
       getContractorById,
       createContractor,
     };
-  }, [contractors, hydrated]);
+  }, [contractors, hydrated, loadContractors]);
 
   return (
     <ContractorsContext.Provider value={value}>
