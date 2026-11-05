@@ -1,51 +1,90 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, CircleAlert, Sun } from "lucide-react";
+import Link from "next/link";
+import {
+  CalendarDays,
+  CircleAlert,
+  Printer,
+  Rocket,
+  PackageCheck,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/atlas";
+import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import type { Job } from "@/features/jobs/types/job";
 import { requestJson } from "@/lib/api/client";
 
 import { CrewStatusPanel } from "../components/CrewStatusPanel";
+import { DayJobsTable, type AssignablePerson } from "../components/DayJobsTable";
+import { DayNavigator } from "../components/DayNavigator";
 import { MorningBriefing } from "../components/MorningBriefing";
 import { NeedsAttentionPanel } from "../components/NeedsAttentionPanel";
+import { PlanningNotes } from "../components/PlanningNotes";
 import { ScheduleSection } from "../components/ScheduleSection";
-import { buildDailyCrewRoster, type CrewRecord, type DailyCrewRoster } from "../data/fieldCrews";
 import {
-  countBriefingAtRisk,
-  getScheduledTodayJobs,
-  getTodayDate,
-  getUpcomingJobs,
+  buildDailyCrewRoster,
+  type CrewRecord,
+  type DailyCrewRoster,
+} from "../data/fieldCrews";
+import { useDailyPlans } from "../state/DailyPlansProvider";
+import {
+  canEditDailyPlans,
+  canViewDailyPlans,
+  countPeopleWorking,
+  getJobsForSelectedDate,
+  getShortUpcomingJobs,
+  jobAssigneeNames,
+  jobIsAssigned,
+} from "../utils/dayPlanHelpers";
+import {
   addDays,
+  countBriefingAtRisk,
   DAILY_PLANS_UPCOMING_DAYS,
   formatDateShort,
 } from "../utils/planUtils";
 
 /**
- * Daily Plans loads today + the next DAILY_PLANS_UPCOMING_DAYS days (and
- * unscheduled jobs) from /api/daily-plans/jobs — the same idea as Calendar's
- * ranged fetch. It no longer downloads every job in the company.
+ * Daily Plans — office morning handout + assignment desk.
+ *
+ * Loads only the selected day through a small upcoming window from
+ * /api/daily-plans/jobs (ranged fetch from PR #412). Assignment writes the
+ * same job_assignees multi-person list Dispatch uses.
  */
 export function DailyPlansScreen() {
   const { role } = useCurrentRole();
+  const {
+    selectedDate,
+    getPlanStatus,
+    getPlanActivation,
+    activatePlan,
+    getPacketsSent,
+    markPacketsSent,
+  } = useDailyPlans();
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [unscheduledJobs, setUnscheduledJobs] = useState<Job[]>([]);
+  const [crews, setCrews] = useState<CrewRecord[]>([]);
+  const [people, setPeople] = useState<AssignablePerson[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const [roster, setRoster] = useState<DailyCrewRoster>({ crewGroups: [], floaters: [], allProfiles: [] });
 
-  const today = getTodayDate();
-  const rangeTo = addDays(today, DAILY_PLANS_UPCOMING_DAYS);
+  const canEdit = canEditDailyPlans(role);
+  const canView = canViewDailyPlans(role);
+  const rangeFrom = selectedDate;
+  const rangeTo = addDays(selectedDate, DAILY_PLANS_UPCOMING_DAYS);
+  const planStatus = getPlanStatus(selectedDate);
+  const activation = getPlanActivation(selectedDate);
+  const packetsSent = getPacketsSent(selectedDate);
 
   const reloadBoard = useCallback(async () => {
-    if (!role) return;
+    if (!role || !canView) return;
     try {
       setLoadError(null);
       const response = await requestJson<{ jobs: Job[]; unscheduled: Job[] }>(
-        `/api/daily-plans/jobs?from=${today}&to=${rangeTo}`,
+        `/api/daily-plans/jobs?from=${rangeFrom}&to=${rangeTo}`,
         { role, cache: "no-store" },
       );
       setJobs(response.jobs ?? []);
@@ -55,11 +94,44 @@ export function DailyPlansScreen() {
       setLoadError(error instanceof Error ? error.message : "Failed to load daily plans.");
       setHydrated(true);
     }
-  }, [role, today, rangeTo]);
+  }, [role, canView, rangeFrom, rangeTo]);
 
   useEffect(() => {
-    void reloadBoard();
+    // queueMicrotask defers setState out of the synchronous effect body.
+    queueMicrotask(() => {
+      void reloadBoard();
+    });
   }, [reloadBoard]);
+
+  useEffect(() => {
+    if (!role || !canView) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [rosterRes, peopleRes] = await Promise.all([
+          requestJson<{ crews: CrewRecord[] }>("/api/field-roster", {
+            role,
+            cache: "no-store",
+          }),
+          requestJson<{ people: AssignablePerson[] }>("/api/assignable-people", {
+            role,
+            cache: "no-store",
+          }),
+        ]);
+        if (cancelled) return;
+        setCrews(rosterRes.crews ?? []);
+        setPeople(peopleRes.people ?? []);
+      } catch {
+        if (!cancelled) {
+          setCrews([]);
+          setPeople([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [role, canView]);
 
   useEffect(() => {
     if (!actionNotice) return;
@@ -67,110 +139,80 @@ export function DailyPlansScreen() {
     return () => window.clearTimeout(timeout);
   }, [actionNotice]);
 
-  const todayJobs = useMemo(() => getScheduledTodayJobs(jobs), [jobs]);
-  const upcomingJobs = useMemo(() => getUpcomingJobs(jobs), [jobs]);
+  const dayJobs = useMemo(
+    () => getJobsForSelectedDate(jobs, selectedDate),
+    [jobs, selectedDate],
+  );
+  const upcomingJobs = useMemo(
+    () => getShortUpcomingJobs(jobs, selectedDate, 3),
+    [jobs, selectedDate],
+  );
 
-  useEffect(() => {
-    let cancelled = false;
+  const roster = useMemo<DailyCrewRoster>(() => {
+    const assignedNames = dayJobs.flatMap((job) => jobAssigneeNames(job));
+    return buildDailyCrewRoster({ crews, assignedNames });
+  }, [dayJobs, crews]);
 
-    async function loadCrews() {
-      const assignedNames = todayJobs.map((job) => job.assignedTo);
-      if (!role) {
-        if (!cancelled) {
-          setRoster(buildDailyCrewRoster({ crews: [], assignedNames }));
-        }
-        return;
-      }
-
-      try {
-        const fetched = await requestJson<{ crews: CrewRecord[] }>(
-          "/api/field-roster",
-          { role, cache: "no-store" },
-        );
-        if (cancelled) return;
-        setRoster(
-          buildDailyCrewRoster({
-            crews: fetched.crews ?? [],
-            assignedNames,
-          }),
-        );
-      } catch {
-        if (!cancelled) {
-          setRoster(buildDailyCrewRoster({ crews: [], assignedNames }));
-        }
-      }
-    }
-
-    void loadCrews();
-    return () => {
-      cancelled = true;
-    };
-  }, [todayJobs, role]);
-
-  // ── Morning Briefing KPI metrics ──────────────────────────────────────────
 
   const assigned = useMemo(
-    () => todayJobs.filter((j) => j.assignedTo.trim()).length,
-    [todayJobs]
+    () => dayJobs.filter((job) => jobIsAssigned(job)).length,
+    [dayJobs],
   );
-
-  const unassigned = useMemo(
-    () => todayJobs.filter((j) => !j.assignedTo.trim()).length,
-    [todayJobs]
+  const unassigned = dayJobs.length - assigned;
+  const inProgress = useMemo(
+    () => dayJobs.filter((job) => job.status === "In Progress").length,
+    [dayJobs],
   );
-
-  /** At-risk among today's jobs only, the same set as the Total tile. */
-  const atRisk = useMemo(() => countBriefingAtRisk(todayJobs), [todayJobs]);
-
-  /** Active crews: on the roster and not marked out. */
-  const activeCrews = useMemo(
-    () =>
-      roster.crewGroups.filter(
-        (g) =>
-          g.crew.availability !== "vacation" &&
-          g.crew.availability !== "sick" &&
-          g.crew.availability !== "training" &&
-          g.crew.availability !== "unavailable"
-      ).length + roster.floaters.length,
-    [roster]
+  const onHold = useMemo(
+    () => dayJobs.filter((job) => job.status === "On Hold").length,
+    [dayJobs],
   );
+  const atRisk = useMemo(() => countBriefingAtRisk(dayJobs), [dayJobs]);
+  const peopleWorking = useMemo(() => countPeopleWorking(dayJobs), [dayJobs]);
 
-  /** Job count per technician name for CrewStatusPanel. */
   const jobCountByTechnician = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const job of todayJobs) {
-      if (job.assignedTo.trim()) {
-        counts[job.assignedTo] = (counts[job.assignedTo] ?? 0) + 1;
+    for (const job of dayJobs) {
+      for (const name of jobAssigneeNames(job)) {
+        counts[name] = (counts[name] ?? 0) + 1;
       }
     }
     return counts;
-  }, [todayJobs]);
+  }, [dayJobs]);
 
-  // ── Jobs that need attention come from all scheduled+unscheduled jobs ─────
+  const jobsByTechnician = useMemo(() => {
+    const map: Record<string, Job[]> = {};
+    for (const job of dayJobs) {
+      for (const name of jobAssigneeNames(job)) {
+        (map[name] ??= []).push(job);
+      }
+    }
+    return map;
+  }, [dayJobs]);
+
   const attentionSourceJobs = useMemo(
-    () => [...todayJobs, ...unscheduledJobs],
-    [todayJobs, unscheduledJobs]
+    () => [...dayJobs, ...unscheduledJobs],
+    [dayJobs, unscheduledJobs],
   );
 
   const patchJobLocal = useCallback((jobId: string, patch: Partial<Job>) => {
     setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, ...patch } : job)));
-    setUnscheduledJobs((prev) => {
-      const next = prev
+    setUnscheduledJobs((prev) =>
+      prev
         .map((job) => (job.id === jobId ? { ...job, ...patch } : job))
-        .filter((job) => job.scheduledFor == null);
-      // If a previously scheduled job became unscheduled, leave it out of this
-      // list until reload; reschedule off the unscheduled list removes it here.
-      return next.filter((job) => job.id !== jobId || job.scheduledFor == null);
-    });
+        .filter((job) => job.scheduledFor == null),
+    );
   }, []);
 
   const handleReschedule = useCallback(
     (jobId: string, date: string) => {
+      if (!canEdit || !role) return;
       const job =
-        jobs.find((j) => j.id === jobId) ?? unscheduledJobs.find((j) => j.id === jobId);
-      if (!job || !role) return;
+        jobs.find((item) => item.id === jobId) ??
+        unscheduledJobs.find((item) => item.id === jobId);
+      if (!job) return;
       patchJobLocal(jobId, { scheduledFor: date });
-      setUnscheduledJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setUnscheduledJobs((prev) => prev.filter((item) => item.id !== jobId));
       setActionNotice(`${job.jobNumber} rescheduled to ${formatDateShort(date)}.`);
       void requestJson(`/api/jobs/${jobId}`, {
         role,
@@ -180,15 +222,26 @@ export function DailyPlansScreen() {
         void reloadBoard();
       });
     },
-    [jobs, unscheduledJobs, role, patchJobLocal, reloadBoard],
+    [canEdit, role, jobs, unscheduledJobs, patchJobLocal, reloadBoard],
   );
 
-  const handleAssign = useCallback(
+  /** Legacy single-name assign from ScheduleSection cards (upcoming / unscheduled). */
+  const handleAssignName = useCallback(
     (jobId: string, technician: string) => {
+      if (!canEdit || !role) return;
       const job =
-        jobs.find((j) => j.id === jobId) ?? unscheduledJobs.find((j) => j.id === jobId);
-      if (!job || job.assignedTo === technician || !role) return;
-      patchJobLocal(jobId, { assignedTo: technician });
+        jobs.find((item) => item.id === jobId) ??
+        unscheduledJobs.find((item) => item.id === jobId);
+      if (!job) return;
+      const match = people.find(
+        (person) => person.name.trim().toLowerCase() === technician.trim().toLowerCase(),
+      );
+      const assigneeIds = match ? [match.id] : [];
+      const assignees = match ? [{ id: match.id, name: match.name }] : [];
+      patchJobLocal(jobId, {
+        assignedTo: technician,
+        assignees,
+      });
       setActionNotice(
         technician
           ? `${job.jobNumber} assigned to ${technician}.`
@@ -197,20 +250,124 @@ export function DailyPlansScreen() {
       void requestJson(`/api/jobs/${jobId}`, {
         role,
         method: "PATCH",
-        body: { assignedTo: technician },
+        body: {
+          assignedTo: technician,
+          assigneeIds,
+        },
       }).catch(() => {
         void reloadBoard();
       });
     },
-    [jobs, unscheduledJobs, role, patchJobLocal, reloadBoard],
+    [canEdit, role, jobs, unscheduledJobs, people, patchJobLocal, reloadBoard],
   );
+
+  const handleAssignPeople = useCallback(
+    (jobId: string, assigneeIds: string[]) => {
+      if (!canEdit || !role) return;
+      const job = jobs.find((item) => item.id === jobId);
+      if (!job) return;
+      const ids = Array.from(new Set(assigneeIds.filter(Boolean)));
+      const assignees = ids.map((id) => {
+        const person = people.find((item) => item.id === id);
+        const existing = (job.assignees ?? []).find((item) => item.id === id);
+        return {
+          id,
+          name: person?.name ?? existing?.name ?? "Team member",
+        };
+      });
+      const label = assignees.map((person) => person.name).join(", ");
+      patchJobLocal(jobId, {
+        assignees,
+        assignedTo: label,
+      });
+      setActionNotice(
+        label
+          ? `${job.jobNumber} assigned to ${label}.`
+          : `${job.jobNumber} moved to unassigned.`,
+      );
+      void requestJson(`/api/jobs/${jobId}`, {
+        role,
+        method: "PATCH",
+        body: {
+          assignedTo: label,
+          assigneeIds: ids,
+        },
+      }).catch(() => {
+        void reloadBoard();
+      });
+    },
+    [canEdit, role, jobs, people, patchJobLocal, reloadBoard],
+  );
+
+  if (role && !canView) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-sm text-slate-300">
+        Daily Plans is for office and dispatch. Open your jobs list instead.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Daily Plans"
-        description="Morning coordination view — today's jobs, crew status, and items needing action."
+        description="Morning handout and assignment desk — every job for the day, the people on them, and a printable board."
       />
+
+      <DayNavigator />
+
+      <div className="flex flex-wrap items-center gap-2">
+        {canEdit ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={planStatus === "active"}
+            onClick={() => {
+              activatePlan(selectedDate);
+              setActionNotice(`Day activated for ${formatDateShort(selectedDate)}.`);
+            }}
+            className="gap-1.5"
+          >
+            <Rocket className="h-3.5 w-3.5" />
+            {planStatus === "active" ? "Day active" : "Activate day"}
+          </Button>
+        ) : null}
+
+        {canEdit ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={packetsSent}
+            onClick={() => {
+              markPacketsSent(selectedDate);
+              setActionNotice("Packets marked as sent.");
+            }}
+            className="gap-1.5 border border-white/10"
+          >
+            <PackageCheck className="h-3.5 w-3.5" />
+            {packetsSent ? "Packets sent" : "Mark packets sent"}
+          </Button>
+        ) : null}
+
+        <Link
+          href={`/daily-plans/print?date=${selectedDate}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-slate-200 hover:bg-white/10"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Print handout
+        </Link>
+
+        {planStatus === "active" && activation?.startedAt ? (
+          <span className="text-xs text-green-300">
+            Activated {new Date(activation.startedAt).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            })}
+          </span>
+        ) : null}
+      </div>
 
       {actionNotice ? (
         <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.08] px-4 py-3 text-sm text-blue-100">
@@ -230,46 +387,57 @@ export function DailyPlansScreen() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* ── Morning Briefing (read-first ops summary) ───────────────────── */}
           <MorningBriefing
-            date={today}
-            totalToday={todayJobs.length}
+            date={selectedDate}
+            totalToday={dayJobs.length}
             assigned={assigned}
             unassigned={unassigned}
             atRisk={atRisk}
             waitingPermit={null}
-            activeCrews={activeCrews}
+            activeCrews={peopleWorking}
+            inProgress={inProgress}
+            onHold={onHold}
+            peopleWorking={peopleWorking}
           />
 
-          {/* ── Needs Attention ─────────────────────────────────────────────── */}
+          <section aria-label="All jobs for the day" className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <CalendarDays className="h-4 w-4 text-slate-400" />
+              <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-400">
+                All jobs · {formatDateShort(selectedDate)}
+              </h2>
+              <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-500">
+                {dayJobs.length} job{dayJobs.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <DayJobsTable
+              jobs={dayJobs}
+              crews={crews}
+              people={people}
+              canEdit={canEdit}
+              onAssignPeople={handleAssignPeople}
+            />
+          </section>
+
           <NeedsAttentionPanel jobs={attentionSourceJobs} />
 
-          {/* ── Crew Status ─────────────────────────────────────────────────── */}
           <CrewStatusPanel
             crewGroups={roster.crewGroups}
             floaters={roster.floaters}
             jobCountByTechnician={jobCountByTechnician}
+            jobsByTechnician={jobsByTechnician}
           />
 
-          {/* ── Schedule sections ───────────────────────────────────────────── */}
-          <ScheduleSection
-            title="Today"
-            icon={Sun}
-            jobs={todayJobs}
-            emptyMessage="No jobs scheduled for today."
-            crewOptions={roster.allProfiles}
-            onReschedule={handleReschedule}
-            onAssign={handleAssign}
-          />
+          <PlanningNotes date={selectedDate} isActive={planStatus === "active"} />
 
           <ScheduleSection
-            title="Upcoming"
+            title="Upcoming (next 3 days)"
             icon={CalendarDays}
             jobs={upcomingJobs}
-            emptyMessage="No upcoming jobs scheduled."
+            emptyMessage="Nothing else scheduled in the next three days."
             crewOptions={roster.allProfiles}
             onReschedule={handleReschedule}
-            onAssign={handleAssign}
+            onAssign={handleAssignName}
             groupByDate
           />
 
@@ -280,7 +448,7 @@ export function DailyPlansScreen() {
             emptyMessage="All jobs have been scheduled — nothing in the backlog."
             crewOptions={roster.allProfiles}
             onReschedule={handleReschedule}
-            onAssign={handleAssign}
+            onAssign={handleAssignName}
             isUnscheduled
           />
         </div>
