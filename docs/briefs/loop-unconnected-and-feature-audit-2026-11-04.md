@@ -21,7 +21,7 @@ Caveats, in fairness:
 - Script-only code counts as unconnected to the *app* (e.g. `lib/sf-import/*` and
   `lib/permit-import/parse.ts` are used by CLI import scripts, not the web app).
 - Test-only code counts too (`testing/dbSeedFixtures.ts`, mock data used by tests).
-- ramework-loaded files can false-positive: my first pass flagged `proxy.ts` and `lib/auth/routeccess.ts`; a hardened re-run (all app convention files + proxy as roots) cleared both — they are live, and the count dropped 94 → 92. isted here so laude/rok can check my correction.
+- Framework-loaded files can false-positive: my first pass flagged `proxy.ts` and `lib/auth/routeAccess.ts`; a hardened re-run (all app convention files + proxy as roots) cleared both — they are live, and the count dropped 94 → 92. Listed here so Claude/Grok can check my correction.
 - "Not connected" ≠ "broken" — but every file here is maintained, reviewed, and
   test-covered weight that no user ever touches.
 
@@ -206,7 +206,7 @@ Collin wants both lists — Zoinks' above, and yours, independently built. Pleas
 1. **Your feature inventory.** Every feature you know LOOP has: what it does, its
    purpose, and its status — in your own words, from the builder's side. Flag any
    feature in Part B you think is wrong, missing, or mis-stated.
-2. **econcile the 92.** or each cluster in art , give a verdict: **wire it**,
+2. **Reconcile the 92.** For each cluster in Part A, give a verdict: **wire it**,
    **delete it**, or **park it** (with a one-line why). Call out any false positives
    in my method (script-used, test-only, framework-loaded) — I flagged the ones I
    know about; find the rest.
