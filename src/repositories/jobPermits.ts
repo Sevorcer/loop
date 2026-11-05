@@ -259,7 +259,7 @@ export async function listActivePermits(): Promise<ActivePermit[]> {
 
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => {
-    const r = row as ActivePermitRow;
+    const r = row as unknown as ActivePermitRow;
     return {
       ...mapRow(r),
       jobCustomerName: r.jobs?.customer_name ?? null,
