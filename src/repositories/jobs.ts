@@ -1599,29 +1599,32 @@ export interface JobStatusActivity {
 const JOB_REPORT_SELECT =
   "id,job_number,type,status,title,customer_name,property_name,assigned_to,scheduled_start_at,scheduled_for,created_at,updated_at";
 
-export async function listJobReportRows(
-  contextInput?: SessionRepositoryContextInput,
-  options?: { page?: number; pageSize?: number },
-): Promise<JobReportRow[]> {
-  const page = options?.page ?? 1;
-  const pageSize = options?.pageSize ?? 50;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+const JOB_REPORT_PAGE_SIZE = 1000;
+const JOB_REPORT_PAGE_LIMIT = 50;
+export interface JobReportListOptions {
+  /** "YYYY-MM". When set, only jobs that can affect that month's reports are read. */
+  month?: string;
+  /** @deprecated Single-page mode kept for tests; prefer omit to page through. */
+  page?: number;
+  pageSize?: number;
+}
 
-  const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await supabase
-    .from("jobs")
-    .select(JOB_REPORT_SELECT)
-    .eq("org_id", orgId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  if (error) {
-    throw new Error(error.message);
+function monthBounds(month: string): { start: string; next: string } {
+  const [yearRaw, monthRaw] = month.split("-");
+  const year = Number(yearRaw);
+  const monthIndex = Number(monthRaw);
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || monthIndex < 1 || monthIndex > 12) {
+    throw new Error(`Invalid report month: ${month}`);
   }
+  const start = `${yearRaw}-${monthRaw}-01`;
+  const nextMonth = monthIndex === 12 ? 1 : monthIndex + 1;
+  const nextYear = monthIndex === 12 ? year + 1 : year;
+  const next = `${String(nextYear).padStart(4, "0")}-${String(nextMonth).padStart(2, "0")}-01`;
+  return { start, next };
+}
 
-  const rows = ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+function mapJobReportRow(row: Record<string, unknown>) {
+  return {
     id: String(row.id),
     jobNumber: String(row.job_number ?? ""),
     type: String(row.type ?? ""),
@@ -1634,7 +1637,72 @@ export async function listJobReportRows(
     scheduledFor: (row.scheduled_for as string | null) ?? null,
     createdAt: String(row.created_at ?? ""),
     updatedAt: String(row.updated_at ?? ""),
-  }));
+  };
+}
+
+/**
+ * Job rows for the four operational reports.
+ *
+ * Previously defaulted to a single page of 50 newest jobs, so installs /
+ * pipeline / scorecards / callbacks ignored the rest of the company. Now
+ * pages through every active job (PostgREST 1,000-row pages). Month filtering
+ * stays in the pure compute layer; status-activity timing is month-scoped
+ * in listJobStatusActivities so the activity log does not grow unbounded.
+ */
+export async function listJobReportRows(
+  contextInput?: SessionRepositoryContextInput,
+  options?: JobReportListOptions,
+): Promise<JobReportRow[]> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+
+  // Legacy single-page path (explicit page/pageSize without month).
+  if (options?.page != null || (options?.pageSize != null && options?.month == null)) {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 50;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error } = await supabase
+      .from("jobs")
+      .select(JOB_REPORT_SELECT)
+      .eq("org_id", orgId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    const rows = ((data ?? []) as Array<Record<string, unknown>>).map(mapJobReportRow);
+    const jobIds = rows.map((row) => row.id);
+    const [assignees, completionTeams] = await Promise.all([
+      readJobAssignees(supabase, orgId, jobIds),
+      readCompletionTeams(supabase, orgId, jobIds),
+    ]);
+    return rows.map((row) => ({
+      ...row,
+      assignees: assignees.get(row.id) ?? [],
+      completionTeam: completionTeams.get(row.id) ?? [],
+    }));
+  }
+
+  // Page through every active job. A month filter in SQL barely reduces the
+  // set today (import stamped updated_at on nearly every row) and a nested
+  // PostgREST or-filter over Title Case statuses is easy to get wrong. The
+  // pure compute layer still scopes by month; paging removes the 50-row bug.
+  const rows: ReturnType<typeof mapJobReportRow>[] = [];
+  for (let page = 0; page < JOB_REPORT_PAGE_LIMIT; page += 1) {
+    const from = page * JOB_REPORT_PAGE_SIZE;
+    const to = from + JOB_REPORT_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("jobs")
+      .select(JOB_REPORT_SELECT)
+      .eq("org_id", orgId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    const batch = ((data ?? []) as Array<Record<string, unknown>>).map(mapJobReportRow);
+    rows.push(...batch);
+    if (batch.length < JOB_REPORT_PAGE_SIZE) break;
+  }
+
   const jobIds = rows.map((row) => row.id);
   const [assignees, completionTeams] = await Promise.all([
     readJobAssignees(supabase, orgId, jobIds),
@@ -1647,31 +1715,66 @@ export async function listJobReportRows(
   }));
 }
 
+export interface JobStatusActivityListOptions {
+  month?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * Status-activity rows for operational-report timing.
+ * Pages through the full (or month-scoped) log instead of the old 50-row default.
+ */
 export async function listJobStatusActivities(
   contextInput?: SessionRepositoryContextInput,
-  options?: { page?: number; pageSize?: number },
+  options?: JobStatusActivityListOptions,
 ): Promise<JobStatusActivity[]> {
-  const page = options?.page ?? 1;
-  const pageSize = options?.pageSize ?? 50;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await supabase
-    .from("job_activity")
-    .select("job_id,title,created_at")
-    .eq("org_id", orgId)
-    .eq("type", "status")
-    .order("created_at", { ascending: true })
-    .range(from, to);
 
-  if (error) {
-    throw new Error(error.message);
+  if (options?.page != null || (options?.pageSize != null && options?.month == null)) {
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 50;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error } = await supabase
+      .from("job_activity")
+      .select("job_id,title,created_at")
+      .eq("org_id", orgId)
+      .eq("type", "status")
+      .order("created_at", { ascending: true })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+      jobId: String(row.job_id),
+      title: String(row.title ?? ""),
+      createdAt: String(row.created_at ?? ""),
+    }));
   }
 
-  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
-    jobId: String(row.job_id),
-    title: String(row.title ?? ""),
-    createdAt: String(row.created_at ?? ""),
-  }));
+  const bounds = options?.month ? monthBounds(options.month) : null;
+  const rows: JobStatusActivity[] = [];
+  for (let page = 0; page < JOB_REPORT_PAGE_LIMIT; page += 1) {
+    const from = page * JOB_REPORT_PAGE_SIZE;
+    const to = from + JOB_REPORT_PAGE_SIZE - 1;
+    let query = supabase
+      .from("job_activity")
+      .select("job_id,title,created_at")
+      .eq("org_id", orgId)
+      .eq("type", "status")
+      .order("created_at", { ascending: true })
+      .range(from, to);
+    if (bounds) {
+      query = query.gte("created_at", bounds.start).lt("created_at", bounds.next);
+    }
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    const batch = ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+      jobId: String(row.job_id),
+      title: String(row.title ?? ""),
+      createdAt: String(row.created_at ?? ""),
+    }));
+    rows.push(...batch);
+    if (batch.length < JOB_REPORT_PAGE_SIZE) break;
+  }
+  return rows;
 }
