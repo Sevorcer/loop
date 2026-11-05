@@ -15,6 +15,7 @@ import { Shield, Check, X as XIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas/PageHeader";
 import { SectionCard } from "@/components/atlas/SectionCard";
+import { FinancialVisibilityCard } from "../components/FinancialVisibilityCard";
 import type { AppRole } from "@/services/authorization";
 
 import {
@@ -83,6 +84,9 @@ export function RolesScreen() {
         title="Roles & Permissions"
         description="View the permission matrix for each role. Role assignments are managed from the Users section."
       />
+
+      {/* Owner-only financial visibility setting (renders null otherwise) */}
+      <FinancialVisibilityCard />
 
       {/* Role overview cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

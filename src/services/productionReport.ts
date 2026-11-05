@@ -8,10 +8,13 @@ import {
   type ProductionReport,
   type ProductionReportPage,
 } from "@/features/reporting/utils/productionReport";
-import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { companyTimeZone } from "@/lib/timezone";
 import { listProductionSources } from "@/repositories/productionReport";
 import type { AppRole } from "@/services/authorization";
+import {
+  canSeeFinancials,
+  getFinancialsVisibility,
+} from "@/services/orgSettings";
 
 export async function getProductionReport(
   role: AppRole,
@@ -19,7 +22,9 @@ export async function getProductionReport(
   to: string,
 ): Promise<ProductionReport> {
   const range = assertDateRange(from, to);
-  const includeRevenue = canSeeJobRevenue(role);
+  // Revenue totals follow the org's financial-visibility setting
+  // (owner-only by default — Collin, 2026-11-04).
+  const includeRevenue = canSeeFinancials(role, await getFinancialsVisibility());
   const source = await listProductionSources(includeRevenue);
   const report = computeProductionReport(source.jobs, source.completions, range, companyTimeZone());
   return includeRevenue ? report : redactProductionReport(report);

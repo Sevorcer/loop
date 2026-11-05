@@ -419,7 +419,17 @@ export function hasPermission(
   table: CoreTable,
   action: TableAction
 ): boolean {
-  return PERMISSIONS[table][action].has(role);
+  // The owner is the main admin account: every permission that exists,
+  // always — EXCEPT the matrix's empty sets. An empty set is a hard system
+  // invariant (append-only audit logs and financial history: update/delete
+  // denied to every role on purpose), and it binds the admin too. Verified
+  // 2026-11-04: every non-empty set in the matrix already contains owner,
+  // so this changes no current behavior; it formalizes the admin guarantee
+  // ahead of editable permissions (Phase 2), which must keep the same rule.
+  const allowed = PERMISSIONS[table][action];
+  if (allowed.size === 0) return false;
+  if (role === "owner") return true;
+  return allowed.has(role);
 }
 
 /**
