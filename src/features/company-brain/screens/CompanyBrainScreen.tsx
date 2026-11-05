@@ -113,14 +113,22 @@ export function CompanyBrainScreen() {
         description="Knowledge items will appear here once published."
         icon={<Brain className="h-5 w-5" />}
         action={
-          <PermissionGuard table="knowledge_items" action="insert">
-            <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_NEW()}>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                New Knowledge
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_MANUALS()}>
+              <Button variant="outline" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Drive manuals
               </Button>
             </Link>
-          </PermissionGuard>
+            <PermissionGuard table="knowledge_items" action="insert">
+              <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_NEW()}>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  New Knowledge
+                </Button>
+              </Link>
+            </PermissionGuard>
+          </div>
         }
       />
     );
@@ -181,14 +189,22 @@ export function CompanyBrainScreen() {
               />
             </div>
 
-            <PermissionGuard table="knowledge_items" action="insert">
-              <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_NEW()}>
-                <Button className="gap-2 border border-violet-500/20 bg-gradient-to-r from-violet-500/80 to-purple-600 text-white hover:from-violet-500 hover:to-purple-700">
-                  <Plus className="h-4 w-4" />
-                  New Knowledge
+            <div className="flex flex-wrap gap-2">
+              <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_MANUALS()}>
+                <Button variant="outline" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Drive manuals
                 </Button>
               </Link>
-            </PermissionGuard>
+              <PermissionGuard table="knowledge_items" action="insert">
+                <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_NEW()}>
+                  <Button className="gap-2 border border-violet-500/20 bg-gradient-to-r from-violet-500/80 to-purple-600 text-white hover:from-violet-500 hover:to-purple-700">
+                    <Plus className="h-4 w-4" />
+                    New Knowledge
+                  </Button>
+                </Link>
+              </PermissionGuard>
+            </div>
           </div>
         </div>
       </SurfaceCard>
