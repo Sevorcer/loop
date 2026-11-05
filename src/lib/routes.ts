@@ -31,10 +31,11 @@ export const ROUTES = {
 } as const;
 
 export const ROUTE_BUILDERS = {
-  JOB_NEW: (context?: { customerId?: string; propertyId?: string }) => {
+  JOB_NEW: (context?: { customerId?: string; propertyId?: string; date?: string }) => {
     const params = new URLSearchParams();
     if (context?.customerId) params.set("customerId", context.customerId);
     if (context?.propertyId) params.set("propertyId", context.propertyId);
+    if (context?.date) params.set("date", context.date);
     const query = params.toString();
     return query ? `${ROUTES.JOBS}/new?${query}` : `${ROUTES.JOBS}/new`;
   },
