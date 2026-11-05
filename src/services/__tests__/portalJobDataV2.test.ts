@@ -24,9 +24,14 @@ function chainable(resolvedValue: { data: unknown; error: unknown }) {
   const handler: ProxyHandler<object> = {
     get(_target, prop) {
       if (prop === "then" || prop === "catch" || prop === "finally") {
-        // Make it thenable
+        // Make it thenable — the promise method must stay BOUND to the
+        // promise; returning it unbound makes await throw "Promise.
+        // prototype.then called on incompatible receiver".
         const promise = Promise.resolve(resolvedValue);
-        return (promise as Record<string | symbol, unknown>)[prop];
+const fn = (promise as Record<string | symbol, unknown>)[prop] as (
+  ...args: unknown[]
+) => unknown;
+        return fn.bind(promise);
       }
       // All methods return chainable proxy
       return (..._args: unknown[]) => new Proxy({}, handler);
