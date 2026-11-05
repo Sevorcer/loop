@@ -10,6 +10,33 @@ import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/** Bucket used for job file uploads (photos and documents). */
+export const JOB_FILES_BUCKET = "job-files";
+
+// ─── Column name constants (used by pin tests) ──────────────────────────────
+
+/** Columns selected from the `jobs` table. */
+export const JOBS_SELECT_COLUMNS =
+  "id, job_number, status, type, scheduled_for, property_id, customer_id, portal_money_visible";
+
+/** Columns selected from the `job_activity` table. */
+export const JOB_ACTIVITY_SELECT_COLUMNS = "id, type, description, created_at";
+
+/** The column used for activity type filtering on `job_activity`. */
+export const JOB_ACTIVITY_TYPE_COLUMN = "type";
+
+/** Table name for job crew assignments. */
+export const JOB_ASSIGNEES_TABLE = "job_assignees";
+
+/** Table name for file storage metadata. */
+export const STORAGE_OBJECTS_TABLE = "storage_objects";
+
+/** Columns selected from `storage_objects` for photos/documents. */
+export const STORAGE_OBJECTS_SELECT_COLUMNS =
+  "id, file_name, bucket, storage_path, mime_type, created_at";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PortalJobData {
@@ -74,6 +101,30 @@ export interface PortalChangeOrder {
 // ─── Data loading ─────────────────────────────────────────────────────────────
 
 /**
+ * Derive completion date from job_activity — mirrors the pattern in
+ * `src/repositories/billing.ts` -> `getJobCompletionDate()`.
+ */
+async function getCompletionTimestamp(
+  admin: ReturnType<typeof getSupabaseAdminClient>,
+  jobId: string,
+): Promise<string | null> {
+  if (!admin) return null;
+
+  const { data, error } = await admin
+    .from("job_activity")
+    .select("created_at")
+    .eq("job_id", jobId)
+    .eq(JOB_ACTIVITY_TYPE_COLUMN, "status")
+    .ilike("description", "%to Completed%")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) return null;
+  const rows = data as Record<string, unknown>[] | null;
+  return (rows?.[0]?.created_at as string) ?? null;
+}
+
+/**
  * Load all portal-visible data for a single job, scoped to the given org.
  * Uses admin client since this is accessed via public share links.
  */
@@ -87,7 +138,7 @@ export async function getPortalJobData(
   // Load the job itself
   const { data: job, error: jobError } = await admin
     .from("jobs")
-    .select("id, job_number, status, type, scheduled_date, completed_date, property_id, customer_id, portal_money_visible")
+    .select(JOBS_SELECT_COLUMNS)
     .eq("id", jobId)
     .eq("org_id", orgId)
     .maybeSingle();
@@ -118,10 +169,10 @@ export async function getPortalJobData(
     customerName = (customer as Record<string, unknown> | null)?.name as string | null;
   }
 
-  // Load crew first names from job assignments
+  // Load crew first names from job_assignees
   const crewFirstNames: string[] = [];
   const { data: assignments } = await admin
-    .from("job_assignments")
+    .from(JOB_ASSIGNEES_TABLE)
     .select("user_id")
     .eq("job_id", jobId);
 
@@ -149,9 +200,9 @@ export async function getPortalJobData(
   const timeline: PortalTimelineEvent[] = [];
   const { data: activities } = await admin
     .from("job_activity")
-    .select("id, activity_type, description, created_at")
+    .select(JOB_ACTIVITY_SELECT_COLUMNS)
     .eq("job_id", jobId)
-    .neq("activity_type", "internal_note")
+    .neq(JOB_ACTIVITY_TYPE_COLUMN, "internal_note")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -160,19 +211,22 @@ export async function getPortalJobData(
       const a = activity as Record<string, unknown>;
       timeline.push({
         id: a.id as string,
-        type: a.activity_type as string,
+        type: a.type as string,
         description: a.description as string,
         occurredAt: a.created_at as string,
       });
     }
   }
 
-  // Load photos
+  // Load photos from storage_objects (job files where mime_type is an image)
   const photos: PortalPhoto[] = [];
   const { data: photoRows } = await admin
-    .from("property_photos")
-    .select("id, url, caption, created_at")
-    .eq("property_id", jobRow.property_id as string)
+    .from(STORAGE_OBJECTS_TABLE)
+    .select(STORAGE_OBJECTS_SELECT_COLUMNS)
+    .eq("job_id", jobId)
+    .eq("bucket", JOB_FILES_BUCKET)
+    .eq("visibility", "customer")
+    .ilike("mime_type", "image/%")
     .order("created_at", { ascending: false });
 
   if (photoRows && Array.isArray(photoRows)) {
@@ -180,19 +234,22 @@ export async function getPortalJobData(
       const p = photo as Record<string, unknown>;
       photos.push({
         id: p.id as string,
-        url: p.url as string,
-        caption: p.caption as string | null,
+        url: `/api/portal/files/${p.id as string}`,
+        caption: null,
         uploadedAt: p.created_at as string,
       });
     }
   }
 
-  // Load documents
+  // Load documents from storage_objects (non-image job files)
   const documents: PortalDocument[] = [];
   const { data: docRows } = await admin
-    .from("property_documents")
-    .select("id, name, url, created_at")
-    .eq("property_id", jobRow.property_id as string)
+    .from(STORAGE_OBJECTS_TABLE)
+    .select(STORAGE_OBJECTS_SELECT_COLUMNS)
+    .eq("job_id", jobId)
+    .eq("bucket", JOB_FILES_BUCKET)
+    .eq("visibility", "customer")
+    .not("mime_type", "ilike", "image/%")
     .order("created_at", { ascending: false });
 
   if (docRows && Array.isArray(docRows)) {
@@ -200,8 +257,8 @@ export async function getPortalJobData(
       const d = doc as Record<string, unknown>;
       documents.push({
         id: d.id as string,
-        name: d.name as string,
-        url: d.url as string,
+        name: d.file_name as string,
+        url: `/api/portal/files/${d.id as string}`,
         uploadedAt: d.created_at as string,
       });
     }
@@ -280,8 +337,8 @@ export async function getPortalJobData(
     jobNumber: jobRow.job_number as string | null,
     status: jobRow.status as string,
     type: jobRow.type as string,
-    scheduledDate: jobRow.scheduled_date as string | null,
-    completedDate: jobRow.completed_date as string | null,
+    scheduledDate: jobRow.scheduled_for as string | null,
+    completedDate,
     propertyAddress,
     customerName,
     crewFirstNames,
