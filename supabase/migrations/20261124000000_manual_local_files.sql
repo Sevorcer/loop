@@ -8,9 +8,11 @@
 --      NULL = no stored copy yet; the UI falls back to web_view_link.
 --      The Drive sync never writes this column (its upsert lists explicit
 --      columns), so a re-sync keeps it.
---   2. Backfill: PDF rows whose object really exists in the bucket get
---      storage_path = drive_file_id || '/' || name. Google Docs rows stay NULL
---      until their PDF conversions are uploaded and backfilled the same way.
+--   2. Backfill: each row gets the one object stored under its
+--      `<drive_file_id>/` prefix. The path is read from storage.objects, not
+--      derived from the row name, because the 8 converted Google Docs have
+--      ASCII-sanitized keys (matches Zoinks' manifest). Rows with no object,
+--      or more than one, stay NULL (Drive link fallback).
 --   3. Storage SELECT policy so GET /api/manuals/:id/file can stream the
 --      object with the caller's own session (no service-role key): staff
 --      roles that may read manuals, and only objects that an
@@ -51,16 +53,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS drive_manual_files_storage_path_uidx
   ON public.drive_manual_files (org_id, storage_path)
   WHERE storage_path IS NOT NULL;
 
--- Backfill only where the object exists, so no row points at a missing file.
+-- Backfill from the objects themselves, only where exactly one exists.
 UPDATE public.drive_manual_files d
-   SET storage_path = d.drive_file_id || '/' || d.name
+   SET storage_path = o.name
+  FROM (
+    SELECT split_part(name, '/', 1) AS drive_file_id, min(name) AS name
+      FROM storage.objects
+     WHERE bucket_id = 'manuals' AND position('/' IN name) > 0
+     GROUP BY 1
+    HAVING count(*) = 1
+  ) o
  WHERE d.storage_path IS NULL
-   AND d.mime_type = 'application/pdf'
-   AND EXISTS (
-     SELECT 1 FROM storage.objects o
-      WHERE o.bucket_id = 'manuals'
-        AND o.name = d.drive_file_id || '/' || d.name
-   );
+   AND o.drive_file_id = d.drive_file_id;
 
 DROP POLICY IF EXISTS "manuals_storage_select" ON storage.objects;
 CREATE POLICY "manuals_storage_select"

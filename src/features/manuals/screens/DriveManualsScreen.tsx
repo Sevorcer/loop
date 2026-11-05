@@ -14,7 +14,7 @@ import { useDriveManuals } from "../state/DriveManualsProvider";
 import type { DriveManualFile } from "../types/manuals";
 import { MANUAL_DOC_TYPE_LABELS } from "../types/manuals";
 import { manualLink } from "../utils/manualLink";
-import { fileKindLabel, filterDriveManuals, manufacturerCounts } from "../utils/manualList";
+import { filterDriveManuals, manualKindLabel, manufacturerCounts } from "../utils/manualList";
 
 function formatWhen(value: string | null): string {
   if (!value) return "—";
@@ -169,7 +169,7 @@ function ManualRow({ file, canManage }: { file: DriveManualFile; canManage: bool
               file.manufacturer ?? "Brand unknown",
               file.models.length ? file.models.join(", ") : null,
               MANUAL_DOC_TYPE_LABELS[file.docType],
-              fileKindLabel(file.mimeType),
+              manualKindLabel(file),
             ]
               .filter(Boolean)
               .join(" · ")}

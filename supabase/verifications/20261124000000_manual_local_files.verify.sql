@@ -39,15 +39,16 @@ BEGIN
      AND NOT EXISTS (SELECT 1 FROM storage.objects o WHERE o.bucket_id = 'manuals' AND o.name = d.storage_path);
   ASSERT dangling = 0, format('%s rows point at a missing storage object', dangling);
 
-  -- Only PDFs were backfilled; Google Docs stay NULL until converted.
+  -- Every stored object is a PDF (the route always serves application/pdf).
   ASSERT NOT EXISTS (
-    SELECT 1 FROM public.drive_manual_files
-     WHERE storage_path IS NOT NULL AND mime_type <> 'application/pdf'
-  ), 'a non-PDF row has a storage_path';
+    SELECT 1 FROM public.drive_manual_files d
+      JOIN storage.objects o ON o.bucket_id = 'manuals' AND o.name = d.storage_path
+     WHERE coalesce(o.metadata->>'mimetype', '') <> 'application/pdf'
+  ), 'a stored manual object is not application/pdf';
 
   SELECT count(*), count(storage_path) INTO pdf_rows, pdf_stored
-    FROM public.drive_manual_files WHERE mime_type = 'application/pdf';
+    FROM public.drive_manual_files;
   SELECT count(*) INTO total_objects FROM storage.objects WHERE bucket_id = 'manuals';
-  RAISE NOTICE 'PDF rows: %, with storage_path: %, objects in bucket: % (expect 14 / 14 / 14 at first apply)',
+  RAISE NOTICE 'rows: %, with storage_path: %, objects in bucket: % (expect 22 / 22 / 22 at first apply)',
     pdf_rows, pdf_stored, total_objects;
 END $$;

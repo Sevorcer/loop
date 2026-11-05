@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { manualKindLabel } from "../utils/manualList";
 import { manualLink } from "../utils/manualLink";
 
 const base = { id: "m1", webViewLink: "https://drive.google.com/file/d/abc/view", hasLocalFile: false };
@@ -20,5 +21,16 @@ describe("manualLink", () => {
 
   it("prefers the stored copy even when Drive link is empty", () => {
     expect(manualLink({ ...base, webViewLink: "", hasLocalFile: true })?.external).toBe(false);
+  });
+});
+
+describe("manualKindLabel", () => {
+  const doc = "application/vnd.google-apps.document";
+  it("flags a Google Doc served from its converted PDF", () => {
+    expect(manualKindLabel({ mimeType: doc, hasLocalFile: true })).toBe("PDF · converted from Google Doc");
+  });
+  it("keeps the normal labels otherwise", () => {
+    expect(manualKindLabel({ mimeType: doc })).toBe("Google Doc");
+    expect(manualKindLabel({ mimeType: "application/pdf", hasLocalFile: true })).toBe("PDF");
   });
 });

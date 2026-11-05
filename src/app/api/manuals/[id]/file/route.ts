@@ -7,7 +7,8 @@
  *   LOOP; there is no signed-URL redirect to an external host.
  *
  * Roles: same as the manuals list (owner, manager, dispatch, office, sales,
- * tech). portal denied. 404 when the row is not in the caller's org or has no
+ * tech). portal denied. Every stored object is a PDF, including the Google
+ * Docs that were converted to PDF before upload. 404 when the row is not in the caller's org or has no
  * stored copy (callers fall back to the Drive link).
  */
 
