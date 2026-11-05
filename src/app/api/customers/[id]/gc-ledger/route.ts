@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { getGcLedgerEntries, createGcLedgerEntry } from "@/services/gcLedger";
 
 export async function GET(
@@ -47,7 +47,8 @@ export async function POST(
       }
 
       const jobCustomerId = job.customer_id as string;
-      const parentId = (job.customers as { parent_customer_id: string | null } | null)?.parent_customer_id;
+      const customers = job.customers as unknown as { parent_customer_id: string | null } | null;
+      const parentId = customers?.parent_customer_id;
       if (jobCustomerId !== parentCustomerId && parentId !== parentCustomerId) {
         return NextResponse.json(
           { error: "Job does not belong to this customer." },
