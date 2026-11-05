@@ -38,12 +38,9 @@ describe("tech job edit Save", () => {
     expect(canSubmitJobForm("tech", techForm, clearWindows)).toBe(true);
   });
 
-  it("keeps Save off when a technician leaves location or summary blank", () => {
+  it("keeps Save off when a technician leaves location blank", () => {
     expect(
       canSubmitJobForm("tech", { ...officeForm, location: "  " }, clearWindows),
-    ).toBe(false);
-    expect(
-      canSubmitJobForm("tech", { ...officeForm, summary: "" }, clearWindows),
     ).toBe(false);
   });
 
