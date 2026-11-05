@@ -89,7 +89,9 @@ export type CoreTable =
 | "job_permits"
 | "job_inspections"
 | "inspection_corrections"
-  | "vehicle_alerts";
+  | "vehicle_alerts"
+  // Change Orders — per-job change order tracking
+  | "job_change_orders";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -393,6 +395,14 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
+  // Change Orders — per-job change order tracking
+  // Read: all internal roles. Write: office+. Delete: owner/manager.
+  job_change_orders: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager"]),
   },
   // Vehicle Alerts — staff list/create; office+dispatch update status; owner delete
   vehicle_alerts: {
