@@ -58,3 +58,13 @@ describe("quantity", () => {
     expect(lookupOnHand([], "a", "w")).toBe(0);
   });
 });
+
+import { formatLedgerTime, summarizeEntry } from "../utils/activityView";
+
+describe("ledger display", () => {
+  it("summarizes entries and tolerates bad dates", () => {
+    expect(summarizeEntry({ txnType: "receive", qtyDelta: 4, itemName: "Coil", locationName: "Main" })).toBe("Received +4 of Coil at Main");
+    expect(formatLedgerTime("not-a-date")).toBe("not-a-date");
+    expect(formatLedgerTime("2026-11-05T20:30:00Z")).toContain("Nov 5");
+  });
+});

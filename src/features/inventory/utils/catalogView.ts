@@ -104,3 +104,18 @@ export function describeFacets(item: Pick<CatalogItem, "isSellable" | "isStockab
   if (item.isStockable) return "Stocked";
   return "Neither";
 }
+
+/** Href for the catalog with a modified set of filters (keeps the others). Empty values are dropped. */
+export function buildCatalogHref(
+  base: string,
+  current: { q?: string | null; facet?: CatalogFacet; category?: string | null },
+  patch: { q?: string | null; facet?: CatalogFacet; category?: string | null },
+): string {
+  const merged = { ...current, ...patch };
+  const params = new URLSearchParams();
+  if (merged.q) params.set("q", merged.q);
+  if (merged.facet && merged.facet !== "all") params.set("facet", merged.facet);
+  if (merged.category) params.set("category", merged.category);
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
+}

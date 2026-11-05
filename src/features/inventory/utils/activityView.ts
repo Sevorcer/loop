@@ -36,3 +36,21 @@ export function canReverseEntry(
 export function formatQtyDelta(delta: number): string {
   return delta > 0 ? `+${delta}` : String(delta);
 }
+
+const LEDGER_TIME = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** Short Pacific-time stamp (the company works in Seattle); stable across server and client. */
+export function formatLedgerTime(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : LEDGER_TIME.format(date);
+}
+
+export function summarizeEntry(args: { txnType: TxnType; qtyDelta: number; itemName: string; locationName: string }): string {
+  return `${TXN_LABELS[args.txnType]} ${formatQtyDelta(args.qtyDelta)} of ${args.itemName} at ${args.locationName}`;
+}

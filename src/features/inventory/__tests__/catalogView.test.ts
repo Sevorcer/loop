@@ -63,3 +63,13 @@ describe("filterCatalogItems", () => {
     expect(parseCatalogFacet("zzz")).toBe("all");
   });
 });
+
+import { buildCatalogHref } from "../utils/catalogView";
+
+describe("buildCatalogHref", () => {
+  it("keeps other filters and drops empties", () => {
+    expect(buildCatalogHref("/c", { q: "x", facet: "both" }, { category: "a" })).toBe("/c?q=x&facet=both&category=a");
+    expect(buildCatalogHref("/c", { q: "x", category: "a" }, { category: null })).toBe("/c?q=x");
+    expect(buildCatalogHref("/c", {}, {})).toBe("/c");
+  });
+});
