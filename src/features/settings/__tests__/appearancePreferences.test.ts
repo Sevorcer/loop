@@ -190,11 +190,11 @@ describe("legacy Operations addresses in saved preferences (2026-11-05 rename)",
     expect(loadAppearancePreferences(storage).defaultLandingPage).toBe("/operations");
   });
 
-  it("maps a saved Live Operations landing page to Operations", () => {
+  it("maps a saved Live Operations landing page to the Live tab", () => {
     const storage = {
       getItem: () => JSON.stringify({ defaultLandingPage: "/live-operations" }),
     };
-    expect(loadAppearancePreferences(storage).defaultLandingPage).toBe("/operations");
+    expect(loadAppearancePreferences(storage).defaultLandingPage).toBe("/operations/live");
   });
 
   it("rewrites legacy sidebar order entries and drops the resulting duplicate", () => {

@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 
 /**
- * Live Operations is being rebuilt on real data inside Operations
- * (2026-11-05). Until the Live view ships, send old links to Operations.
+ * Live Operations was rebuilt on real data as the Live tab inside
+ * Operations (2026-11-05). Old links land there.
  */
 export default function LiveOperationsPage() {
-  redirect(ROUTES.OPERATIONS);
+  redirect(ROUTES.OPERATIONS_LIVE);
 }
