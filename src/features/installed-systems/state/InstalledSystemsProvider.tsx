@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useParams } from "next/navigation";
 
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
@@ -52,16 +53,35 @@ interface InstalledSystemsContextValue {
 const InstalledSystemsContext =
   createContext<InstalledSystemsContextValue | null>(null);
 
+/**
+ * What the provider loads.
+ * - "org" (default): every installed system + technical profile + counts.
+ *   The Installed Systems section needs the whole register.
+ * - "route-job": only the systems on the job in the current URL
+ *   (/jobs/[id], /jobs/[id]/edit); nothing at all on routes with no job id
+ *   (/jobs, /jobs/new). The jobs layout used to load all 2,778 systems on
+ *   every Jobs-section visit to show the few on one job.
+ */
+export type InstalledSystemsScope = "org" | "route-job";
+
 export function InstalledSystemsProvider({
   children,
+  scope = "org",
 }: {
   children: ReactNode;
+  scope?: InstalledSystemsScope;
 }) {
   const { role } = useCurrentRole();
+  const params = useParams<{ id?: string | string[] }>();
+  const rawRouteId = params?.id;
+  const routeJobId = scope === "route-job"
+    ? (Array.isArray(rawRouteId) ? rawRouteId[0] : rawRouteId) ?? null
+    : null;
+  const skipLoad = scope === "route-job" && !routeJobId;
   const [installedSystems, setInstalledSystems] = useState<InstalledSystem[]>([]);
   const [technicalProfiles, setTechnicalProfiles] = useState<TechnicalProfile[]>([]);
   const [counts, setCounts] = useState<InstalledSystemsCounts>(EMPTY_COUNTS);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipLoad);
   const [error, setError] = useState<string | null>(null);
   const technicalProfilesById = useMemo(
     () => {
@@ -78,15 +98,27 @@ export function InstalledSystemsProvider({
 
   const refreshSystems = useCallback(async () => {
     if (!role) return;
+    if (skipLoad) {
+      // No job in the URL (jobs board, new job): nothing to show, nothing to load.
+      setInstalledSystems([]);
+      setTechnicalProfiles([]);
+      setCounts(EMPTY_COUNTS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
     try {
+      const url = routeJobId
+        ? `/api/installed-systems?jobId=${encodeURIComponent(routeJobId)}`
+        : "/api/installed-systems";
       const snapshot = await requestJson<{
         installedSystems: InstalledSystem[];
         technicalProfiles: TechnicalProfile[];
         counts?: InstalledSystemsCounts;
-      }>("/api/installed-systems", { role, cache: "no-store" });
+      }>(url, { role, cache: "no-store" });
 
       setInstalledSystems(snapshot.installedSystems ?? []);
       setTechnicalProfiles(snapshot.technicalProfiles ?? []);
@@ -104,7 +136,7 @@ export function InstalledSystemsProvider({
     } finally {
       setLoading(false);
     }
-  }, [role]);
+  }, [role, routeJobId, skipLoad]);
 
   useEffect(() => {
     if (!role) return;

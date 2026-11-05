@@ -8,7 +8,8 @@ export default function JobsLayout({ children }: { children: ReactNode }) {
   return (
     <JobsProvider>
       <ContractorsProvider>
-        <InstalledSystemsProvider>{children}</InstalledSystemsProvider>
+        {/* Only the systems on the job in the URL — not the whole register. */}
+        <InstalledSystemsProvider scope="route-job">{children}</InstalledSystemsProvider>
       </ContractorsProvider>
     </JobsProvider>
   );

@@ -459,3 +459,122 @@ export async function loadInstalledSystemsSnapshot(): Promise<InstalledSystemsRe
     counts,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Scoped loads (Bundle C perf pass)
+//
+// The org-wide snapshot above reads EVERY installed system (2,778 live rows,
+// three sequential 1,000-row pages) plus all technical profiles and four
+// count queries. Job and customer screens only ever show a handful, so they
+// use these scoped reads instead.
+// ---------------------------------------------------------------------------
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Ids per `.in()` request — keeps the PostgREST URL short. */
+const SCOPED_ID_CHUNK_SIZE = 80;
+
+export function isInstalledSystemsScopeId(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
+
+export interface InstalledSystemsScopedSnapshot {
+  installedSystems: InstalledSystem[];
+  technicalProfiles: TechnicalProfile[];
+}
+
+async function loadTechnicalProfilesByIds(
+  supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"],
+  orgId: string,
+  ids: string[],
+): Promise<TechnicalProfile[]> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let index = 0; index < unique.length; index += SCOPED_ID_CHUNK_SIZE) {
+    chunks.push(unique.slice(index, index + SCOPED_ID_CHUNK_SIZE));
+  }
+  const pages = await Promise.all(
+    chunks.map((chunk) =>
+      fetchAllRows<TechnicalProfileRow>((from, to) =>
+        supabase
+          .from("technical_profiles")
+          .select(TECHNICAL_PROFILE_COLUMNS)
+          .eq("org_id", orgId)
+          .in("id", chunk)
+          .range(from, to),
+      ),
+    ),
+  );
+  return pages.flat().map(mapTechnicalProfile);
+}
+
+/**
+ * Installed systems that belong to ONE job — the same rule the job Systems
+ * panel applies client-side (getInstalledSystemsForJob): `job_id` is the job,
+ * or the job id is in `linked_workflow_ids`. Plus only the technical profiles
+ * those systems reference.
+ */
+export async function loadInstalledSystemsForJob(
+  jobId: string,
+): Promise<InstalledSystemsScopedSnapshot> {
+  if (!isInstalledSystemsScopeId(jobId)) {
+    throw Object.assign(new Error("Invalid job id."), { status: 400 });
+  }
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const systemRows = await fetchAllRows<InstalledSystemRow>((from, to) =>
+    supabase
+      .from("installed_systems")
+      .select(INSTALLED_SYSTEM_COLUMNS)
+      .eq("org_id", orgId)
+      // jobId is validated as a UUID above, so it is safe inside the filter.
+      .or(`job_id.eq.${jobId},linked_workflow_ids.cs.{${jobId}}`)
+      .order("created_at", { ascending: false })
+      .range(from, to),
+  );
+
+  const technicalProfiles = await loadTechnicalProfilesByIds(
+    supabase,
+    orgId,
+    systemRows.map((row) => row.technical_profile_id ?? ""),
+  );
+
+  return { installedSystems: systemRows.map(mapInstalledSystem), technicalProfiles };
+}
+
+/**
+ * Installed systems on a set of properties (the customer detail Systems
+ * tab). Chunked `.in("property_id", …)` reads run in parallel and each chunk
+ * is paged, so nothing is silently capped at 1,000 rows.
+ */
+export async function listInstalledSystemsForProperties(
+  propertyIds: string[],
+): Promise<InstalledSystem[]> {
+  const unique = [...new Set(propertyIds.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const { supabase, orgId } = await getRepositoryContext();
+
+  const chunks: string[][] = [];
+  for (let index = 0; index < unique.length; index += SCOPED_ID_CHUNK_SIZE) {
+    chunks.push(unique.slice(index, index + SCOPED_ID_CHUNK_SIZE));
+  }
+  const pages = await Promise.all(
+    chunks.map((chunk) =>
+      fetchAllRows<InstalledSystemRow>((from, to) =>
+        supabase
+          .from("installed_systems")
+          .select(INSTALLED_SYSTEM_COLUMNS)
+          .eq("org_id", orgId)
+          .in("property_id", chunk)
+          .order("created_at", { ascending: false })
+          .range(from, to),
+      ),
+    ),
+  );
+
+  return pages
+    .flat()
+    .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
+    .map(mapInstalledSystem);
+}

@@ -3,6 +3,11 @@
  *
  * GET  /api/installed-systems — return all installed systems and technical
  *                               profiles for the caller's org.
+ * GET  /api/installed-systems?jobId=<uuid> — only the systems on that job
+ *                               (job_id or linked_workflow_ids) and the
+ *                               technical profiles they reference. Used by
+ *                               the job screens so they no longer download
+ *                               every system in the company.
  * POST /api/installed-systems — create a new installed system.
  */
 
@@ -13,15 +18,30 @@ import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/ro
 import { emitAuditEvent } from "@/lib/audit";
 import {
   createInstalledSystem,
+  getInstalledSystemsForJobSnapshot,
   getInstalledSystemsSnapshot,
 } from "@/services/installedSystems";
 import { getJob } from "@/services/jobs";
+
+const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(request: Request) {
   const guard = await requirePermission(request, "installed_systems", "select");
   if (!guard.ok) return guard.response;
 
   try {
+    const jobId = new URL(request.url).searchParams.get("jobId");
+    if (jobId !== null) {
+      if (!JOB_ID_PATTERN.test(jobId)) {
+        return NextResponse.json(
+          { error: "VALIDATION", message: "jobId must be a UUID.", code: 400 },
+          { status: 400 },
+        );
+      }
+      const scoped = await getInstalledSystemsForJobSnapshot(jobId);
+      return NextResponse.json(scoped);
+    }
+
     const snapshot = await getInstalledSystemsSnapshot();
     return NextResponse.json(snapshot);
   } catch (error) {
