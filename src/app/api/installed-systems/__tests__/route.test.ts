@@ -4,16 +4,19 @@ vi.mock("server-only", () => ({}));
 
 const {
   getInstalledSystemsSnapshotMock,
+  getInstalledSystemsForJobSnapshotMock,
   getInstalledSystemByIdMock,
   createInstalledSystemMock,
 } = vi.hoisted(() => ({
   getInstalledSystemsSnapshotMock: vi.fn(),
+  getInstalledSystemsForJobSnapshotMock: vi.fn(),
   getInstalledSystemByIdMock: vi.fn(),
   createInstalledSystemMock: vi.fn(),
 }));
 
 vi.mock("@/services/installedSystems", () => ({
   getInstalledSystemsSnapshot: getInstalledSystemsSnapshotMock,
+  getInstalledSystemsForJobSnapshot: getInstalledSystemsForJobSnapshotMock,
   createInstalledSystem: createInstalledSystemMock,
 }));
 
@@ -88,6 +91,44 @@ describe("GET /api/installed-systems", () => {
     expect(body.technicalProfiles).toHaveLength(1);
     expect(body.installedSystems[0].id).toBe("sys-1");
     expect(body.technicalProfiles[0].id).toBe("tp-1");
+  });
+});
+
+describe("GET /api/installed-systems?jobId= (job-scoped, Bundle C perf)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns only the job's systems and never loads the org-wide snapshot", async () => {
+    const jobId = "2f0c8f4e-5d0b-4f7e-9a51-0d6f3c2b1a90";
+    getInstalledSystemsForJobSnapshotMock.mockResolvedValue({
+      installedSystems: [{ id: "sys-9", systemName: "Furnace", jobId }],
+      technicalProfiles: [],
+    });
+
+    const response = await getInstalledSystems(
+      new Request(`http://localhost/api/installed-systems?jobId=${jobId}`, {
+        headers: { "x-loop-role": "office" },
+      }),
+    );
+    const body = (await response.json()) as { installedSystems: Array<{ id: string }> };
+
+    expect(response.status).toBe(200);
+    expect(getInstalledSystemsForJobSnapshotMock).toHaveBeenCalledWith(jobId);
+    expect(getInstalledSystemsSnapshotMock).not.toHaveBeenCalled();
+    expect(body.installedSystems.map((system) => system.id)).toEqual(["sys-9"]);
+  });
+
+  it("rejects a jobId that is not a UUID (it is interpolated into a filter)", async () => {
+    const response = await getInstalledSystems(
+      new Request("http://localhost/api/installed-systems?jobId=abc),org_id.neq.x", {
+        headers: { "x-loop-role": "office" },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(getInstalledSystemsForJobSnapshotMock).not.toHaveBeenCalled();
+    expect(getInstalledSystemsSnapshotMock).not.toHaveBeenCalled();
   });
 });
 

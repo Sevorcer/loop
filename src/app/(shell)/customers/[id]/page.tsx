@@ -8,7 +8,7 @@ import {
   getCustomerProperties,
 } from "@/services/customers";
 import { listCustomerContacts } from "@/services/customerContacts";
-import { getInstalledSystemsSnapshot } from "@/services/installedSystems";
+import { getInstalledSystemsForProperties } from "@/services/installedSystems";
 import { buildCustomerTimelineEvents } from "@/services/timeline";
 
 interface CustomerDetailPageProps {
@@ -52,21 +52,21 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
     notFound();
   }
 
-  const propertyIds = new Set(properties.map((property) => property.id));
-  const systemsState = await getInstalledSystemsSnapshot()
-    .then((snapshot) => ({
-      systems: snapshot.installedSystems
-        .filter((system) => system.propertyId && propertyIds.has(system.propertyId))
-        .map((system) => ({
-          id: system.id,
-          systemName: system.systemName,
-          lifecycleStatus: system.lifecycleStatus,
-          propertyId: system.propertyId,
-          propertyName: system.propertyName,
-          installDate: system.installDate,
-          manufacturer: system.manufacturer,
-          modelNumber: system.modelNumber,
-        })),
+  // Only this customer's properties' systems (was: every installed system in
+  // the company, filtered here). Runs in parallel with the timeline build.
+  const propertyIds = properties.map((property) => property.id);
+  const systemsPromise = getInstalledSystemsForProperties(propertyIds)
+    .then((installedSystems) => ({
+      systems: installedSystems.map((system) => ({
+        id: system.id,
+        systemName: system.systemName,
+        lifecycleStatus: system.lifecycleStatus,
+        propertyId: system.propertyId,
+        propertyName: system.propertyName,
+        installDate: system.installDate,
+        manufacturer: system.manufacturer,
+        modelNumber: system.modelNumber,
+      })),
       error: undefined,
     }))
     .catch((error: unknown) => {
@@ -77,7 +77,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
       return { systems: [], error: "Installed systems are temporarily unavailable." };
     });
 
-  const timelineState = await buildCustomerTimelineEvents({
+  const timelinePromise = buildCustomerTimelineEvents({
     customer,
     properties,
     jobs,
@@ -93,6 +93,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Custo
         error: "Timeline history is temporarily unavailable. Customer contact and property details remain available.",
       };
     });
+
+  const [systemsState, timelineState] = await Promise.all([systemsPromise, timelinePromise]);
 
   return (
     <CustomerDetailScreen

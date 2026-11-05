@@ -7,15 +7,32 @@ import {
   deleteInstalledSystem as repoDeleteInstalledSystem,
   getInstalledSystemById,
   listInstalledSystemsByProperty,
+  listInstalledSystemsForProperties,
+  loadInstalledSystemsForJob,
   loadInstalledSystemsSnapshot,
   upsertInstalledSystem,
   type InstalledSystemsRepositorySnapshot,
+  type InstalledSystemsScopedSnapshot,
   type InstalledSystemWriteInput,
 } from "@/repositories/installedSystems";
 import { resolvePropertyIdByName } from "@/services/properties";
 
 export async function getInstalledSystemsSnapshot(): Promise<InstalledSystemsRepositorySnapshot> {
   return loadInstalledSystemsSnapshot();
+}
+
+/** Only the installed systems (and their technical profiles) on one job. */
+export async function getInstalledSystemsForJobSnapshot(
+  jobId: string,
+): Promise<InstalledSystemsScopedSnapshot> {
+  return loadInstalledSystemsForJob(jobId);
+}
+
+/** Installed systems on the given properties (customer detail Systems tab). */
+export async function getInstalledSystemsForProperties(
+  propertyIds: string[],
+): Promise<InstalledSystem[]> {
+  return listInstalledSystemsForProperties(propertyIds);
 }
 
 export async function getInstalledSystemsForProperty(
