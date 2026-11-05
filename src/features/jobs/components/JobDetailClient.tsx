@@ -159,7 +159,8 @@ export function JobDetailClient({
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Couldn't restore the job.", "error");
     } finally {
-            setDeleteRestorePending(false);
+      setDeleteRestorePending(false);
+    }
   }
 
   return (
