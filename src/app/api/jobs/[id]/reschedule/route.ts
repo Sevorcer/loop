@@ -17,6 +17,7 @@ export async function POST(
 ) {
   try {
     const guard = await requirePermission(request, "jobs", "update");
+    if (!guard.ok) return guard.response;
     const { id } = await params;
     const body = await readJsonObject(request);
 

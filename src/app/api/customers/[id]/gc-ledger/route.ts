@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { getGcLedgerEntries, createGcLedgerEntry } from "@/services/gcLedger";
 
 export async function GET(

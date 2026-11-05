@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { ChevronDown, ChevronUp, DollarSign, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, DollarSign, FileText, Pencil, Plus } from "lucide-react";
 
-import { PermissionGuard, StatusBadge } from "@/components/atlas";
+import { StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { pushToast } from "@/components/ui/toast";

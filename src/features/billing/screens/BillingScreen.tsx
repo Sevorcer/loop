@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { PageHeader, SectionCard } from "@/components/atlas";
-import { AtlasTabs } from "@/components/atlas";
 import { ReadyToBillTable } from "../components/ReadyToBillTable";
 import type { ReadyToBillJob } from "../types/billing";
 

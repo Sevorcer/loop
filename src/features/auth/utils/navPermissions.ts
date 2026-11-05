@@ -108,7 +108,7 @@ export function getNavItemsForRole(
   role: AppRole | string | null | undefined,
   groups: NavGroup[]
 ): NavGroup[] {
-  const nonEmptyGroups = groups.filter((group) => group.items.length > 0);
+
 
   if (role === "portal") {
     return [];
