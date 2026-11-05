@@ -66,8 +66,14 @@ export interface GcBuilderRollup {
   totalRetainerCents: number;
   /** Open callback count from the unified callback counting. */
   callbackCount: number;
-  /** Number of ledger entries (jobs tracked). */
+  /** Number of ledger entries (jobs tracked in the ledger). */
   entryCount: number;
+  /** Number of child customer sites under this builder. */
+  siteCount: number;
+  /** Total jobs across all child sites (regardless of ledger entries). */
+  totalJobCount: number;
+  /** Jobs currently in open status (scheduled, in_progress). */
+  openJobCount: number;
 }
 
 /** Contact info for a super or PM on the builder. */

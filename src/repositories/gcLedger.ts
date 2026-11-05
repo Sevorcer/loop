@@ -491,6 +491,9 @@ export async function getBuilderRollup(
       totalRetainerCents: 0,
       callbackCount: 0,
       entryCount: 0,
+      siteCount: 0,
+      totalJobCount: 0,
+      openJobCount: 0,
     };
   }
 
@@ -503,6 +506,14 @@ export async function getBuilderRollup(
 
   const jobIds = (jobs ?? []).map((j: { id: string }) => j.id);
 
+  // Open jobs count (scheduled or in_progress)
+  const { count: openJobCount } = await supabase
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .in("customer_id", childIds)
+    .in("status", ["scheduled", "in_progress"]);
+
   if (jobIds.length === 0) {
     return {
       customerId: parentCustomerId,
@@ -512,6 +523,9 @@ export async function getBuilderRollup(
       totalRetainerCents: 0,
       callbackCount: 0,
       entryCount: 0,
+      siteCount: childIds.length,
+      totalJobCount: 0,
+      openJobCount: openJobCount ?? 0,
     };
   }
 
@@ -560,6 +574,9 @@ export async function getBuilderRollup(
     totalRetainerCents,
     callbackCount: callbackCount ?? 0,
     entryCount: ledgerEntries.length,
+    siteCount: childIds.length,
+    totalJobCount: jobIds.length,
+    openJobCount: openJobCount ?? 0,
   };
 }
 
