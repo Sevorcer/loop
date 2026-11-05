@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Clock,
   ExternalLink,
+  Package,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -13,6 +16,9 @@ import Link from "next/link";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { JobTypeLabel } from "@/features/jobs/components/JobTypeLabel";
+import { JobPrepPanels } from "@/features/job-materials/components/JobPrepPanels";
+import type { MaterialReadiness } from "@/features/job-materials/types/jobMaterials";
+import { materialReadinessFromSummary } from "@/features/job-materials/utils/jobMaterials";
 import { isCallbackJob } from "@/features/jobs/utils/callbackJob";
 import { formatScheduledShort } from "@/features/jobs/utils/schedulingTime";
 import { hoursBetweenIso } from "@/lib/timezone";
@@ -137,6 +143,12 @@ export function DispatchBoardCard({
   const windowHours = hoursBetweenIso(plan.scheduledStartAt, plan.scheduledEndAt);
   const durationHours = windowHours ?? plan.estimatedDurationHours;
   const isCompleted = plan.dispatchStatus === "completed";
+  // #23: Materials + Technical data open inline; the panels load only when
+  // expanded. Edits made there update this card's Materials chip right away.
+  const [prepOpen, setPrepOpen] = useState(false);
+  const [materialOverride, setMaterialOverride] = useState<MaterialReadiness | null>(null);
+  const materialReadiness = materialOverride ?? plan.dispatchability.materialReadiness;
+  const prepPanelId = `dispatch-prep-${plan.id}`;
 
   return (
     <SurfaceCard className={isCompleted ? "min-w-0 max-w-full opacity-70" : "group min-w-0 max-w-full transition-all duration-200 hover:border-white/20"}>
@@ -195,19 +207,23 @@ export function DispatchBoardCard({
         <div className="mt-4 grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-4">
           <ReadinessChip
             label="Materials"
-            state={plan.dispatchability.materialReadiness.state}
+            state={materialReadiness.state}
+            reason={materialReadiness.reason}
           />
           <ReadinessChip
             label="Technical"
             state={plan.dispatchability.technicalReadiness.state}
+            reason={plan.dispatchability.technicalReadiness.reason}
           />
           <ReadinessChip
             label="Customer"
             state={plan.dispatchability.customerReadiness.state}
+            reason={plan.dispatchability.customerReadiness.reason}
           />
           <ReadinessChip
             label="People"
             state={plan.dispatchability.crewReadiness.state}
+            reason={plan.dispatchability.crewReadiness.reason}
           />
         </div>
 
@@ -259,6 +275,22 @@ export function DispatchBoardCard({
             </div>
           ) : null}
 
+          {plan.jobId ? (
+            <button
+              type="button"
+              aria-expanded={prepOpen}
+              aria-controls={prepPanelId}
+              onClick={() => setPrepOpen((open) => !open)}
+              className="inline-flex min-h-11 items-center gap-1 self-start rounded-lg border border-white/10 bg-white/[0.03] px-2.5 text-xs text-slate-300 transition-colors hover:border-white/20 hover:text-white sm:min-h-7"
+            >
+              <Package className="h-3.5 w-3.5 text-blue-300" />
+              Materials &amp; specs
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${prepOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          ) : null}
+
           {plan.jobId && (
             <Link
               href={ROUTE_BUILDERS.JOB_DETAIL(plan.jobId)}
@@ -270,6 +302,16 @@ export function DispatchBoardCard({
             </Link>
           )}
         </div>
+        {prepOpen && plan.jobId ? (
+          <div id={prepPanelId} className="mt-4 border-t border-white/5 pt-4">
+            <JobPrepPanels
+              jobId={plan.jobId}
+              onMaterialsSummary={(summary) =>
+                setMaterialOverride(materialReadinessFromSummary(summary))
+              }
+            />
+          </div>
+        ) : null}
       </div>
     </SurfaceCard>
   );
@@ -278,9 +320,11 @@ export function DispatchBoardCard({
 function ReadinessChip({
   label,
   state,
+  reason,
 }: {
   label: string;
   state: "satisfied" | "attention_needed" | "not_satisfied";
+  reason?: string;
 }) {
   const styles =
     state === "satisfied"
@@ -299,6 +343,7 @@ function ReadinessChip({
   return (
     <div
       className={`flex min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${styles}`}
+      title={reason ? `${label}: ${reason}` : undefined}
     >
       <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dot}`} />
       <span className="truncate">{label}</span>
