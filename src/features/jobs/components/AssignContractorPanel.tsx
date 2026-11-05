@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HardHat, RefreshCw, UserMinus, UserPlus } from "lucide-react";
 import Link from "next/link";
 
@@ -13,6 +13,7 @@ import { useCurrentRole } from "@/features/auth";
 import { showAddContractorLink } from "../utils/contractorAccess";
 import { useJobs } from "../state/JobsProvider";
 
+import { useEffect } from "react";
 interface AssignContractorPanelProps {
   jobId: string;
 }
