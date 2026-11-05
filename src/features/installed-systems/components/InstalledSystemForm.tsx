@@ -16,6 +16,7 @@ import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { InstalledSystem, InstalledSystemLifecycle } from "../types/installedSystem";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
+import { canEditWarrantyExpiry } from "../utils/installedSystemFormAccess";
 
 const LIFECYCLE_OPTIONS: InstalledSystemLifecycle[] = ["Planned", "Active", "Needs Review"];
 
@@ -121,6 +122,11 @@ export function InstalledSystemForm({
     customerId: string;
     properties: Property[];
   } | null>(null);
+  // Track the chosen property's id so create/save writes property_id, not just the name.
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
+    context?.propertyId ?? system?.propertyId ?? null,
+  );
+  const canEditWarranty = canEditWarrantyExpiry(role);
 
   // F6: pickers instead of free text — typo-proof customer/property linking.
   useEffect(() => {
@@ -231,6 +237,19 @@ export function InstalledSystemForm({
       ? scopedPropertiesState.properties
       : null;
 
+  useEffect(() => {
+    if (context?.propertyId) {
+      setSelectedPropertyId(context.propertyId);
+      return;
+    }
+    if (!form.propertyName) return;
+    const match =
+      propertyOptions.find((property) => property.name === form.propertyName) ??
+      scopedProperties?.find((property) => property.name === form.propertyName) ??
+      null;
+    if (match) setSelectedPropertyId(match.id);
+  }, [context?.propertyId, form.propertyName, propertyOptions, scopedProperties]);
+
   // Property search runs server-side too, scoped to the selected customer
   // when the form knows it.
   useEffect(() => {
@@ -299,6 +318,7 @@ export function InstalledSystemForm({
       f.systemName.trim().length > 0 &&
       f.manufacturer.trim().length > 0 &&
       f.modelNumber.trim().length > 0 &&
+      f.serialNumber.trim().length > 0 &&
       isInstallDateValueValid(f.installDate) &&
       f.customerName.trim().length > 0 &&
       f.propertyName.trim().length > 0
@@ -318,6 +338,7 @@ export function InstalledSystemForm({
     if (!form.systemName.trim()) errors.systemName = "System name is required.";
     if (!form.manufacturer.trim()) errors.manufacturer = "Manufacturer is required.";
     if (!form.modelNumber.trim()) errors.modelNumber = "Model number is required.";
+    if (!form.serialNumber.trim()) errors.serialNumber = "Serial number is required.";
     if (!isInstallDateValueValid(form.installDate))
       errors.installDate = "Enter a year (2024) or a full date (2024-06-15).";
     if (!form.customerName.trim()) errors.customerName = "Customer name is required.";
@@ -349,8 +370,9 @@ export function InstalledSystemForm({
             manufacturer: form.manufacturer.trim(),
             modelNumber: form.modelNumber.trim(),
             serialNumbers,
-            warrantyExpiry: form.warrantyExpiry.trim(),
+            warrantyExpiry: canEditWarranty ? form.warrantyExpiry.trim() : undefined,
             customerName: form.customerName.trim(),
+            propertyId: selectedPropertyId ?? undefined,
             propertyName: form.propertyName.trim(),
             location: form.location.trim(),
             installDate: form.installDate,
@@ -373,9 +395,9 @@ export function InstalledSystemForm({
               manufacturer: form.manufacturer.trim(),
               modelNumber: form.modelNumber.trim(),
               serialNumbers,
-              warrantyExpiry: form.warrantyExpiry.trim(),
+              warrantyExpiry: canEditWarranty ? form.warrantyExpiry.trim() : "",
               customerName: form.customerName.trim(),
-              propertyId: context?.propertyId,
+              propertyId: selectedPropertyId ?? context?.propertyId,
               propertyName: form.propertyName.trim(),
               location: form.location.trim(),
               installDate: form.installDate,
@@ -504,13 +526,14 @@ export function InstalledSystemForm({
             {/* Serial Number */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">
-                Serial Number <span className="text-slate-500">(optional)</span>
+                Serial Number <span className="text-red-400">*</span>
               </label>
               <input
                 value={form.serialNumber}
                 onChange={(e) => updateField("serialNumber", e.target.value)}
-                placeholder="SN-2024-001234 — leave blank if unknown"
+                placeholder="SN-2024-001234"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40"
+                required
               />
               {fieldErrors.serialNumber ? (
                 <p className="text-xs text-red-400">{fieldErrors.serialNumber}</p>
@@ -537,16 +560,30 @@ export function InstalledSystemForm({
               ) : null}
             </div>
 
-            {/* Warranty Expiry */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Warranty Expiry</label>
-              <input
-                type="date"
-                value={form.warrantyExpiry}
-                onChange={(e) => updateField("warrantyExpiry", e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
-              />
-            </div>
+            {/* Warranty Expiry — office-only; never shown/required for installers. */}
+            {canEditWarranty ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-200">
+                  Warranty Expiry <span className="text-slate-500">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.warrantyExpiry}
+                  onChange={(e) => updateField("warrantyExpiry", e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
+                />
+                <p className="text-xs text-slate-500">
+                  Leave blank until the office registers the warranty.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-200">Warranty Expiry</label>
+                <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+                  Set by the office after warranty registration — not required here.
+                </p>
+              </div>
+            )}
 
             {/* Customer Name */}
             <div className="space-y-2">
@@ -563,7 +600,13 @@ export function InstalledSystemForm({
               />
               <select
                 value={form.customerName}
-                onChange={(e) => updateField("customerName", e.target.value)}
+                onChange={(e) => {
+                  updateField("customerName", e.target.value);
+                  if (!lockJobProperty) {
+                    updateField("propertyName", "");
+                    setSelectedPropertyId(null);
+                  }
+                }}
                 disabled={lockJobProperty}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40 disabled:opacity-70"
                 required
@@ -604,7 +647,15 @@ export function InstalledSystemForm({
               />
               <select
                 value={form.propertyName}
-                onChange={(e) => updateField("propertyName", e.target.value)}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  updateField("propertyName", name);
+                  const match =
+                    visibleProperties.find((property) => property.name === name) ??
+                    propertySource.find((property) => property.name === name) ??
+                    null;
+                  setSelectedPropertyId(match?.id ?? (name ? selectedPropertyId : null));
+                }}
                 disabled={lockJobProperty}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40 disabled:opacity-70"
                 required

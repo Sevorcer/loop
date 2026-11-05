@@ -119,10 +119,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // F8: serial numbers are optional — the caller often doesn't have them.
+    // Field feedback 2026-11-05: serial number is required on create.
     const serialNumbers = Array.isArray(body.serialNumbers)
       ? (body.serialNumbers as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0)
       : [];
+    if (serialNumbers.length === 0) {
+      return NextResponse.json(
+        { error: "VALIDATION", message: "serialNumber is required.", code: 400 },
+        { status: 400 },
+      );
+    }
 
     const installDate =
       typeof body.installDate === "string" && body.installDate.trim()
@@ -176,8 +182,14 @@ export async function POST(request: Request) {
       manufacturer,
       modelNumber,
       serialNumbers,
-      warrantyRegistered: false, warrantyExpiry:
-        typeof body.warrantyExpiry === "string" ? body.warrantyExpiry.trim() : "",
+      warrantyRegistered: false,
+      // Warranty expiry is office-only (owner/manager/office/dispatch). Non-office
+      // creates always store an empty expiry — never a today-default from the client.
+      warrantyExpiry:
+        ["owner", "manager", "office", "dispatch"].includes(guard.ctx.role) &&
+        typeof body.warrantyExpiry === "string"
+          ? body.warrantyExpiry.trim()
+          : "",
       accessories: Array.isArray(body.accessories)
         ? (body.accessories as unknown[]).filter((a): a is string => typeof a === "string")
         : [],

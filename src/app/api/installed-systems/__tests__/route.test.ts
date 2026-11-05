@@ -246,8 +246,7 @@ describe("POST /api/installed-systems — required field validation", () => {
     expect(json.error).toBe("VALIDATION");
   });
 
-  it("F8: accepts empty serialNumbers (serial is optional)", async () => {
-    createInstalledSystemMock.mockResolvedValue({ id: "sys-new" });
+  it("field feedback: rejects empty serialNumbers (serial is required)", async () => {
     const body = { ...validBody(), serialNumbers: [] };
     const response = await postInstalledSystem(
       new Request("http://localhost/api/installed-systems", {
@@ -256,10 +255,11 @@ describe("POST /api/installed-systems — required field validation", () => {
         body: JSON.stringify(body),
       }),
     );
-    expect(response.status).toBe(201);
-    expect(createInstalledSystemMock).toHaveBeenCalledWith(
-      expect.objectContaining({ serialNumbers: [] }),
-    );
+    const json = (await response.json()) as { error: string; message: string };
+    expect(response.status).toBe(400);
+    expect(json.error).toBe("VALIDATION");
+    expect(json.message).toMatch(/serial/i);
+    expect(createInstalledSystemMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when installDate is missing", async () => {

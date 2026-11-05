@@ -68,7 +68,17 @@ export async function PATCH(
     if (typeof body.installDate === "string") patch.installDate = body.installDate.trim();
     if (typeof body.manufacturer === "string") patch.manufacturer = body.manufacturer.trim();
     if (typeof body.modelNumber === "string") patch.modelNumber = body.modelNumber.trim();
-    if (typeof body.warrantyExpiry === "string") patch.warrantyExpiry = body.warrantyExpiry.trim();
+    if (typeof body.warrantyExpiry === "string") {
+      // Same office-only rule as warranty registration (field feedback 2026-11-05).
+      if (!["owner", "manager", "office", "dispatch"].includes(guard.ctx.role)) {
+        return createApiErrorResponse(
+          "FORBIDDEN",
+          "Only office staff can set warranty expiry.",
+          403,
+        );
+      }
+      patch.warrantyExpiry = body.warrantyExpiry.trim();
+    }
     if (typeof body.warrantyRegistered === "boolean") {
       // Warranty registration is office-only (per Collin, 2026-10-02). The DB
       // trigger guard_tech_installed_system_warranty enforces this at the data
