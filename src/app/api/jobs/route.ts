@@ -10,7 +10,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { todayInCompanyTimeZone } from "@/lib/timezone";
 import { emitAuditEvent } from "@/lib/audit";
 import { logWriteFailure } from "@/lib/observability/writes";
-import { createJob, listJobsWithActivity, listJobsPage } from "@/services/jobs";
+import { createJob, getJobBoardStats, listJobsWithActivity, listJobsPage } from "@/services/jobs";
 
 import type { JobAppointmentHour, JobCloseoutMode, JobPriority, JobStatus, JobType } from "@/features/jobs/types/job";
 
@@ -71,6 +71,14 @@ export async function GET(request: Request) {
 
   try {
     const url = new URL(request.url);
+
+    // `?view=stats` — the Jobs page stat cards. Exact database counts, so the
+    // page no longer downloads the whole job table just to count it.
+    if (url.searchParams.get("view") === "stats") {
+      const stats = await getJobBoardStats();
+      return NextResponse.json({ stats });
+    }
+
     const paginated = url.searchParams.has("page");
 
     // When the `page` query param is present, use server-side filtering +

@@ -13,17 +13,27 @@ import { useCurrentRole } from "@/features/auth";
 import { showAddContractorLink } from "../utils/contractorAccess";
 import { useJobs } from "../state/JobsProvider";
 
+import { useEffect } from "react";
 interface AssignContractorPanelProps {
   jobId: string;
 }
 
 export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
-  const { getJobById, assignContractor, removeContractorAssignment } =
+  const { getJobById, assignContractor, removeContractorAssignment, loadJobDetails } =
     useJobs();
   const { contractors, refreshContractors } = useContractors();
   const { role } = useCurrentRole();
 
   const job = getJobById(jobId);
+  const jobLoaded = Boolean(job);
+
+  // The jobs store no longer preloads every job, so read this one job into
+  // the store when the panel opens (assign/remove need it there).
+  useEffect(() => {
+    if (!jobLoaded) {
+      void loadJobDetails(jobId);
+    }
+  }, [jobId, jobLoaded, loadJobDetails]);
   const assignedIds = job?.contractorIds ?? [];
   const assignedContractors = contractors.filter((c) =>
     assignedIds.includes(c.id)

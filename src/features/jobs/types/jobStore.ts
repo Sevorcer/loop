@@ -72,5 +72,7 @@ export interface JobsStoreValue {
   removeContractorAssignment: (jobId: string, contractorId: string) => Promise<void>;
   refreshJobs: () => Promise<void>;
   loadJobDetails: (jobId: string) => Promise<void>;
+  /** Ask the provider to load the full workspace job list (lazy, once). */
+  ensureJobsLoaded: () => void;
   reload: () => Promise<void>;
 }

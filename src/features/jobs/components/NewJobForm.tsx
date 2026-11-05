@@ -24,7 +24,7 @@ import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { parseDollarsToCents } from "@/lib/money";
 
 import { JobForm, type JobFormValues } from "./JobForm";
-import { useJobs } from "../state/JobsProvider";
+import { useJobsList } from "../state/JobsProvider";
 import type { SmartSelectionState } from "../utils/smartJobCreation";
 
 interface NewJobFormProps {
@@ -36,7 +36,9 @@ interface NewJobFormProps {
 function NewJobFormContent({ initialContext, initialDate }: NewJobFormProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
-  const { jobs, createJob } = useJobs();
+  // Full list only feeds the technician suggestions; it loads in the
+  // background and never blocks the form.
+  const { jobs, createJob } = useJobsList();
   
 
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);

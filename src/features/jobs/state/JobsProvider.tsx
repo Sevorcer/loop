@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -25,9 +26,17 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activity, setActivity] = useState<JobActivity[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The full workspace list (every job + recent activity) is loaded ONLY when
+  // a screen that needs it asks for it via useJobsList(). The jobs layout
+  // wraps the Jobs board, job detail, new/edit job and the calendar; none of
+  // those render the full list, and fetching it on every visit (15 sequential
+  // page reads + assignee lookups per page) was the main reason the Jobs
+  // section felt slow (Bundle C perf pass, 2026-11-04).
+  const [listRequested, setListRequested] = useState(false);
+  const listRequestedRef = useRef(false);
 
   const refreshJobs = useCallback(async () => {
     if (!role) {
@@ -87,15 +96,36 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     [role],
   );
 
+  const ensureJobsLoaded = useCallback(() => {
+    if (listRequestedRef.current) return;
+    listRequestedRef.current = true;
+    setListRequested(true);
+  }, []);
+
   useEffect(() => {
-    if (!role) {
+    if (!role || !listRequested) {
       return;
     }
 
     queueMicrotask(() => {
       void refreshJobs();
     });
-  }, [refreshJobs, role]);
+  }, [listRequested, refreshJobs, role]);
+
+  /**
+   * After a write: refresh the full list only when a screen asked for it;
+   * otherwise re-read just the job that changed (job detail panels).
+   */
+  const refreshAfterWrite = useCallback(
+    async (jobId: string) => {
+      if (listRequestedRef.current) {
+        await refreshJobs();
+        return;
+      }
+      await loadJobDetails(jobId);
+    },
+    [loadJobDetails, refreshJobs],
+  );
 
   const value = useMemo<JobsStoreValue>(() => {
     function getJobById(id: string) {
@@ -131,7 +161,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: input,
       });
 
-      await refreshJobs();
+      await refreshAfterWrite(jobId);
       return response.job;
     }
 
@@ -142,7 +172,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: { action: "status", status },
       });
 
-      await refreshJobs();
+      await refreshAfterWrite(jobId);
     }
 
     async function addJobNote(jobId: string, note: string) {
@@ -152,7 +182,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: { action: "note", note },
       });
 
-      await refreshJobs();
+      await refreshAfterWrite(jobId);
     }
 
     async function assignContractor(
@@ -187,7 +217,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      await refreshJobs();
+      await refreshAfterWrite(jobId);
 
       return { ok: true };
     }
@@ -199,7 +229,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         body: { action: "contractor", direction: "remove", contractorId },
       });
 
-      await refreshJobs();
+      await refreshAfterWrite(jobId);
     }
 
     return {
@@ -217,9 +247,10 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       removeContractorAssignment,
       refreshJobs,
       loadJobDetails,
+      ensureJobsLoaded,
       reload,
     };
-  }, [activity, error, hydrated, jobs, loadJobDetails, loading, refreshJobs, role]);
+  }, [activity, ensureJobsLoaded, error, hydrated, jobs, loadJobDetails, loading, refreshAfterWrite, refreshJobs, role]);
 
   return <JobsContext.Provider value={value}>{children}</JobsContext.Provider>;
 }
@@ -231,5 +262,20 @@ export function useJobs() {
     throw new Error("useJobs must be used within a JobsProvider");
   }
 
+  return context;
+}
+
+/**
+ * useJobs() plus a request for the FULL workspace job list. Use this only in
+ * screens that genuinely render or search every job (Daily Plans, the New Job
+ * technician suggestions). Everything else should read single jobs or the
+ * paginated /api/jobs?page= endpoint instead.
+ */
+export function useJobsList() {
+  const context = useJobs();
+  const ensure = context.ensureJobsLoaded;
+  useEffect(() => {
+    ensure?.();
+  }, [ensure]);
   return context;
 }
