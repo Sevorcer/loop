@@ -107,7 +107,7 @@ function BidForm({ jobId, role, initial, onSaved, onCancel }: BidFormProps) {
           name="status"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="mt-1 block min-h-11 w-full rounded-xl border border-white/10 bg-transparent px-3 text-sm text-white"
+          className="mt-1 block min-h-11 w-full rounded-xl border border-white/10 bg-slate-950 px-3 text-sm text-white [&>option]:bg-slate-950 [&>option]:text-white"
         >
           {JOB_BID_STATUSES.map((s) => (
             <option key={s} value={s}>{bidStatusLabel(s)}</option>
