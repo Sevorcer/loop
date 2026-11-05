@@ -10,6 +10,7 @@ import {
   getTimeWindowError,
   deriveScheduledStartAt,
   deriveScheduledForDate,
+  formatJobHeaderSchedule,
 } from "../utils/schedulingTime";
 
 // ─── formatScheduledShort ────────────────────────────────────────────────────
@@ -243,5 +244,50 @@ describe("formatJobAppointmentDisplay", () => {
     expect(
       formatJobAppointmentDisplay({ scheduledStartAt: null, appointmentHour: undefined }),
     ).toBe("9:00 AM");
+  });
+});
+
+// ─── formatJobHeaderSchedule ─────────────────────────────────────────────────
+// 2026-11-06 is a Friday; November is PST (UTC-8), so 16:00Z = 8:00 AM Pacific.
+
+describe("formatJobHeaderSchedule", () => {
+  it("spells out start and end time in the company timezone", () => {
+    expect(
+      formatJobHeaderSchedule("2026-11-06T16:00:00Z", "2026-11-06T20:00:00Z"),
+    ).toBe("Fri, Nov 6 · 8:00 AM – 12:00 PM");
+  });
+
+  it("shows only the start time when there is no end", () => {
+    expect(formatJobHeaderSchedule("2026-11-06T16:00:00Z", null)).toBe(
+      "Fri, Nov 6 · 8:00 AM",
+    );
+    expect(formatJobHeaderSchedule("2026-11-06T16:00:00Z", undefined)).toBe(
+      "Fri, Nov 6 · 8:00 AM",
+    );
+  });
+
+  it("keeps a late-afternoon Pacific job on its own day instead of rolling to UTC's next day", () => {
+    expect(
+      formatJobHeaderSchedule("2026-11-07T01:30:00Z", "2026-11-07T04:00:00Z"),
+    ).toBe("Fri, Nov 6 · 5:30 PM – 8:00 PM");
+  });
+
+  it("names both days for a multi-day window", () => {
+    expect(
+      formatJobHeaderSchedule("2026-11-06T16:00:00Z", "2026-11-07T20:00:00Z"),
+    ).toBe("Fri, Nov 6 · 8:00 AM – Sat, Nov 7 · 12:00 PM");
+  });
+
+  it("ignores an end that is not after the start", () => {
+    expect(
+      formatJobHeaderSchedule("2026-11-06T16:00:00Z", "2026-11-06T15:00:00Z"),
+    ).toBe("Fri, Nov 6 · 8:00 AM");
+  });
+
+  it("returns null for date-only, missing or invalid starts so callers keep the date fallback", () => {
+    expect(formatJobHeaderSchedule("2026-11-06", null)).toBeNull();
+    expect(formatJobHeaderSchedule(null, null)).toBeNull();
+    expect(formatJobHeaderSchedule(undefined, "2026-11-06T20:00:00Z")).toBeNull();
+    expect(formatJobHeaderSchedule("not-a-date", null)).toBeNull();
   });
 });

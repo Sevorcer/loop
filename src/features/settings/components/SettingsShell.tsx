@@ -17,6 +17,7 @@ import { SettingsSidebar } from "./SettingsSidebar";
 
 interface SettingsShellProps {
   children: ReactNode;
+  appRole?: string | null;
 }
 
 /** True only on the client after hydration — safe gate for createPortal. */
@@ -28,7 +29,7 @@ function useIsClient() {
   );
 }
 
-export function SettingsShell({ children }: SettingsShellProps) {
+export function SettingsShell({ children, appRole }: SettingsShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const isClient = useIsClient();
 
@@ -54,7 +55,7 @@ export function SettingsShell({ children }: SettingsShellProps) {
                 isMobileNavOpen ? "translate-x-0" : "-translate-x-full",
               ].join(" ")}
             >
-              <SettingsSidebar onNavigate={() => setIsMobileNavOpen(false)} />
+              <SettingsSidebar appRole={appRole} onNavigate={() => setIsMobileNavOpen(false)} />
             </div>
           </>,
           document.body,
@@ -65,7 +66,7 @@ export function SettingsShell({ children }: SettingsShellProps) {
     <div className="flex min-h-0 gap-6">
       {/* Desktop sidebar */}
       <div className="hidden w-56 shrink-0 lg:block xl:w-64">
-        <SettingsSidebar />
+        <SettingsSidebar appRole={appRole} />
       </div>
 
       {mobileNav}

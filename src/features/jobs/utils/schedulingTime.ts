@@ -227,6 +227,48 @@ export function formatCompanyScheduleRange(
   return `${startLabel} – ${endLabel}`;
 }
 
+/** Parses a stored timestamp that carries a real time-of-day (not a date-only string). */
+function parseTimedInstant(value: string | null | undefined): Date | null {
+  if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Job header schedule label with the appointment start time spelled out,
+ * all in the company timezone: "Thu, Nov 6 · 8:00 AM – 12:00 PM", or
+ * "Thu, Nov 6 · 8:00 AM" with no end. A multi-day window names both days.
+ *
+ * Returns null when there is no timed start (date-only or unscheduled jobs),
+ * so callers keep their existing date-only fallback.
+ */
+export function formatJobHeaderSchedule(
+  startValue: string | null | undefined,
+  endValue: string | null | undefined,
+): string | null {
+  const start = parseTimedInstant(startValue);
+  if (!start) return null;
+  const timeZone = companyTimeZone();
+  const dayFmt = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone,
+  });
+  const timeFmt = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  });
+  const startLabel = `${dayFmt.format(start)} · ${timeFmt.format(start)}`;
+  const end = parseTimedInstant(endValue);
+  if (!end || end.getTime() <= start.getTime()) return startLabel;
+  const sameDay = companyCalendarDate(startValue) === companyCalendarDate(endValue);
+  return sameDay
+    ? `${startLabel} – ${timeFmt.format(end)}`
+    : `${startLabel} – ${dayFmt.format(end)} · ${timeFmt.format(end)}`;
+}
+
 // ─── Legacy conversion ────────────────────────────────────────────────────────
 
 /**

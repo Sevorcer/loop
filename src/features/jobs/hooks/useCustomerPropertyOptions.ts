@@ -43,15 +43,17 @@ export function useCustomerPropertyOptions(role: string | null | undefined) {
   }, [role]);
 
   const loadPropertiesForCustomer = useCallback(
-    async (customerId: string, search?: string) => {
-      if (!role || !customerId) return;
+    async (customerId: string, search?: string): Promise<Property[]> => {
+      if (!role || !customerId) return [];
       const params = new URLSearchParams({ customerId });
       if (search?.trim()) params.set("search", search.trim());
       const response = await requestJson<{ properties: Property[] }>(
         `/api/properties?${params.toString()}`,
         { role },
       );
-      setPropertyOptions((current) => mergeById(current, response.properties ?? []));
+      const incoming = response.properties ?? [];
+      setPropertyOptions((current) => mergeById(current, incoming));
+      return incoming;
     },
     [role],
   );

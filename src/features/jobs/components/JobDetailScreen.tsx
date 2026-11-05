@@ -91,7 +91,7 @@ import { PortalMoneyToggle } from "./PortalMoneyToggle";
 import { PortalPhotosToggle } from "./PortalPhotosToggle";
 import { PortalSubmissions } from "./PortalSubmissions";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
-import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
+import { formatCompanyScheduleRange, formatJobAppointmentDisplay, formatJobHeaderSchedule } from "../utils/schedulingTime";
 import { formatDateOnly } from "@/lib/dates";
 import { companyTimeZone } from "@/lib/timezone";
 
@@ -334,7 +334,9 @@ export function JobDetailScreen({
   const completedTeam = job.status === "Completed" && job.completionTeam && job.completionTeam.length > 0
     ? formatTeamLabel(job.completionTeam.map((person) => person.name))
     : "";
-  const scheduleRangeLabel = formatCompanyScheduleRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
+  const scheduleRangeLabel =
+    formatJobHeaderSchedule(job.scheduledStartAt, job.scheduledEndAt) ??
+    formatCompanyScheduleRange(job.scheduledStartAt ?? job.scheduledFor, job.scheduledEndAt);
   // F15: "Assigned To" (internal technician) and "Assigned Contractors"
   // (external subs) are stored separately and could silently disagree on this
   // screen. Render them side by side so both facts are always visible together.

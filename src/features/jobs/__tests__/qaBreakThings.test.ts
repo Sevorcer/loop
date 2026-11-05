@@ -89,21 +89,39 @@ describe("create job missing fields", () => {
       "Property",
       "Scheduled start",
       "Location",
-      "Work summary",
     ]);
     expect(formatMissingJobFields(fields)).toBe(
-      "Add the missing information: Job title, Customer, Property, Scheduled start, Location, Work summary.",
+      "Add the missing information: Job title, Customer, Property, Scheduled start, Location.",
     );
   });
 
-  it("only names location and summary for a technician", () => {
+  it("never requires a work summary, for any role", () => {
+    expect(
+      missingJobFormFields("tech", { ...officeForm, summary: "" }, clearWindows),
+    ).not.toContain("Work summary");
+    expect(
+      missingJobFormFields("office", { ...officeForm, summary: "   " }, clearWindows),
+    ).not.toContain("Work summary");
+    expect(
+      missingPersistedJobFields({
+        title: "Replace condenser",
+        customerName: "Ada",
+        propertyName: "12 Market St",
+        assignedTo: "Antonio",
+        location: "Roof",
+        summary: "",
+      }),
+    ).toEqual([]);
+  });
+
+  it("only names location for a technician with a blank location and summary", () => {
     expect(
       missingJobFormFields(
         "tech",
         { ...officeForm, location: "", summary: " " },
         clearWindows,
       ),
-    ).toEqual(["Location", "Work summary"]);
+    ).toEqual(["Location"]);
   });
 
   it("lists the same blanks for a saved job record", () => {
@@ -116,7 +134,7 @@ describe("create job missing fields", () => {
         location: "Roof",
         summary: "",
       }),
-    ).toEqual(["Job title", "Property", "Work summary"]);
+    ).toEqual(["Job title", "Property"]);
     expect(
       missingPersistedJobFields({
         title: "Replace condenser",

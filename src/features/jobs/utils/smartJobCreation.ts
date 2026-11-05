@@ -46,6 +46,20 @@ export function getScopedProperties(
   return properties.filter((property) => property.customerId === customerId);
 }
 
+/**
+ * The customer's "main" property for job creation: the first property of that
+ * customer in the order the app already lists them (the /api/properties
+ * ?customerId= response, newest first). Properties carry no primary flag, so
+ * this keeps the order the customer page shows. The user can change it freely.
+ */
+export function pickMainPropertyId(
+  orderedCustomerProperties: JobPropertyOption[],
+  customerId?: string,
+): string | undefined {
+  if (!customerId) return undefined;
+  return getScopedProperties(orderedCustomerProperties, customerId)[0]?.id;
+}
+
 export function resolveInitialSmartSelection(
   customers: JobCustomerOption[],
   properties: JobPropertyOption[],

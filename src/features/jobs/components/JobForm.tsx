@@ -699,7 +699,7 @@ export function JobForm({
             <div className="space-y-2 lg:col-span-2">
               <label className="text-sm font-medium text-slate-200">
                 Work summary
-                <RequiredStar />
+                <span className="text-slate-500"> (optional)</span>
               </label>
               <textarea
                 value={form.summary}
@@ -707,7 +707,6 @@ export function JobForm({
                 rows={4}
                 placeholder="Describe the requested install, service issue, maintenance scope, or inspection objective."
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                aria-required="true"
               />
             </div>
 
