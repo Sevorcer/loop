@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ClipboardList, Loader2, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { requestJson } from "@/lib/api/client";
 import type { JobTask } from "@/repositories/jobTasks";
 import {
   canAddJobChecklistItem,
+  canEditJobChecklistItem,
   canRemoveJobChecklistItem,
 } from "@/features/jobs/utils/jobChecklistAccess";
 
@@ -32,14 +33,17 @@ export function JobTasksCard({
   onCountsChange?: (counts: { done: number; total: number }) => void;
 }) {
   const { role } = useCurrentRole();
-  // B3: anyone on the team may add an item; only office and above may remove.
+  // R1: techs can add, edit, and delete checklist items (replaces B3 remove rule).
   const canAddChecklist = canAddJobChecklistItem(role);
+  const canEditChecklist = canEditJobChecklistItem(role);
   const canRemoveChecklist = canRemoveJobChecklistItem(role);
   const [tasks, setTasks] = useState<JobTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [newLabel, setNewLabel] = useState(""); const [officeLabel, setOfficeLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
 
   const loadTasks = useCallback(
     async (silent = false) => {
@@ -179,8 +183,41 @@ export function JobTasksCard({
     }
   }
 
+  async function renameTask(task: JobTask) {
+    if (!role) return;
+    const label = editLabel.trim();
+    if (!label || label === task.label) {
+      setEditingId(null);
+      return;
+    }
+    setWorking(true);
+    setError(null);
+    try {
+      const response = await requestJson<{ task: JobTask }>(`/api/jobs/${jobId}/tasks`, {
+        role,
+        method: "PATCH",
+        body: { taskId: task.id, label },
+      });
+      setTasks((current) =>
+        current.map((item) => (item.id === task.id ? response.task : item)),
+      );
+      setEditingId(null);
+    } catch (renameError) {
+      setError(
+        renameError instanceof Error ? renameError.message : "Failed to rename item.",
+      );
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  function startEdit(task: JobTask) {
+    setEditingId(task.id);
+    setEditLabel(task.label);
+  }
+
   return (
-    <div className="space-y-6"><SurfaceCard><div className="p-6"><div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 ring-1 ring-blue-500/30"><ClipboardList className="h-5 w-5 text-blue-300" /></div><div className="min-w-0"><h2 className="text-lg font-semibold text-white">Job Checklist</h2><p className="mt-1 text-sm text-slate-400">Day-by-day work for this job — the field list for the crew.</p></div>{fieldTasks.length > 0 ? (<span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">{fieldDoneCount} of {fieldTasks.length} done</span>) : null}</div>{loading ? (<div className="mt-4 flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Loading checklist…</div>) : fieldTasks.length === 0 ? (<div className="mt-4 space-y-3"><p className="text-sm text-slate-400">No checklist items yet.</p></div>) : (<ul className="mt-3 space-y-1.5">{fieldTasks.map((task) => (<li key={task.id} className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"><input type="checkbox" checked={task.isDone} onChange={() => void toggleTask(task)} aria-label={task.label} className="h-4 w-4 shrink-0" /><span className={task.isDone ? "min-w-0 flex-1 truncate text-sm text-slate-500 line-through" : "min-w-0 flex-1 truncate text-sm text-slate-200"} title={task.label}>{task.label}</span>{canRemoveChecklist ? (<button type="button" onClick={() => void removeTask(task)} aria-label={`Remove ${task.label}`} className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"><Trash2 className="h-3.5 w-3.5" /></button>) : null}</li>))}</ul>)}{canAddChecklist ? (<form className="mt-3 flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void addTask(); }}><input type="text" value={newLabel} onChange={(event) => setNewLabel(event.target.value)} placeholder="Add a checklist item…" maxLength={200} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-blue-500/40" /><Button type="submit" variant="secondary" disabled={working || !newLabel.trim()} className="shrink-0 gap-1.5"><Plus className="h-4 w-4" />Add</Button></form>) : null}</div></SurfaceCard><SurfaceCard>
+    <div className="space-y-6"><SurfaceCard><div className="p-6"><div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 ring-1 ring-blue-500/30"><ClipboardList className="h-5 w-5 text-blue-300" /></div><div className="min-w-0"><h2 className="text-lg font-semibold text-white">Job Checklist</h2><p className="mt-1 text-sm text-slate-400">Day-by-day work for this job — the field list for the crew.</p></div>{fieldTasks.length > 0 ? (<span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">{fieldDoneCount} of {fieldTasks.length} done</span>) : null}</div>{loading ? (<div className="mt-4 flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Loading checklist…</div>) : fieldTasks.length === 0 ? (<div className="mt-4 space-y-3"><p className="text-sm text-slate-400">No checklist items yet.</p></div>) : (<ul className="mt-3 space-y-1.5">{fieldTasks.map((task) => (<li key={task.id} className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"><input type="checkbox" checked={task.isDone} onChange={() => void toggleTask(task)} aria-label={task.label} className="h-4 w-4 shrink-0" />{editingId === task.id ? (<form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(event) => { event.preventDefault(); void renameTask(task); }}><input value={editLabel} onChange={(event) => setEditLabel(event.target.value)} maxLength={200} aria-label={`Edit ${task.label}`} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-sm text-slate-100 outline-none focus:border-blue-500/40" autoFocus /><Button type="submit" variant="secondary" size="sm" disabled={working || !editLabel.trim()}>Save</Button></form>) : (<span className={task.isDone ? "min-w-0 flex-1 truncate text-sm text-slate-500 line-through" : "min-w-0 flex-1 truncate text-sm text-slate-200"} title={task.label}>{task.label}</span>)}{canEditChecklist ? (<button type="button" onClick={() => startEdit(task)} aria-label={`Edit ${task.label}`} className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-200"><Pencil className="h-3.5 w-3.5" /></button>) : null}{canRemoveChecklist ? (<button type="button" onClick={() => void removeTask(task)} aria-label={`Remove ${task.label}`} className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"><Trash2 className="h-3.5 w-3.5" /></button>) : null}</li>))}</ul>)}{canAddChecklist ? (<form className="mt-3 flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void addTask(); }}><input type="text" value={newLabel} onChange={(event) => setNewLabel(event.target.value)} placeholder="Add a checklist item…" maxLength={200} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-blue-500/40" /><Button type="submit" variant="secondary" disabled={working || !newLabel.trim()} className="shrink-0 gap-1.5"><Plus className="h-4 w-4" />Add</Button></form>) : null}</div></SurfaceCard><SurfaceCard>
       <div className="p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 ring-1 ring-blue-500/30">
@@ -239,26 +276,65 @@ export function JobTasksCard({
                   aria-label={task.label}
                   className="h-4 w-4 shrink-0"
                 />
-                <span
-                  className={
-                    task.isDone
-                      ? "min-w-0 flex-1 truncate text-sm text-slate-500 line-through"
-                      : "min-w-0 flex-1 truncate text-sm text-slate-200"
-                  }
-                  title={task.label}
-                >
-                  {task.label}
-                </span>
-                {canRemoveChecklist ? (
-                  <button
-                    type="button"
-                    onClick={() => void removeTask(task)}
-                    aria-label={`Remove ${task.label}`}
-                    className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"
+                {editingId === task.id ? (
+                  <form
+                    className="flex min-w-0 flex-1 items-center gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void renameTask(task);
+                    }}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                ) : null}
+                    <input
+                      value={editLabel}
+                      onChange={(event) => setEditLabel(event.target.value)}
+                      maxLength={200}
+                      aria-label={`Edit ${task.label}`}
+                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-sm text-slate-100 outline-none focus:border-blue-500/40"
+                      autoFocus
+                    />
+                    <Button type="submit" variant="secondary" size="sm" disabled={working || !editLabel.trim()}>
+                      Save
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                      Cancel
+                    </Button>
+                  </form>
+                ) : (
+                  <span
+                    className={
+                      task.isDone
+                        ? "min-w-0 flex-1 truncate text-sm text-slate-500 line-through"
+                        : "min-w-0 flex-1 truncate text-sm text-slate-200"
+                    }
+                    title={task.label}
+                  >
+                    {task.label}
+                  </span>
+                )}
+                {editingId === task.id ? null : (
+                  <>
+                    {canEditChecklist ? (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(task)}
+                        aria-label={`Edit ${task.label}`}
+                        className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-200"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    {canRemoveChecklist ? (
+                      <button
+                        type="button"
+                        onClick={() => void removeTask(task)}
+                        aria-label={`Remove ${task.label}`}
+                        className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </>
+                )}
               </li>
             ))}
           </ul>

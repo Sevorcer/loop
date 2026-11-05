@@ -1,6 +1,9 @@
 /**
- * Everyone on the internal team may ADD a checklist item (B3). Portal /
- * customer accounts are external and stay off the list entirely.
+ * Checklist item permissions (field feedback R1, 2026-11-05).
+ *
+ * Replaces standing rule B3 (anyone can ADD; only office+ can REMOVE).
+ * New rule: install-level users (techs) can edit AND delete checklist items
+ * in addition to adding them. Portal / customer accounts stay off the list.
  */
 const CHECKLIST_ADD_ROLES = new Set([
   "owner",
@@ -12,11 +15,10 @@ const CHECKLIST_ADD_ROLES = new Set([
 ]);
 
 /**
- * Only office and above may REMOVE a checklist item (B3): office, manager,
- * owner — not dispatch, not tech. Keeps the crew from deleting work off the
- * list while still letting anyone add to it.
+ * Who may REMOVE a checklist item: office and above, plus techs (R1).
+ * Dispatch and sales still cannot delete.
  */
-const CHECKLIST_REMOVE_ROLES = new Set(["owner", "manager", "office"]);
+const CHECKLIST_REMOVE_ROLES = new Set(["owner", "manager", "office", "tech"]);
 
 /** Roles that may check an item off or rename it: office roles plus techs. */
 const CHECKLIST_CHECK_ROLES = new Set([
@@ -32,7 +34,7 @@ export function canAddJobChecklistItem(role: string | null | undefined): boolean
   return CHECKLIST_ADD_ROLES.has(role ?? "");
 }
 
-/** Office and above may remove a checklist item. */
+/** Office and above, plus techs, may remove a checklist item (R1). */
 export function canRemoveJobChecklistItem(role: string | null | undefined): boolean {
   return CHECKLIST_REMOVE_ROLES.has(role ?? "");
 }
@@ -40,4 +42,9 @@ export function canRemoveJobChecklistItem(role: string | null | undefined): bool
 /** A technician (and the office) may check a task off or rename it. */
 export function canCheckJobTask(role: string | null | undefined): boolean {
   return CHECKLIST_CHECK_ROLES.has(role ?? "");
+}
+
+/** Alias for rename/edit — same roles as check-off (R1). */
+export function canEditJobChecklistItem(role: string | null | undefined): boolean {
+  return canCheckJobTask(role);
 }
