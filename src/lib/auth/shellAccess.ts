@@ -44,6 +44,8 @@ const SALES_DENIED_PREFIXES: readonly string[] = [
   ROUTES.OPS_FEEDBACK,
   ROUTES.INVENTORY,
   ROUTES.LIVE_OPERATIONS,
+  // Sales may open the Operations overview but not its Live tab (2026-11-05).
+  ROUTES.OPERATIONS_LIVE,
   ADMIN_BASE,
 ];
 

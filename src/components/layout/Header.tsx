@@ -32,6 +32,11 @@ const pageContent: Record<string, PageMeta> = {
     description:
       "Operational health at a glance — risk, crew load, and intervention priorities for today.",
   },
+  [ROUTES.OPERATIONS_LIVE]: {
+    title: "Operations · Live",
+    description: "Right now: who is on which job, what is slipping, and today's activity.",
+    parent: { title: "Operations", href: ROUTES.OPERATIONS },
+  },
   [ROUTES.DAILY_PLANS]: {
     title: "Daily Plans",
     description: "Coordinate schedules, technician priorities, and day-of execution.",

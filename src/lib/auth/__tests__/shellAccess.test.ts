@@ -61,8 +61,14 @@ describe("Operations (ex-Command Center) access — 2026-11-05", () => {
     }
   });
 
-  it("lets sales open the Operations overview", () => {
+  it("lets sales open the Operations overview but not the Live tab", () => {
     expect(isRoleDeniedPath("sales", "/operations")).toBe(false);
+    expect(isRoleDeniedPath("sales", "/operations/live")).toBe(true);
+    expect(isRoleDeniedPath("sales", "/live-operations")).toBe(true);
+  });
+
+  it("lets office staff into the Live tab", () => {
+    expect(isRoleDeniedPath("office", "/operations/live")).toBe(false);
   });
 
   it("does not treat /ops/feedback as part of /operations", () => {

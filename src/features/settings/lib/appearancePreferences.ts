@@ -44,7 +44,7 @@ function isStringOption<T extends string>(value: unknown, options: readonly T[])
  */
 const LEGACY_HREF_MAP: Readonly<Record<string, string>> = {
   [ROUTES.COMMAND_CENTER]: ROUTES.OPERATIONS,
-  [ROUTES.LIVE_OPERATIONS]: ROUTES.OPERATIONS,
+  [ROUTES.LIVE_OPERATIONS]: ROUTES.OPERATIONS_LIVE,
 };
 
 export function migrateLegacyHref(href: string): string {

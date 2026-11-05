@@ -7,6 +7,8 @@ export const ROUTES = {
   OPERATIONS: "/operations",
   /** Legacy address — redirects to OPERATIONS. Kept so old bookmarks and saved settings resolve. */
   COMMAND_CENTER: "/command-center",
+  /** Live view inside Operations (rebuilt on real data 2026-11-05). */
+  OPERATIONS_LIVE: "/operations/live",
   PROPERTIES: "/properties",
   JOBS: "/jobs",
   CONTRACTORS: "/contractors",
@@ -15,7 +17,7 @@ export const ROUTES = {
   VEHICLE_ALERTS: "/vehicle-alerts",
   DAILY_PLANS: "/daily-plans",
   CALENDAR: "/calendar",
-  /** Legacy address — redirects into Operations. */
+  /** Legacy address — redirects to OPERATIONS_LIVE. */
   LIVE_OPERATIONS: "/live-operations",
   INVENTORY: "/inventory",
   DISPATCH: "/dispatch",
