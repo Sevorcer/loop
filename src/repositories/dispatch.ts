@@ -30,7 +30,6 @@ interface CrewRow {
   members: unknown;
   certifications: string[];
   availability: string;
-  truck_name: string;
   vehicle_id?: string | null;
   vehicle?: LinkedVehicleEmbed;
 }
@@ -107,7 +106,7 @@ function mapCrew(row: CrewRow): Crew {
     members: (row.members as Crew["members"]) ?? [],
     certifications: row.certifications ?? [],
     availability: row.availability as Crew["availability"],
-    truckName: resolveVehicleName(row.vehicle, row.truck_name),
+    truckName: resolveVehicleName(row.vehicle),
     vehicleId: row.vehicle_id ?? null,
   };
 }
@@ -212,7 +211,8 @@ export interface CrewWriteInput {
   members: Crew["members"];
   certifications: string[];
   availability: Crew["availability"];
-  truckName: string;
+  /** Linked van (crews.vehicle_id); null/omitted = none. */
+  vehicleId?: string | null;
 }
 
 export async function createCrew(input: CrewWriteInput) {
@@ -227,7 +227,7 @@ export async function createCrew(input: CrewWriteInput) {
         members: input.members,
         certifications: input.certifications,
         availability: input.availability,
-        truck_name: input.truckName,
+        vehicle_id: input.vehicleId ?? null,
       })
       .select(CREW_SELECT)
       .single();
@@ -710,7 +710,7 @@ export interface DispatchRepositorySnapshot {
 const DISPATCH_PLAN_SELECT =
   "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at";
 const CREW_SELECT =
-  `id,org_id,name,lead_installer,members,certifications,availability,truck_name,${CREW_VEHICLE_EMBED}`;
+  `id,org_id,name,lead_installer,members,certifications,availability,${CREW_VEHICLE_EMBED}`;
 const CREW_ASSIGNMENT_SELECT =
   "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history";
 const SCHEDULE_BLOCK_SELECT =

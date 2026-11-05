@@ -55,6 +55,7 @@ function deny(status: 401 | 403) {
 
 const sampleAlert = {
   id: "va-1",
+  vehicleId: "veh-1",
   vehicleName: "Van 1",
   title: "Oil change",
   description: "Due soon",
@@ -106,7 +107,7 @@ describe("POST /api/vehicle-alerts", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          vehicleName: "Van 1",
+          vehicleId: "veh-1",
           title: "Tire",
           description: "Flat",
           priority: "High",
@@ -124,7 +125,7 @@ describe("POST /api/vehicle-alerts", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          vehicleName: "Van 1",
+          vehicleId: "veh-1",
           title: "Tire",
           description: "Flat",
           priority: "High",
@@ -144,7 +145,7 @@ describe("POST /api/vehicle-alerts", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          vehicleName: "Van 1",
+          vehicleId: "veh-1",
           title: "Tire",
           description: "Flat",
           priority: "High",
@@ -156,7 +157,7 @@ describe("POST /api/vehicle-alerts", () => {
     expect(res.status).toBe(201);
     expect(createVehicleAlertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        vehicleName: "Van 1",
+        vehicleId: "veh-1",
         title: "Tire",
         description: "Flat",
         priority: "High",
@@ -168,7 +169,7 @@ describe("POST /api/vehicle-alerts", () => {
     expect(arg).not.toHaveProperty("reportedBy");
   });
 
-  it("passes a picked vehicleId through to the service", async () => {
+  it("passes the picked vehicleId through to the service", async () => {
     requirePermissionMock.mockResolvedValue(allow("tech", "user-42"));
     createVehicleAlertMock.mockResolvedValue(sampleAlert);
 
@@ -192,6 +193,21 @@ describe("POST /api/vehicle-alerts", () => {
     );
   });
 
+  it("passes an empty vehicleId (never free text) when none is sent", async () => {
+    requirePermissionMock.mockResolvedValue(allow("tech", "user-42"));
+    createVehicleAlertMock.mockResolvedValue(sampleAlert);
+    await POST(
+      new Request("http://localhost/api/vehicle-alerts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vehicleName: "Van 1", title: "Tire", description: "Flat", priority: "High" }),
+      }),
+    );
+    const arg = createVehicleAlertMock.mock.calls[0][0];
+    expect(arg.vehicleId).toBe("");
+    expect(arg).not.toHaveProperty("vehicleName");
+  });
+
   it("rejects invalid priority", async () => {
     requirePermissionMock.mockResolvedValue(allow("tech"));
     const res = await POST(
@@ -199,7 +215,7 @@ describe("POST /api/vehicle-alerts", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          vehicleName: "Van 1",
+          vehicleId: "veh-1",
           title: "Tire",
           description: "Flat",
           priority: "Urgent",

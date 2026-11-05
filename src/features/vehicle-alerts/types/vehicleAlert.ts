@@ -8,10 +8,10 @@ export type VehicleAlertPriority = "Low" | "Medium" | "High";
 
 export interface VehicleAlert {
   id: string;
-  /** Display name: the linked vehicle, else the legacy text on the row (until M4). */
+  /** Display name of the linked vehicle. */
   vehicleName: string;
-  /** Linked `vehicles` row, or null for legacy/unlinked alerts. */
-  vehicleId?: string | null;
+  /** The `vehicles` row this alert is about (required since M4). */
+  vehicleId: string;
   title: string;
   description: string;
   priority: VehicleAlertPriority;

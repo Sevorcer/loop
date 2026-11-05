@@ -103,7 +103,7 @@ describe("day plan multi-assignee helpers", () => {
         members: ["Sam Ortiz"],
         certifications: [],
         availability: "available",
-        truck_name: "Van 2",
+        van_name: "Van 2",
       },
     ];
     expect(
@@ -185,7 +185,7 @@ describe("roster grouping with multi-assignee jobs", () => {
           members: ["Sam Ortiz"],
           certifications: [],
           availability: "available",
-          truck_name: "Van 2",
+          van_name: "Van 2",
         },
       ],
       assignedNames: dayJobs.flatMap((item) => jobAssigneeNames(item)),
