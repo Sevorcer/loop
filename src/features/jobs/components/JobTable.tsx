@@ -12,7 +12,7 @@ import { ROUTE_BUILDERS } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { requestJson } from "@/lib/api/client";
 
-import type { Job, JobPriority, JobStatus, JobType } from "../types/job";
+import type { Job, JobStatus, JobType } from "../types/job";
 import { jobTypeFilterLabel } from "@/features/jobs/utils/callbackJob";
 import { CALLBACK_LABELS, CALLBACK_TYPE } from "@/lib/callbacks";
 
@@ -37,13 +37,6 @@ const typeOptions: Array<JobType | "All"> = [
   "Inspection",
   "Estimate",
   "Callback",
-];
-
-const priorityOptions: Array<JobPriority | "All"> = [
-  "All",
-  "Low",
-  "Medium",
-  "High",
 ];
 
 type SearchParamValue = string | string[] | undefined;
@@ -87,13 +80,6 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
     const value = readSearchParam(initialSearchParams, "type");
     return value && typeOptions.includes(value as JobType) ? (value as JobType) : "All";
   });
-  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">(() => {
-    const value = readSearchParam(initialSearchParams, "priority");
-    return value && priorityOptions.includes(value as JobPriority)
-      ? (value as JobPriority)
-      : "All";
-  });
-
   // completedDate is a pass-through URL param (e.g. "today") used by the
   // dashboard "Completed today" tile to scope the listing to today's completions.
   const [completedDateFilter] = useState(
@@ -120,7 +106,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, typeFilter, priorityFilter]);
+  }, [statusFilter, typeFilter]);
 
   // ── Fetch paginated data ────────────────────────────────────────────
   const fetchJobs = useCallback(async () => {
@@ -137,9 +123,12 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
 
       if (statusFilter !== "All") params.set("status", statusFilter);
       if (typeFilter !== "All") params.set("type", typeFilter);
-      if (priorityFilter !== "All") params.set("priority", priorityFilter);
       if (completedDateFilter) params.set("completedDate", completedDateFilter);
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      // Option C: board sorts by scheduled date (soonest first). Priority
+      // filter/column removed; jobs.priority stays in the database.
+      params.set("sort", "scheduled_for");
+      params.set("order", "asc");
 
       const response = await requestJson<PaginatedResponse>(
         `/api/jobs?${params.toString()}`,
@@ -160,7 +149,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
         setLoading(false);
       }
     }
-  }, [role, currentPage, statusFilter, typeFilter, priorityFilter, completedDateFilter, debouncedSearch]);
+  }, [role, currentPage, statusFilter, typeFilter, completedDateFilter, debouncedSearch]);
 
   useEffect(() => {
     void fetchJobs();
@@ -173,7 +162,6 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
     searchValue.length > 0 ||
     statusFilter !== "All" ||
     typeFilter !== "All" ||
-    priorityFilter !== "All" ||
     !!completedDateFilter;
 
   if (loading && jobs.length === 0) {
@@ -245,20 +233,6 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
               ))}
             </select>
 
-            <select
-              value={priorityFilter}
-              onChange={(e) =>
-                setPriorityFilter(e.target.value as JobPriority | "All")
-              }
-              className="min-h-[44px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-red-500/40 sm:w-auto"
-            >
-              {priorityOptions.map((option) => (
-                <option key={option} value={option}>
-                  Priority: {option}
-                </option>
-              ))}
-            </select>
-
             {hasActiveFilters ? (
               <Button
                 variant="ghost"
@@ -266,7 +240,6 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
                   setSearchValue("");
                   setStatusFilter("All");
                   setTypeFilter("All");
-                  setPriorityFilter("All");
                 }}
                 className="w-full text-slate-300 hover:bg-white/5 hover:text-white sm:w-auto"
               >

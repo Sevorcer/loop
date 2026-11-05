@@ -23,13 +23,6 @@ const DISPATCH_QUEUE_ORDER: DispatchQueueKey[] = [
   "completed",
 ];
 
-const PRIORITY_RANK: Record<DispatchPlan["priority"], number> = {
-  urgent: 0,
-  high: 1,
-  normal: 2,
-  low: 3,
-};
-
 const DISPATCH_QUEUE_META: Record<
   DispatchQueueKey,
   Omit<DispatchQueueSection, "plans">
@@ -61,13 +54,8 @@ const DISPATCH_QUEUE_META: Record<
   },
 };
 
-function comparePlanPriority(left: DispatchPlan, right: DispatchPlan) {
-  const priorityDelta = PRIORITY_RANK[left.priority] - PRIORITY_RANK[right.priority];
-
-  if (priorityDelta !== 0) {
-    return priorityDelta;
-  }
-
+/** Queue order: soonest target date, then newest created. Priority ignored (Option C). */
+function comparePlanByDate(left: DispatchPlan, right: DispatchPlan) {
   const leftDate = left.targetDate ? new Date(left.targetDate).getTime() : Number.MAX_SAFE_INTEGER;
   const rightDate = right.targetDate
     ? new Date(right.targetDate).getTime()
@@ -98,7 +86,7 @@ export function buildDispatchQueueSections(plans: DispatchPlan[]): DispatchQueue
 
   return DISPATCH_QUEUE_ORDER.map((key) => ({
     ...DISPATCH_QUEUE_META[key],
-    plans: (grouped.get(key) ?? []).sort(comparePlanPriority),
+    plans: (grouped.get(key) ?? []).sort(comparePlanByDate),
   }));
 }
 

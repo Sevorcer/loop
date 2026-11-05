@@ -54,17 +54,17 @@ describe("dispatchWorkspace", () => {
     ).toEqual(["3"]);
   });
 
-  it("sorts plans by priority before target date", () => {
+  it("sorts plans by target date only (priority ignored)", () => {
     const sections = buildDispatchQueueSections([
-      createPlan("slow", "ready_to_schedule", "normal", "2026-07-21"),
-      createPlan("urgent", "ready_to_schedule", "urgent", "2026-07-25"),
-      createPlan("high", "ready_to_schedule", "high", "2026-07-22"),
+      createPlan("later", "ready_to_schedule", "urgent", "2026-07-25"),
+      createPlan("sooner", "ready_to_schedule", "normal", "2026-07-21"),
+      createPlan("middle", "ready_to_schedule", "high", "2026-07-22"),
     ]);
 
     expect(sections.find((section) => section.key === "ready")?.plans.map((plan) => plan.id)).toEqual([
-      "urgent",
-      "high",
-      "slow",
+      "sooner",
+      "middle",
+      "later",
     ]);
   });
 

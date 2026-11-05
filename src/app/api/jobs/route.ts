@@ -99,8 +99,18 @@ export async function GET(request: Request) {
           : completedDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(completedDateRaw)
             ? completedDateRaw
             : undefined;
-      const sort = url.searchParams.get("sort") ?? undefined;
-      const order = url.searchParams.get("order") === "asc" ? "asc" as const : "desc" as const;
+      // Board default (Option C): scheduled date, soonest first. Explicit
+      // ?sort= / ?order= from the client still win.
+      const sort = url.searchParams.get("sort") ?? "scheduled_for";
+      const orderParam = url.searchParams.get("order");
+      const order =
+        orderParam === "desc"
+          ? ("desc" as const)
+          : orderParam === "asc"
+            ? ("asc" as const)
+            : sort === "scheduled_for"
+              ? ("asc" as const)
+              : ("desc" as const);
       const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
       const pageSize = Math.max(1, Math.min(Number(url.searchParams.get("pageSize")) || 50, 200));
 

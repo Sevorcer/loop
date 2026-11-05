@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CalendarClock, ClipboardList, Wrench } from "lucide-react";
+import { CalendarClock, ClipboardList, Wrench } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { useCurrentRole } from "@/features/auth";
@@ -48,6 +48,7 @@ export function JobsMetrics({ initialJobs = [] }: { initialJobs?: Job[] }) {
   // page reads that also stopped at 3,000 jobs. Until the counts arrive (or if
   // the request fails) the server-provided list, if any, is the fallback, so
   // a failed refresh never shows Total Jobs 0 over a full board.
+  // Priority card removed (Option C); jobs.priority stays in the database.
   const [serverStats, setServerStats] = useState<JobBoardStats | null>(null);
 
   useEffect(() => {
@@ -72,10 +73,9 @@ export function JobsMetrics({ initialJobs = [] }: { initialJobs?: Job[] }) {
   const totalJobs = stats.total;
   const inProgressJobs = stats.inProgress;
   const scheduledJobs = stats.scheduled;
-  const highPriorityJobs = stats.highPriority;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <MetricCard
         title="Total Jobs"
         value={totalJobs}
@@ -95,13 +95,6 @@ export function JobsMetrics({ initialJobs = [] }: { initialJobs?: Job[] }) {
         value={scheduledJobs}
         detail="Upcoming installs, service calls, and inspections."
         icon={<CalendarClock className="h-5 w-5 text-slate-200" />}
-      />
-
-      <MetricCard
-        title="High Priority"
-        value={highPriorityJobs}
-        detail="Jobs needing urgent attention or close monitoring."
-        icon={<AlertTriangle className="h-5 w-5 text-red-300" />}
       />
     </div>
   );

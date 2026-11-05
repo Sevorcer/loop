@@ -50,15 +50,6 @@ const statusVariant: Record<
   },
 };
 
-const priorityVariant: Record<
-  Job["priority"],
-  string
-> = {
-  High: "border-red-500/20 bg-red-500/10 text-red-300",
-  Medium: "border-amber-500/20 bg-amber-500/10 text-amber-300",
-  Low: "border-slate-700 bg-white/5 text-slate-400",
-};
-
 function StatusIcon({ status }: { status: JobStatus }) {
   const cls = `h-3.5 w-3.5 ${statusVariant[status].icon}`;
   switch (status) {
@@ -108,11 +99,6 @@ export function DispatchJobCard({
                 {job.status}
               </span>
               <JobTypeLabel type={job.type} />
-              <span
-                className={`rounded-full border px-2 py-0.5 text-xs font-medium ${priorityVariant[job.priority]}`}
-              >
-                {job.priority}
-              </span>
             </div>
 
             <Link

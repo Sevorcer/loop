@@ -40,7 +40,6 @@ import type { JobAppointmentHour, JobCloseoutMode, JobPriority, JobType } from "
 import { CLOSEOUT_MODE_OPTIONS } from "../utils/jobCloseout";
 
 const jobTypes: JobType[] = ["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"];
-const priorities: JobPriority[] = ["Low", "Medium", "High"];
 
 export interface JobFormValues {
   estimateId?: string;
@@ -642,22 +641,6 @@ export function JobForm({
                 className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-blue-500/40"
               >
                 {jobTypes.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Priority</label>
-              <select
-                value={form.priority}
-                disabled={isTech}
-                onChange={(e) => updateField("priority", e.target.value as JobPriority)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
-              >
-                {priorities.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>

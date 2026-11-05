@@ -23,12 +23,6 @@ const REASON_CLASS: Record<ProblemReason, string> = {
   on_hold: "bg-orange-500/10 text-orange-300 border-orange-500/20",
 };
 
-const PRIORITY_BORDER: Record<string, string> = {
-  High: "border-l-danger",
-  Medium: "border-l-warning",
-  Low: "border-l-border",
-};
-
 const MAX_PROBLEM_ROWS = 8;
 
 function ReasonBadge({ reason }: { reason: ProblemReason }) {
@@ -45,11 +39,11 @@ function ReasonBadge({ reason }: { reason: ProblemReason }) {
 }
 
 /**
- * ProblemJobsWidget — deduped, priority-sorted view of at-risk jobs.
+ * ProblemJobsWidget — deduped, late-first view of at-risk jobs.
  *
  * Combines late + unassigned + on-hold jobs. Each job may have multiple
- * reason badges (e.g. both Late and Unassigned). Sorted by priority then
- * late-first within each priority tier.
+ * reason badges (e.g. both Late and Unassigned). Sorted late-first
+ * (priority tie-break removed — Option C).
  *
  * Each row is one-click actionable to the job detail page.
  */
@@ -87,17 +81,11 @@ export function ProblemJobsWidget({ problemJobs }: ProblemJobsWidgetProps) {
       ) : (
         <div className="space-y-1.5">
           {visible.map(({ job, reasons }) => {
-            const borderClass =
-              PRIORITY_BORDER[job.priority] ?? "border-l-border";
-
             return (
               <Link
                 key={job.id}
                 href={ROUTE_BUILDERS.JOB_DETAIL(job.id)}
-                className={[
-                  "group flex items-start gap-3 rounded-lg border border-default border-l-2 bg-surface px-3 py-2.5 transition-colors hover:bg-surface-elevated",
-                  borderClass,
-                ].join(" ")}
+                className="group flex items-start gap-3 rounded-lg border border-default border-l-2 border-l-border bg-surface px-3 py-2.5 transition-colors hover:bg-surface-elevated"
               >
                 {/* Title + customer */}
                 <div className="min-w-0 flex-1">

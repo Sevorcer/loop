@@ -30,13 +30,13 @@ describe("GET /api/jobs?view=stats", () => {
   });
 
   it("returns database counts without loading the full job workspace", async () => {
-    getJobBoardStatsMock.mockResolvedValue({ total: 3717, inProgress: 6, scheduled: 62, highPriority: 1 });
+    getJobBoardStatsMock.mockResolvedValue({ total: 3717, inProgress: 6, scheduled: 62 });
 
     const response = await GET(new Request("http://localhost/api/jobs?view=stats"));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      stats: { total: 3717, inProgress: 6, scheduled: 62, highPriority: 1 },
+      stats: { total: 3717, inProgress: 6, scheduled: 62 },
     });
     expect(listJobsWithActivityMock).not.toHaveBeenCalled();
   });

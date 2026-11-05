@@ -41,12 +41,6 @@ function getStatusVariant(status: Job["status"]) {
   return "danger" as const;
 }
 
-function getPriorityVariant(priority: Job["priority"]) {
-  if (priority === "High") return "danger" as const;
-  if (priority === "Medium") return "warning" as const;
-  return "neutral" as const;
-}
-
 function getTypeIcon(type: Job["type"]) {
   if (type === "Service" || type === "Maintenance") {
     return <Wrench className="h-4 w-4 text-blue-300" />;
@@ -104,20 +98,6 @@ export const jobColumns: ColumnDef<Job>[] = [
     cell: ({ row }) => (
       <StatusBadge variant={getStatusVariant(row.original.status)}>
         {row.original.status}
-      </StatusBadge>
-    ),
-  },
-  {
-    accessorKey: "priority",
-    meta: {
-      mobileLabel: "Priority",
-    },
-    header: ({ column }) => (
-      <SortableHeader label="Priority" column={column} />
-    ),
-    cell: ({ row }) => (
-      <StatusBadge variant={getPriorityVariant(row.original.priority)}>
-        {row.original.priority}
       </StatusBadge>
     ),
   },
