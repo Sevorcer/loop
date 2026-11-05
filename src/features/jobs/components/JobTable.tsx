@@ -282,7 +282,6 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
           {CALLBACK_LABELS.all}:{" "}
           <span className="font-semibold text-slate-200">{total}</span>
           {" — includes completed and cancelled"}
-
         </p>
       ) : null}
 
