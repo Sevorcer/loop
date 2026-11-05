@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, MapPin, UserX } from "lucide-react";
 
 import type { Job } from "@/features/jobs/types/job";
+import { jobIsAssigned } from "../utils/dayPlanHelpers";
 import { getTodayDate } from "../utils/planUtils";
 
 type AttentionReason = "unassigned" | "on-hold" | "overdue" | "blocked";
@@ -88,7 +89,7 @@ export function NeedsAttentionPanel({ jobs }: NeedsAttentionPanelProps) {
       if (job.status === "On Hold") {
         return { job, reason: "on-hold" };
       }
-      if (!job.assignedTo.trim()) {
+      if (!jobIsAssigned(job)) {
         return { job, reason: "unassigned" };
       }
       return null;

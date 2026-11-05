@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { Users } from "lucide-react";
 
+import type { Job } from "@/features/jobs/types/job";
 import type { CrewProfile } from "../types/dailyPlan";
 import type { CrewGroup } from "../data/fieldCrews";
+import { formatJobDayTime, customerSiteLabel } from "../utils/dayPlanHelpers";
 
 function getAvailabilityClasses(availability: CrewProfile["availability"]): string {
   if (availability === "available") {
@@ -23,53 +26,76 @@ function availabilityLabel(availability: CrewProfile["availability"]): string {
   return "Sick";
 }
 
+function JobRunList({ jobs }: { jobs: Job[] }) {
+  if (jobs.length === 0) return null;
+  return (
+    <ul className="mt-2 space-y-1 border-t border-white/5 pt-2">
+      {jobs.map((job) => (
+        <li key={job.id} className="flex items-center gap-2 text-xs text-slate-400">
+          <span className="w-14 shrink-0 tabular-nums text-slate-500">
+            {formatJobDayTime(job)}
+          </span>
+          <Link href={`/jobs/${job.id}`} className="truncate text-slate-300 hover:text-white hover:underline">
+            {job.jobNumber} · {customerSiteLabel(job)}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 interface CrewRowProps {
   crew: CrewProfile;
   jobCount: number;
+  jobs: Job[];
+  members: string[];
 }
 
-function CrewRow({ crew, jobCount }: CrewRowProps) {
+function CrewRow({ crew, jobCount, jobs, members }: CrewRowProps) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-white">{crew.leadInstaller}</span>
-          <span
-            className={[
-              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize",
-              getAvailabilityClasses(crew.availability),
-            ].join(" ")}
-          >
-            {availabilityLabel(crew.availability)}
-          </span>
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-white">{crew.leadInstaller}</span>
+            <span
+              className={[
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize",
+                getAvailabilityClasses(crew.availability),
+              ].join(" ")}
+            >
+              {availabilityLabel(crew.availability)}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {crew.truckName === "—" ? "No truck on file" : crew.truckName}
+            {members.length > 0 ? ` · ${members.join(", ")}` : ""}
+          </p>
         </div>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {crew.truckName === "—" ? "No truck on file" : crew.truckName}
-          {crew.helper ? ` · Helper: ${crew.helper}` : ""}
-          {crew.departureTime !== "-" && crew.departureTime !== "—"
-            ? ` · Departs ${crew.departureTime}`
-            : ""}
-        </p>
-      </div>
 
-      <div className="shrink-0 text-right">
-        <p className="text-sm font-semibold tabular-nums text-white">{jobCount}</p>
-        <p className="text-[11px] text-slate-500">{jobCount === 1 ? "job" : "jobs"}</p>
+        <div className="shrink-0 text-right">
+          <p className="text-sm font-semibold tabular-nums text-white">{jobCount}</p>
+          <p className="text-[11px] text-slate-500">{jobCount === 1 ? "job" : "jobs"}</p>
+        </div>
       </div>
+      <JobRunList jobs={jobs} />
     </div>
   );
 }
 
-function FloaterRow({ name, jobCount }: { name: string; jobCount: number }) {
+function FloaterRow({ name, jobCount, jobs }: { name: string; jobCount: number; jobs: Job[] }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium text-white">{name}</span>
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="text-sm font-medium text-white">{name}</span>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-sm font-semibold tabular-nums text-white">{jobCount}</p>
+          <p className="text-[11px] text-slate-500">{jobCount === 1 ? "job" : "jobs"}</p>
+        </div>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="text-sm font-semibold tabular-nums text-white">{jobCount}</p>
-        <p className="text-[11px] text-slate-500">{jobCount === 1 ? "job" : "jobs"}</p>
-      </div>
+      <JobRunList jobs={jobs} />
     </div>
   );
 }
@@ -78,14 +104,21 @@ interface CrewStatusPanelProps {
   crewGroups: CrewGroup[];
   floaters: string[];
   jobCountByTechnician: Record<string, number>;
+  /** Optional: jobs keyed by technician name for the day's run list. */
+  jobsByTechnician?: Record<string, Job[]>;
 }
 
 /**
- * Crew roster for the selected day. Shows only people assigned to today's jobs,
- * grouped under their crew record. Floaters appear in an "Also working today"
- * group with no invented truck, availability, or departure fields.
+ * Crew roster for the selected day. Shows only people assigned to that day's
+ * jobs, grouped under their crew record. Floaters appear in an "Also working
+ * today" group with no invented truck, availability, or departure fields.
  */
-export function CrewStatusPanel({ crewGroups, floaters, jobCountByTechnician }: CrewStatusPanelProps) {
+export function CrewStatusPanel({
+  crewGroups,
+  floaters,
+  jobCountByTechnician,
+  jobsByTechnician = {},
+}: CrewStatusPanelProps) {
   const totalCount = crewGroups.length + floaters.length;
 
   if (totalCount === 0) {
@@ -112,17 +145,32 @@ export function CrewStatusPanel({ crewGroups, floaters, jobCountByTechnician }: 
           Crew Status
         </h2>
         <span className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-500">
-          {totalCount} crew{totalCount !== 1 ? "s" : ""}
+          {totalCount} group{totalCount !== 1 ? "s" : ""}
         </span>
       </div>
       <div className="space-y-2">
-        {crewGroups.map((group) => (
-          <CrewRow
-            key={group.crew.id}
-            crew={group.crew}
-            jobCount={jobCountByTechnician[group.crew.technician] ?? 0}
-          />
-        ))}
+        {crewGroups.map((group) => {
+          const memberJobs = new Map<string, Job>();
+          for (const member of group.assignedMembers) {
+            for (const job of jobsByTechnician[member] ?? []) {
+              memberJobs.set(job.id, job);
+            }
+          }
+          const jobs = Array.from(memberJobs.values());
+          const jobCount = group.assignedMembers.reduce(
+            (sum, name) => sum + (jobCountByTechnician[name] ?? 0),
+            0,
+          );
+          return (
+            <CrewRow
+              key={group.crew.id}
+              crew={group.crew}
+              jobCount={jobs.length || jobCount}
+              jobs={jobs}
+              members={group.assignedMembers}
+            />
+          );
+        })}
       </div>
 
       {floaters.length > 0 && (
@@ -136,6 +184,7 @@ export function CrewStatusPanel({ crewGroups, floaters, jobCountByTechnician }: 
                 key={name}
                 name={name}
                 jobCount={jobCountByTechnician[name] ?? 0}
+                jobs={jobsByTechnician[name] ?? []}
               />
             ))}
           </div>
