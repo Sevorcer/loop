@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * GcPortalSubmitForm — Task 4 stub (included in Task 2 layout)
+ * GcPortalSubmitForm — Task 4 + Triage Queue
  *
- * Simple issue/request submission form for the builder portal.
+ * Issue/request submission form for the builder portal.
+ * Submitter name and company are REQUIRED.
  * Submits to POST /api/portal/[token]/submit.
  */
 
@@ -16,6 +17,7 @@ interface GcPortalSubmitFormProps {
 
 export function GcPortalSubmitForm({ token }: GcPortalSubmitFormProps) {
   const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -25,7 +27,7 @@ export function GcPortalSubmitForm({ token }: GcPortalSubmitFormProps) {
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!name.trim() || !message.trim()) return;
+      if (!name.trim() || !company.trim() || !message.trim()) return;
 
       setSubmitting(true);
       setError(null);
@@ -36,6 +38,7 @@ export function GcPortalSubmitForm({ token }: GcPortalSubmitFormProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: name.trim(),
+            company: company.trim(),
             contact: contact.trim(),
             message: message.trim(),
           }),
@@ -52,6 +55,7 @@ export function GcPortalSubmitForm({ token }: GcPortalSubmitFormProps) {
 
         setSubmitted(true);
         setName("");
+        setCompany("");
         setContact("");
         setMessage("");
       } catch {
@@ -60,7 +64,7 @@ export function GcPortalSubmitForm({ token }: GcPortalSubmitFormProps) {
         setSubmitting(false);
       }
     },
-    [token, name, contact, message],
+    [token, name, company, contact, message],
   );
 
   if (submitted) {
@@ -105,6 +109,21 @@ export function GcPortalSubmitForm({ token }: GcPortalSubmitFormProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
+        <label htmlFor="gc-company" className="text-sm font-medium text-foreground">
+          Company <span className="text-danger">*</span>
+        </label>
+        <input
+          id="gc-company"
+          type="text"
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
+          required
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          placeholder="Your company"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
         <label htmlFor="gc-contact" className="text-sm font-medium text-foreground">
           Contact Info
         </label>
@@ -139,7 +158,7 @@ export function GcPortalSubmitForm({ token }: GcPortalSubmitFormProps) {
 
       <button
         type="submit"
-        disabled={submitting || !name.trim() || !message.trim()}
+        disabled={submitting || !name.trim() || !company.trim() || !message.trim()}
         className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
         {submitting ? (
