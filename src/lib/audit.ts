@@ -33,7 +33,8 @@ export type AuditResource =
   | "organizations"
   | "installed_systems"
   | "knowledge_items"
-  | "drive_manual_files";
+  | "drive_manual_files"
+  | "installed_system_manuals";
 
 export interface AuditEvent {
   /** The role that performed the action. */

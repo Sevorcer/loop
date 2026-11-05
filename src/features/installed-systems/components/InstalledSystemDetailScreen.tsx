@@ -9,6 +9,7 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { pushToast } from "@/components/ui/toast";
 import { useCurrentRole } from "@/features/auth";
+import { InstalledSystemManualsCard } from "@/features/manuals";
 import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
@@ -284,6 +285,8 @@ export function InstalledSystemDetailScreen({
         </div>
 
         <div className="space-y-6">
+          <InstalledSystemManualsCard systemId={installedSystem.id} />
+
           <SurfaceCard>
             <div className="border-b border-white/10 px-6 py-5">
               <h2 className="text-lg font-semibold text-white">Known vs discovered</h2>
