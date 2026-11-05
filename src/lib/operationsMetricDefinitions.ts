@@ -47,12 +47,12 @@ export const COMMAND_CENTER_KPI_DEFINITIONS: Record<CommandCenterKPIKey, KPIView
   crewsDispatched: {
     label: "People Working",
     description: "Distinct people with a job in progress",
-    href: ACTIONABLE_VIEWS.inProgress,
+    href: "",
   },
   waitingOnInspection: {
     label: "Waiting on Inspection",
     description: "Open inspection jobs",
-    href: ACTIONABLE_VIEWS.waitingOnInspection,
+    href: ROUTES.INSPECTIONS_WEEK,
   },
   waitingOnPermit: {
     label: "Waiting on Permit",
@@ -81,7 +81,7 @@ export const COMMAND_CENTER_KPI_DEFINITIONS: Record<CommandCenterKPIKey, KPIView
     label: "Avg Completion",
     description: "Estimated hours for today’s completed dispatch plans",
     helpText: "Based on estimated job durations; actual completion timing isn't tracked yet.",
-    href: ACTIONABLE_VIEWS.avgCompletion,
+    href: "",
   },
 };
 

@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 
 import type { AttentionItem } from "./data/operationalHealth";
 
@@ -28,7 +30,11 @@ export function NeedsAttention({ items }: NeedsAttentionProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="status-warning rounded-lg p-3">
+          <Link
+            key={item.id}
+            href={ROUTE_BUILDERS.JOB_DETAIL(item.id)}
+            className="block status-warning rounded-lg p-3 transition-colors hover:bg-warning/20"
+          >
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div className="min-w-0">
@@ -36,7 +42,7 @@ export function NeedsAttention({ items }: NeedsAttentionProps) {
                 <p className="text-muted mt-1 text-sm">{item.description}</p>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </CardContent>
     </Card>

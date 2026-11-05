@@ -41,7 +41,8 @@ function valueColorClass(
 /**
  * KPIStrip — 8-metric horizontal strip for the Command Center header.
  *
- * Every metric is a clickable link to a relevant filtered view.
+ * Metrics with a destination link are clickable; metrics without one
+ * (e.g. "People Working", "Avg Completion") render as static tiles.
  * Server component — no client JS required for interaction.
  */
 export function KPIStrip({ kpis }: KPIStripProps) {
@@ -52,19 +53,19 @@ export function KPIStrip({ kpis }: KPIStripProps) {
         const colorClass = valueColorClass(def.key, kpis);
         const isFirst = idx === 0;
         const isLast = idx === KPI_DEFINITIONS.length - 1;
+        const isClickable = def.href.length > 0;
 
-        return (
-          <Link
-            key={def.key}
-            href={def.href}
-            className={[
-              "group flex min-w-0 flex-col justify-between gap-1 bg-surface px-4 py-4 transition-colors hover:bg-surface-elevated",
-              isFirst ? "rounded-tl-xl rounded-bl-xl" : "",
-              isLast ? "rounded-tr-xl rounded-br-xl" : "",
-            ]
-              .join(" ")
-              .trim()}
-          >
+        const baseClasses = [
+          "flex min-w-0 flex-col justify-between gap-1 bg-surface px-4 py-4 transition-colors",
+          isClickable ? "group hover:bg-surface-elevated" : "",
+          isFirst ? "rounded-tl-xl rounded-bl-xl" : "",
+          isLast ? "rounded-tr-xl rounded-br-xl" : "",
+        ]
+          .join(" ")
+          .trim();
+
+        const content = (
+          <>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted max-lg:break-words">
               {def.label}
               {def.helpText ? (
@@ -79,14 +80,29 @@ export function KPIStrip({ kpis }: KPIStripProps) {
             </p>
             <p
               className={[
-                "text-2xl font-bold tracking-tight transition-colors group-hover:opacity-90",
+                "text-2xl font-bold tracking-tight transition-colors",
+                isClickable ? "group-hover:opacity-90" : "",
                 colorClass,
               ].join(" ")}
             >
               {displayValue}
             </p>
             <p className="text-[11px] text-muted">{def.description}</p>
-          </Link>
+          </>
+        );
+
+        if (isClickable) {
+          return (
+            <Link key={def.key} href={def.href} className={baseClasses}>
+              {content}
+            </Link>
+          );
+        }
+
+        return (
+          <div key={def.key} className={baseClasses}>
+            {content}
+          </div>
         );
       })}
     </div>
