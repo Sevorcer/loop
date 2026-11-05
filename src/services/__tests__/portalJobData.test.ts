@@ -6,6 +6,10 @@
  * known-good column sets confirmed in the actual repositories and migrations.
  */
 
+import { vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import {
   JOBS_SELECT_COLUMNS,
   JOB_ACTIVITY_SELECT_COLUMNS,
