@@ -38,9 +38,11 @@ export function JobDetailClient({
   const [confirmedStatus, setConfirmedStatus] = useState<JobStatus | null>(null);
   const [recordedActivity, setRecordedActivity] = useState<JobActivity[]>([]);
   const [pendingNotes, setPendingNotes] = useState<JobNote[]>([]);
-    const [deleteRestorePending, setDeleteRestorePending] = useState(false);
+  const [noteOverrides, setNoteOverrides] = useState<Record<string, JobNote>>({});
+  const [deleteRestorePending, setDeleteRestorePending] = useState(false);
   const activityItems = mergeRecordedActivity(recordedActivity, activity, job.id);
-  const visibleNotes = mergePendingJobNotes(notes, pendingNotes);
+  const notesWithOverrides = notes.map((note) => noteOverrides[note.id] ?? note);
+  const visibleNotes = mergePendingJobNotes(notesWithOverrides, pendingNotes);
   const liveJob: Job = {
     ...job,
     status: confirmedStatus && confirmedStatus !== job.status ? confirmedStatus : job.status,
@@ -69,6 +71,14 @@ export function JobDetailClient({
     setRecordedActivity((current) =>
       current.some((item) => item.id === entry.id) ? current : [entry, ...current],
     );
+  }
+
+  function handleNoteUpdated(note: JobNote) {
+    setNoteOverrides((current) => ({ ...current, [note.id]: note }));
+    setPendingNotes((current) =>
+      current.map((pending) => (pending.id === note.id ? note : pending)),
+    );
+    router.refresh();
   }
 
   async function handleAddNote(note: string) {
@@ -172,6 +182,7 @@ export function JobDetailClient({
       onUpdateStatus={handleUpdateStatus}
       onPriceRecorded={handlePriceRecorded}
       onAddNote={handleAddNote}
+      onNoteUpdated={handleNoteUpdated}
       onUpdateQaChecklist={handleUpdateQaChecklist}
       onSoftDelete={handleSoftDelete}
       onRestore={handleRestore}

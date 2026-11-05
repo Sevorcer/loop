@@ -211,7 +211,8 @@ describe("office role", () => {
 
   it("can read and add job notes, and cannot edit or delete them", () => {
     expectAllowed("office", "job_notes", ["select", "insert"]);
-    expectDenied("office", "job_notes", ["update", "delete"]);
+    expectDenied("office", "job_notes", ["delete"]);
+    expectAllowed("office", "job_notes", ["update"]);
   });
 
   it("can update jobs (B4 — full editor incl. closeout mode) but cannot delete them", () => {
@@ -416,21 +417,22 @@ describe("privilege escalation — denied paths", () => {
     }
   });
 
-  it("lets office and field staff add job notes, and keeps the history append-only", () => {
+  it("lets office and field staff add job notes, and any role edit them (R2)", () => {
     const writers: AppRole[] = ["owner", "manager", "dispatch", "tech", "office"];
     for (const role of writers) {
       expect(hasPermission(role, "job_notes", "select")).toBe(true);
       expect(hasPermission(role, "job_notes", "insert")).toBe(true);
+      expect(hasPermission(role, "job_notes", "update")).toBe(true);
     }
     expect(hasPermission("sales", "job_notes", "select")).toBe(true);
     expect(hasPermission("sales", "job_notes", "insert")).toBe(false);
-    const roles: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"];
-    for (const role of roles) {
-      expect(hasPermission(role, "job_notes", "update")).toBe(false);
+    expect(hasPermission("sales", "job_notes", "update")).toBe(true);
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as AppRole[]) {
       expect(hasPermission(role, "job_notes", "delete")).toBe(false);
     }
     expect(hasPermission("portal", "job_notes", "select")).toBe(false);
     expect(hasPermission("portal", "job_notes", "insert")).toBe(false);
+    expect(hasPermission("portal", "job_notes", "update")).toBe(false);
   });
 
   it("lets a technician or the office capture a signature, and keeps it append-only", () => {

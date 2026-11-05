@@ -79,12 +79,12 @@ describe("hasPermissionWithOverrides", () => {
     ).toBe(false);
   });
 
-  it("cannot grant update on append-only table via user override", () => {
+  it("cannot grant delete on notes via user override (delete stays locked)", () => {
     const userOverrides: UserOverride[] = [
-      { userId: "user-1", table: "job_notes", action: "update", allowed: true },
+      { userId: "user-1", table: "job_notes", action: "delete", allowed: true },
     ];
     expect(
-      hasPermissionWithOverrides("tech", "job_notes", "update", {
+      hasPermissionWithOverrides("tech", "job_notes", "delete", {
         userId: "user-1",
         userOverrides,
       }),
@@ -112,7 +112,7 @@ describe("isLockedDeny", () => {
   it("returns true for append-only table actions", () => {
     expect(isLockedDeny("job_activity", "update")).toBe(true);
     expect(isLockedDeny("job_activity", "delete")).toBe(true);
-    expect(isLockedDeny("job_notes", "update")).toBe(true);
+    expect(isLockedDeny("job_notes", "update")).toBe(false); // R2 unlocks update
     expect(isLockedDeny("job_notes", "delete")).toBe(true);
     expect(isLockedDeny("job_callbacks", "update")).toBe(true);
     expect(isLockedDeny("job_financials_history", "update")).toBe(true);

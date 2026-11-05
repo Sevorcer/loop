@@ -72,3 +72,25 @@ export async function insertJobNote(
   if (error) throw new Error(error.message);
   return mapJobNote(data as JobNoteRow);
 }
+
+export async function updateJobNote(
+  noteId: string,
+  body: string,
+  contextInput?: SessionRepositoryContextInput,
+): Promise<JobNote> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const trimmed = body.trim();
+  if (!trimmed) throw new Error("Note is required.");
+
+  const { data, error } = await supabase
+    .from("job_notes")
+    .update({ body: trimmed })
+    .eq("org_id", orgId)
+    .eq("id", noteId)
+    .select(JOB_NOTE_COLUMNS)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Job note not found.");
+  return mapJobNote(data as JobNoteRow);
+}

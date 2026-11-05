@@ -198,6 +198,7 @@ interface JobDetailScreenProps {
   onUpdateStatus: (status: JobStatus) => Promise<void>;
   onPriceRecorded?: (activity: JobActivity) => void;
   onAddNote: (note: string) => Promise<void>;
+  onNoteUpdated?: (note: JobNote) => void;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
   onSoftDelete?: () => Promise<void>;
   onRestore?: () => Promise<void>;
@@ -214,6 +215,7 @@ export function JobDetailScreen({
   onUpdateStatus,
   onPriceRecorded,
   onAddNote,
+  onNoteUpdated,
   onUpdateQaChecklist,
   onSoftDelete,
   onRestore,
@@ -590,18 +592,27 @@ export function JobDetailScreen({
               </div>
             </SurfaceCard>
 
-            {/* 3. Quick note — composer only. The notes HISTORY (timeline)
-                stays under the Notes tab, never in Overview (pinned by
-                    jobDetailScreenTabs.test.ts). */}
+            {/* 3. Notes — composer + history adjacent (item 8 / R2). */}
             <SurfaceCard className="min-w-0">
               <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
-                <h2 className="text-base font-semibold text-white sm:text-lg">Add Note</h2>
+                <h2 className="text-base font-semibold text-white sm:text-lg">Notes</h2>
 
                 <PermissionGuard table="job_notes" action="insert">
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <JobNoteComposer onAddNote={onAddNote} />
                   </div>
                 </PermissionGuard>
+
+                <div>
+                  <p className="text-xs text-slate-500">Newest first.</p>
+                  <JobNotesHistory
+                    jobId={job.id}
+                    notes={notes}
+                    legacyNotes={job.notes}
+                    activity={activity}
+                    onNoteUpdated={onNoteUpdated}
+                  />
+                </div>
               </div>
             </SurfaceCard>
 
@@ -971,7 +982,13 @@ export function JobDetailScreen({
             <div className="p-6">
               <h2 className="text-lg font-semibold text-white">Notes</h2>
               <p className="mt-1 text-xs text-slate-500">Newest first.</p>
-              <JobNotesHistory notes={notes} legacyNotes={job.notes} activity={activity} />
+              <JobNotesHistory
+                jobId={job.id}
+                notes={notes}
+                legacyNotes={job.notes}
+                activity={activity}
+                onNoteUpdated={onNoteUpdated}
+              />
             </div>
           </SurfaceCard>
 

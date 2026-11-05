@@ -172,8 +172,9 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     // tech: assigned jobs only — RLS enforces the row-scope restriction
     select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
-    // append-only history
-    update: new Set<AppRole>([]),
+    // R2 (2026-11-05): any signed-in role may edit any note. Sales included
+    // per Collin ("Any role can edit any notes."); portal stays out.
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
     delete: new Set<AppRole>([]),
   },
 
@@ -433,7 +434,7 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
  */
 const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new Map([
   ["job_activity", new Set<TableAction>(["update", "delete"])],
-  ["job_notes", new Set<TableAction>(["update", "delete"])],
+  ["job_notes", new Set<TableAction>(["delete"])], // update allowed (R2 2026-11-05); delete stays locked
   ["job_callbacks", new Set<TableAction>(["update", "delete"])],
   ["job_financials_history", new Set<TableAction>(["update", "delete"])],
 ]);
