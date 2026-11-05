@@ -60,7 +60,7 @@ export interface Job {
   // Closeout mode (migration 20261102000000) — absent when the column has
   // not been applied yet; readers treat anything but "visit" as "full".
       closeoutMode?: JobCloseoutMode;
-    // Customer notifications (migration 20261120900000) — opt-in per job,
+    // Customer notifications (migration 20261121600000) — opt-in per job,
     // default off; enRouteAt is stamped on the first "On The Way" tap.
     customerNotificationsEnabled?: boolean;
     enRouteAt?: string | null;
