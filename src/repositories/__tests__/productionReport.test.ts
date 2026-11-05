@@ -97,6 +97,7 @@ vi.mock("@/repositories/supabaseContext", () => ({
 }));
 
 import { listProductionSources } from "@/repositories/productionReport";
+import { computeProductionReport } from "@/features/reporting/utils/productionReport";
 
 const ORG = "org-test";
 const JOB_COUNT = 2600;
@@ -226,5 +227,66 @@ describe("listProductionSources at import scale", () => {
 
     await expect(listProductionSources(true)).rejects.toThrow("Production report query failed.");
     await expect(listProductionSources(true)).rejects.not.toThrow("414");
+  });
+});
+
+describe("listProductionSources with a report window (Bundle C perf fix 3)", () => {
+  const TZ = "America/Los_Angeles";
+
+  beforeEach(async () => {
+    // Let reads still in flight from an earlier failing test (other tables
+    // keep reading after one rejects) drain before counting requests.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    seedLargeOrg();
+    // Spread completions: jobs 0..99 completed in September (company time),
+    // the rest keep their late-October completion. Job 2599 has no event and
+    // falls back to its updated_at day (2026-10-31 in Los Angeles).
+    const activity = harness.state.tables.job_activity;
+    for (let i = 0; i < 100; i += 1) {
+      activity[i].created_at = new Date(Date.UTC(2026, 8, 10, 18) + i * 1000).toISOString();
+    }
+    activity.pop();
+  });
+
+  it("only enriches jobs completed inside the window", async () => {
+    const september = { from: "2026-09-01", to: "2026-09-30" };
+    const { jobs } = await listProductionSources(true, undefined, { range: september, timeZone: TZ });
+
+    expect(jobs).toHaveLength(100);
+    expect(jobs.every((job) => Number(job.id.slice(4)) < 100)).toBe(true);
+    // 100 ids -> 2 chunks (80 + 20) per related table instead of 33 chunks.
+    const jobIdInCalls = harness.state.inCalls.filter((call) => call.column === "job_id");
+    for (const table of ["job_assignees", "job_completion_team", "dispatch_plans", "job_financials"]) {
+      const sizes = new Set(jobIdInCalls.filter((call) => call.table === table).map((call) => call.count));
+      expect([...sizes].sort((a, b) => a - b)).toEqual([20, 80]);
+    }
+    expect(jobIdInCalls.length).toBeLessThan(20);
+    expect(jobs[99].assignees).toHaveLength(ASSIGNEES_PER_JOB);
+    expect(jobs[99].revenueCents).toBe(12345);
+  });
+
+  it("produces exactly the same report as enriching every job", async () => {
+    for (const range of [
+      { from: "2026-09-01", to: "2026-09-30" },
+      { from: "2026-10-01", to: "2026-10-31" },
+      { from: "2026-11-01", to: "2026-11-30" },
+    ]) {
+      const full = await listProductionSources(true);
+      const windowed = await listProductionSources(true, undefined, { range, timeZone: TZ });
+      expect(computeProductionReport(windowed.jobs, windowed.completions, range, TZ)).toEqual(
+        computeProductionReport(full.jobs, full.completions, range, TZ),
+      );
+    }
+  });
+
+  it("keeps chunk order deterministic while reading chunks in parallel", async () => {
+    const { jobs } = await listProductionSources(true);
+    expect(jobs.map((job) => job.id)).toEqual(
+      Array.from({ length: JOB_COUNT }, (_, i) => jobId(i)),
+    );
+    for (const job of jobs) {
+      expect(job.assignees).toHaveLength(ASSIGNEES_PER_JOB);
+      expect(job.completionTeam).toHaveLength(2);
+    }
   });
 });

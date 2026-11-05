@@ -1,8 +1,10 @@
 import "server-only";
 
-import type {
-  ProductionCompletion,
-  ProductionSourceJob,
+import {
+  completedInRangePredicate,
+  type DateRange,
+  type ProductionCompletion,
+  type ProductionSourceJob,
 } from "@/features/reporting/utils/productionReport";
 
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
@@ -13,6 +15,11 @@ const PAGE_SIZE = 1000;
 // gateway rejects with a 414 before it ever reaches the database. Matches
 // the chunk size used in repositories/properties.ts.
 const ID_CHUNK_SIZE = 80;
+// How many id chunks are read at once per related table. The chunks used to
+// be read strictly one after another (~45 sequential round trips per table
+// for the full post-import job set); a small fixed pool keeps the request
+// count identical but overlaps the waiting.
+const CHUNK_CONCURRENCY = 4;
 
 interface QueryError {
   code?: string;
@@ -76,9 +83,15 @@ async function readByIdsInChunks<Row>(
     to: number,
   ) => PromiseLike<{ data: Row[] | null; error: QueryError | null }>,
 ): Promise<{ rows: Row[]; error: QueryError | null }> {
-  const rows: Row[] = [];
+  const chunks: string[][] = [];
   for (let index = 0; index < ids.length; index += ID_CHUNK_SIZE) {
-    const chunk = ids.slice(index, index + ID_CHUNK_SIZE);
+    chunks.push(ids.slice(index, index + ID_CHUNK_SIZE));
+  }
+  const results: Array<{ rows: Row[]; error: QueryError | null }> = new Array(chunks.length);
+  let failed = false;
+
+  async function readChunk(chunk: string[]): Promise<{ rows: Row[]; error: QueryError | null }> {
+    const rows: Row[] = [];
     for (let page = 0; page < 50; page += 1) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -88,43 +101,88 @@ async function readByIdsInChunks<Row>(
       rows.push(...batch);
       if (batch.length < PAGE_SIZE) break;
     }
+    return { rows, error: null };
+  }
+
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (!failed && next < chunks.length) {
+      const index = next;
+      next += 1;
+      const result = await readChunk(chunks[index]);
+      results[index] = result;
+      if (result.error) failed = true;
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(CHUNK_CONCURRENCY, chunks.length) }, () => worker()),
+  );
+
+  // Merge in chunk order so output is deterministic; the first failing chunk
+  // (in id order) wins, matching the old sequential behaviour.
+  const rows: Row[] = [];
+  for (const result of results) {
+    if (!result) continue;
+    if (result.error) return { rows, error: result.error };
+    rows.push(...result.rows);
   }
   return { rows, error: null };
+}
+
+/**
+ * Optional report window. When given, only jobs whose completion day falls in
+ * the range (same rule as computeProductionReport) are enriched with
+ * assignees / completion team / estimates / revenue — the report drops every
+ * other job anyway, so those reads were pure waste on a short range.
+ */
+export interface ProductionSourceWindow {
+  range: DateRange;
+  timeZone: string;
 }
 
 export async function listProductionSources(
   includeRevenue: boolean,
   contextInput?: SessionRepositoryContextInput,
+  reportWindow?: ProductionSourceWindow,
 ): Promise<{ jobs: ProductionSourceJob[]; completions: ProductionCompletion[] }> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
 
-  const jobRows = await eachPage<JobRow>((from, to) =>
-    supabase
-      .from("jobs")
-      .select(
-        "id,job_number,status,title,customer_name,assigned_to,scheduled_start_at,scheduled_end_at,updated_at",
-      )
-      .eq("org_id", orgId)
-      .eq("status", "Completed")
-      .order("id", { ascending: true })
-      .range(from, to),
-  );
-
-  const completionRows = await eachPage<{ job_id: string; created_at: string }>((from, to) =>
-    supabase
-      .from("job_activity")
-      .select("job_id,created_at")
-      .eq("org_id", orgId)
-      .eq("type", "status")
-      .eq("title", "Job completed")
-      .order("created_at", { ascending: true })
-      .range(from, to),
-  );
+  // The two base reads are independent — run them together.
+  const [allJobRows, completionRows] = await Promise.all([
+    eachPage<JobRow>((from, to) =>
+      supabase
+        .from("jobs")
+        .select(
+          "id,job_number,status,title,customer_name,assigned_to,scheduled_start_at,scheduled_end_at,updated_at",
+        )
+        .eq("org_id", orgId)
+        .eq("status", "Completed")
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    eachPage<{ job_id: string; created_at: string }>((from, to) =>
+      supabase
+        .from("job_activity")
+        .select("job_id,created_at")
+        .eq("org_id", orgId)
+        .eq("type", "status")
+        .eq("title", "Job completed")
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    ),
+  ]);
   // Keep the instant. The report turns it into the company calendar day.
   const completions: ProductionCompletion[] = completionRows.map((row) => ({
     jobId: row.job_id,
     createdAt: row.created_at,
   }));
+
+  const inWindow = reportWindow
+    ? completedInRangePredicate(completions, reportWindow.range, reportWindow.timeZone)
+    : null;
+  const jobRows = inWindow
+    ? allJobRows.filter((row) => inWindow({ id: row.id, updatedAt: row.updated_at ?? "" }))
+    : allJobRows;
 
   const jobIds = jobRows.map((row) => row.id);
   const [assignees, completionTeams, estimates, revenue] = await Promise.all([
