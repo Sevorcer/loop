@@ -53,6 +53,7 @@ async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositor
   type: JobType;
   status: JobStatus;
   priority: JobPriority;
+  
   customer_id: string | null;
   customer_name: string;
   property_id: string | null;
@@ -71,6 +72,9 @@ async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositor
   arrival_window_end_at?: string | null;
   // Closeout mode — absent when migration 20261102000000 not yet applied.
   closeout_mode?: string | null;
+    // Customer notifications — absent when migration 20261120900000 not yet applied.
+    customer_notifications_enabled?: boolean | null;
+    en_route_at?: string | null;
   summary: string;
   location: string;
   notes: string;
@@ -164,6 +168,9 @@ function mapJob(row: JobRow): Job {
     appointmentHour,
     // Anything but an explicit "visit" reads as the default "full".
     closeoutMode: row.closeout_mode === "visit" ? "visit" : "full",
+        // Notifications are opt-in: anything but an explicit true is off.
+        customerNotificationsEnabled: row.customer_notifications_enabled === true,
+        enRouteAt: row.en_route_at ?? null,
     summary: row.summary,
     location: row.location,
     notes: row.notes,
@@ -181,7 +188,7 @@ const JOB_SELECT_WITH_LEGACY = JOB_SELECT_BASE + ",appointment_window";
 // fallback chain drops it together with the PR3C columns pre-migration.
 const JOB_SELECT =
   JOB_SELECT_WITH_LEGACY +
-  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode";
+  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode,customer_notifications_enabled,en_route_at";
 
 /**
  * Returns true when the Supabase/PostgREST error indicates that a scheduling
@@ -1202,6 +1209,52 @@ export async function restoreJob(id: string): Promise<boolean> {
   return (data ?? []).length > 0;
 }
 
+
+/**
+ * Set the per-job customer-notifications opt-in (migration
+  * 20261120900000). Returns true when the job exists.
+   */
+export async function setJobNotificationsEnabled(
+    id: string,
+    enabled: boolean,
+  ): Promise<boolean> {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+          .from("jobs")
+          .update({ customer_notifications_enabled: enabled })
+          .eq("org_id", orgId)
+          .eq("id", id)
+          .is("deleted_at", null)
+          .select("id");
+  
+    if (error) {
+          throw new Error(error.message);
+    }
+  
+    return (data ?? []).length > 0;
+}
+
+/**
+ * Stamp en_route_at the FIRST time the crew heads out. Returns true only
+  * when this call did the stamping, so callers email exactly once.
+   */
+export async function markJobEnRoute(id: string): Promise<boolean> {
+    const { supabase, orgId } = await getRepositoryContext();
+    const { data, error } = await supabase
+          .from("jobs")
+          .update({ en_route_at: new Date().toISOString() })
+          .eq("org_id", orgId)
+          .eq("id", id)
+          .is("deleted_at", null)
+          .is("en_route_at", null)
+          .select("id");
+  
+    if (error) {
+          throw new Error(error.message);
+    }
+  
+    return (data ?? []).length > 0;
+}
 
 export async function createJobActivity(
   input: JobActivityWriteInput,
