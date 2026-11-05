@@ -596,3 +596,29 @@ describe("allowedRolesFor", () => {
     expect(roles).not.toContain("portal");
   });
 });
+
+// ─── vehicle_alerts ───────────────────────────────────────────────────────────
+
+describe("vehicle_alerts permissions", () => {
+  it("allows all staff to select and insert; denies portal", () => {
+    for (const role of ["owner", "manager", "dispatch", "office", "sales", "tech"] as const) {
+      expectAllowed(role, "vehicle_alerts", ["select", "insert"]);
+    }
+    expectDenied("portal", "vehicle_alerts", ["select", "insert", "update", "delete"]);
+  });
+
+  it("limits status updates to office+ and dispatch", () => {
+    expectAllowed("owner", "vehicle_alerts", ["update"]);
+    expectAllowed("manager", "vehicle_alerts", ["update"]);
+    expectAllowed("office", "vehicle_alerts", ["update"]);
+    expectAllowed("dispatch", "vehicle_alerts", ["update"]);
+    expectDenied("tech", "vehicle_alerts", ["update"]);
+    expectDenied("sales", "vehicle_alerts", ["update"]);
+  });
+
+  it("allows only owner to delete", () => {
+    expectAllowed("owner", "vehicle_alerts", ["delete"]);
+    expectDenied("manager", "vehicle_alerts", ["delete"]);
+    expectDenied("office", "vehicle_alerts", ["delete"]);
+  });
+});

@@ -2,15 +2,16 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
-import { mockVehicleAlerts } from "../data/mockVehicleAlerts";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 import { todayLocalISODate } from "@/lib/dates";
 import type {
   VehicleAlert,
@@ -33,73 +34,131 @@ interface VehicleAlertsContextValue {
   updateAlertStatus: (id: string, status: VehicleAlertStatus) => void;
 }
 
-const VEHICLE_ALERTS_STORAGE_KEY = "loop.vehicle-alerts.items";
-
-// useSyncExternalStore requires a subscribe function. We use a no-op here
-// because hydration is a one-time server→client transition — there is no
-// external store to subscribe to. The snapshot function returns `true` on
-// the client and `false` on the server, so the initial client render picks
-// up the correct hydrated flag without any ongoing subscription.
-const subscribeToHydration = (onStoreChange: () => void) => {
-  void onStoreChange;
-  return () => {};
-};
-
-function parseStoredValue<T>(value: string | null, fallback: T): T {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 const VehicleAlertsContext = createContext<VehicleAlertsContextValue | null>(null);
 
 export function VehicleAlertsProvider({ children }: { children: ReactNode }) {
-  const [alerts, setAlerts] = useState<VehicleAlert[]>(() => {
-    if (typeof window === "undefined") return mockVehicleAlerts;
-    return parseStoredValue<VehicleAlert[]>(
-      window.localStorage.getItem(VEHICLE_ALERTS_STORAGE_KEY),
-      mockVehicleAlerts
-    );
-  });
-
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false
-  );
+  const { role } = useCurrentRole();
+  const [alerts, setAlerts] = useState<VehicleAlert[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(VEHICLE_ALERTS_STORAGE_KEY, JSON.stringify(alerts));
-  }, [hydrated, alerts]);
+    if (!role) return;
+    let cancelled = false;
 
-  const value = useMemo<VehicleAlertsContextValue>(() => {
-    function createAlert(input: CreateVehicleAlertInput): VehicleAlert {
-      const newAlert: VehicleAlert = {
-        id: `VA-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+    async function load() {
+      try {
+        const result = await requestJson<{ alerts: VehicleAlert[] }>(
+          "/api/vehicle-alerts",
+          { role, cache: "no-store" },
+        );
+        if (cancelled) return;
+        setAlerts(Array.isArray(result.alerts) ? result.alerts : []);
+      } catch {
+        if (!cancelled) setAlerts([]);
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
+  const createAlert = useCallback(
+    (input: CreateVehicleAlertInput): VehicleAlert => {
+      const optimistic: VehicleAlert = {
+        id: `pending-${crypto.randomUUID()}`,
         vehicleName: input.vehicleName.trim(),
         title: input.title.trim(),
         description: input.description.trim(),
         priority: input.priority,
         status: "New",
+        // Display name from the form until the server responds with the profile name.
         reportedBy: input.reportedBy.trim(),
         reportedAt: todayLocalISODate(),
       };
-      setAlerts((current) => [newAlert, ...current]);
-      return newAlert;
-    }
 
-    function updateAlertStatus(id: string, status: VehicleAlertStatus) {
+      setAlerts((current) => [optimistic, ...current]);
+
+      void (async () => {
+        try {
+          const result = await requestJson<{ alert: VehicleAlert }>(
+            "/api/vehicle-alerts",
+            {
+              method: "POST",
+              role,
+              body: {
+                vehicleName: optimistic.vehicleName,
+                title: optimistic.title,
+                description: optimistic.description,
+                priority: optimistic.priority,
+                // reportedBy is intentionally NOT sent — server sets reported_by from session
+              },
+            },
+          );
+          setAlerts((current) =>
+            current.map((alert) =>
+              alert.id === optimistic.id ? result.alert : alert,
+            ),
+          );
+        } catch {
+          setAlerts((current) =>
+            current.filter((alert) => alert.id !== optimistic.id),
+          );
+        }
+      })();
+
+      return optimistic;
+    },
+    [role],
+  );
+
+  const updateAlertStatus = useCallback(
+    (id: string, status: VehicleAlertStatus) => {
+      let previousStatus: VehicleAlertStatus | null = null;
+
       setAlerts((current) =>
-        current.map((alert) => (alert.id === id ? { ...alert, status } : alert))
+        current.map((alert) => {
+          if (alert.id !== id) return alert;
+          previousStatus = alert.status;
+          return { ...alert, status };
+        }),
       );
-    }
 
-    return { hydrated, alerts, createAlert, updateAlertStatus };
-  }, [hydrated, alerts]);
+      void (async () => {
+        try {
+          const result = await requestJson<{ alert: VehicleAlert }>(
+            `/api/vehicle-alerts/${id}`,
+            {
+              method: "PATCH",
+              role,
+              body: { status },
+            },
+          );
+          setAlerts((current) =>
+            current.map((alert) => (alert.id === id ? result.alert : alert)),
+          );
+        } catch {
+          if (previousStatus) {
+            const revertTo = previousStatus;
+            setAlerts((current) =>
+              current.map((alert) =>
+                alert.id === id ? { ...alert, status: revertTo } : alert,
+              ),
+            );
+          }
+        }
+      })();
+    },
+    [role],
+  );
+
+  const value = useMemo<VehicleAlertsContextValue>(
+    () => ({ hydrated, alerts, createAlert, updateAlertStatus }),
+    [hydrated, alerts, createAlert, updateAlertStatus],
+  );
 
   return (
     <VehicleAlertsContext.Provider value={value}>
