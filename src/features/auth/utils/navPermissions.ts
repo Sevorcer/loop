@@ -10,7 +10,7 @@
  * `portal` role users are never shown internal shell navigation.
  */
 
-import { ADMIN_ROUTES, ROUTES, PORTAL_ROUTES } from "@/lib/routes";
+import { ADMIN_ROUTES, ROUTES } from "@/lib/routes";
 import type { AppRole } from "@/services/authorization";
 import { isAppRole } from "./appRole";
 
@@ -71,9 +71,6 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
 
   // Administration
   [ADMIN_ROUTES.ORGANIZATIONS]: ["owner", "manager"],
-
-  // External — Project Portal link is shown to owner/manager only from ops shell
-  [PORTAL_ROUTES.ROOT]: ["owner", "manager"],
 
   // Workspace
   [ROUTES.SETTINGS]: ["owner", "manager"],

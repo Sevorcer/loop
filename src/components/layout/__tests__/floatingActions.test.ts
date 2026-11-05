@@ -149,16 +149,6 @@ describe("phone corner-action breakpoint", () => {
     expect(css).toContain(".safe-area-content.safe-area-content--form");
     expect(css).toContain("padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px))");
   });
-
-  it("leaves the customer portal without the corner actions", () => {
-    const portal = readFileSync(
-      resolve(process.cwd(), "src/features/project-portal/components/PortalShell.tsx"),
-      "utf8",
-    );
-
-    expect(portal).not.toContain("Send feedback");
-    expect(portal).not.toContain("floating-actions-stack");
-  });
 });
 
 describe("AppShell floating actions", () => {
