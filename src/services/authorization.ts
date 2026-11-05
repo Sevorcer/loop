@@ -404,6 +404,57 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
 };
 
 // ---------------------------------------------------------------------------
+// Invariants — tables and actions that may NEVER be overridden
+// ---------------------------------------------------------------------------
+
+/**
+ * Append-only tables: delete (and update) are denied to every role.
+ * No override — role or user — may grant these actions.
+ */
+const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new Map([
+  ["job_activity", new Set<TableAction>(["update", "delete"])],
+  ["job_notes", new Set<TableAction>(["update", "delete"])],
+  ["job_callbacks", new Set<TableAction>(["update", "delete"])],
+  ["job_financials_history", new Set<TableAction>(["update", "delete"])],
+]);
+
+/**
+ * Returns true when the code matrix has an empty set for this table+action,
+ * meaning NO role may ever perform the action — it is a system invariant.
+ */
+export function isEmptySetInvariant(table: CoreTable, action: TableAction): boolean {
+  return PERMISSIONS[table][action].size === 0;
+}
+
+/**
+ * Returns true when the given table+action is locked by an append-only or
+ * empty-set invariant and must never be granted via override.
+ */
+export function isLockedDeny(table: CoreTable, action: TableAction): boolean {
+  if (isEmptySetInvariant(table, action)) return true;
+  const denied = APPEND_ONLY_DENY.get(table);
+  return denied !== undefined && denied.has(action);
+}
+
+// ---------------------------------------------------------------------------
+// Override types
+// ---------------------------------------------------------------------------
+
+export interface PermissionOverride {
+  table: CoreTable;
+  action: TableAction;
+  allowed: boolean;
+}
+
+export interface RoleOverride extends PermissionOverride {
+  role: AppRole;
+}
+
+export interface UserOverride extends PermissionOverride {
+  userId: string;
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -426,6 +477,74 @@ export function hasPermission(
   // 2026-11-04: every non-empty set in the matrix already contains owner,
   // so this changes no current behavior; it formalizes the admin guarantee
   // ahead of editable permissions (Phase 2), which must keep the same rule.
+  const allowed = PERMISSIONS[table][action];
+  if (allowed.size === 0) return false;
+  if (role === "owner") return true;
+  return allowed.has(role);
+}
+
+/**
+ * Resolves the effective permission for a role+table+action, applying
+ * DB-backed overrides in priority order:
+ *
+ *   1. Per-user override (if userId + userOverrides provided)
+ *   2. Role-level override (if roleOverrides provided)
+ *   3. Code matrix default
+ *
+ * Invariants enforced regardless of overrides:
+ *   - Owner role is ALWAYS granted (unless empty-set invariant)
+ *   - Append-only / empty-set actions can NEVER be granted
+ */
+export function hasPermissionWithOverrides(
+  role: AppRole,
+  table: CoreTable,
+  action: TableAction,
+  options?: {
+    userId?: string;
+    roleOverrides?: RoleOverride[];
+    userOverrides?: UserOverride[];
+  },
+): boolean {
+  // Hard system invariant: empty-set actions are denied to everyone
+  if (isEmptySetInvariant(table, action)) return false;
+
+  // Owner is always granted (except empty-set, handled above)
+  if (role === "owner") return true;
+
+  // Locked deny (append-only tables) — cannot be overridden
+  if (isLockedDeny(table, action)) return false;
+
+  const { userId, roleOverrides, userOverrides } = options ?? {};
+
+  // 1. Check per-user override first (highest priority)
+  if (userId && userOverrides) {
+    const userOverride = userOverrides.find(
+      (o) => o.userId === userId && o.table === table && o.action === action,
+    );
+    if (userOverride !== undefined) return userOverride.allowed;
+  }
+
+  // 2. Check role-level override
+  if (roleOverrides) {
+    const roleOverride = roleOverrides.find(
+      (o) => o.role === role && o.table === table && o.action === action,
+    );
+    if (roleOverride !== undefined) return roleOverride.allowed;
+  }
+
+  // 3. Fall back to code matrix
+  return PERMISSIONS[table][action].has(role);
+}
+
+/**
+ * Returns the raw code matrix permission set. Used by the permissions
+ * editor to show default values before overrides.
+ */
+export function getCodeMatrixPermission(
+  role: AppRole,
+  table: CoreTable,
+  action: TableAction,
+): boolean {
   const allowed = PERMISSIONS[table][action];
   if (allowed.size === 0) return false;
   if (role === "owner") return true;
