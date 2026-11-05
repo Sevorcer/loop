@@ -73,6 +73,7 @@ export const ROUTE_BUILDERS = {
   INSTALLED_SYSTEM_EDIT: (installedSystemId: string) =>
     `${ROUTES.INSTALLED_SYSTEMS}/${installedSystemId}/edit`,
   COMPANY_BRAIN_NEW: () => `${ROUTES.COMPANY_BRAIN}/new`,
+  COMPANY_BRAIN_MANUALS: () => `${ROUTES.COMPANY_BRAIN}/manuals`,
   COMPANY_BRAIN_EDIT: (id: string) => `${ROUTES.COMPANY_BRAIN}/${id}/edit`,
 } as const;
 
