@@ -72,6 +72,11 @@ export async function updateLocation(
 // Vehicles — each vehicle owns one van location (created with it, idempotent)
 // ---------------------------------------------------------------------------
 
+/** crews.vehicle_id arrives with the vehicle link migration (M3); until then a van cannot be assigned to a crew. */
+function rejectCrewAssignment(): never {
+  badRequest("Assigning a van to a crew is not available yet.");
+}
+
 export async function listVehicles(includeRetired = false): Promise<Vehicle[]> {
   return listVehicleRecords(includeRetired);
 }
@@ -99,6 +104,7 @@ export async function createVehicle(input: VehicleInput): Promise<{ vehicle: Veh
   if (!name) badRequest("name is required.");
   if (input.status !== undefined && !VEHICLE_STATUSES.includes(input.status)) badRequest("status is not valid.");
 
+  if (input.crewId) rejectCrewAssignment();
   const vehicle = await createVehicleRecord({
     ...input,
     name,
@@ -114,6 +120,7 @@ export async function updateVehicle(id: string, patch: Partial<VehicleInput>): P
   if (patch.name !== undefined && !patch.name.trim()) badRequest("name cannot be blank.");
   if (patch.status !== undefined && !VEHICLE_STATUSES.includes(patch.status)) badRequest("status is not valid.");
 
+  if (patch.crewId) rejectCrewAssignment();
   const updated = await updateVehicleRecord(id, {
     ...patch,
     name: patch.name?.trim(),

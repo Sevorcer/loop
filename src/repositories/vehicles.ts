@@ -10,11 +10,10 @@ interface VehicleRow {
   plate: string | null;
   vin: string | null;
   status: string;
-  crew_id: string | null;
   notes: string | null;
 }
 
-const VEHICLE_COLUMNS = "id,name,plate,vin,status,crew_id,notes";
+const VEHICLE_COLUMNS = "id,name,plate,vin,status,notes";
 
 function mapVehicle(row: VehicleRow): Vehicle {
   return {
@@ -23,7 +22,8 @@ function mapVehicle(row: VehicleRow): Vehicle {
     plate: row.plate,
     vin: row.vin,
     status: row.status as VehicleStatus,
-    crewId: row.crew_id,
+    // A van's crew is crews.vehicle_id (M3), not a column here; it is filled in once that migration lands.
+    crewId: null,
     notes: row.notes,
   };
 }
@@ -59,7 +59,6 @@ export async function createVehicle(input: VehicleInput): Promise<Vehicle> {
       plate: input.plate ?? null,
       vin: input.vin ?? null,
       status: input.status ?? "active",
-      crew_id: input.crewId ?? null,
       notes: input.notes ?? null,
     })
     .select(VEHICLE_COLUMNS)
@@ -75,7 +74,6 @@ export async function updateVehicle(id: string, patch: Partial<VehicleInput>): P
   if (patch.plate !== undefined) row.plate = patch.plate;
   if (patch.vin !== undefined) row.vin = patch.vin;
   if (patch.status !== undefined) row.status = patch.status;
-  if (patch.crewId !== undefined) row.crew_id = patch.crewId;
   if (patch.notes !== undefined) row.notes = patch.notes;
   const { data, error } = await supabase
     .from("vehicles")
