@@ -13,6 +13,8 @@ import {
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
 import { getVehicle } from "@/repositories/vehicles";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const PRIORITIES = new Set<VehicleAlertPriority>(["Low", "Medium", "High"]);
 const STATUSES = new Set<VehicleAlertStatus>([
   "New",
@@ -30,10 +32,8 @@ export function isVehicleAlertStatus(value: unknown): value is VehicleAlertStatu
 }
 
 export interface CreateVehicleAlertServiceInput {
-  /** Picked vehicle. Preferred; takes precedence over vehicleName. */
-  vehicleId?: string | null;
-  /** Free text, accepted only while no vehicle is picked (expand phase, until M4). */
-  vehicleName?: string;
+  /** The vehicle the alert is about. Required. */
+  vehicleId: string;
   title: string;
   description: string;
   priority: VehicleAlertPriority;
@@ -41,7 +41,7 @@ export interface CreateVehicleAlertServiceInput {
 }
 
 function validateCreateInput(input: CreateVehicleAlertServiceInput) {
-  if (!input.vehicleId && !(input.vehicleName ?? "").trim()) {
+  if (!UUID_RE.test(input.vehicleId ?? "")) {
     throw Object.assign(new Error("Choose a vehicle."), { status: 400 });
   }
   if (!input.title.trim()) throw Object.assign(new Error("title is required."), { status: 400 });
@@ -54,23 +54,13 @@ function validateCreateInput(input: CreateVehicleAlertServiceInput) {
   }
 }
 
-/**
- * A picked vehicle wins: it is looked up in the caller's org and its name is
- * snapshotted into vehicle_name (NOT NULL until M4). With no pick, legacy free
- * text is still accepted so reporting works before any vehicle has been added.
- */
-async function resolveAlertVehicle(
-  input: CreateVehicleAlertServiceInput,
-): Promise<{ vehicleId: string | null; vehicleName: string }> {
-  if (!input.vehicleId) {
-    return { vehicleId: null, vehicleName: (input.vehicleName ?? "").trim() };
-  }
-  const vehicle = await getVehicle(input.vehicleId);
+/** The vehicle is looked up in the caller's org; retired vans cannot take new alerts. */
+async function assertAlertVehicle(vehicleId: string): Promise<void> {
+  const vehicle = await getVehicle(vehicleId);
   if (!vehicle) throw Object.assign(new Error("That vehicle was not found."), { status: 400 });
   if (vehicle.status === "retired") {
     throw Object.assign(new Error("That vehicle is retired. Choose another."), { status: 400 });
   }
-  return { vehicleId: vehicle.id, vehicleName: vehicle.name };
 }
 
 export async function listVehicleAlerts(
@@ -84,11 +74,10 @@ export async function createVehicleAlert(
   ctx?: SessionRepositoryContextInput,
 ): Promise<VehicleAlert> {
   validateCreateInput(input);
-  const { vehicleId, vehicleName } = await resolveAlertVehicle(input);
+  await assertAlertVehicle(input.vehicleId);
   return createVehicleAlertRecord(
     {
-      vehicleId,
-      vehicleName,
+      vehicleId: input.vehicleId,
       title: input.title.trim(),
       description: input.description.trim(),
       priority: input.priority,

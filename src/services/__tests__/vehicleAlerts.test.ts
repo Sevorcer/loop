@@ -19,7 +19,10 @@ vi.mock("@/repositories/vehicles", () => ({
 
 import { createVehicleAlert } from "@/services/vehicleAlerts";
 
+const VEHICLE_ID = "11111111-1111-4111-8111-111111111111";
+
 const base = {
+  vehicleId: VEHICLE_ID,
   title: "Tire",
   description: "Flat",
   priority: "High" as const,
@@ -33,38 +36,29 @@ beforeEach(() => {
 });
 
 describe("createVehicleAlert vehicle resolution", () => {
-  it("links a picked vehicle and snapshots its name", async () => {
-    getVehicleMock.mockResolvedValue({ id: "veh-1", name: "Van 1", status: "active" });
-    await createVehicleAlert({ ...base, vehicleId: "veh-1", vehicleName: "ignored text" });
-    expect(createRecordMock).toHaveBeenCalledWith(
-      expect.objectContaining({ vehicleId: "veh-1", vehicleName: "Van 1" }),
-      undefined,
-    );
+  it("links the picked vehicle", async () => {
+    getVehicleMock.mockResolvedValue({ id: VEHICLE_ID, name: "Van 1", status: "active" });
+    await createVehicleAlert(base);
+    expect(getVehicleMock).toHaveBeenCalledWith(VEHICLE_ID);
+    expect(createRecordMock).toHaveBeenCalledWith(expect.objectContaining({ vehicleId: VEHICLE_ID }), undefined);
+    expect(createRecordMock.mock.calls[0][0]).not.toHaveProperty("vehicleName");
   });
 
-  it("accepts free text when no vehicle is picked (before any vehicle exists)", async () => {
-    await createVehicleAlert({ ...base, vehicleName: "  Unmarked Van  " });
+  it.each(["", "   ", "not-a-uuid"])("requires a real vehicle id (%j)", async (vehicleId) => {
+    await expect(createVehicleAlert({ ...base, vehicleId })).rejects.toMatchObject({ status: 400 });
     expect(getVehicleMock).not.toHaveBeenCalled();
-    expect(createRecordMock).toHaveBeenCalledWith(
-      expect.objectContaining({ vehicleId: null, vehicleName: "Unmarked Van" }),
-      undefined,
-    );
-  });
-
-  it("requires a vehicle pick or a typed name", async () => {
-    await expect(createVehicleAlert({ ...base, vehicleName: "   " })).rejects.toMatchObject({ status: 400 });
     expect(createRecordMock).not.toHaveBeenCalled();
   });
 
   it("rejects a vehicle that is not in the caller's org (lookup returns null)", async () => {
     getVehicleMock.mockResolvedValue(null);
-    await expect(createVehicleAlert({ ...base, vehicleId: "other-org-van" })).rejects.toMatchObject({ status: 400 });
+    await expect(createVehicleAlert(base)).rejects.toMatchObject({ status: 400 });
     expect(createRecordMock).not.toHaveBeenCalled();
   });
 
   it("rejects a retired vehicle", async () => {
-    getVehicleMock.mockResolvedValue({ id: "veh-9", name: "Old Van", status: "retired" });
-    await expect(createVehicleAlert({ ...base, vehicleId: "veh-9" })).rejects.toMatchObject({ status: 400 });
+    getVehicleMock.mockResolvedValue({ id: VEHICLE_ID, name: "Old Van", status: "retired" });
+    await expect(createVehicleAlert(base)).rejects.toMatchObject({ status: 400 });
     expect(createRecordMock).not.toHaveBeenCalled();
   });
 });

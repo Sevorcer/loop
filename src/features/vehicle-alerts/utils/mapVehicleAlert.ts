@@ -9,8 +9,7 @@ import type {
 export interface VehicleAlertRow {
   id: string;
   org_id: string;
-  vehicle_name: string;
-  vehicle_id?: string | null;
+  vehicle_id: string;
   vehicle?: LinkedVehicleEmbed;
   title: string;
   description: string;
@@ -31,8 +30,8 @@ export function mapVehicleAlertRow(row: VehicleAlertRow): VehicleAlert {
 
   return {
     id: row.id,
-    vehicleName: resolveVehicleName(row.vehicle, row.vehicle_name),
-    vehicleId: row.vehicle_id ?? null,
+    vehicleName: resolveVehicleName(row.vehicle),
+    vehicleId: row.vehicle_id,
     title: row.title,
     description: row.description,
     priority: row.priority,

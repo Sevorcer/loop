@@ -32,6 +32,7 @@ import type { VehicleAlert } from "../types/vehicleAlert";
 
 const sample: VehicleAlert = {
   id: "va-1",
+  vehicleId: "veh-4",
   vehicleName: "Van 4",
   title: "Oil change",
   description: "Soon",
@@ -135,6 +136,7 @@ describe("VehicleAlertsProvider", () => {
     let optimistic: VehicleAlert | null = null;
     await act(async () => {
       optimistic = latest!.createAlert({
+        vehicleId: "veh-4",
         vehicleName: "Van 4",
         title: "Oil change",
         description: "Soon",
@@ -149,7 +151,7 @@ describe("VehicleAlertsProvider", () => {
       expect.objectContaining({
         method: "POST",
         body: expect.objectContaining({
-          vehicleName: "Van 4",
+          vehicleId: "veh-4",
           title: "Oil change",
           priority: "Medium",
         }),
@@ -159,6 +161,7 @@ describe("VehicleAlertsProvider", () => {
       (call: unknown[]) => (call[1] as { method?: string } | undefined)?.method === "POST",
     )?.[1]?.body as Record<string, unknown>;
     expect(postBody).not.toHaveProperty("reportedBy");
+    expect(postBody).not.toHaveProperty("vehicleName");
 
     await act(async () => {
       await Promise.resolve();

@@ -100,7 +100,7 @@ export function crewLabelForJob(
   for (const crew of crews) {
     const members = crewMemberNames(crew).map(nameKey);
     if (members.some((member) => people.includes(member))) {
-      const truck = (crew.truck_name ?? "").trim();
+      const truck = (crew.van_name ?? "").trim();
       const name = (crew.name ?? "").trim();
       if (truck && name && truck !== name) return `${name} · ${truck}`;
       return truck || name || "—";

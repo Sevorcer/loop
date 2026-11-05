@@ -58,8 +58,7 @@ export async function POST(request: Request) {
   try {
     const alert = await createVehicleAlert(
       {
-        vehicleId: typeof body.vehicleId === "string" && body.vehicleId ? body.vehicleId : null,
-        vehicleName: String(body.vehicleName ?? ""),
+        vehicleId: typeof body.vehicleId === "string" ? body.vehicleId : "",
         title: String(body.title ?? ""),
         description: String(body.description ?? ""),
         priority: body.priority,

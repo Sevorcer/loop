@@ -13,13 +13,11 @@ import {
 } from "./supabaseContext";
 
 const VEHICLE_ALERT_SELECT =
-  `id,org_id,vehicle_name,${ALERT_VEHICLE_EMBED},title,description,priority,status,reported_by,created_at,updated_at,reporter:user_profiles!vehicle_alerts_reported_by_fkey(full_name,email)`;
+  `id,org_id,${ALERT_VEHICLE_EMBED},title,description,priority,status,reported_by,created_at,updated_at,reporter:user_profiles!vehicle_alerts_reported_by_fkey(full_name,email)`;
 
 export interface VehicleAlertCreateInput {
-  /** Linked vehicle, when the reporter picked one. */
-  vehicleId?: string | null;
-  /** Snapshot of the vehicle name. vehicle_name stays NOT NULL until M4 retires it. */
-  vehicleName: string;
+  /** The vehicle the alert is about (vehicle_alerts.vehicle_id is NOT NULL). */
+  vehicleId: string;
   title: string;
   description: string;
   priority: VehicleAlertPriority;
@@ -54,8 +52,7 @@ export async function createVehicleAlertRecord(
     .from("vehicle_alerts")
     .insert({
       org_id: orgId,
-      vehicle_name: input.vehicleName,
-      vehicle_id: input.vehicleId ?? null,
+      vehicle_id: input.vehicleId,
       title: input.title,
       description: input.description,
       priority: input.priority,
