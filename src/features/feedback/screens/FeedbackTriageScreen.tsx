@@ -8,7 +8,7 @@
  * Allows inline status + triage notes update.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, ChevronDown, ChevronRight } from "lucide-react";
 
@@ -516,9 +516,8 @@ export function FeedbackTriageScreen() {   const { role } = useCurrentRole(); co
                 </thead>
                 <tbody>
                   {reports.map((report) => (
-                    <>
+                    <Fragment key={report.id}>
                       <tr
-                        key={report.id}
                         className="border-b border-default last:border-0 hover:bg-surface-elevated/50 transition-colors cursor-pointer"
                         onClick={() =>
                           setExpandedId((prev) => (prev === report.id ? null : report.id))
@@ -596,7 +595,7 @@ export function FeedbackTriageScreen() {   const { role } = useCurrentRole(); co
                       </tr>
 
                       {expandedId === report.id ? (
-                        <tr key={`${report.id}-detail`}>
+                        <tr>
                           <td colSpan={9} className="px-4 pb-4 pt-1 bg-surface-elevated/30">
                             <div className="mb-3 space-y-2 text-sm">
                               <div>
@@ -631,7 +630,7 @@ export function FeedbackTriageScreen() {   const { role } = useCurrentRole(); co
                           </td>
                         </tr>
                       ) : null}
-                    </>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
