@@ -8,3 +8,5 @@ export type {
   ManualDocType,
 } from "./types/manuals";
 export { MANUAL_DOC_TYPE_LABELS } from "./types/manuals";
+export { InstalledSystemManualsCard } from "./components/InstalledSystemManualsCard";
+export type { InstalledSystemManualsView, InstalledSystemManual } from "./types/manuals";
