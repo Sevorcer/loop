@@ -27,6 +27,7 @@ describe("readDriveSyncConfig", () => {
       missing: [],
       folderCount: 1,
       serviceAccountEmail: "loop@proj.iam.gserviceaccount.com",
+      customerFolderConfigured: false,
     });
     expect(JSON.stringify(status)).not.toContain("PRIVATE KEY");
     expect(config?.privateKey).toContain("\n");

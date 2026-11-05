@@ -9,6 +9,16 @@
  *   GOOGLE_DRIVE_MANUAL_FOLDER_IDS            comma-separated Drive folder ids shared
  *                                             with the service account as Viewer
  *
+ * Optional (portal delivery, Collin's option b):
+ *
+ *   GOOGLE_DRIVE_CUSTOMER_MANUALS_FOLDER_ID   the curated "Customer manuals" folder,
+ *                                             shared "anyone with the link". Files
+ *                                             directly inside it (or its subfolders)
+ *                                             are marked portal-eligible. Usually a
+ *                                             subfolder of a manual folder; if not,
+ *                                             it is walked as an extra root and must
+ *                                             also be shared with the service account.
+ *
  * Values are never logged or returned — only the NAMES of missing vars.
  */
 
@@ -18,12 +28,15 @@ export const DRIVE_ENV = {
   email: "GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL",
   privateKey: "GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY",
   folderIds: "GOOGLE_DRIVE_MANUAL_FOLDER_IDS",
+  customerFolderId: "GOOGLE_DRIVE_CUSTOMER_MANUALS_FOLDER_ID",
 } as const;
 
 export interface DriveSyncConfig {
   serviceAccountEmail: string;
   privateKey: string;
   folderIds: string[];
+  /** The portal "Customer manuals" folder, or null when not configured. */
+  customerFolderId: string | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -53,6 +66,7 @@ export function readDriveSyncConfig(env: Env = process.env): {
   const email = (env[DRIVE_ENV.email] ?? "").trim();
   const privateKey = normalizePrivateKey(env[DRIVE_ENV.privateKey]);
   const folderIds = parseFolderIds(env[DRIVE_ENV.folderIds]);
+  const customerFolderId = parseFolderIds(env[DRIVE_ENV.customerFolderId])[0] ?? null;
 
   const missing: string[] = [];
   if (!email || !email.includes("@")) missing.push(DRIVE_ENV.email);
@@ -64,10 +78,11 @@ export function readDriveSyncConfig(env: Env = process.env): {
     missing,
     folderCount: folderIds.length,
     serviceAccountEmail: email && email.includes("@") ? email : null,
+    customerFolderConfigured: customerFolderId !== null,
   };
 
   return {
-    config: status.configured ? { serviceAccountEmail: email, privateKey, folderIds } : null,
+    config: status.configured ? { serviceAccountEmail: email, privateKey, folderIds, customerFolderId } : null,
     status,
   };
 }

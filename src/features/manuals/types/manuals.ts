@@ -68,6 +68,11 @@ export interface DriveManualFile {
   manufacturer: string | null;
   models: string[];
   status: DriveManualStatus;
+  /**
+   * True when the file sits in the "Customer manuals" Drive folder (shared
+   * anyone-with-the-link), so the builder portal may link to it.
+   */
+  portalEligible: boolean;
   lastSeenAt: string;
   updatedAt: string;
 }
@@ -83,6 +88,8 @@ export interface DriveListedFile {
   modifiedTime: string | null;
   webViewLink: string;
   sizeBytes: number | null;
+  /** Directly inside the Customer manuals folder (never via a shortcut). */
+  portalEligible: boolean;
 }
 
 export interface DriveManualSyncRun {
@@ -105,6 +112,8 @@ export interface DriveManualsConfigStatus {
   missing: string[];
   folderCount: number;
   serviceAccountEmail: string | null;
+  /** True when GOOGLE_DRIVE_CUSTOMER_MANUALS_FOLDER_ID is set (optional). */
+  customerFolderConfigured: boolean;
 }
 
 export interface DriveManualsSnapshot {
@@ -141,7 +150,7 @@ export interface ManualMatchSubject {
 
 /** A manual shown on an installed system: stored decision or live suggestion. */
 export interface InstalledSystemManual {
-  manual: Pick<DriveManualFile, "id" | "name" | "webViewLink" | "docType" | "manufacturer" | "models" | "folderPath" | "mimeType" | "status">;
+  manual: Pick<DriveManualFile, "id" | "name" | "webViewLink" | "docType" | "manufacturer" | "models" | "folderPath" | "mimeType" | "status" | "portalEligible">;
   status: ManualLinkStatus | "match";
   source: ManualLinkSource | "live";
   kind: ManualMatchKind;

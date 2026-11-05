@@ -68,6 +68,9 @@ function ManualItem({
               .filter(Boolean)
               .join(" · ")}
             {item.manual.status === "removed" ? " · no longer in Drive" : ""}
+            {isLinked && item.manual.portalEligible && item.manual.status === "active"
+              ? " · shown in builder portal"
+              : ""}
           </p>
           {item.reason ? <p className="mt-0.5 text-xs text-slate-500">{item.reason}</p> : null}
         </div>

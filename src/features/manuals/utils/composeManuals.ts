@@ -38,6 +38,7 @@ function manualSummary(file: DriveManualFile): InstalledSystemManual["manual"] {
     models: file.models,
     folderPath: file.folderPath,
     mimeType: file.mimeType,
+    portalEligible: file.portalEligible === true,
     status: file.status,
   };
 }
