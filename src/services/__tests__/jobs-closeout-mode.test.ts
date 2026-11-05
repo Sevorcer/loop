@@ -367,3 +367,41 @@ describe("updateJobStatus — completion gating by closeout mode", () => {
     expect(updateJobMock).toHaveBeenCalledWith("job-001", { status: "Completed" });
   });
 });
+
+
+describe("stage-aware full closeout (prep / rough-in)", () => {
+  it("lets a prep visit complete without an installed system or startup QA", async () => {
+    getJobByIdMock.mockResolvedValue(
+      makeJob({
+        closeoutMode: "full",
+        title: "Lineset/ODU Prep",
+        summary: "Place ODU/Connect lineset side and get lines under pressure",
+        notes: "Lineset under pressure; back tomorrow for startup.",
+      }),
+    );
+    listFilesMock.mockResolvedValue([
+      { id: "f1", mimeType: "image/jpeg", bucket: "job-files", uploadedBy: "tech-1" },
+    ]);
+    getInstalledSystemsSnapshotMock.mockResolvedValue({ installedSystems: [] });
+    listActivityByJobIdMock.mockResolvedValue([
+      {
+        id: "qa-1",
+        jobId: "job-001",
+        type: "qa",
+        title: "QA checklist updated",
+        description: JSON.stringify({
+          startupVerificationComplete: false,
+          safetyReviewComplete: true,
+          workAreaCleaned: true,
+        }),
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+    listJobNotesMock.mockResolvedValue([{ id: "n1", body: "note" }]);
+
+    const checklist = await getJobCompletionChecklist("job-001", "tech");
+    expect(checklist.requiresInstallGates).toBe(false);
+    expect(checklist.requiredQaItemsComplete).toBe(true);
+    expect(checklist.canComplete).toBe(true);
+  });
+});

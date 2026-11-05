@@ -105,6 +105,10 @@ export function buildCloseoutSteps(
   if (checklist.closeoutMode === "visit") {
     return steps.filter((step) => step.key === "note");
   }
+  // Prep / rough-in visits keep photo + QA + note, but skip installed systems.
+  if (checklist.requiresInstallGates === false) {
+    return steps.filter((step) => step.key !== "systems");
+  }
   return steps;
 }
 

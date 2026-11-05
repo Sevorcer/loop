@@ -6,7 +6,7 @@ import { CalendarClock, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import {
-  isRequiredQaChecklistComplete,
+  isRequiredQaChecklistCompleteForStage,
   REQUIRED_QA_CHECKLIST_ITEMS,
   type RequiredQaChecklist,
 } from "@/features/jobs/utils/jobCompletionChecklist";
@@ -30,6 +30,7 @@ export function JobCompletionChecklistCard({
   installedSystemsEntered,
   jobNotesCompleted,
   closeoutMode = "full",
+  requiresInstallGates = true,
   finalDayBlocker = null,
   signatureCaption,
   signaturePreviewUrl,
@@ -40,6 +41,7 @@ export function JobCompletionChecklistCard({
   installedSystemsEntered: boolean;
   jobNotesCompleted: boolean;
   closeoutMode?: JobCloseoutMode;
+  requiresInstallGates?: boolean;
   /**
    * The multi-day final-day block while it stands (see
    * finalScheduledDayBlocker) — applies in both closeout modes.
@@ -56,13 +58,16 @@ export function JobCompletionChecklistCard({
   const [success, setSuccess] = useState<string | null>(null);
 
   const visitMode = closeoutMode === "visit";
-  const qaComplete = isRequiredQaChecklistComplete(qaChecklist);
+  const qaComplete = isRequiredQaChecklistCompleteForStage(qaChecklist, requiresInstallGates);
   const gatesComplete = useMemo(
     () =>
       visitMode
         ? jobNotesCompleted
-        : photosUploaded && installedSystemsEntered && jobNotesCompleted && qaComplete,
-    [installedSystemsEntered, jobNotesCompleted, photosUploaded, qaComplete, visitMode],
+        : photosUploaded &&
+          (!requiresInstallGates || installedSystemsEntered) &&
+          jobNotesCompleted &&
+          qaComplete,
+    [installedSystemsEntered, jobNotesCompleted, photosUploaded, qaComplete, requiresInstallGates, visitMode],
   );
   // Mirrors the server: the final-day block keeps the card from reading
   // "ready" even when every checklist item is done.
@@ -94,7 +99,9 @@ export function JobCompletionChecklistCard({
             <p className="mt-1 text-sm text-slate-400">
               {visitMode
                 ? "Visit closeout — a job note is all this job needs to be marked complete. The other items are tracked for reference only."
-                : "All checklist items must be complete before marking this job complete."}
+                : requiresInstallGates
+                  ? "All checklist items must be complete before marking this job complete."
+                  : "Prep / rough-in visit — photo, notes, and safety QA are required. Startup verification and an installed system are not."}
             </p>
           </div>
         </div>
@@ -115,7 +122,11 @@ export function JobCompletionChecklistCard({
             </div>
           ) : null}
           <ChecklistRow label="Photos uploaded" complete={photosUploaded} />
-          <ChecklistRow label="Installed systems entered" complete={installedSystemsEntered} />
+          {requiresInstallGates ? (
+            <ChecklistRow label="Installed systems entered" complete={installedSystemsEntered} />
+          ) : (
+            <ChecklistRow label="Installed systems (not required for this visit)" complete={true} />
+          )}
           <ChecklistRow label="Job notes completed" complete={jobNotesCompleted} />
           <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
             <div className="flex items-center justify-between gap-3">
@@ -147,11 +158,15 @@ export function JobCompletionChecklistCard({
             Required QA items
           </p>
           <div className="mt-3 space-y-2">
-            {REQUIRED_QA_CHECKLIST_ITEMS.map(({ key, label }) => (
+            {REQUIRED_QA_CHECKLIST_ITEMS.map(({ key, label }) => {
+              const optionalStartup =
+                key === "startupVerificationComplete" && !requiresInstallGates;
+              return (
               <label key={key} className="flex items-center gap-2 text-sm text-slate-200">
                 <input
                   type="checkbox"
-                  checked={qaChecklist[key]}
+                  checked={optionalStartup ? true : qaChecklist[key]}
+                  disabled={optionalStartup}
                   onChange={(event) =>
                     setQaChecklist((current) => ({
                       ...current,
@@ -159,9 +174,10 @@ export function JobCompletionChecklistCard({
                     }))
                   }
                 />
-                {label}
+                {optionalStartup ? `${label} (not required for this visit)` : label}
               </label>
-            ))}
+              );
+            })}
           </div>
           <div className="mt-3 flex justify-end">
             <Button variant="secondary" onClick={() => void saveChecklist()} disabled={saving}>
