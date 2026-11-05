@@ -281,7 +281,6 @@ describe("listProductionSources with a report window (Bundle C perf fix 3)", () 
     // than the default 5s test timeout on a loaded machine.
   }, 60_000);
   
-
   it("keeps chunk order deterministic while reading chunks in parallel", async () => {
     const { jobs } = await listProductionSources(true);
     expect(jobs.map((job) => job.id)).toEqual(
