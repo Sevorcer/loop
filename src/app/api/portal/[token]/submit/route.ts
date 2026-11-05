@@ -1,12 +1,12 @@
 /**
- * Portal Issue/Request Submission API — GC Portal Task 4
+ * Portal Issue/Request Submission API — GC Portal Task 4 + Triage Queue
  *
  * POST /api/portal/[token]/submit — submit an issue or request
  *
  * Access: public (token is the sole authorization).
  * Rate-limited per token to prevent abuse.
  *
- * Body: { name: string, contact?: string, message: string }
+ * Body: { name: string, company: string, contact?: string, message: string }
  */
 
 import { NextResponse } from "next/server";
@@ -51,12 +51,20 @@ export async function POST(
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
+  const company = typeof body.company === "string" ? body.company.trim() : "";
   const contact = typeof body.contact === "string" ? body.contact.trim() : "";
   const message = typeof body.message === "string" ? body.message.trim() : "";
 
   if (!name) {
     return NextResponse.json(
       { error: "VALIDATION_ERROR", message: "Name is required.", code: 400 },
+      { status: 400 },
+    );
+  }
+
+  if (!company) {
+    return NextResponse.json(
+      { error: "VALIDATION_ERROR", message: "Company is required.", code: 400 },
       { status: 400 },
     );
   }
@@ -93,8 +101,10 @@ export async function POST(
         job_id: resolved.jobId,
         share_link_id: resolved.id,
         name,
+        submitter_company: company,
         contact,
         message,
+        status: "unreviewed",
         // Untyped admin client: portal_submissions is not in the generated
         // types, so the insert payload resolves to never[] without the cast.
       } as never)
