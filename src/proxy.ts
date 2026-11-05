@@ -40,6 +40,12 @@ import {
   incrementAuthMetric,
   logAuthEvent,
 } from "@/lib/observability/auth";
+import { resolveAuthoritativeRole } from "@/features/auth/utils/appRole";
+import {
+  applyTrustedAuthHeaders,
+  stripTrustedAuthHeaders,
+} from "@/lib/auth/trustedRequestAuth";
+import type { AppRole } from "@/services/authorization";
 
 // ---------------------------------------------------------------------------
 // Middleware
@@ -61,9 +67,14 @@ export async function proxy(request: NextRequest) {
     return applyTraceHeaders(NextResponse.next(), trace);
   }
 
+  // Forwarded request headers: strip any client-supplied trusted-auth
+  // headers first so a caller cannot self-assert a role/org.
+  const forwardHeaders = new Headers(request.headers);
+  stripTrustedAuthHeaders(forwardHeaders);
+
   // Build a response object that we can attach Set-Cookie headers to.
   let response = NextResponse.next({
-    request,
+    request: { headers: forwardHeaders },
   });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -101,7 +112,9 @@ export async function proxy(request: NextRequest) {
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
-        response = NextResponse.next({ request });
+        response = NextResponse.next({
+          request: { headers: forwardHeaders },
+        });
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }
@@ -109,8 +122,32 @@ export async function proxy(request: NextRequest) {
     },
   });
 
+  // Prefer getClaims() (local JWT verify via JWKS when asymmetric signing
+  // keys are enabled) over getUser() (always a network call to Auth).
   const resolved = await resolveAuthRefresh({
-    getUser: () => supabase.auth.getUser(),
+    getUser: async () => {
+      if (typeof supabase.auth.getClaims === "function") {
+        try {
+          const claimsResult = await supabase.auth.getClaims();
+          const sub = claimsResult.data?.claims?.sub;
+          if (sub) {
+            return {
+              data: {
+                user: {
+                  id: sub,
+                  app_metadata: claimsResult.data?.claims?.app_metadata ?? {},
+                  user_metadata: claimsResult.data?.claims?.user_metadata ?? {},
+                },
+              },
+              error: null,
+            };
+          }
+        } catch {
+          // Fall through to getUser.
+        }
+      }
+      return supabase.auth.getUser();
+    },
     getSession: () => supabase.auth.getSession(),
     clearSession: async () => {
       await supabase.auth.signOut();
@@ -161,7 +198,32 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && resolved.user?.id) {
-    const role = await lookupAppRole(supabase, resolved.user.id);
+    const profile = await lookupAppProfile(supabase, resolved.user.id);
+    // PR #281: role comes from user_profiles (app_role). Locked app_metadata
+    // is only a fallback when the profile row has no role yet.
+    const role =
+      resolveAuthoritativeRole(
+        profile.role,
+        typeof resolved.user.app_metadata?.app_role === "string"
+          ? (resolved.user.app_metadata.app_role as string)
+          : typeof resolved.user.app_metadata?.role === "string"
+            ? (resolved.user.app_metadata.role as string)
+            : null,
+      ) ?? profile.role;
+
+    if (role && resolved.user.id) {
+      applyTrustedAuthHeaders(forwardHeaders, {
+        userId: resolved.user.id,
+        role,
+        orgId: profile.orgId,
+      });
+      // Rebuild the forwarded response so route handlers see the trusted headers.
+      const cookies = response.cookies.getAll();
+      response = NextResponse.next({ request: { headers: forwardHeaders } });
+      for (const cookie of cookies) {
+        response.cookies.set(cookie);
+      }
+    }
 
     // Check role-based denied paths (tech, sales, office restrictions)
     if (isRoleDeniedPath(role, pathname) || (role === "tech" && isTechDeniedApiPath(pathname))) {
@@ -222,20 +284,27 @@ export async function proxy(request: NextRequest) {
   return applyTraceHeaders(response, trace);
 }
 
-async function lookupAppRole(
+async function lookupAppProfile(
   supabase: ReturnType<typeof createServerClient>,
   userId: string,
-): Promise<string | null> {
+): Promise<{ role: AppRole | null; orgId: string | null }> {
   try {
     const { data } = await supabase
       .from("user_profiles")
-      .select("app_role")
+      .select("app_role,org_id")
       .eq("id", userId)
       .maybeSingle();
-    const role = (data as { app_role?: string | null } | null)?.app_role;
-    return typeof role === "string" ? role : null;
+    const row = data as { app_role?: string | null; org_id?: string | null } | null;
+    const roleRaw = row?.app_role;
+    const role =
+      typeof roleRaw === "string" &&
+      ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"].includes(roleRaw)
+        ? (roleRaw as AppRole)
+        : null;
+    const orgId = typeof row?.org_id === "string" && row.org_id ? row.org_id : null;
+    return { role, orgId };
   } catch {
-    return null;
+    return { role: null, orgId: null };
   }
 }
 
