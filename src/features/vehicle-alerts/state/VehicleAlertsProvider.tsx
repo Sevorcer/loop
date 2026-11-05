@@ -20,6 +20,8 @@ import type {
 } from "../types/vehicleAlert";
 
 export interface CreateVehicleAlertInput {
+  /** Picked vehicle; when set the server uses its name. */
+  vehicleId?: string | null;
   vehicleName: string;
   title: string;
   description: string;
@@ -70,6 +72,7 @@ export function VehicleAlertsProvider({ children }: { children: ReactNode }) {
     (input: CreateVehicleAlertInput): VehicleAlert => {
       const optimistic: VehicleAlert = {
         id: `pending-${crypto.randomUUID()}`,
+        vehicleId: input.vehicleId ?? null,
         vehicleName: input.vehicleName.trim(),
         title: input.title.trim(),
         description: input.description.trim(),
@@ -90,6 +93,7 @@ export function VehicleAlertsProvider({ children }: { children: ReactNode }) {
               method: "POST",
               role,
               body: {
+                vehicleId: optimistic.vehicleId ?? undefined,
                 vehicleName: optimistic.vehicleName,
                 title: optimistic.title,
                 description: optimistic.description,

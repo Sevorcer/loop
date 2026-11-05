@@ -7,10 +7,16 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 
 import { VehicleAlertTable } from "../components/VehicleAlertTable";
+import { useVehicleOptions } from "../hooks/useVehicleOptions";
 import { useVehicleAlerts } from "../state/VehicleAlertsProvider";
 import type { VehicleAlertPriority } from "../types/vehicleAlert";
 
+/** Select value meaning "type a name instead" (used before any vehicle exists, or for an unlisted one). */
+const OTHER_VEHICLE = "__other__";
+
 interface NewVehicleAlertFormValues {
+  /** A vehicle id, OTHER_VEHICLE, or "" while nothing is chosen. */
+  vehicleChoice: string;
   vehicleName: string;
   title: string;
   description: string;
@@ -19,6 +25,7 @@ interface NewVehicleAlertFormValues {
 }
 
 const defaultFormValues: NewVehicleAlertFormValues = {
+  vehicleChoice: "",
   vehicleName: "",
   title: "",
   description: "",
@@ -31,8 +38,13 @@ export function VehicleAlertsScreen() {
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
   const [form, setForm] = useState<NewVehicleAlertFormValues>(defaultFormValues);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { options: vehicleOptions } = useVehicleOptions();
+  // With no vehicles on file there is nothing to pick, so typing a name is the only way to report.
+  const typingName = vehicleOptions.length === 0 || form.vehicleChoice === OTHER_VEHICLE;
+  const pickedVehicle = vehicleOptions.find((option) => option.id === form.vehicleChoice) ?? null;
+  const hasVehicle = typingName ? form.vehicleName.trim().length > 0 : pickedVehicle !== null;
   const canSubmit =
-    form.vehicleName.trim().length > 0 &&
+    hasVehicle &&
     form.title.trim().length > 0 &&
     form.description.trim().length > 0 &&
     form.reportedBy.trim().length > 0;
@@ -63,7 +75,8 @@ export function VehicleAlertsScreen() {
     }
 
     createAlert({
-      vehicleName: form.vehicleName,
+      vehicleId: typingName ? null : pickedVehicle?.id ?? null,
+      vehicleName: typingName ? form.vehicleName : pickedVehicle?.name ?? "",
       title: form.title,
       description: form.description,
       reportedBy: form.reportedBy,
@@ -111,13 +124,32 @@ export function VehicleAlertsScreen() {
                 <label className="text-sm font-medium text-slate-200">
                   Vehicle
                 </label>
-                <input
-                  value={form.vehicleName}
-                  onChange={(e) => updateField("vehicleName", e.target.value)}
-                  placeholder="Install Van 4"
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                  required
-                />
+                {vehicleOptions.length > 0 ? (
+                  <select
+                    value={form.vehicleChoice}
+                    onChange={(e) => updateField("vehicleChoice", e.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+                    required
+                  >
+                    <option value="">Choose a vehicle</option>
+                    {vehicleOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                    <option value={OTHER_VEHICLE}>Other / not listed</option>
+                  </select>
+                ) : null}
+                {typingName ? (
+                  <input
+                    value={form.vehicleName}
+                    onChange={(e) => updateField("vehicleName", e.target.value)}
+                    placeholder="Install Van 4"
+                    aria-label="Vehicle name"
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
+                    required
+                  />
+                ) : null}
               </div>
 
               <div className="space-y-2">
