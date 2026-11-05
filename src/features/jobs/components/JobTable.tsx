@@ -119,7 +119,7 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
 
   // Reset page when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    setCurrentPage(() => 1);
   }, [statusFilter, typeFilter, priorityFilter]);
 
   // ── Fetch paginated data ────────────────────────────────────────────
@@ -127,10 +127,10 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
     if (!role) return;
 
     const id = ++fetchIdRef.current;
-    setLoading(true);
+    setLoading(() => true);
 
     try {
-      setError(null);
+      setError(() => null);
       const params = new URLSearchParams();
       params.set("page", String(currentPage));
       params.set("pageSize", String(PAGE_SIZE));
@@ -148,16 +148,16 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
 
       // Only apply if this is still the latest fetch
       if (id === fetchIdRef.current) {
-        setJobs(response.jobs);
-        setTotal(response.total);
+        setJobs(() => response.jobs);
+        setTotal(() => response.total);
       }
     } catch (loadError) {
       if (id === fetchIdRef.current) {
-        setError(loadError instanceof Error ? loadError.message : "Failed to load jobs.");
+        setError(() => loadError instanceof Error ? loadError.message : "Failed to load jobs.");
       }
     } finally {
       if (id === fetchIdRef.current) {
-        setLoading(false);
+        setLoading(() => false);
       }
     }
   }, [role, currentPage, statusFilter, typeFilter, priorityFilter, completedDateFilter, debouncedSearch]);

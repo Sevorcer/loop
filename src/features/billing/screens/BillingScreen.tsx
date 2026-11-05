@@ -35,15 +35,15 @@ export function BillingScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadJobs = useCallback(async (tab: BillingTab) => {
-    setIsLoading(true);
+    setIsLoading(() => true);
     try {
       const jobs = await fetchReadyToBill(tab);
-      if (tab === "install") setInstallJobs(jobs);
-      else setServiceJobs(jobs);
+      if (tab === "install") setInstallJobs(() => jobs);
+      else setServiceJobs(() => jobs);
     } catch {
       // Silently handle — empty list is shown
     } finally {
-      setIsLoading(false);
+      setIsLoading(() => false);
     }
   }, []);
 

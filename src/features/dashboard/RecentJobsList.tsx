@@ -39,16 +39,16 @@ export function RecentJobsList() {
       return;
     }
 
-    setStatus("loading");
+    setStatus(() => "loading");
     try {
       const response = await requestJson<{ jobs: Job[] }>(
         `/api/jobs/recent?limit=${RECENT_LIMIT}`,
         { role, cache: "no-store" },
       );
-      setJobs(response.jobs);
-      setStatus("ready");
+      setJobs(() => response.jobs);
+      setStatus(() => "ready");
     } catch {
-      setStatus("error");
+      setStatus(() => "error");
     }
   }, [role]);
 

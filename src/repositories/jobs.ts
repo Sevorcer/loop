@@ -453,7 +453,7 @@ export async function listJobsPaginated(
   // Helper: apply shared filters to a query builder (works for both data
   // and count queries). The builder type is generic enough for both select
   // overloads Supabase provides.
-  function applyFilters<Q extends { eq: Function; in: Function; ilike: Function; or: Function; is: Function; gte: Function }>(
+  function applyFilters<Q extends { eq: (column: string, value: unknown) => unknown; in: (column: string, values: unknown[]) => unknown; ilike: (column: string, pattern: string) => unknown; or: (filters: string, options?: { foreignTable?: string }) => unknown; is: (column: string, value: null) => unknown; gte: (column: string, value: unknown) => unknown }>(
     query: Q,
   ): Q {
     let q = (query.eq("org_id", orgId) as Q);

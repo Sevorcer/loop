@@ -32,17 +32,17 @@ export function GcOverviewScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchBuilders = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(() => true);
+    setError(() => null);
     try {
       const res = await fetch("/api/gc-overview");
       if (!res.ok) throw new Error("Failed to fetch");
       const { builders: data } = await res.json();
-      setBuilders(data ?? []);
+      setBuilders(() => data ?? []);
     } catch {
-      setError("Failed to load builder overview.");
+      setError(() => "Failed to load builder overview.");
     } finally {
-      setLoading(false);
+      setLoading(() => false);
     }
   }, []);
 

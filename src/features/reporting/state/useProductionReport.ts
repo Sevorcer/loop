@@ -67,13 +67,16 @@ export function useProductionReport(from: string, to: string): UseProductionRepo
   // state change, and a guard so a page from a previous range is dropped.
   const loadedRef = useRef<LoadedReport | null>(null);
   const rangeRef = useRef({ from, to });
-  loadedRef.current = loaded;
+
+  useEffect(() => {
+    loadedRef.current = loaded;
+  }, [loaded]);
 
   useEffect(() => {
     rangeRef.current = { from, to };
     let cancelled = false;
-    setLoadingMore(false);
-    setLoaded(null);
+    setLoadingMore(() => false);
+    setLoaded(() => null);
 
     async function loadFirst() {
       try {

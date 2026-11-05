@@ -331,6 +331,7 @@ export function JobDetailScreen({
          * The proper fix (loading.tsx/error.tsx Suspense boundary on jobs/[id],
          * PR #325) should let soft nav commit again and retire this workaround.
          */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- hard-navigation required: PRs #324/#326 fix soft-nav bug */}
         <a href="/jobs" data-testid="back-to-jobs-link">
           <Button
             type="button"

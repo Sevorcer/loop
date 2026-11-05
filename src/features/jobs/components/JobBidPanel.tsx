@@ -193,12 +193,12 @@ export function JobBidPanel({ jobId }: JobBidPanelProps) {
   const fetchBids = useCallback(async () => {
     try {
       const result = await requestJson<{ bids: JobBid[] }>(`/api/jobs/${jobId}/bids`, { role });
-      setBids(result.bids);
+      setBids(() => result.bids);
     } catch {
       // Table may not exist yet; silently show empty state.
-      setBids([]);
+      setBids(() => []);
     } finally {
-      setLoading(false);
+      setLoading(() => false);
     }
   }, [jobId, role]);
 

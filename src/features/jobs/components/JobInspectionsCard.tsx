@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, ClipboardCheck, Plus, XCircle } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
@@ -81,9 +81,9 @@ export function JobInspectionsCard({ jobId, canEdit }: JobInspectionsCardProps) 
       const res = await fetch(`/api/jobs/${jobId}/inspections`);
       if (!res.ok) return;
       const json = (await res.json()) as { inspections: Inspection[] };
-      setInspections(json.inspections ?? []);
+      setInspections(() => json.inspections ?? []);
     } finally {
-      setLoading(false);
+      setLoading(() => false);
     }
   }, [jobId]);
 
@@ -118,17 +118,22 @@ export function JobInspectionsCard({ jobId, canEdit }: JobInspectionsCardProps) 
     [jobId, fetchCorrections],
   );
 
+  // Track which correction IDs have been fetched via a ref to avoid reading
+  // corrections state inside useEffect (which would re-trigger the effect).
+  const fetchedCorrectionIdsRef = useRef<Set<string>>(new Set());
+
   // Load corrections for failed/partial inspections
   useEffect(() => {
     const needCorrections = inspections.filter(
       (i) => i.result === "failed" || i.result === "partial",
     );
     for (const insp of needCorrections) {
-      if (!corrections[insp.id]) {
+      if (!fetchedCorrectionIdsRef.current.has(insp.id)) {
+        fetchedCorrectionIdsRef.current.add(insp.id);
         void fetchCorrections(insp.id);
       }
     }
-  }, [inspections, corrections, fetchCorrections]);
+  }, [inspections, fetchCorrections]);
 
   if (loading) {
     return (
