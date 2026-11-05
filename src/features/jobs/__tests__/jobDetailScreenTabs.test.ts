@@ -73,6 +73,10 @@ vi.mock("../components/AssignContractorPanel", async () => {
   const { createElement: ce } = await import("react");
   return { AssignContractorPanel: () => ce("div", null, "Contractor stub") };
 });
+vi.mock("../components/JobNotificationsCard", async () => {
+  const { createElement: ce } = await import("react");
+  return { JobNotificationsCard: () => ce("div", null, "Notifications stub") };
+});
 
 vi.mock("../components/CreateCallbackPanel", async () => {
   const { createElement: ce } = await import("react");
