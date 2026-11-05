@@ -59,7 +59,12 @@ export interface Job {
   notes: string;
   // Closeout mode (migration 20261102000000) — absent when the column has
   // not been applied yet; readers treat anything but "visit" as "full".
-  closeoutMode?: JobCloseoutMode;
+      closeoutMode?: JobCloseoutMode;
+    // Customer notifications (migration 20261121600000) — opt-in per job,
+    // default off; enRouteAt is stamped on the first "On The Way" tap.
+    customerNotificationsEnabled?: boolean;
+    enRouteAt?: string | null;
+  
   contractorIds?: string[];   assignees?: { id: string; name: string }[];
   /** People on the job when it was first marked completed. */
   completionTeam?: { id: string | null; name: string }[];

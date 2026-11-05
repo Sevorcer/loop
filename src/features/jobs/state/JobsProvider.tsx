@@ -222,7 +222,53 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       return { ok: true };
     }
 
-    async function removeContractorAssignment(jobId: string, contractorId: string) {
+      async function setJobNotifications(jobId: string, enabled: boolean) {
+    try {
+      const response = await requestJson<{
+        job: Job;
+        email: { sent: boolean; reason?: string };
+      }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        role,
+        body: { action: "notifications", enabled },
+      });
+      await refreshJobs();
+      return { ok: true as const, email: response.email };
+    } catch (requestError) {
+      return {
+        ok: false as const,
+        error:
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to update customer notifications.",
+      };
+    }
+  }
+
+  async function markJobEnRoute(jobId: string) {
+    try {
+      const response = await requestJson<{
+        job: Job;
+        email: { sent: boolean; reason?: string };
+      }>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        role,
+        body: { action: "en_route" },
+      });
+      await refreshJobs();
+      return { ok: true as const, email: response.email };
+    } catch (requestError) {
+      return {
+        ok: false as const,
+        error:
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to mark on the way.",
+      };
+    }
+  }
+
+  async function removeContractorAssignment(jobId: string, contractorId: string) {
       await requestJson<{ job: Job }>(`/api/jobs/${jobId}`, {
         method: "PATCH",
         role,
@@ -245,7 +291,9 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       addJobNote,
       assignContractor,
       removeContractorAssignment,
-      refreshJobs,
+    setJobNotifications,
+    markJobEnRoute,
+    refreshJobs,
       loadJobDetails,
       ensureJobsLoaded,
       reload,

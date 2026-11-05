@@ -19,11 +19,15 @@ import {
   updateRequiredQaChecklist,
   setJobNotes,
 } from "@/services/jobs";
+import {
+    markJobEnRoute,
+    setJobNotifications,
+} from "@/services/customerNotifications";
 import { normalizeQaChecklist } from "@/features/jobs/utils/jobCompletionChecklist";
 
 import type { JobAppointmentHour, JobCloseoutMode } from "@/features/jobs/types/job";
 
-const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "contractor", "soft-delete", "restore"]);
+const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "contractor", "soft-delete", "restore", "notifications", "en_route"]);
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
 const JOB_CLOSEOUT_MODES = new Set(["full", "visit"]);
@@ -150,6 +154,19 @@ export async function PATCH(
       );
     }
 
+    // Customer notifications are an office decision (#35); techs get the
+    // "On The Way" tap (en_route) but not the opt-in toggle.
+    if (guard.ctx.role === "tech" && action === "notifications") {
+            return NextResponse.json(
+              {
+                          error: "forbidden",
+                          message: "Technicians cannot change customer notification settings.",
+                          code: 403,
+              },
+              { status: 403 },
+                  );
+    }
+    
     if (guard.ctx.role === "tech" && action === "status" && String(body.status ?? "") === "Cancelled") {
       return NextResponse.json(
         {
@@ -216,7 +233,17 @@ export async function PATCH(
             ? await restoreJob(id, {
                 actorId: guard.ctx.userId,
                 role: guard.ctx.role,
-              })
+                                    })
+                : action === "notifications"
+                ? await setJobNotifications(id, body.enabled === true, {
+                                  actorId: guard.ctx.userId,
+                                  role: guard.ctx.role,
+                })
+                : action === "en_route"
+                ? await markJobEnRoute(id, {
+                                  actorId: guard.ctx.userId,
+                                  role: guard.ctx.role,
+                })
           : await updateJob(id, {
               estimateId:
                 body.estimateId !== undefined ? String(body.estimateId).trim() : undefined,
@@ -269,7 +296,11 @@ export async function PATCH(
     if (action === "restore") {
       return NextResponse.json({ message: "Job restored.", id });
     }
-
+        if (action === "notifications" || action === "en_route") {
+                const outcome = result as { job: unknown; email: unknown };
+                return NextResponse.json({ job: outcome.job, email: outcome.email });
+        }
+    
     return NextResponse.json({ job: result });
   } catch (error) {
     logWriteFailure({ route: "/api/jobs/[id]", request }, error);
