@@ -70,6 +70,19 @@ export interface JobsStoreValue {
     contractorId: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
   removeContractorAssignment: (jobId: string, contractorId: string) => Promise<void>;
+  setJobNotifications: (
+    jobId: string,
+    enabled: boolean,
+  ) => Promise<
+    | { ok: true; email: { sent: boolean; reason?: string } }
+    | { ok: false; error: string }
+  >;
+  markJobEnRoute: (
+    jobId: string,
+  ) => Promise<
+    | { ok: true; email: { sent: boolean; reason?: string } }
+    | { ok: false; error: string }
+  >;
   refreshJobs: () => Promise<void>;
   loadJobDetails: (jobId: string) => Promise<void>;
   reload: () => Promise<void>;
