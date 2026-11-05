@@ -3,7 +3,9 @@ export const ROUTES = {
   SIGN_IN: "/sign-in",
   UPDATE_PASSWORD: "/update-password",
   DASHBOARD: "/dashboard",
+  /** Operations (formerly Command Center). The old /operations launcher hub was removed 2026-11-05. */
   OPERATIONS: "/operations",
+  /** Legacy address — redirects to OPERATIONS. Kept so old bookmarks and saved settings resolve. */
   COMMAND_CENTER: "/command-center",
   PROPERTIES: "/properties",
   JOBS: "/jobs",
@@ -13,6 +15,7 @@ export const ROUTES = {
   VEHICLE_ALERTS: "/vehicle-alerts",
   DAILY_PLANS: "/daily-plans",
   CALENDAR: "/calendar",
+  /** Legacy address — redirects into Operations. */
   LIVE_OPERATIONS: "/live-operations",
   INVENTORY: "/inventory",
   DISPATCH: "/dispatch",

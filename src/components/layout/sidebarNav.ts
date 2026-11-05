@@ -14,7 +14,6 @@ import {
   HardHat,
   AirVent,
   Truck,
-  Workflow,
   MessageSquare,
   Receipt,
   Landmark,
@@ -33,14 +32,12 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
     label: "TODAY",
     items: [
       { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
-      { name: "Command Center", href: ROUTES.COMMAND_CENTER, icon: MonitorDot },
-      { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
+      // "Operations" is the former Command Center (renamed 2026-11-05). The old
+      // Operations launcher hub was removed — it only repeated these links.
+      { name: "Operations", href: ROUTES.OPERATIONS, icon: MonitorDot },
       { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
+      { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
       { name: "Calendar", href: ROUTES.CALENDAR, icon: CalendarRange },
-      // Live Operations hidden 2026-09-30 — mock-data tab, parked until it can
-      // run on real crew/job data (likely folded into Dispatch same-day view).
-      // { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
-      { name: "Operations", href: ROUTES.OPERATIONS, icon: Workflow },
     ],
   },
   {
@@ -83,8 +80,8 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
 // every other role keeps the baseline group/item order unless a user override
 // exists in local preferences.
 const ROLE_NAV_PRESET_ORDER: Partial<Record<AppRole, readonly string[]>> = {
-  owner: [ROUTES.DASHBOARD, ROUTES.COMMAND_CENTER, ROUTES.REPORTING, ROUTES.SETTINGS],
-  dispatch: [ROUTES.DISPATCH, ROUTES.COMMAND_CENTER, ROUTES.JOBS],
+  owner: [ROUTES.DASHBOARD, ROUTES.OPERATIONS, ROUTES.REPORTING, ROUTES.SETTINGS],
+  dispatch: [ROUTES.DISPATCH, ROUTES.OPERATIONS, ROUTES.JOBS],
   tech: [ROUTES.DASHBOARD, ROUTES.JOBS],
 };
 

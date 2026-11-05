@@ -1,11 +1,11 @@
-import { CommandCenterScreen } from "@/features/command-center";
+import { redirect } from "next/navigation";
+
+import { ROUTES } from "@/lib/routes";
 
 /**
- * 60-second revalidation provides stable, jitter-free refresh behavior
- * suitable for always-open usage throughout the business day.
+ * Command Center was renamed "Operations" (2026-11-05) and now lives at
+ * /operations. Keep this address so old bookmarks and links still land on it.
  */
-export const revalidate = 60;
-
 export default function CommandCenterPage() {
-  return <CommandCenterScreen />;
+  redirect(ROUTES.OPERATIONS);
 }

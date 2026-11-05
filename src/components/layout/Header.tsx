@@ -26,22 +26,15 @@ const pageContent: Record<string, PageMeta> = {
     description: "Welcome back. Here's what's happening today.",
   },
   // Operations
+  // Operations = the former Command Center (renamed 2026-11-05).
   [ROUTES.OPERATIONS]: {
     title: "Operations",
-    description: "Coordinate schedules, dispatch, and field execution from one hub.",
-  },
-  [ROUTES.COMMAND_CENTER]: {
-    title: "Command Center",
     description:
       "Operational health at a glance — risk, crew load, and intervention priorities for today.",
   },
   [ROUTES.DAILY_PLANS]: {
     title: "Daily Plans",
     description: "Coordinate schedules, technician priorities, and day-of execution.",
-  },
-  [ROUTES.LIVE_OPERATIONS]: {
-    title: "Live Operations",
-    description: "Monitor active jobs, crew status, and real-time field activity.",
   },
   [ROUTES.DISPATCH]: {
     title: "Dispatch",
@@ -385,7 +378,7 @@ export default function Header({
             <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="hidden h-7 items-center rounded-full border border-red-500/20 bg-gradient-to-r from-red-500/10 to-blue-500/10 px-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300 sm:inline-flex">
-                  Operations Hub
+                  Loop
                 </span>
 
                 <span

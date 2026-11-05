@@ -40,8 +40,9 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
 
   // Operations
   [ROUTES.DAILY_PLANS]: ["owner", "manager", "dispatch", "office"],
-  [ROUTES.LIVE_OPERATIONS]: ["owner", "manager", "dispatch"],
-  [ROUTES.COMMAND_CENTER]: ["owner", "manager", "dispatch", "office", "sales"], [ROUTES.DISPATCH]: ["owner", "manager", "dispatch"],
+  // Operations = the former Command Center (renamed 2026-11-05).
+  [ROUTES.OPERATIONS]: ["owner", "manager", "dispatch", "office", "sales"],
+  [ROUTES.DISPATCH]: ["owner", "manager", "dispatch"],
 
   // Field
   [ROUTES.JOBS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],

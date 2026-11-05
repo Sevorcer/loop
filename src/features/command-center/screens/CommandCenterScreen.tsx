@@ -55,7 +55,7 @@ export async function CommandCenterScreen() {
     <div className="space-y-4 sm:space-y-6">
       {/* Page header */}
       <PageHeader
-        title="Command Center"
+        title="Operations"
         description="Operational health at a glance — risk, workload, and intervention priorities for today."
       />
 

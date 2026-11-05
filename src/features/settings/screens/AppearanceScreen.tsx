@@ -40,9 +40,8 @@ const ACCENT_OPTIONS: { value: AccentColor; label: string; hex: string }[] = [
 
 const LANDING_PAGE_OPTIONS: { value: string; label: string }[] = [
   { value: ROUTES.DASHBOARD, label: "Dashboard" },
-  { value: ROUTES.COMMAND_CENTER, label: "Command Center" },
-  { value: ROUTES.JOBS, label: "Jobs" },
   { value: ROUTES.OPERATIONS, label: "Operations" },
+  { value: ROUTES.JOBS, label: "Jobs" },
   { value: ROUTES.DAILY_PLANS, label: "Daily Plans" },
   { value: ROUTES.DISPATCH, label: "Dispatch" },
 ];
@@ -190,8 +189,8 @@ export function AppearanceScreen() {
         </PreferenceRow>
 
         <PreferenceRow
-          label="Command Center Layout"
-          description="Controls how metrics and panels are displayed in the Command Center."
+          label="Operations Layout"
+          description="Controls how metrics and panels are displayed on the Operations page."
         >
           <ToggleGroup<CommandCenterLayout>
             value={preferences.commandCenterLayout}

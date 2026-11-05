@@ -5,7 +5,6 @@ import { ROUTES } from "@/lib/routes";
 
 describe("getPageMeta", () => {
   it("resolves exact static routes", () => {
-    expect(getPageMeta(ROUTES.COMMAND_CENTER).title).toBe("Command Center");
     expect(getPageMeta(ROUTES.CALENDAR).title).toBe("Calendar");
     expect(getPageMeta(ROUTES.CONTRACTORS).title).toBe("Contractors");
     expect(getPageMeta(ROUTES.OPERATIONS).title).toBe("Operations");

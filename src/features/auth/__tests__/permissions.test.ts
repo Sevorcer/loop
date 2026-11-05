@@ -78,7 +78,8 @@ describe("owner role", () => {
   it("can see all sidebar nav sections", () => {
     const hrefs = allVisibleHrefs("owner");
     expect(hrefs).toContain(ROUTES.DASHBOARD);
-    expect(hrefs).toContain(ROUTES.COMMAND_CENTER);
+    expect(hrefs).toContain(ROUTES.OPERATIONS);
+    expect(hrefs).not.toContain(ROUTES.COMMAND_CENTER);
     expect(hrefs).toContain(ROUTES.DISPATCH);
     expect(hrefs).toContain(ROUTES.JOBS);
     expect(hrefs).toContain(ROUTES.PROPERTIES);
