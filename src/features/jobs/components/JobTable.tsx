@@ -11,6 +11,7 @@ import { normalizeJobStatus } from "@/lib/jobs/status";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { requestJson } from "@/lib/api/client";
+import { FollowUpsPanel } from "@/features/follow-ups/components/FollowUpsPanel";
 
 import type { Job, JobStatus, JobType } from "../types/job";
 import { jobTypeFilterLabel } from "@/features/jobs/utils/callbackJob";
@@ -85,6 +86,27 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
   const [completedDateFilter] = useState(
     () => readSearchParam(initialSearchParams, "completedDate") ?? undefined,
   );
+
+  // Follow-ups worklist (separate from Needs Attention): a chip with a live
+  // count that swaps the board for the open follow-up list.
+  const [followUpView, setFollowUpView] = useState(
+    () => readSearchParam(initialSearchParams, "followUps") === "1",
+  );
+  const [followUpCount, setFollowUpCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    void requestJson<{ total: number }>("/api/follow-ups", { role, cache: "no-store" })
+      .then((response) => {
+        if (!cancelled) setFollowUpCount(response.total);
+      })
+      .catch(() => {
+        // Count is a convenience; the chip still works without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   // ── Pagination state ────────────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1);
@@ -233,6 +255,20 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
               ))}
             </select>
 
+            <button
+              type="button"
+              aria-pressed={followUpView}
+              onClick={() => setFollowUpView((current) => !current)}
+              className={
+                "min-h-[44px] w-full rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:w-auto " +
+                (followUpView
+                  ? "border-amber-400/50 bg-amber-500/15 text-amber-200"
+                  : "border-white/10 bg-slate-950 text-slate-200 hover:bg-white/5")
+              }
+            >
+              Follow-ups{followUpCount != null ? ` (${followUpCount})` : ""}
+            </button>
+
             {hasActiveFilters ? (
               <Button
                 variant="ghost"
@@ -250,6 +286,10 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
         }
       />
 
+      {followUpView ? (
+        <FollowUpsPanel onCount={setFollowUpCount} />
+      ) : (
+        <>
       {typeFilter === CALLBACK_TYPE ? (
         <p className="px-4 pb-1 pt-3 text-xs text-slate-400 md:px-6">
           {CALLBACK_LABELS.all}:{" "}
@@ -306,6 +346,8 @@ export function JobTable({ initialSearchParams = {} }: JobTableProps) {
           </Button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

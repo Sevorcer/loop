@@ -15,6 +15,9 @@ import { formatDateOnly } from "@/lib/dates";
 
 import type { CustomerJobScopeCounts } from "@/services/customers";
 
+import { usePermission } from "@/hooks/usePermission";
+
+import { CustomerInvoicesTab } from "./CustomerInvoicesTab";
 import type { Customer } from "../types/customer";
 import type {
   CustomerInstalledSystemItem,
@@ -25,6 +28,7 @@ import type {
 type CustomerDetailTabKey =
   | "overview"
   | "jobs"
+  | "invoices"
   | "properties"
   | "systems"
   | "timeline"
@@ -39,6 +43,7 @@ type CustomerDetailTab = {
 const tabs: CustomerDetailTab[] = [
   { key: "overview", label: "Overview" },
   { key: "jobs", label: "Jobs" },
+  { key: "invoices", label: "Invoices" },
   { key: "properties", label: "Properties" },
   { key: "systems", label: "Equipment" },
   { key: "timeline", label: "Timeline" },
@@ -128,6 +133,13 @@ export function CustomerDetailTabs({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Invoices are finance data: only roles allowed to read them see the tab.
+  const { allowed: canViewInvoices } = usePermission("customer_invoices", "select");
+  const visibleTabs = useMemo(
+    () => tabs.filter((tab) => tab.key !== "invoices" || canViewInvoices),
+    [canViewInvoices],
+  );
 
   const [activeTab, setActiveTab] = useState<CustomerDetailTabKey>(normalizeTab(initialTab));
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | undefined>(() =>
@@ -253,7 +265,7 @@ export function CustomerDetailTabs({
 
   return (
     <div className="space-y-6">
-      <AtlasTabs items={tabs} value={activeTab} onChange={handleTabChange} sticky />
+      <AtlasTabs items={visibleTabs} value={activeTab} onChange={handleTabChange} sticky />
 
       <Card>
         <CardContent className="space-y-4 p-4">
@@ -453,6 +465,8 @@ export function CustomerDetailTabs({
           </Card>
         )
       ) : null}
+
+      {activeTab === "invoices" && canViewInvoices ? <CustomerInvoicesTab customerId={customer.id} /> : null}
 
       {activeTab === "systems" ? (
         <div className="space-y-4">

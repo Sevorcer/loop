@@ -622,3 +622,24 @@ describe("vehicle_alerts permissions", () => {
     expectDenied("office", "vehicle_alerts", ["delete"]);
   });
 });
+
+// ─── customer_invoices ────────────────────────────────────────────────────────
+
+describe("customer_invoices permissions", () => {
+  it("lets finance-capable roles read, mirroring the invoices RLS policy", () => {
+    for (const role of ["owner", "manager", "dispatch", "office", "sales"] as const) {
+      expectAllowed(role, "customer_invoices", ["select"]);
+    }
+  });
+
+  it("hides invoices from techs and the portal", () => {
+    expectDenied("tech", "customer_invoices", ["select"]);
+    expectDenied("portal", "customer_invoices", ["select"]);
+  });
+
+  it("is read-only for every role (invoicing stays in QuickBooks)", () => {
+    for (const role of ["owner", "manager", "dispatch", "office", "sales", "tech", "portal"] as const) {
+      expectDenied(role, "customer_invoices", ["insert", "update", "delete"]);
+    }
+  });
+});

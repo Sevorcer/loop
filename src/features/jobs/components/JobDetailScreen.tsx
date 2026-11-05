@@ -56,6 +56,7 @@ import {
   REQUIRED_QA_CHECKLIST_ITEMS,
   type RequiredQaChecklist,
 } from "../utils/jobCompletionChecklist";
+import { FollowUpControl } from "@/features/follow-ups/components/FollowUpControl";
 import { finalScheduledDayBlocker } from "../utils/jobFinalDay";
 import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
@@ -816,6 +817,8 @@ export function JobDetailScreen({
                 </div>
               </div>
             </SurfaceCard>
+
+            <FollowUpControl jobId={job.id} />
 
             {/* Crew card */}
             <SurfaceCard>
