@@ -13,12 +13,12 @@ interface CommandCenterJobRowProps {
 
 const STATUS_VARIANT: Record<
   string,
-  "success" | "warning" | "danger" | "info" | "neutral"
+  "success" | "warning" | "danger" | "info" | "neutral" | "completed"
 > = {
   Scheduled: "info",
   "In Progress": "warning",
   "On Hold": "danger",
-  Completed: "success",
+  Completed: "completed",
   Cancelled: "neutral",
 };
 

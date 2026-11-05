@@ -92,7 +92,16 @@ export type CoreTable =
   | "vehicle_alerts"
   // Change Orders — per-job change order tracking
   | "job_change_orders"
-  | "customer_invoices";
+  | "customer_invoices"
+  // Inventory Lane 1 — one item master (sellable + stockable facets), locations, ledger
+  | "catalog_categories"
+  | "catalog_items"
+  | "catalog_price_tiers"
+  | "catalog_item_costs"
+  | "vehicles"
+  | "inventory_locations"
+  | "inventory_stock_levels"
+  | "inventory_transactions";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -421,6 +430,62 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>(["owner", "manager", "office", "dispatch"]),
     delete: new Set<AppRole>(["owner"]),
   },
+  // ── Inventory Lane 1 ──────────────────────────────────────────────────────
+  // Catalog (categories, items, price tiers): every internal role can VIEW
+  // (service item list #36); office+ write; owner deletes. Portal denied.
+  catalog_categories: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  catalog_items: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  catalog_price_tiers: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Cost lives in its own table so tech/dispatch/sales/portal can never read it.
+  catalog_item_costs: {
+    select: new Set<AppRole>(["owner", "manager", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Vehicles: all internal roles read (techs/sales file vehicle alerts); office+ write.
+  vehicles: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  inventory_locations: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Stock levels are a cache written only by the ledger trigger: no role may
+  // insert/update/delete (empty sets = locked invariants, not overridable).
+  inventory_stock_levels: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>([]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // Append-only ledger: read + insert only. Corrections are opposite entries.
+  inventory_transactions: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -436,6 +501,7 @@ const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new M
   ["job_notes", new Set<TableAction>(["update", "delete"])],
   ["job_callbacks", new Set<TableAction>(["update", "delete"])],
   ["job_financials_history", new Set<TableAction>(["update", "delete"])],
+  ["inventory_transactions", new Set<TableAction>(["update", "delete"])],
 ]);
 
 /**

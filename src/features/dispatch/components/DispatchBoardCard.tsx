@@ -57,10 +57,10 @@ const statusVariant = {
   awaiting_technical_readiness: "blocked",
   awaiting_customer_confirmation: "warning",
   awaiting_crew_availability: "warning",
-  completed: "neutral", on_hold: "warning", cancelled: "neutral",
+  completed: "completed", on_hold: "warning", cancelled: "neutral",
 } as const;
 
-type Variant = "success" | "info" | "active" | "blocked" | "warning" | "neutral";
+type Variant = "success" | "info" | "active" | "blocked" | "warning" | "neutral" | "completed";
 
 const variantStyles: Record<Variant, { badge: string; icon: string }> = {
   success: {
@@ -86,6 +86,10 @@ const variantStyles: Record<Variant, { badge: string; icon: string }> = {
   neutral: {
     badge: "border-slate-700 bg-white/5 text-slate-400",
     icon: "text-slate-500",
+  },
+  completed: {
+    badge: "status-completed",
+    icon: "completed-text",
   },
 };
 
@@ -151,7 +155,7 @@ export function DispatchBoardCard({
   const prepPanelId = `dispatch-prep-${plan.id}`;
 
   return (
-    <SurfaceCard className={isCompleted ? "min-w-0 max-w-full opacity-70" : "group min-w-0 max-w-full transition-all duration-200 hover:border-white/20"}>
+    <SurfaceCard className={isCompleted ? "completed-card min-w-0 max-w-full" : "group min-w-0 max-w-full transition-all duration-200 hover:border-white/20"}>
       <div className="min-w-0 p-4 sm:p-5">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="min-w-0 flex-1">

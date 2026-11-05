@@ -20,6 +20,9 @@ import type {
 } from "../types/vehicleAlert";
 
 export interface CreateVehicleAlertInput {
+  /** The vehicle the alert is about. */
+  vehicleId: string;
+  /** Display name for the optimistic row only; the server resolves the real one. */
   vehicleName: string;
   title: string;
   description: string;
@@ -70,6 +73,7 @@ export function VehicleAlertsProvider({ children }: { children: ReactNode }) {
     (input: CreateVehicleAlertInput): VehicleAlert => {
       const optimistic: VehicleAlert = {
         id: `pending-${crypto.randomUUID()}`,
+        vehicleId: input.vehicleId,
         vehicleName: input.vehicleName.trim(),
         title: input.title.trim(),
         description: input.description.trim(),
@@ -90,7 +94,7 @@ export function VehicleAlertsProvider({ children }: { children: ReactNode }) {
               method: "POST",
               role,
               body: {
-                vehicleName: optimistic.vehicleName,
+                vehicleId: optimistic.vehicleId,
                 title: optimistic.title,
                 description: optimistic.description,
                 priority: optimistic.priority,

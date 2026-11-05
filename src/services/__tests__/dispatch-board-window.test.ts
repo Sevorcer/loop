@@ -202,7 +202,6 @@ function seedTables() {
       members: [],
       certifications: [],
       availability: "available",
-      truck_name: "Truck 1",
     },
   ];
   tables.crew_assignments = [

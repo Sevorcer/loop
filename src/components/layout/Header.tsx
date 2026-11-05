@@ -37,6 +37,10 @@ const pageContent: Record<string, PageMeta> = {
     description: "Right now: who is on which job, what is slipping, and today's activity.",
     parent: { title: "Operations", href: ROUTES.OPERATIONS },
   },
+  [ROUTES.MY_JOBS]: {
+    title: "My Jobs",
+    description: "Your jobs for today, in order.",
+  },
   [ROUTES.DAILY_PLANS]: {
     title: "Daily Plans",
     description: "Coordinate schedules, technician priorities, and day-of execution.",

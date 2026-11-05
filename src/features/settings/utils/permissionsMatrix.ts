@@ -120,6 +120,14 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   user_profiles: "User Profiles",
   vehicle_alerts: "Vehicle Alerts",
   customer_invoices: "Customer Invoices",
+  catalog_categories: "Catalog Categories",
+  catalog_items: "Catalog Items",
+  catalog_price_tiers: "Catalog Price Tiers",
+  catalog_item_costs: "Item Costs",
+  vehicles: "Vehicles",
+  inventory_locations: "Inventory Locations",
+  inventory_stock_levels: "Stock Levels",
+  inventory_transactions: "Inventory Ledger",
 };
 
 export interface RolePermissionRow {

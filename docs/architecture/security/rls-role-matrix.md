@@ -183,6 +183,100 @@ owner / manager / dispatch / office / sales / tech may read an object only when 
 
 ---
 
+## Inventory Lane 1 (migrations 20261123000000, 20261123100000)
+
+All eight tables are RLS ENABLE + FORCE, org-scoped via `current_org_id()`. Portal users have no access to any of them.
+
+### catalog_categories
+
+Item categories (hierarchical, max 3 levels).
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### catalog_items
+
+Item master (sellable + stockable facets). Retail price lives here; cost does not.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### catalog_price_tiers
+
+Named price tiers per item.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### catalog_item_costs
+
+Unit cost, kept apart so cost never leaks to technicians or sales through the catalog.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### vehicles
+
+Fleet vehicles. Added by hand in the Locations & vans screen; never auto-created. Readable by all internal roles because techs and sales file vehicle alerts.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### inventory_locations
+
+Warehouse, van, job and quarantine locations.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### inventory_stock_levels
+
+Cache maintained by a SECURITY DEFINER trigger on the ledger. No role (including owner) can write it directly; INSERT/UPDATE/DELETE are revoked from `authenticated`.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | —     | —     | —     | —     | —     | —     | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### inventory_transactions
+
+Append-only stock ledger. `created_by` must equal `auth.uid()`. UPDATE, DELETE and TRUNCATE are blocked by trigger and revoked. Corrections are opposite entries.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+---
+
 ## Deny Rules — Hard Blocks
 
 The following are always blocked regardless of role or policy evaluation:

@@ -29,7 +29,7 @@ function asCrewRecord(crew: Crew): CrewRecord {
     members: crew.members,
     certifications: crew.certifications,
     availability: crew.availability,
-    truck_name: crew.truckName,
+    van_name: crew.truckName,
   };
 }
 
