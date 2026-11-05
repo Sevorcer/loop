@@ -113,3 +113,70 @@ export interface DriveManualsSnapshot {
   lastRun: DriveManualSyncRun | null;
   canManage: boolean;
 }
+
+// ─── #32 Installed system ↔ manual links ─────────────────────────────────────
+
+export type ManualMatchKind = "model_exact" | "model_family" | "manufacturer" | "manual";
+export type ManualLinkStatus = "confirmed" | "rejected" | "auto_linked" | "suggested";
+export type ManualLinkSource = "office" | "copilot";
+export type MatchConfidenceLevel = "high" | "medium" | "low";
+
+/** A live match from the matcher (not yet a stored decision). */
+export interface ManualMatch {
+  manualId: string;
+  kind: ManualMatchKind;
+  /** 0..1 */
+  confidence: number;
+  level: MatchConfidenceLevel;
+  /** Plain-English reason, e.g. "Model MSZ-GL09NA is in the file name". */
+  reason: string;
+}
+
+/** What the matcher needs from an installed system. */
+export interface ManualMatchSubject {
+  manufacturer: string | null | undefined;
+  modelNumber: string | null | undefined;
+  systemName?: string | null;
+}
+
+/** A manual shown on an installed system: stored decision or live suggestion. */
+export interface InstalledSystemManual {
+  manual: Pick<DriveManualFile, "id" | "name" | "webViewLink" | "docType" | "manufacturer" | "models" | "folderPath" | "mimeType" | "status">;
+  status: ManualLinkStatus | "match";
+  source: ManualLinkSource | "live";
+  kind: ManualMatchKind;
+  confidence: number;
+  level: MatchConfidenceLevel;
+  reason: string;
+  decidedAt: string | null;
+}
+
+export interface SystemPlacementJob {
+  id: string;
+  jobNumber: string;
+  title: string;
+  type: string;
+  status: string;
+  scheduledFor: string | null;
+  /** linked = installed_systems.job_id; inferred = same-property install job. */
+  basis: "linked" | "install_date" | "latest_install";
+}
+
+/** "Auto-placed" info: where the record's facts came from. */
+export interface SystemPlacement {
+  nameplate: Array<{ label: string; value: string }>;
+  recordFields: Array<{ label: string; value: string }>;
+  job: SystemPlacementJob | null;
+}
+
+export interface InstalledSystemManualsView {
+  systemId: string;
+  linked: InstalledSystemManual[];
+  suggestions: InstalledSystemManual[];
+  rejectedCount: number;
+  placement: SystemPlacement;
+  canManage: boolean;
+  /** Active manuals for the manual "link another" picker (office only). */
+  library: Array<{ id: string; name: string; manufacturer: string | null }>;
+  driveConnected: boolean;
+}
