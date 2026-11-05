@@ -2,7 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardSummary, listDashboardAttentionJobs } from "@/repositories/dashboard";
 
 import { DashboardHeader } from "./DashboardHeader";
-import { HomeSummaryCards } from "./HomeSummaryCards";
 import { MetricsGrid } from "./MetricsGrid";
 import { NeedsAttention } from "./NeedsAttention";
 import { QuickActions } from "./QuickActions";
@@ -47,9 +46,9 @@ export async function DashboardScreen() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <DashboardHeader summary={summary} />
+      <QuickActions />
 
-      <HomeSummaryCards summary={summary} />
+      <DashboardHeader summary={summary} />
 
       <NeedsAttention items={attention} />
 
@@ -64,8 +63,6 @@ export async function DashboardScreen() {
             <RecentJobsList />
           </CardContent>
         </Card>
-
-        <QuickActions />
       </div>
 
       <RecentActivity />
