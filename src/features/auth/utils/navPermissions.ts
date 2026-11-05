@@ -38,6 +38,9 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   // Dashboard — all internal roles
   // (absent from map → visible to all)
 
+  // My Jobs — every internal role (the page only lists the viewer's own jobs)
+  [ROUTES.MY_JOBS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
+
   // Operations
   [ROUTES.DAILY_PLANS]: ["owner", "manager", "dispatch", "office"],
   // Operations = the former Command Center (renamed 2026-11-05).

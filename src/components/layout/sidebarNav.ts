@@ -19,14 +19,35 @@ import {
   Landmark,
   FileCheck,
   ClipboardCheck,
+  ListChecks,
 } from "lucide-react";
 
 import { getNavItemsForRole, type NavGroup } from "@/features/auth";
+import { isAppRole } from "@/features/auth/utils/appRole";
 import { ROUTES } from "@/lib/routes";
 import type { AppRole } from "@/services/authorization";
 
 // Navigation groups — workflow-based grouping (PR1 UI/IA hardening).
 // Group labels use uppercase to match the established convention.
+// Standalone top-level entries, rendered above every group with no group
+// heading. My Jobs lives here (Collin, 2026-11-05): its own tab, not part of
+// TODAY. Role rules come from NAV_ROUTE_ROLES like every other entry.
+export const SHELL_TOP_LEVEL_ITEMS: NavGroup["items"] = [
+  { name: "My Jobs", href: ROUTES.MY_JOBS, icon: ListChecks },
+];
+
+/**
+ * Top-level entries the role may see. Portal and unknown roles get none
+ * (unlike the grouped nav, this does not fall back to tech-level links).
+ */
+export function composeTopLevelNav(
+  role: AppRole | string | null | undefined,
+  items: NavGroup["items"] = SHELL_TOP_LEVEL_ITEMS,
+): NavGroup["items"] {
+  if (!isAppRole(role) || role === "portal") return [];
+  return getNavItemsForRole(role, [{ label: "", items }])[0]?.items ?? [];
+}
+
 export const SHELL_NAV_GROUPS: NavGroup[] = [
   {
     label: "TODAY",

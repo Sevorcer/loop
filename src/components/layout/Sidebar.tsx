@@ -12,9 +12,10 @@ import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 import { UserDisplay } from "@/features/auth/components/UserDisplay";
 import { PHONE_NAV_ACTIONS_VISIBILITY_CLASS } from "./floatingActions";
-import { composeSidebarNav, SHELL_NAV_GROUPS } from "./sidebarNav";
+import { composeSidebarNav, composeTopLevelNav, SHELL_NAV_GROUPS, SHELL_TOP_LEVEL_ITEMS } from "./sidebarNav";
 
-const NAV_SKELETON_ROWS = SHELL_NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
+const NAV_SKELETON_ROWS =
+  SHELL_TOP_LEVEL_ITEMS.length + SHELL_NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
 
 export interface SidebarPhoneAction {
   label: string;
@@ -56,6 +57,11 @@ export default function Sidebar({
     role,
     navOverride,
   });
+  const topLevelItems = composeTopLevelNav(role);
+  // Top-level entries render first, as a heading-less block above the groups.
+  const renderedGroups = topLevelItems.length > 0 && visibleGroups.length > 0
+    ? [{ label: "", items: topLevelItems }, ...visibleGroups]
+    : visibleGroups;
 
   return (
     <aside
@@ -116,11 +122,13 @@ export default function Sidebar({
                 No navigation items available.
               </div>
             ) : (
-              visibleGroups.map((group) => (
-                <div key={group.label}>
-                  <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    {group.label}
-                  </p>
+              renderedGroups.map((group) => (
+                <div key={group.label || "top-level"}>
+                  {group.label ? (
+                    <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      {group.label}
+                    </p>
+                  ) : null}
 
                   <div className="space-y-0.5">
                     {group.items.map((item) => {

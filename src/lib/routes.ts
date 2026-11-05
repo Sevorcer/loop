@@ -16,6 +16,7 @@ export const ROUTES = {
   INSTALLED_SYSTEMS: "/installed-systems",
   VEHICLE_ALERTS: "/vehicle-alerts",
   DAILY_PLANS: "/daily-plans",
+  MY_JOBS: "/my-jobs",
   CALENDAR: "/calendar",
   /** Legacy address — redirects to OPERATIONS_LIVE. */
   LIVE_OPERATIONS: "/live-operations",
