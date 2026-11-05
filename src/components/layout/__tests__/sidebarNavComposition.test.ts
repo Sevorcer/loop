@@ -43,7 +43,7 @@ describe("composeSidebarNav", () => {
     expect(getComposedHrefsForRole("tech")).toHaveLength(baseline.length);
   });
 
-  it("prioritizes owner links toward dashboard, command center, reporting, and settings", () => {
+  it("prioritizes owner links toward dashboard, operations, reporting, and settings", () => {
     const groups = composeSidebarNav({ role: "owner" });
 
     expect(groups.map((group) => group.label).slice(0, 3)).toEqual([
@@ -53,11 +53,11 @@ describe("composeSidebarNav", () => {
     ]);
     expect(groups[0]?.items.map((item) => item.href).slice(0, 2)).toEqual([
       ROUTES.DASHBOARD,
-      ROUTES.COMMAND_CENTER,
+      ROUTES.OPERATIONS,
     ]);
   });
 
-  it("prioritizes dispatch links toward dispatch, command center, and jobs", () => {
+  it("prioritizes dispatch links toward dispatch, operations, and jobs", () => {
     const groups = composeSidebarNav({ role: "dispatch" });
 
     expect(groups.map((group) => group.label).slice(0, 2)).toEqual([
@@ -66,7 +66,7 @@ describe("composeSidebarNav", () => {
     ]);
     expect(groups[0]?.items.map((item) => item.href).slice(0, 2)).toEqual([
       ROUTES.DISPATCH,
-      ROUTES.COMMAND_CENTER,
+      ROUTES.OPERATIONS,
     ]);
     expect(groups[1]?.items[0]?.href).toBe(ROUTES.JOBS);
   });

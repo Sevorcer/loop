@@ -15,6 +15,9 @@ import { ADMIN_BASE, ROUTES } from "@/lib/routes";
 const TECH_DENIED_PREFIXES: readonly string[] = [
   ROUTES.BILLING,
   ROUTES.GC_OVERVIEW,
+  // Operations (ex-Command Center) and its Live view. /command-center and
+  // /live-operations stay listed so the legacy redirects never leak to techs.
+  ROUTES.OPERATIONS,
   ROUTES.COMMAND_CENTER,
   ROUTES.DAILY_PLANS,
   ROUTES.DISPATCH,
@@ -45,6 +48,17 @@ const SALES_DENIED_PREFIXES: readonly string[] = [
 ];
 
 /**
+ * Portal (builder) users have no business in the internal Operations area.
+ * Collin's ruling (2026-11-05): techs and portal users get no access to
+ * /operations at all, including the legacy addresses that redirect there.
+ */
+const PORTAL_DENIED_PREFIXES: readonly string[] = [
+  ROUTES.OPERATIONS,
+  ROUTES.COMMAND_CENTER,
+  ROUTES.LIVE_OPERATIONS,
+];
+
+/**
  * Map of roles to their denied path prefixes. Roles not listed here
  * (owner, manager, dispatch, office) have unrestricted shell access.
  * Office is unrestricted by Collin's ruling (2026-11-04): the office
@@ -54,6 +68,7 @@ const SALES_DENIED_PREFIXES: readonly string[] = [
 const ROLE_DENIED_PREFIXES: Partial<Record<AppRole, readonly string[]>> = {
   tech: TECH_DENIED_PREFIXES,
   sales: SALES_DENIED_PREFIXES,
+  portal: PORTAL_DENIED_PREFIXES,
 };
 
 function normalizePath(pathname: string): string {

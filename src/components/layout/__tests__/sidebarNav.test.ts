@@ -38,26 +38,31 @@ describe("TODAY group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Dashboard, Command Center, Dispatch, Daily Plans, Calendar, Operations in that order (Live Operations hidden 2026-09-30)", () => {
+  it("contains Dashboard, Operations, Daily Plans, Dispatch, Calendar in that order (Operations hub removed, Command Center renamed 2026-11-05)", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.DASHBOARD,
-      ROUTES.COMMAND_CENTER,
-      ROUTES.DISPATCH,
-      ROUTES.DAILY_PLANS,
-      ROUTES.CALENDAR,
       ROUTES.OPERATIONS,
+      ROUTES.DAILY_PLANS,
+      ROUTES.DISPATCH,
+      ROUTES.CALENDAR,
     ]);
   });
 
   it("item names match spec", () => {
     expect(group.items.map((i) => i.name)).toEqual([
       "Dashboard",
-      "Command Center",
-      "Dispatch",
-      "Daily Plans",
-      "Calendar",
       "Operations",
+      "Daily Plans",
+      "Dispatch",
+      "Calendar",
     ]);
+  });
+
+  it("no longer links the legacy Command Center or Live Operations addresses", () => {
+    const allHrefs = SHELL_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+    expect(allHrefs).not.toContain(ROUTES.COMMAND_CENTER);
+    expect(allHrefs).not.toContain(ROUTES.LIVE_OPERATIONS);
+    expect(allHrefs.filter((href) => href === ROUTES.OPERATIONS)).toHaveLength(1);
   });
 });
 

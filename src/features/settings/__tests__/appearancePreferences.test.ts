@@ -181,3 +181,33 @@ describe("sidebar nav reset helpers", () => {
     });
   });
 });
+
+describe("legacy Operations addresses in saved preferences (2026-11-05 rename)", () => {
+  it("maps a saved Command Center landing page to Operations", () => {
+    const storage = {
+      getItem: () => JSON.stringify({ defaultLandingPage: "/command-center" }),
+    };
+    expect(loadAppearancePreferences(storage).defaultLandingPage).toBe("/operations");
+  });
+
+  it("maps a saved Live Operations landing page to Operations", () => {
+    const storage = {
+      getItem: () => JSON.stringify({ defaultLandingPage: "/live-operations" }),
+    };
+    expect(loadAppearancePreferences(storage).defaultLandingPage).toBe("/operations");
+  });
+
+  it("rewrites legacy sidebar order entries and drops the resulting duplicate", () => {
+    const storage = {
+      getItem: () =>
+        JSON.stringify({
+          sidebarNavOverride: ["/dispatch", "/command-center", "/operations", "/jobs"],
+        }),
+    };
+    expect(loadAppearancePreferences(storage).sidebarNavOverride).toEqual([
+      "/dispatch",
+      "/operations",
+      "/jobs",
+    ]);
+  });
+});
