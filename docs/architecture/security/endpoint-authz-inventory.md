@@ -97,6 +97,26 @@ All authorization failures return a consistent JSON envelope regardless of which
 | `admin/smoke-test/route.ts` | POST | Bearer token | n/a (CI) | n/a |
 | `auth/sign-out/route.ts` | POST | `requireApiSession` | n/a (session teardown) | n/a |
 | `copilot/search/route.ts` | POST | `requireApiSession` | n/a (search) | n/a |
+| `inventory/items/route.ts` | GET | `requirePermission` | `catalog_items` | `select` |
+| `inventory/items/route.ts` | POST | `requirePermission` | `catalog_items` | `insert` |
+| `inventory/items/[id]/route.ts` | GET | `requirePermission` | `catalog_items` | `select` |
+| `inventory/items/[id]/route.ts` | PATCH | `requirePermission` | `catalog_items` | `update` |
+| `inventory/items/[id]/tiers/route.ts` | GET | `requirePermission` | `catalog_price_tiers` | `select` |
+| `inventory/items/[id]/tiers/route.ts` | PUT | `requirePermission` | `catalog_price_tiers` | `insert` |
+| `inventory/items/[id]/tiers/[tierId]/route.ts` | DELETE | `requirePermission` | `catalog_price_tiers` | `delete` |
+| `inventory/categories/route.ts` | GET | `requirePermission` | `catalog_categories` | `select` |
+| `inventory/categories/route.ts` | POST | `requirePermission` | `catalog_categories` | `insert` |
+| `inventory/categories/[id]/route.ts` | PATCH | `requirePermission` | `catalog_categories` | `update` |
+| `inventory/vehicles/route.ts` | GET | `requirePermission` | `vehicles` | `select` |
+| `inventory/vehicles/route.ts` | POST | `requirePermission` | `vehicles` | `insert` |
+| `inventory/vehicles/[id]/route.ts` | PATCH | `requirePermission` | `vehicles` | `update` |
+| `inventory/locations/route.ts` | GET | `requirePermission` | `inventory_locations` | `select` |
+| `inventory/locations/route.ts` | POST | `requirePermission` | `inventory_locations` | `insert` |
+| `inventory/locations/[id]/route.ts` | PATCH | `requirePermission` | `inventory_locations` | `update` |
+| `inventory/stock/route.ts` | GET | `requirePermission` | `inventory_stock_levels` | `select` |
+| `inventory/transactions/route.ts` | GET | `requirePermission` | `inventory_transactions` | `select` |
+| `inventory/transactions/route.ts` | POST | `requirePermission` | `inventory_transactions` | `insert` |
+| `inventory/items/route.ts`, `inventory/items/[id]/route.ts` | POST/PATCH (cost field) | `hasPermission` | `catalog_item_costs` | `insert` (cost is written only when the caller holds it; otherwise 403) |
 
 **Total route files:** 46
 **Routes using `requirePermission`:** 42
@@ -152,5 +172,6 @@ The test file `src/lib/__tests__/api-route-authz-coverage.test.ts` enforces cove
 
 ## Changelog
 
+- **2.1 (2026-11-05):** Inventory Lane 1 PR A adds 12 route files under `inventory/` (items, tiers, categories, vehicles, locations, stock, transactions), each guarded by `requirePermission` on its own table. The legacy `inventory/route.ts` stub (borrows `jobs`) is removed in PR B; the totals below are not recounted until then.
 - **2.0 (2026-10-03):** Full re-inventory — all 46 route files mapped (was 20). Added bearer-token CI endpoints, file delete route, warranty registration PATCH, settings/users routes. Documented Vercel NODE_ENV verification and known RLS gaps.
 - **1.0 (2026-07-25):** Initial inventory (20 endpoints, Sprint 26).

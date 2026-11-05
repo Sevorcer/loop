@@ -1,0 +1,154 @@
+import "server-only";
+
+import type {
+  InventoryLocation,
+  InventoryLocationInput,
+  Vehicle,
+  VehicleInput,
+} from "@/features/inventory/types/ledger";
+import { VEHICLE_STATUSES } from "@/features/inventory/types/ledger";
+import {
+  createLocation as createLocationRecord,
+  createVanLocation,
+  getLocation,
+  getVanLocationForVehicle,
+  listLocations as listLocationRecords,
+  updateLocation as updateLocationRecord,
+} from "@/repositories/inventoryLocations";
+import {
+  createVehicle as createVehicleRecord,
+  getVehicle,
+  listVehicles as listVehicleRecords,
+  updateVehicle as updateVehicleRecord,
+} from "@/repositories/vehicles";
+
+function badRequest(message: string): never {
+  throw Object.assign(new Error(message), { status: 400 });
+}
+
+function notFound(what: string): never {
+  throw Object.assign(new Error(`${what} not found.`), { status: 404 });
+}
+
+function clean(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+// ---------------------------------------------------------------------------
+// Locations
+// ---------------------------------------------------------------------------
+
+export async function listLocations(includeInactive = false): Promise<InventoryLocation[]> {
+  return listLocationRecords(includeInactive);
+}
+
+export async function createLocation(input: InventoryLocationInput): Promise<InventoryLocation> {
+  const name = input.name.trim();
+  if (!name) badRequest("name is required.");
+  if (input.type !== "warehouse" && input.type !== "quarantine") {
+    badRequest("Only warehouse and quarantine locations are created directly; vans come with a vehicle.");
+  }
+  return createLocationRecord({ ...input, name, address: clean(input.address) });
+}
+
+export async function updateLocation(
+  id: string,
+  patch: { name?: string; parentLocationId?: string | null; address?: string | null; isActive?: boolean },
+): Promise<InventoryLocation> {
+  if (patch.name !== undefined && !patch.name.trim()) badRequest("name cannot be blank.");
+  if (patch.parentLocationId === id) badRequest("A location cannot be its own parent.");
+  const updated = await updateLocationRecord(id, {
+    ...patch,
+    name: patch.name?.trim(),
+    address: patch.address === undefined ? undefined : clean(patch.address),
+  });
+  if (!updated) notFound("Location");
+  return updated;
+}
+
+// ---------------------------------------------------------------------------
+// Vehicles — each vehicle owns one van location (created with it, idempotent)
+// ---------------------------------------------------------------------------
+
+/** crews.vehicle_id arrives with the vehicle link migration (M3); until then a van cannot be assigned to a crew. */
+function rejectCrewAssignment(): never {
+  badRequest("Assigning a van to a crew is not available yet.");
+}
+
+export async function listVehicles(includeRetired = false): Promise<Vehicle[]> {
+  return listVehicleRecords(includeRetired);
+}
+
+/** Creates the van location for a vehicle if it has none. Safe to call repeatedly. */
+export async function ensureVanLocation(vehicle: Vehicle): Promise<InventoryLocation> {
+  const existing = await getVanLocationForVehicle(vehicle.id);
+  if (existing) return existing;
+
+  const warehouses = (await listLocationRecords(false)).filter((location) => location.type === "warehouse");
+  const parentLocationId = warehouses.length === 1 ? warehouses[0].id : null;
+  try {
+    return await createVanLocation({ vehicleId: vehicle.id, name: vehicle.name, parentLocationId });
+  } catch (error) {
+    // Location names are unique across the org; fall back to a disambiguated name.
+    if ((error as { status?: number }).status === 409) {
+      return createVanLocation({ vehicleId: vehicle.id, name: `${vehicle.name} (van)`, parentLocationId });
+    }
+    throw error;
+  }
+}
+
+export async function createVehicle(input: VehicleInput): Promise<{ vehicle: Vehicle; location: InventoryLocation }> {
+  const name = input.name.trim();
+  if (!name) badRequest("name is required.");
+  if (input.status !== undefined && !VEHICLE_STATUSES.includes(input.status)) badRequest("status is not valid.");
+
+  if (input.crewId) rejectCrewAssignment();
+  const vehicle = await createVehicleRecord({
+    ...input,
+    name,
+    plate: clean(input.plate),
+    vin: clean(input.vin),
+    notes: clean(input.notes),
+  });
+  const location = await ensureVanLocation(vehicle);
+  return { vehicle, location };
+}
+
+export async function updateVehicle(id: string, patch: Partial<VehicleInput>): Promise<Vehicle> {
+  if (patch.name !== undefined && !patch.name.trim()) badRequest("name cannot be blank.");
+  if (patch.status !== undefined && !VEHICLE_STATUSES.includes(patch.status)) badRequest("status is not valid.");
+
+  if (patch.crewId) rejectCrewAssignment();
+  const updated = await updateVehicleRecord(id, {
+    ...patch,
+    name: patch.name?.trim(),
+    plate: patch.plate === undefined ? undefined : clean(patch.plate),
+    vin: patch.vin === undefined ? undefined : clean(patch.vin),
+    notes: patch.notes === undefined ? undefined : clean(patch.notes),
+  });
+  if (!updated) notFound("Vehicle");
+
+  // Keep the van location's name and active flag in step with its vehicle (best effort).
+  const location = await getVanLocationForVehicle(id);
+  if (location) {
+    const wantsActive = updated.status !== "retired";
+    if (location.isActive !== wantsActive) {
+      await updateLocationRecord(location.id, { isActive: wantsActive });
+    }
+  }
+  return updated;
+}
+
+export async function getVehicleOrThrow(id: string): Promise<Vehicle> {
+  const vehicle = await getVehicle(id);
+  if (!vehicle) notFound("Vehicle");
+  return vehicle;
+}
+
+export async function getLocationOrThrow(id: string): Promise<InventoryLocation> {
+  const location = await getLocation(id);
+  if (!location) notFound("Location");
+  return location;
+}

@@ -4,6 +4,8 @@ import {
   assertPermission,
   allowedRolesFor,
   AuthorizationError,
+  isEmptySetInvariant,
+  isLockedDeny,
 } from "../authorization";
 import type { AppRole, CoreTable, TableAction } from "../authorization";
 
@@ -641,5 +643,64 @@ describe("customer_invoices permissions", () => {
     for (const role of ["owner", "manager", "dispatch", "office", "sales", "tech", "portal"] as const) {
       expectDenied(role, "customer_invoices", ["insert", "update", "delete"]);
     }
+  });
+});
+
+// ─── Inventory Lane 1 ─────────────────────────────────────────────────────────
+
+describe("inventory Lane 1 permissions", () => {
+  const INTERNAL: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales"];
+
+  it("lets every internal role view the catalog and vehicles, and never the portal", () => {
+    for (const table of ["catalog_categories", "catalog_items", "catalog_price_tiers", "vehicles"] as const) {
+      for (const role of INTERNAL) expectAllowed(role, table, ["select"]);
+      expectDenied("portal", table, ["select", "insert", "update", "delete"]);
+    }
+  });
+
+  it("limits catalog and vehicle writes to owner/manager/office, with owner-only delete", () => {
+    for (const table of ["catalog_categories", "catalog_items", "catalog_price_tiers", "vehicles", "inventory_locations"] as const) {
+      for (const role of ["owner", "manager", "office"] as const) expectAllowed(role, table, ["insert", "update"]);
+      for (const role of ["dispatch", "tech", "sales"] as const) expectDenied(role, table, ["insert", "update", "delete"]);
+      expectAllowed("owner", table, ["delete"]);
+      expectDenied("manager", table, ["delete"]);
+      expectDenied("office", table, ["delete"]);
+    }
+  });
+
+  it("keeps item cost readable only by owner/manager/office", () => {
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "catalog_item_costs", ["select", "insert", "update"]);
+    }
+    for (const role of ["dispatch", "tech", "sales", "portal"] as const) {
+      expectDenied(role, "catalog_item_costs", ["select", "insert", "update", "delete"]);
+    }
+  });
+
+  it("gives techs and sales no location, stock or ledger access in Lane 1", () => {
+    for (const table of ["inventory_locations", "inventory_stock_levels", "inventory_transactions"] as const) {
+      expectDenied("tech", table, ["select"]);
+      expectDenied("sales", table, ["select"]);
+      expectDenied("portal", table, ["select"]);
+      for (const role of ["owner", "manager", "dispatch", "office"] as const) expectAllowed(role, table, ["select"]);
+    }
+  });
+
+  it("makes stock levels a ledger-only cache: nobody can write it", () => {
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_stock_levels", ["insert", "update", "delete"]);
+    }
+    expect(isEmptySetInvariant("inventory_stock_levels", "update")).toBe(true);
+    expect(isLockedDeny("inventory_stock_levels", "insert")).toBe(true);
+  });
+
+  it("makes the ledger append-only: insert for owner/manager/office, never update or delete", () => {
+    for (const role of ["owner", "manager", "office"] as const) expectAllowed(role, "inventory_transactions", ["insert"]);
+    for (const role of ["dispatch", "tech", "sales", "portal"] as const) expectDenied(role, "inventory_transactions", ["insert"]);
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_transactions", ["update", "delete"]);
+    }
+    expect(isLockedDeny("inventory_transactions", "update")).toBe(true);
+    expect(isLockedDeny("inventory_transactions", "delete")).toBe(true);
   });
 });
