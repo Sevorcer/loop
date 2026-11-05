@@ -196,32 +196,41 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
 
   if (!fallback.data) return null;
   const row = fallback.data as CustomerRow;
-  const propertyCount = await countLinkedPropertiesForCustomer(id);
+
+  // Property count, parent name, and child list are independent — run together
+  // instead of detail → count → parent → children waterfalls.
+  const parentId = !detail.error ? row.parent_customer_id : null;
+  const [propertyCount, parentResult, childrenResult] = await Promise.all([
+    countLinkedPropertiesForCustomer(id),
+    parentId
+      ? supabase
+          .from("customers")
+          .select("id,name")
+          .eq("org_id", orgId)
+          .eq("id", parentId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    !detail.error
+      ? supabase
+          .from("customers")
+          .select("id,name")
+          .eq("org_id", orgId)
+          .eq("parent_customer_id", id)
+          .order("name")
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
   const customer = withPropertyCount(mapCustomer(row), propertyCount);
-  if (!detail.error && row.parent_customer_id) {
-    const parent = await supabase
-      .from("customers")
-      .select("id,name")
-      .eq("org_id", orgId)
-      .eq("id", row.parent_customer_id)
-      .maybeSingle();
-    if (parent.data) {
-      customer.parentCustomer = { id: parent.data.id as string, name: parent.data.name as string };
-    }
+  if (parentResult.data) {
+    customer.parentCustomer = {
+      id: parentResult.data.id as string,
+      name: parentResult.data.name as string,
+    };
   }
-  if (!detail.error) {
-    const children = await supabase
-      .from("customers")
-      .select("id,name")
-      .eq("org_id", orgId)
-      .eq("parent_customer_id", id)
-      .order("name");
-    if (!children.error) {
-      customer.childCustomers = ((children.data ?? []) as { id: string; name: string }[]).map((child) => ({
-        id: child.id,
-        name: child.name,
-      }));
-    }
+  if (!childrenResult.error && childrenResult.data) {
+    customer.childCustomers = (childrenResult.data as { id: string; name: string }[]).map(
+      (child) => ({ id: child.id, name: child.name }),
+    );
   }
   return customer;
 }

@@ -176,10 +176,15 @@ export async function getCustomerJobScopeCounts(
   customerId: string,
 ): Promise<CustomerJobScopeCounts> {
   const childIds = await listChildCustomerIds(customerId);
-  const own = await countJobsForCustomers([customerId]);
-  const acrossAccount =
-    childIds.length > 0 ? await countJobsForCustomers([customerId, ...childIds]) : own;
-
+  // Own and account totals are independent once child ids are known.
+  if (childIds.length === 0) {
+    const own = await countJobsForCustomers([customerId]);
+    return { own, acrossAccount: own, childCount: 0 };
+  }
+  const [own, acrossAccount] = await Promise.all([
+    countJobsForCustomers([customerId]),
+    countJobsForCustomers([customerId, ...childIds]),
+  ]);
   return { own, acrossAccount, childCount: childIds.length };
 }
 
