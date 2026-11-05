@@ -30,9 +30,11 @@ export async function GET(request: Request) {
       requested && isValidMonth(requested) ? requested : currentMonthKey();
 
     const ctx = { userId: guard.ctx.userId };
+    // Page through every job (not the old 50-row default). Activities are
+    // month-scoped in SQL so the status log does not grow unbounded.
     const [rows, activities] = await Promise.all([
       listJobReportRows(ctx),
-      listJobStatusActivities(ctx),
+      listJobStatusActivities(ctx, { month }),
     ]);
 
     const reports = computeOperationalReports(rows, activities, month);
