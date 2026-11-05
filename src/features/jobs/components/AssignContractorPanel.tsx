@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HardHat, UserMinus, UserPlus } from "lucide-react";
+import { HardHat, RefreshCw, UserMinus, UserPlus } from "lucide-react";
 import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
@@ -20,7 +20,8 @@ interface AssignContractorPanelProps {
 export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
   const { getJobById, assignContractor, removeContractorAssignment, loadJobDetails } =
     useJobs();
-  const { contractors } = useContractors();   const { role } = useCurrentRole();
+  const { contractors, refreshContractors } = useContractors();
+  const { role } = useCurrentRole();
 
   const job = getJobById(jobId);
   const jobLoaded = Boolean(job);
@@ -138,9 +139,19 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
 
         {available.length > 0 ? (
           <div className="mt-5 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Assign Contractor
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Assign Contractor
+              </p>
+              <button
+                type="button"
+                onClick={() => void refreshContractors()}
+                className="flex items-center gap-1 text-xs text-slate-400 transition hover:text-slate-200"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Refresh list
+              </button>
+            </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <select
@@ -176,20 +187,30 @@ export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
             All active contractors are already assigned.
           </p>
         ) : (
-          <p className="mt-4 text-xs text-slate-500">
-            No contractors available.{" "}
-            {showAddContractorLink(role) ? (
-              <Link
-                href={`${ROUTES.CONTRACTORS}/new`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:underline"
-              >
-                Add one
-              </Link>
-            ) : null}
-            .
-          </p>
+          <div className="mt-4 space-y-2">
+            <p className="text-xs text-slate-500">
+              No contractors available.{" "}
+              {showAddContractorLink(role) ? (
+                <Link
+                  href={`${ROUTES.CONTRACTORS}/new`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline"
+                >
+                  Add one
+                </Link>
+              ) : null}
+              .
+            </p>
+            <button
+              type="button"
+              onClick={() => void refreshContractors()}
+              className="flex items-center gap-1 text-xs text-slate-400 transition hover:text-slate-200"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Already added one? Refresh the list
+            </button>
+          </div>
         )}
 
         {error ? (
