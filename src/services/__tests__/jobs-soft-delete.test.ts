@@ -252,8 +252,9 @@ describe("restoreJob", () => {
     expect(restoreJobMock).not.toHaveBeenCalled();
   });
 
-  it("returns false when job not found or not deleted", async () => {
+  it("returns false only when the job does not exist at all", async () => {
     restoreJobMock.mockResolvedValue(false);
+        getJobByIdMock.mockResolvedValue(null);
 
     const result = await restoreJob("job-missing", {
       actorId: "user-001",
@@ -263,4 +264,20 @@ describe("restoreJob", () => {
     expect(result).toBe(false);
     expect(createJobActivityMock).not.toHaveBeenCalled();
   });
+
+    it("is idempotent: already-active job restores as success, no duplicate activity", async () => {
+          // The UPDATE matched nothing because the job was already restored
+          // (e.g. a double-tap fired restore twice). The job exists, so the
+          // call succeeds without writing a second "Job restored" entry.
+          restoreJobMock.mockResolvedValue(false);
+          getJobByIdMock.mockResolvedValue({ id: "job-001" });
+
+          const result = await restoreJob("job-001", {
+                  actorId: "user-001",
+                  role: "owner",
+          });
+
+          expect(result).toBe(true);
+          expect(createJobActivityMock).not.toHaveBeenCalled();
+    });
 });
