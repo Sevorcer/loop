@@ -72,7 +72,7 @@ async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositor
   arrival_window_end_at?: string | null;
   // Closeout mode — absent when migration 20261102000000 not yet applied.
   closeout_mode?: string | null;
-    // Customer notifications — absent when migration 20261120900000 not yet applied.
+    // Customer notifications — absent when migration 20261121600000 not yet applied.
     customer_notifications_enabled?: boolean | null;
     en_route_at?: string | null;
   summary: string;
@@ -1212,7 +1212,7 @@ export async function restoreJob(id: string): Promise<boolean> {
 
 /**
  * Set the per-job customer-notifications opt-in (migration
-  * 20261120900000). Returns true when the job exists.
+  * 20261121600000). Returns true when the job exists.
    */
 export async function setJobNotificationsEnabled(
     id: string,
