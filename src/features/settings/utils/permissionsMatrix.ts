@@ -117,6 +117,7 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   gc_ledger_entries: "GC Ledger Entries",
   gc_change_orders: "GC Change Orders",
   user_profiles: "User Profiles",
+  vehicle_alerts: "Vehicle Alerts",
 };
 
 export interface RolePermissionRow {

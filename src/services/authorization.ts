@@ -88,7 +88,8 @@ export type CoreTable =
 // Phase 3 — Permits & Inspections
 | "job_permits"
 | "job_inspections"
-| "inspection_corrections";
+| "inspection_corrections"
+  | "vehicle_alerts";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -392,6 +393,13 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
+  // Vehicle Alerts — staff list/create; office+dispatch update status; owner delete
+  vehicle_alerts: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales", "tech"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales", "tech"]),
+    update: new Set<AppRole>(["owner", "manager", "office", "dispatch"]),
+    delete: new Set<AppRole>(["owner"]),
   },
 };
 
