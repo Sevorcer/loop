@@ -301,7 +301,7 @@ describe("JobDetailScreen tabs", () => {
       expect.stringContaining("Tasks & QA"),
       expect.stringContaining("Photos & Files"),
       expect.stringContaining("Systems"),
-      expect.stringContaining("Activity"),
+      expect.stringContaining("Notes"),
     ]);
 
     expect(panel(container, "overview")?.classList.contains("hidden")).toBe(false);
@@ -358,7 +358,7 @@ describe("JobDetailScreen tabs", () => {
     expect(mobileTasks?.textContent).toContain("5 left");
   });
 
-  it("keeps the notes history under Activity, not Overview", async () => {
+  it("keeps the notes history under Notes, not Overview", async () => {
     const container = await renderScreen();
 
     expect(panel(container, "activity")?.textContent).toContain(
