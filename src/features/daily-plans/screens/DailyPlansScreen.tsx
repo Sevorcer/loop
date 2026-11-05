@@ -5,7 +5,7 @@ import { CalendarDays, CircleAlert, Sun } from "lucide-react";
 
 import { PageHeader } from "@/components/atlas";
 import { useCurrentRole } from "@/features/auth";
-import { useJobs } from "@/features/jobs/state/JobsProvider";
+import { useJobsList } from "@/features/jobs/state/JobsProvider";
 import { requestJson } from "@/lib/api/client";
 
 import { CrewStatusPanel } from "../components/CrewStatusPanel";
@@ -28,7 +28,7 @@ import {
 // when only a small date range is needed.
 export function DailyPlansScreen() {
   const { role } = useCurrentRole();
-  const { hydrated, jobs, updateJob } = useJobs();
+  const { hydrated, jobs, updateJob } = useJobsList();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [roster, setRoster] = useState<DailyCrewRoster>({ crewGroups: [], floaters: [], allProfiles: [] });
 

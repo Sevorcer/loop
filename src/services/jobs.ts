@@ -31,6 +31,7 @@ import {
   noteBodiesToAppend,
 } from "@/features/jobs/utils/jobNotes";
 import {
+  countJobBoardStats,
   countUnscheduledJobs,
   getMaxJobNumberSuffix,
   isJobNumberUniqueViolation,
@@ -52,7 +53,7 @@ import {
   toJob,
   updateJob as updateJobRecord,
 } from "@/repositories/jobs";
-import type { JobListFilter, PaginatedJobsResult } from "@/repositories/jobs";
+import type { JobBoardCounts, JobListFilter, PaginatedJobsResult } from "@/repositories/jobs";
 import {
   createDispatchPlan,
   deleteDispatchPlansByJobId,
@@ -309,6 +310,15 @@ export async function listJobsWithActivity(): Promise<{ jobs: Job[]; activity: J
     viewerCanSeePrice(),
   ]);
   return { jobs, activity: redactJobPriceActivity(activity, canSeePrice) };
+}
+
+/**
+ * Stat-card counts for the Jobs page (Total / In Progress / Scheduled /
+ * High Priority), counted in the database instead of by downloading every
+ * job to the browser.
+ */
+export async function getJobBoardStats(): Promise<JobBoardCounts> {
+  return countJobBoardStats();
 }
 
 /**

@@ -13,6 +13,7 @@ import { deriveScheduledStartAt } from "@/features/jobs/utils/schedulingTime";
 import type { JobActivity, JobActivityType } from "@/features/jobs/types/jobActivity";
 
 import { jobOverlapsDateRange } from "@/features/calendar/utils/calendarSchedule";
+import { getStatusVariants } from "@/lib/jobs/status";
 import { formatTeamLabel } from "@/lib/teamLabel";
 import { addCalendarDays } from "@/lib/timezone";
 
@@ -1297,6 +1298,54 @@ export async function countJobs(
   }
 
   return count ?? 0;
+}
+
+export interface JobBoardCounts {
+  total: number;
+  inProgress: number;
+  scheduled: number;
+  highPriority: number;
+}
+
+/**
+ * Exact counts for the Jobs page stat cards, computed in the database with
+ * four parallel head-only count queries. Replaces the old approach of paging
+ * the ENTIRE job table into the browser (15 sequential pages of 200 + their
+ * assignee lookups, capped at 3,000 rows) just to count it.
+ *
+ * Matches summarizeJobBoard(): soft-deleted jobs are excluded, statuses match
+ * every stored casing (STATUS_QUERY_VARIANTS — production stores Title Case),
+ * and priority matches "high" case-insensitively. RLS still applies, so a
+ * tech sees counts for only the jobs they can read — same as before.
+ */
+export async function countJobBoardStats(
+  contextInput?: SessionRepositoryContextInput,
+): Promise<JobBoardCounts> {
+  const { supabase, orgId } = await getRepositoryContext(contextInput);
+  const base = () =>
+    supabase
+      .from("jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .is("deleted_at", null);
+
+  const [totalRes, inProgressRes, scheduledRes, highRes] = await Promise.all([
+    base(),
+    base().in("status", getStatusVariants(["In Progress"])),
+    base().in("status", getStatusVariants(["Scheduled"])),
+    base().ilike("priority", "high"),
+  ]);
+
+  for (const res of [totalRes, inProgressRes, scheduledRes, highRes]) {
+    if (res.error) throw new Error(res.error.message);
+  }
+
+  return {
+    total: totalRes.count ?? 0,
+    inProgress: inProgressRes.count ?? 0,
+    scheduled: scheduledRes.count ?? 0,
+    highPriority: highRes.count ?? 0,
+  };
 }
 
 const JOB_NUMBER_PATTERN = /^JOB-(\d+)$/;

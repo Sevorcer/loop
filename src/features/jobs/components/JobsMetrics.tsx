@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarClock, ClipboardList, Wrench } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { useCurrentRole } from "@/features/auth";
+import { requestJson } from "@/lib/api/client";
 import type { Job } from "../types/job";
-import { summarizeJobBoard } from "../utils/jobBoardStats";
-import { useJobs } from "../state/JobsProvider";
+import { summarizeJobBoard, type JobBoardStats } from "../utils/jobBoardStats";
 
 function MetricCard({
   title,
@@ -40,11 +42,33 @@ function MetricCard({
 }
 
 export function JobsMetrics({ initialJobs = [] }: { initialJobs?: Job[] }) {
-  const { jobs, hydrated } = useJobs();
-  // The server list is the count until the client store has loaded. A failed
-  // client refresh used to replace that list with [] and show Total Jobs 0.
-  const source = !hydrated ? initialJobs : jobs.length > 0 ? jobs : initialJobs;
-  const stats = summarizeJobBoard(source);
+  const { role } = useCurrentRole();
+  // Exact counts from the database (GET /api/jobs?view=stats). This used to
+  // download every job into the browser and count them there — 15 sequential
+  // page reads that also stopped at 3,000 jobs. Until the counts arrive (or if
+  // the request fails) the server-provided list, if any, is the fallback, so
+  // a failed refresh never shows Total Jobs 0 over a full board.
+  const [serverStats, setServerStats] = useState<JobBoardStats | null>(null);
+
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    void requestJson<{ stats: JobBoardStats }>("/api/jobs?view=stats", {
+      role,
+      cache: "no-store",
+    })
+      .then((response) => {
+        if (!cancelled && response.stats) setServerStats(response.stats);
+      })
+      .catch((error) => {
+        console.error("[jobs] failed to load job board stats", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
+  const stats = serverStats ?? summarizeJobBoard(initialJobs);
   const totalJobs = stats.total;
   const inProgressJobs = stats.inProgress;
   const scheduledJobs = stats.scheduled;

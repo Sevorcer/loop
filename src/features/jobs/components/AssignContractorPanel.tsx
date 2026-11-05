@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HardHat, UserMinus, UserPlus } from "lucide-react";
 import Link from "next/link";
 
@@ -18,11 +18,20 @@ interface AssignContractorPanelProps {
 }
 
 export function AssignContractorPanel({ jobId }: AssignContractorPanelProps) {
-  const { getJobById, assignContractor, removeContractorAssignment } =
+  const { getJobById, assignContractor, removeContractorAssignment, loadJobDetails } =
     useJobs();
   const { contractors } = useContractors();   const { role } = useCurrentRole();
 
   const job = getJobById(jobId);
+  const jobLoaded = Boolean(job);
+
+  // The jobs store no longer preloads every job, so read this one job into
+  // the store when the panel opens (assign/remove need it there).
+  useEffect(() => {
+    if (!jobLoaded) {
+      void loadJobDetails(jobId);
+    }
+  }, [jobId, jobLoaded, loadJobDetails]);
   const assignedIds = job?.contractorIds ?? [];
   const assignedContractors = contractors.filter((c) =>
     assignedIds.includes(c.id)
