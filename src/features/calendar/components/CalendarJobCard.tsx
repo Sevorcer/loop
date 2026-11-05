@@ -135,7 +135,7 @@ export function CalendarJobCard({
         {techs}
       </span>
       {job.status === "Completed" ? (
-        <span className="mt-0.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+        <span className="mt-0.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide completed-text">
           <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
           Completed
         </span>
