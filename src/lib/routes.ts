@@ -15,6 +15,9 @@ export const ROUTES = {
   CALENDAR: "/calendar",
   LIVE_OPERATIONS: "/live-operations",
   INVENTORY: "/inventory",
+  INVENTORY_CATALOG: "/inventory/catalog",
+  INVENTORY_LOCATIONS: "/inventory/locations",
+  INVENTORY_ACTIVITY: "/inventory/activity",
   DISPATCH: "/dispatch",
   COMPANY_BRAIN: "/company-brain",
   BILLING: "/billing",
@@ -31,6 +34,7 @@ export const ROUTES = {
 } as const;
 
 export const ROUTE_BUILDERS = {
+  INVENTORY_ITEM: (itemId: string) => `${ROUTES.INVENTORY_CATALOG}/${itemId}`,
   JOB_NEW: (context?: { customerId?: string; propertyId?: string; date?: string }) => {
     const params = new URLSearchParams();
     if (context?.customerId) params.set("customerId", context.customerId);

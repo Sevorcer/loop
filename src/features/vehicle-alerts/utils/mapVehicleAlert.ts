@@ -1,4 +1,4 @@
-import { resolveVehicleName } from "@/features/inventory/utils/vehicleName";
+import { resolveVehicleName, type LinkedVehicleEmbed } from "@/features/inventory/utils/vehicleName";
 
 import type {
   VehicleAlert,
@@ -11,7 +11,7 @@ export interface VehicleAlertRow {
   org_id: string;
   vehicle_name: string;
   vehicle_id?: string | null;
-  vehicle?: { name: string | null } | null;
+  vehicle?: LinkedVehicleEmbed;
   title: string;
   description: string;
   priority: VehicleAlertPriority;

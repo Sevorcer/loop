@@ -13,7 +13,7 @@ import type {
   ScheduleBlock,
 } from "@/features/dispatch/types/dispatch";
 
-import { CREW_VEHICLE_EMBED, resolveVehicleName } from "@/features/inventory/utils/vehicleName";
+import { CREW_VEHICLE_EMBED, resolveVehicleName, type LinkedVehicleEmbed } from "@/features/inventory/utils/vehicleName";
 
 import { wrapRepositoryError } from "./shared";
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
@@ -32,7 +32,7 @@ interface CrewRow {
   availability: string;
   truck_name: string;
   vehicle_id?: string | null;
-  vehicle?: { name: string | null } | null;
+  vehicle?: LinkedVehicleEmbed;
 }
 
 interface DispatchPlanRow {
@@ -202,7 +202,7 @@ export async function listCrews(options?: { page?: number; pageSize?: number }) 
       .range(from, to);
 
     if (error) throw new Error(error.message);
-    return ((data ?? []) as CrewRow[]).map(mapCrew);
+    return ((data ?? []) as unknown as CrewRow[]).map(mapCrew);
   });
 }
 
@@ -233,7 +233,7 @@ export async function createCrew(input: CrewWriteInput) {
       .single();
 
     if (error) throw new Error(error.message);
-    return mapCrew(data as CrewRow);
+    return mapCrew(data as unknown as CrewRow);
   });
 }
 
@@ -939,14 +939,17 @@ export async function loadDispatchSnapshot(
 
   const boardWindow = options?.boardWindow;
 
-  const crewsPromise = fetchAllSnapshotRows<CrewRow>((from, to) =>
-    supabase
-      .from("crews")
-      .select(CREW_SELECT)
-      .eq("org_id", orgId)
-      .order("name")
-      .order("id")
-      .range(from, to),
+  // The vehicle embed is typed as an array by supabase-js but is one object on the wire;
+  // CrewRow accepts both, so the page type is asserted here rather than inferred.
+  const crewsPromise = fetchAllSnapshotRows<CrewRow>(
+    (from, to) =>
+      supabase
+        .from("crews")
+        .select(CREW_SELECT)
+        .eq("org_id", orgId)
+        .order("name")
+        .order("id")
+        .range(from, to) as unknown as PromiseLike<SnapshotPageResult<CrewRow>>,
   );
 
   let rawPlans: DispatchPlanRow[];

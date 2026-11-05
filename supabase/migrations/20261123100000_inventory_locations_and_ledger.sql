@@ -5,7 +5,9 @@
 --
 -- UP:
 --   - vehicles               real van entity (no rows are created from legacy
---                            free-text; Collin adds vans in the UI)
+--                            free-text; Collin adds vans in the UI). A van's crew is
+--                            crews.vehicle_id (M3), the single source: there is
+--                            deliberately no vehicles.crew_id)
 --   - inventory_locations    warehouse | van | job (virtual buy-for-job) | quarantine
 --   - inventory_stock_levels trigger-maintained cache of on-hand per item+location
 --   - inventory_transactions append-only ledger (the only way quantity changes)
@@ -40,7 +42,6 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
   vin         text,
   status      text NOT NULL DEFAULT 'active'
                 CHECK (status IN ('active', 'out_of_service', 'retired')),
-  crew_id     uuid REFERENCES public.crews(id) ON DELETE SET NULL,
   notes       text,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
@@ -52,9 +53,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS vehicles_org_name_uidx
 
 CREATE INDEX IF NOT EXISTS vehicles_org_status_idx
   ON public.vehicles (org_id, status);
-
-CREATE INDEX IF NOT EXISTS vehicles_crew_id_idx
-  ON public.vehicles (crew_id) WHERE crew_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- inventory_locations

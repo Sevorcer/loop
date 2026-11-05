@@ -48,10 +48,10 @@ DO $$ BEGIN
   ), 'vehicles.status must be text (nullable=NO)';
 END; $$;
 DO $$ BEGIN
-  ASSERT EXISTS (
+  ASSERT NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'crew_id' AND data_type = 'uuid' AND is_nullable = 'YES'
-  ), 'vehicles.crew_id must be uuid (nullable=YES)';
+    WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'crew_id'
+  ), 'vehicles.crew_id must not exist: the crew link is crews.vehicle_id (single source)';
 END; $$;
 DO $$ BEGIN
   ASSERT EXISTS (

@@ -110,8 +110,7 @@ export async function createVehicle(input: VehicleInput): Promise<{ vehicle: Veh
   if (!name) badRequest("name is required.");
   if (input.status !== undefined && !VEHICLE_STATUSES.includes(input.status)) badRequest("status is not valid.");
 
-  // The crew link is applied after the vehicle exists, through relinkCrewVehicle,
-  // so crews.vehicle_id and vehicles.crew_id are always written together.
+  // The crew link is crews.vehicle_id, written after the vehicle exists.
   const crewId = input.crewId ?? null;
   const created = await createVehicleRecord({
     ...input,
@@ -129,15 +128,13 @@ export async function createVehicle(input: VehicleInput): Promise<{ vehicle: Veh
   } catch (error) {
     throw withMessage(error, `"${name}" was added, but it could not be assigned to the crew. ${messageOf(error)}`);
   }
-  const vehicle = (await updateVehicleRecord(created.id, { crewId })) ?? created;
-  return { vehicle, location };
+  return { vehicle: { ...created, crewId }, location };
 }
 
 export async function updateVehicle(id: string, patch: Partial<VehicleInput>): Promise<Vehicle> {
   if (patch.name !== undefined && !patch.name.trim()) badRequest("name cannot be blank.");
   if (patch.status !== undefined && !VEHICLE_STATUSES.includes(patch.status)) badRequest("status is not valid.");
 
-  // Crew assignment changes both pointers; the crew write goes first (see relinkCrewVehicle).
   // Skipped when the crew is unchanged, so editing other fields never needs crew-write access.
   if (patch.crewId !== undefined) {
     const current = await getVehicleOrThrow(id);
@@ -146,6 +143,7 @@ export async function updateVehicle(id: string, patch: Partial<VehicleInput>): P
 
   const updated = await updateVehicleRecord(id, {
     ...patch,
+    crewId: undefined, // the link lives on crews; handled above
     name: patch.name?.trim(),
     plate: patch.plate === undefined ? undefined : clean(patch.plate),
     vin: patch.vin === undefined ? undefined : clean(patch.vin),

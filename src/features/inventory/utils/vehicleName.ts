@@ -10,11 +10,19 @@ export interface LinkedVehicleName {
   name: string | null;
 }
 
+/**
+ * A PostgREST embed of a many-to-one link is a single object at runtime, but
+ * supabase-js types it as an array when the select string is a literal. Accept
+ * both so the type system and the wire format cannot disagree.
+ */
+export type LinkedVehicleEmbed = LinkedVehicleName | LinkedVehicleName[] | null | undefined;
+
 export function resolveVehicleName(
-  linked: LinkedVehicleName | null | undefined,
+  linked: LinkedVehicleEmbed,
   legacyText: string | null | undefined,
 ): string {
-  const fromVehicle = linked?.name?.trim();
+  const one = Array.isArray(linked) ? linked[0] : linked;
+  const fromVehicle = one?.name?.trim();
   if (fromVehicle) return fromVehicle;
   return legacyText?.trim() ?? "";
 }

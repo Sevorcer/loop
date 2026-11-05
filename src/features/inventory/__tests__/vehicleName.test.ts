@@ -17,6 +17,11 @@ describe("resolveVehicleName", () => {
     expect(resolveVehicleName({ name: "  " }, "Install Truck 4")).toBe("Install Truck 4");
   });
 
+  it("accepts the array shape supabase-js types for an embed", () => {
+    expect(resolveVehicleName([{ name: "Van 2" }], "legacy")).toBe("Van 2");
+    expect(resolveVehicleName([], "legacy")).toBe("legacy");
+  });
+
   it("returns an empty string when nothing is known", () => {
     expect(resolveVehicleName(null, null)).toBe("");
     expect(resolveVehicleName(null, "  ")).toBe("");
