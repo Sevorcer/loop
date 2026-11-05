@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { FileCheck, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FileCheck, FileUp, Paperclip, Plus, RotateCcw, Trash2 } from "lucide-react";
 
 import { StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
@@ -24,6 +24,7 @@ interface Permit {
   voidedAt: string | null;
   notes: string | null;
   correctionsNotes: string | null;
+  documentStorageId: string | null;
 }
 
 const STATUS_LABELS: Record<PermitStatus, string> = {
@@ -56,6 +57,9 @@ interface JobPermitsCardProps {
 export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
   const [permits, setPermits] = useState<Permit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingPermitId, setUploadingPermitId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadPermitIdRef = useRef<string | null>(null);
 
   const fetchPermits = useCallback(async () => {
     try {
@@ -72,8 +76,8 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
     void fetchPermits();
   }, [fetchPermits]);
 
-  const activePermits = permits.filter((p) => !p.voidedAt);
-  const voidedPermits = permits.filter((p) => p.voidedAt);
+  const activePermits = permits.filter((p: Permit) => !p.voidedAt);
+  const voidedPermits = permits.filter((p: Permit) => p.voidedAt);
 
   const handleVoid = useCallback(
     async (permitId: string) => {
@@ -99,12 +103,52 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
     [jobId, fetchPermits],
   );
 
+  const handleDocumentUpload = useCallback(
+    (permitId: string) => {
+      uploadPermitIdRef.current = permitId;
+      fileInputRef.current?.click();
+    },
+    [],
+  );
+
+  const handleFileSelected = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      const permitId = uploadPermitIdRef.current;
+      if (!file || !permitId) return;
+
+      setUploadingPermitId(permitId);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("permitId", permitId);
+
+        const res = await fetch(`/api/jobs/${jobId}/permits/document`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          void fetchPermits();
+        }
+      } finally {
+        setUploadingPermitId(null);
+        uploadPermitIdRef.current = null;
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    },
+    [jobId, fetchPermits],
+  );
+
   if (loading) {
     return (
       <SurfaceCard>
         <div className="flex items-center gap-2 p-4">
           <FileCheck className="h-4 w-4 text-muted" />
-          <span className="text-sm text-muted">Loading permits…</span>
+          <span className="text-sm text-muted">Loading permits...</span>
         </div>
       </SurfaceCard>
     );
@@ -128,12 +172,21 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
           )}
         </div>
 
+        {/* Hidden file input for document upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          onChange={handleFileSelected}
+        />
+
         {activePermits.length === 0 && (
           <p className="text-sm text-muted py-2">No permits recorded.</p>
         )}
 
         <div className="space-y-2">
-          {activePermits.map((permit) => (
+          {activePermits.map((permit: Permit) => (
             <div
               key={permit.id}
               className={cn(
@@ -147,9 +200,12 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
                     <span className="text-sm font-medium text-primary truncate">
                       {permit.jurisdiction} — {permit.permitType}
                     </span>
-                    <StatusBadge variant={STATUS_INTENT[permit.status]}>
-                      {STATUS_LABELS[permit.status]}
+                    <StatusBadge variant={STATUS_INTENT[permit.status as PermitStatus]}>
+                      {STATUS_LABELS[permit.status as PermitStatus]}
                     </StatusBadge>
+                    {permit.documentStorageId && (
+                      <Paperclip className="h-3 w-3 text-muted" title="Document attached" />
+                    )}
                   </div>
                   {permit.permitNumber && (
                     <p className="text-xs text-muted">#{permit.permitNumber}</p>
@@ -158,17 +214,31 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
                     <p className="text-xs text-muted mt-1 line-clamp-2">{permit.notes}</p>
                   )}
                 </div>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted hover:text-danger"
-                    onClick={() => void handleVoid(permit.id)}
-                    title="Void permit"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
+                <div className="flex items-center gap-1">
+                  {canEdit && !permit.documentStorageId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted hover:text-primary"
+                      onClick={() => handleDocumentUpload(permit.id)}
+                      disabled={uploadingPermitId === permit.id}
+                      title="Upload permit document"
+                    >
+                      <FileUp className="h-3 w-3" />
+                    </Button>
+                  )}
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted hover:text-danger"
+                      onClick={() => void handleVoid(permit.id)}
+                      title="Void permit"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -180,7 +250,7 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
               Voided ({voidedPermits.length})
             </p>
             <div className="space-y-1">
-              {voidedPermits.map((permit) => (
+              {voidedPermits.map((permit: Permit) => (
                 <div
                   key={permit.id}
                   className="flex items-center justify-between rounded px-2 py-1 opacity-60"

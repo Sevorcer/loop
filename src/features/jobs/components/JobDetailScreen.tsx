@@ -76,6 +76,7 @@ import { JobMoneySection } from "./JobMoneySection";
 import { JobTimeline } from "./JobTimeline";
 import { ShareLinkControls } from "./ShareLinkControls";
 import { PortalMoneyToggle } from "./PortalMoneyToggle";
+import { PortalPhotosToggle } from "./PortalPhotosToggle";
 import { PortalSubmissions } from "./PortalSubmissions";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
@@ -567,6 +568,10 @@ export function JobDetailScreen({
                   <div className="border-t border-white/10" />
 
                   <PortalMoneyToggle jobId={job.id} />
+
+                  <div className="border-t border-white/10" />
+
+                  <PortalPhotosToggle jobId={job.id} />
 
                   <div className="border-t border-white/10" />
 
