@@ -29,9 +29,11 @@ import type { SmartSelectionState } from "../utils/smartJobCreation";
 
 interface NewJobFormProps {
   initialContext?: SmartSelectionState;
+  /** Calendar date (YYYY-MM-DD) to prefill as the job's scheduled day. */
+  initialDate?: string;
 }
 
-function NewJobFormContent({ initialContext }: NewJobFormProps) {
+function NewJobFormContent({ initialContext, initialDate }: NewJobFormProps) {
   const router = useRouter();
   const { role } = useCurrentRole();
   const { jobs, createJob } = useJobs();
@@ -114,23 +116,31 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   }, [role]);
 
   const prefilledValues = useMemo(() => {
+    // Calendar "Add → Job" lands here with a date: prefill an 8:00 AM
+    // start on that day (editable in the form like any other field).
+    const datePatch = initialDate ? { scheduledStartAt: `${initialDate}T08:00` } : {};
     if (!initialContext) {
-      return undefined;
+      return Object.keys(datePatch).length > 0 ? datePatch : undefined;
     }
     const initialized = resolveInitialSmartSelection(
       customerOptions,
       propertyOptions,
       initialContext,
     );
-    if (Object.keys(initialized.formPatch).length === 0 && !initialized.state.customerId) {
+    if (
+      Object.keys(initialized.formPatch).length === 0 &&
+      !initialized.state.customerId &&
+      Object.keys(datePatch).length === 0
+  ) {
       return undefined;
     }
     return {
       ...initialized.formPatch,
+      ...datePatch,
       customerId: initialized.state.customerId ?? null,
       propertyId: initialized.state.propertyId ?? null,
     };
-  }, [customerOptions, initialContext, propertyOptions]);
+  }, [customerOptions, initialContext, initialDate, propertyOptions]);
 
   async function handleSubmit(values: JobFormValues) {
     const parsed = canSeeJobRevenue(role) ? parseDollarsToCents(priceDraft) : { ok: true as const, cents: null };
@@ -247,14 +257,14 @@ function NewJobFormContent({ initialContext }: NewJobFormProps) {
   );
 }
 
-export function NewJobForm({ initialContext }: NewJobFormProps) {
+export function NewJobForm({ initialContext, initialDate }: NewJobFormProps) {
   return (
     <RoutePermissionGuard
       table="jobs"
       action="insert"
       deniedDescription="You don't have permission to create jobs."
     >
-      <NewJobFormContent initialContext={initialContext} />
+      <NewJobFormContent initialContext={initialContext} initialDate={initialDate} />
     </RoutePermissionGuard>
   );
 }

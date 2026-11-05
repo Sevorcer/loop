@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { DateTimePicker } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
 import { requestJson } from "@/lib/api/client";
+import { ROUTE_BUILDERS } from "@/lib/routes";
 import { companyCalendarDate, utcIsoToCompanyDateTimeLocal } from "@/lib/timezone";
 
 import {
@@ -78,8 +80,16 @@ function ChooseKind({
   return (
     <div className="space-y-4">
       <h2 id="calendar-entry-title" className="text-lg font-semibold">Add to {date}</h2>
-      <p className="text-sm text-muted">Choose what you are adding. Jobs are still created from the Jobs page.</p>
+      <p className="text-sm text-muted">Choose what you are adding.</p>
       <div className="grid gap-2 sm:grid-cols-2">
+        <Link
+          href={ROUTE_BUILDERS.JOB_NEW({ date })}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left hover:bg-white/[0.06]"
+      >
+        
+          <span className="block text-sm font-semibold">Job</span>
+          <span className="mt-1 block text-xs text-muted">A new job scheduled on this day</span>
+        </Link>
         <ChoiceButton label="Time off" detail="Someone is out" onClick={() => onPick("time_off", date)} />
         <ChoiceButton label="Task" detail="A reminder that is not a job" onClick={() => onPick("task", date)} />
       </div>
