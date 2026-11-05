@@ -180,16 +180,37 @@ async function loadJobCustomerHints(
   return hints;
 }
 
+const CUSTOMER_DIRECTORY_PAGE_SIZE = 1000;
+const CUSTOMER_DIRECTORY_PAGE_LIMIT = 50;
+
+/**
+ * Full customer id→name directory for property name resolution.
+ * Must page: PostgREST caps a single response at 1,000 rows and live has
+ * 1,395 customers, so an unpaged read silently dropped ~395 names.
+ */
 async function loadCustomerDirectory(
   contextInput?: SessionRepositoryContextInput,
 ): Promise<{ id: string; name: string }[]> {
   const { supabase, orgId } = await getRepositoryContext(contextInput);
-  const { data, error } = await supabase.from("customers").select("id,name").eq("org_id", orgId);
-  if (error) return [];
-  return (data ?? []).map((customer) => ({
-    id: customer.id as string,
-    name: customer.name as string,
-  }));
+  const customers: { id: string; name: string }[] = [];
+  for (let page = 0; page < CUSTOMER_DIRECTORY_PAGE_LIMIT; page += 1) {
+    const from = page * CUSTOMER_DIRECTORY_PAGE_SIZE;
+    const to = from + CUSTOMER_DIRECTORY_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id,name")
+      .eq("org_id", orgId)
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) return customers.length > 0 ? customers : [];
+    const batch = (data ?? []).map((customer) => ({
+      id: customer.id as string,
+      name: customer.name as string,
+    }));
+    customers.push(...batch);
+    if (batch.length < CUSTOMER_DIRECTORY_PAGE_SIZE) break;
+  }
+  return customers;
 }
 
 async function withCustomerNames(
