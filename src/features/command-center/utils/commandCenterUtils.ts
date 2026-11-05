@@ -299,14 +299,9 @@ export function aggregateCrewWorkload(jobs: readonly Job[], today: string): Work
 // ------------------------------------------------------------------
 // Problem Jobs
 // Merges late + unassigned + on-hold jobs into a deduplicated,
-// priority-sorted list. Each entry carries all applicable reasons.
+// late-first list. Each entry carries all applicable reasons.
+// Priority tie-break removed (Option C); jobs.priority stays stored.
 // ------------------------------------------------------------------
-
-const JOB_PRIORITY_RANK: Record<string, number> = {
-  High: 0,
-  Medium: 1,
-  Low: 2,
-};
 
 export function buildProblemJobs(
   late: Job[],
@@ -331,10 +326,7 @@ export function buildProblemJobs(
   return Array.from(reasonMap.values())
     .map(({ job, reasons }) => ({ job, reasons: Array.from(reasons) }))
     .sort((a, b) => {
-      const pa = JOB_PRIORITY_RANK[a.job.priority] ?? 99;
-      const pb = JOB_PRIORITY_RANK[b.job.priority] ?? 99;
-      if (pa !== pb) return pa - pb;
-      // Secondary: late jobs first
+      // Late first, then soonest scheduled date, then job number.
       const aLate = a.reasons.includes("late") ? 0 : 1;
       const bLate = b.reasons.includes("late") ? 0 : 1;
       if (aLate !== bLate) return aLate - bLate;

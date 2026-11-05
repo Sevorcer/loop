@@ -423,8 +423,10 @@ export async function listJobsPaginated(
   const pageSize = Math.max(1, Math.min(filter.pageSize ?? 50, 200));
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  const sortCol = ALLOWED_SORT_COLUMNS[filter.sort ?? ""] ?? "created_at";
-  const ascending = (filter.order ?? "desc") === "asc";
+  // Default board order is scheduled date (Option C removed priority as a
+  // sort key). Explicit ?sort= still wins via the whitelist.
+  const sortCol = ALLOWED_SORT_COLUMNS[filter.sort ?? ""] ?? "scheduled_for";
+  const ascending = (filter.order ?? "asc") === "asc";
 
   const { supabase, orgId } = await getRepositoryContext();
 
@@ -1304,19 +1306,19 @@ export interface JobBoardCounts {
   total: number;
   inProgress: number;
   scheduled: number;
-  highPriority: number;
 }
 
 /**
  * Exact counts for the Jobs page stat cards, computed in the database with
- * four parallel head-only count queries. Replaces the old approach of paging
+ * three parallel head-only count queries. Replaces the old approach of paging
  * the ENTIRE job table into the browser (15 sequential pages of 200 + their
  * assignee lookups, capped at 3,000 rows) just to count it.
  *
  * Matches summarizeJobBoard(): soft-deleted jobs are excluded, statuses match
- * every stored casing (STATUS_QUERY_VARIANTS — production stores Title Case),
- * and priority matches "high" case-insensitively. RLS still applies, so a
- * tech sees counts for only the jobs they can read — same as before.
+ * every stored casing (STATUS_QUERY_VARIANTS — production stores Title Case).
+ * Priority is no longer shown on the board (Option C); the column stays in
+ * the database for imports/callbacks. RLS still applies, so a tech sees
+ * counts for only the jobs they can read — same as before.
  */
 export async function countJobBoardStats(
   contextInput?: SessionRepositoryContextInput,
@@ -1329,14 +1331,13 @@ export async function countJobBoardStats(
       .eq("org_id", orgId)
       .is("deleted_at", null);
 
-  const [totalRes, inProgressRes, scheduledRes, highRes] = await Promise.all([
+  const [totalRes, inProgressRes, scheduledRes] = await Promise.all([
     base(),
     base().in("status", getStatusVariants(["In Progress"])),
     base().in("status", getStatusVariants(["Scheduled"])),
-    base().ilike("priority", "high"),
   ]);
 
-  for (const res of [totalRes, inProgressRes, scheduledRes, highRes]) {
+  for (const res of [totalRes, inProgressRes, scheduledRes]) {
     if (res.error) throw new Error(res.error.message);
   }
 
@@ -1344,7 +1345,6 @@ export async function countJobBoardStats(
     total: totalRes.count ?? 0,
     inProgress: inProgressRes.count ?? 0,
     scheduled: scheduledRes.count ?? 0,
-    highPriority: highRes.count ?? 0,
   };
 }
 

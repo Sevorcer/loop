@@ -22,30 +22,14 @@ const STATUS_VARIANT: Record<
   Cancelled: "neutral",
 };
 
-const PRIORITY_DOT: Record<string, string> = {
-  High: "bg-danger",
-  Medium: "bg-warning",
-  Low: "bg-success",
-};
-
 export function CommandCenterJobRow({ job, badges }: CommandCenterJobRowProps) {
   const statusVariant = STATUS_VARIANT[job.status] ?? "neutral";
-  const priorityDot = PRIORITY_DOT[job.priority];
 
   return (
     <Link
       href={ROUTE_BUILDERS.JOB_DETAIL(job.id)}
       className="group flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-elevated sm:flex-nowrap"
     >
-      {/* Priority indicator */}
-      <span
-        className={[
-          "h-1.5 w-1.5 shrink-0 rounded-full",
-          priorityDot ?? "bg-border",
-        ].join(" ")}
-        aria-hidden="true"
-      />
-
       {/* Job number */}
       <span className="w-20 shrink-0 text-xs font-mono text-muted">
         {job.jobNumber}

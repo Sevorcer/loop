@@ -160,28 +160,16 @@ describe("buildProblemJobs", () => {
     expect(holdEntry.reasons).toEqual(["on_hold"]);
   });
 
-  it("sorts High priority before Medium before Low", () => {
-    const lowJob = makeJob({ id: "low", priority: "Low" });
-    const highJob = makeJob({ id: "high", priority: "High" });
-    const medJob = makeJob({ id: "med", priority: "Medium" });
-
-    const result = buildProblemJobs([lowJob, highJob, medJob], [], []);
-    expect(result[0].job.id).toBe("high");
-    expect(result[1].job.id).toBe("med");
-    expect(result[2].job.id).toBe("low");
-  });
-
-  it("within same priority, places late jobs before non-late jobs", () => {
-    const lateHigh = makeJob({ id: "late-high", priority: "High" });
+  it("places late jobs before non-late jobs regardless of stored priority", () => {
+    const lateLow = makeJob({ id: "late-low", priority: "Low" });
     const nonLateHigh = makeJob({ id: "nonlate-high", priority: "High" });
 
-    // lateHigh is in late list, nonLateHigh is only in unassigned
-    const result = buildProblemJobs([lateHigh], [nonLateHigh], []);
-    expect(result[0].job.id).toBe("late-high");
+    const result = buildProblemJobs([lateLow], [nonLateHigh], []);
+    expect(result[0].job.id).toBe("late-low");
     expect(result[1].job.id).toBe("nonlate-high");
   });
 
-  it("is deterministic for same-priority non-late jobs", () => {
+  it("is deterministic for non-late jobs by scheduled date then job number", () => {
     const b = makeJob({
       id: "b",
       jobNumber: "JOB-1002",

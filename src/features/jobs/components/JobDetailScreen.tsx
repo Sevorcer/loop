@@ -95,11 +95,6 @@ function getStatusVariant(status: JobStatus) {
   return "danger" as const;
 }
 
-function getPriorityVariant(priority: Job["priority"]) {
-  if (priority === "High") return "danger" as const;
-  if (priority === "Medium") return "warning" as const;
-  return "neutral" as const;
-}
 
 /**
  * The job page is organised into five tabs so nobody scroll-hunts through
@@ -312,7 +307,7 @@ export function JobDetailScreen({
     [job.contractorIds, contractors],
   );
   const statusVariant = getStatusVariant(job.status);
-  const priorityVariant = getPriorityVariant(job.priority);
+
   const statusIntent = getJobStatusIntent(job.status);
   const installedSystemsEntered =
     getInstalledSystemsForJob(job.id, job.propertyId ?? undefined).length > 0;
@@ -432,9 +427,6 @@ export function JobDetailScreen({
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge variant={statusVariant}>
                 {job.status}
-              </StatusBadge>
-              <StatusBadge variant={priorityVariant}>
-                {job.priority} Priority
               </StatusBadge>
               <StatusBadge variant="neutral">{job.type}</StatusBadge>
               {callbackContext.original ? (
