@@ -69,6 +69,19 @@ vi.mock(
   },
 );
 
+// #23 materials + technical data panels fetch on mount; stub them here.
+vi.mock("@/features/job-materials", async () => {
+  const { createElement: ce, Fragment } = await import("react");
+  const passthrough = (props: { children?: unknown }) =>
+    ce(Fragment, null, props.children as never);
+  return {
+    JobMaterialsProvider: passthrough,
+    JobTechnicalDataProvider: passthrough,
+    JobMaterialsPanel: () => ce("div", null, "Materials stub"),
+    JobTechnicalDataPanel: () => ce("div", null, "Technical data stub"),
+  };
+});
+
 vi.mock("../components/AssignContractorPanel", async () => {
   const { createElement: ce } = await import("react");
   return { AssignContractorPanel: () => ce("div", null, "Contractor stub") };

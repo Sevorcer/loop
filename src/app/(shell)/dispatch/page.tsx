@@ -6,11 +6,16 @@ import { DispatchScreen } from "@/features/dispatch";
 import type { DispatchSnapshot } from "@/features/dispatch/types/dispatch";
 import { alignDispatchSnapshotWithJobs } from "@/features/dispatch/utils/alignDispatchWithJobs";
 import { assembleDispatchSnapshot } from "@/features/dispatch/utils/dispatchUtils";
+import { applyPrepReadiness } from "@/features/dispatch/utils/prepReadiness";
 import { listCalendarTeam, listTimeOff } from "@/repositories/calendarEntries";
 import {
   loadBoardDispatchSnapshot,
   loadDispatchJobContext,
 } from "@/services/dispatch";
+import {
+  getJobMaterialSummaries,
+  getSystemCountsForProperties,
+} from "@/services/jobMaterials";
 
 const EMPTY_DISPATCH_SNAPSHOT: DispatchSnapshot = {
   dispatchPlans: [],
@@ -69,9 +74,30 @@ export default async function DispatchPage() {
       }
     : EMPTY_DISPATCH_SNAPSHOT;
 
-  const dispatchSnapshot = jobContext
+  const aligned = jobContext
     ? alignDispatchSnapshotWithJobs(assembled, jobContext.jobs)
     : assembled;
+
+  // #23: Materials / Technical chips from real data (one small read each,
+  // in parallel; a failure leaves the stored chips as they were).
+  const jobPropertyIds: Record<string, string | null> = {};
+  for (const job of jobContext?.jobs ?? []) jobPropertyIds[job.id] = job.propertyId ?? null;
+  const jobIds = Object.keys(jobPropertyIds);
+  const propertyIds = [
+    ...new Set(Object.values(jobPropertyIds).filter((id): id is string => !!id)),
+  ];
+  const [materialSummaries, systemCounts] = await Promise.all([
+    getJobMaterialSummaries(jobIds).catch(() => null),
+    getSystemCountsForProperties(propertyIds).catch(() => null),
+  ]);
+  const dispatchSnapshot =
+    materialSummaries || systemCounts
+      ? applyPrepReadiness(aligned, {
+          materialSummaries: materialSummaries ?? {},
+          jobPropertyIds: systemCounts ? jobPropertyIds : {},
+          systemCounts: systemCounts ?? {},
+        })
+      : aligned;
 
   return <DispatchScreen snapshot={dispatchSnapshot} />;
 }

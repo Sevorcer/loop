@@ -28,6 +28,13 @@ import { useCurrentRole } from "@/features/auth";
 import { useContractors } from "@/features/contractors/state/ContractorsProvider";
 import { JobInstalledSystemsPanel } from "@/features/installed-systems/components/JobInstalledSystemsPanel";
 import { useInstalledSystems } from "@/features/installed-systems/state/InstalledSystemsProvider";
+import {
+  JobMaterialsPanel,
+  JobMaterialsProvider,
+  JobTechnicalDataPanel,
+  JobTechnicalDataProvider,
+} from "@/features/job-materials";
+import { canViewJobMaterials } from "@/features/job-materials/utils/jobMaterials";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { joinAddressParts } from "@/lib/address";
@@ -784,6 +791,12 @@ export function JobDetailScreen({
             onCountsChange={handleTaskCounts}
           />
 
+          {canViewJobMaterials(role) ? (
+            <JobMaterialsProvider jobId={job.id}>
+              <JobMaterialsPanel />
+            </JobMaterialsProvider>
+          ) : null}
+
           <div
             id={JOB_CLOSEOUT_SECTION_IDS.qa}
             className="scroll-mt-24 rounded-3xl transition-shadow duration-500 md:scroll-mt-48"
@@ -831,6 +844,13 @@ export function JobDetailScreen({
       </JobDetailTabPanel>
 
       <JobDetailTabPanel tab="systems" activeTab={activeTab}>
+        {canViewJobMaterials(role) ? (
+          <div className="mb-6">
+            <JobTechnicalDataProvider jobId={job.id}>
+              <JobTechnicalDataPanel />
+            </JobTechnicalDataProvider>
+          </div>
+        ) : null}
         <div
           id={JOB_CLOSEOUT_SECTION_IDS.systems}
           className="scroll-mt-24 rounded-3xl transition-shadow duration-500 md:scroll-mt-48"
