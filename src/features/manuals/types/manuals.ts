@@ -57,6 +57,8 @@ export interface DriveManualFile {
   folderPath: string;
   driveModifiedAt: string | null;
   webViewLink: string;
+  /** True when a copy is stored in LOOP and served by /api/manuals/:id/file. The storage path itself is never sent to the client. */
+  hasLocalFile?: boolean;
   sizeBytes: number | null;
   parsedManufacturer: string | null;
   parsedManufacturers: string[];
@@ -150,7 +152,7 @@ export interface ManualMatchSubject {
 
 /** A manual shown on an installed system: stored decision or live suggestion. */
 export interface InstalledSystemManual {
-  manual: Pick<DriveManualFile, "id" | "name" | "webViewLink" | "docType" | "manufacturer" | "models" | "folderPath" | "mimeType" | "status" | "portalEligible">;
+  manual: Pick<DriveManualFile, "id" | "name" | "webViewLink" | "hasLocalFile" | "docType" | "manufacturer" | "models" | "folderPath" | "mimeType" | "status" | "portalEligible">;
   status: ManualLinkStatus | "match";
   source: ManualLinkSource | "live";
   kind: ManualMatchKind;

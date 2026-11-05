@@ -176,6 +176,13 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 ---
 
+### Storage: `manuals` bucket (private)
+
+PDF copies of indexed manuals (`drive_manual_files.storage_path`). One policy, SELECT only (`manuals_storage_select`, 20261124000000):
+owner / manager / dispatch / office / sales / tech may read an object only when a `drive_manual_files` row visible to them (so same-org, via that table's RLS) points at its path. No INSERT/UPDATE/DELETE policy; uploads are service-side. portal / anon: none. Served to the browser only through `GET /api/manuals/:id/file` (no signed-URL redirect).
+
+---
+
 ## Inventory Lane 1 (migrations 20261123000000, 20261123100000)
 
 All eight tables are RLS ENABLE + FORCE, org-scoped via `current_org_id()`. Portal users have no access to any of them.

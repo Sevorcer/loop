@@ -36,6 +36,8 @@ export interface DriveManualFileRow {
   status: string;
   /** 20261121500000; absent on rows read before that migration. */
   portal_eligible?: boolean | null;
+  /** 20261124000000; object path inside the private `manuals` bucket, null = Drive link only. */
+  storage_path?: string | null;
   last_seen_at: string;
   updated_at: string;
 }
@@ -54,7 +56,7 @@ interface SyncRunRow {
 }
 
 export const DRIVE_MANUAL_COLUMNS =
-  "id,drive_file_id,name,mime_type,folder_path,drive_modified_at,web_view_link,size_bytes,parsed_manufacturer,parsed_manufacturers,parsed_models,parsed_doc_type,manufacturer_override,model_override,status,portal_eligible,last_seen_at,updated_at";
+  "id,drive_file_id,name,mime_type,folder_path,drive_modified_at,web_view_link,size_bytes,parsed_manufacturer,parsed_manufacturers,parsed_models,parsed_doc_type,manufacturer_override,model_override,status,portal_eligible,storage_path,last_seen_at,updated_at";
 
 const SYNC_RUN_COLUMNS =
   "id,started_at,finished_at,status,folder_count,files_seen,files_added,files_updated,files_removed,error";
@@ -89,6 +91,7 @@ export function mapDriveManualFile(row: DriveManualFileRow): DriveManualFile {
     models: row.model_override?.trim() ? [row.model_override.trim().toUpperCase()] : parsedModels,
     status: row.status === "removed" ? "removed" : "active",
     portalEligible: row.portal_eligible === true,
+    hasLocalFile: !!row.storage_path,
     lastSeenAt: row.last_seen_at,
     updatedAt: row.updated_at,
   };
@@ -221,6 +224,37 @@ export async function updateDriveManualOverrides(
   if (error) throw toRepositoryError(error);
   if (!data) throw Object.assign(new Error("Manual not found."), { status: 404, code: "NOT_FOUND" });
   return mapDriveManualFile(data as DriveManualFileRow);
+}
+
+/** Private Supabase Storage bucket holding the PDF copies of indexed manuals. */
+export const MANUALS_BUCKET = "manuals";
+
+/**
+ * Download the stored copy of a manual (org-scoped, session client).
+ *
+ * Returns null when the row does not exist in this org, has no stored copy
+ * (`storage_path` null), or the object is missing / unreadable. The storage
+ * SELECT policy in 20261124000000 gates the bytes by role and by an existing
+ * drive_manual_files row, so no service-role client is involved.
+ */
+export async function downloadDriveManualFile(
+  id: string,
+): Promise<{ blob: Blob; name: string } | null> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("drive_manual_files")
+    .select("name,storage_path")
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw toRepositoryError(error);
+  const row = data as { name: string; storage_path: string | null } | null;
+  if (!row?.storage_path) return null;
+  const { data: blob, error: downloadError } = await supabase.storage
+    .from(MANUALS_BUCKET)
+    .download(row.storage_path);
+  if (downloadError || !blob) return null;
+  return { blob, name: row.name };
 }
 
 export async function getLatestDriveSyncRun(): Promise<DriveManualSyncRun | null> {

@@ -49,6 +49,8 @@ export const ROUTE_BUILDERS = {
     const query = params.toString();
     return query ? `${ROUTES.JOBS}/new?${query}` : `${ROUTES.JOBS}/new`;
   },
+  /** Authenticated PDF stream for an indexed manual stored in LOOP (api route, not a page). */
+  MANUAL_FILE: (manualId: string) => `/api/manuals/${manualId}/file`,
   JOB_DETAIL: (jobId: string) => `${ROUTES.JOBS}/${jobId}`,
   JOB_EDIT: (jobId: string) => `${ROUTES.JOBS}/${jobId}/edit`,
   PROPERTY_NEW: (context?: { customerId?: string }) => {

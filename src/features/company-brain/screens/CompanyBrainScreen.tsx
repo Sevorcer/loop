@@ -24,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 
+import { DriveManualsProvider, ManualsSummaryCard } from "@/features/manuals";
+
 import { KnowledgeItemCard } from "../components/KnowledgeItemCard";
 import { useCompanyBrain } from "../state/CompanyBrainProvider";
 import type { KnowledgeItem, KnowledgeType } from "../types/knowledgeItem";
@@ -117,7 +119,7 @@ export function CompanyBrainScreen() {
             <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_MANUALS()}>
               <Button variant="outline" className="gap-2">
                 <FileText className="h-4 w-4" />
-                Drive manuals
+                Manuals
               </Button>
             </Link>
             <PermissionGuard table="knowledge_items" action="insert">
@@ -193,7 +195,7 @@ export function CompanyBrainScreen() {
               <Link href={ROUTE_BUILDERS.COMPANY_BRAIN_MANUALS()}>
                 <Button variant="outline" className="gap-2">
                   <FileText className="h-4 w-4" />
-                  Drive manuals
+                  Manuals
                 </Button>
               </Link>
               <PermissionGuard table="knowledge_items" action="insert">
@@ -208,6 +210,11 @@ export function CompanyBrainScreen() {
           </div>
         </div>
       </SurfaceCard>
+
+      {/* ── Manuals ── */}
+      <DriveManualsProvider>
+        <ManualsSummaryCard />
+      </DriveManualsProvider>
 
       {/* ── Search ── */}
       <SurfaceCard>
