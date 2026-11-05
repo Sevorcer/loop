@@ -22,6 +22,7 @@ import {
   getInstalledSystemsSnapshot,
 } from "@/services/installedSystems";
 import { getJob } from "@/services/jobs";
+import { tryAutoMatchManualsForSystem } from "@/services/manualAutoMatch";
 
 const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -192,7 +193,10 @@ export async function POST(request: Request) {
       resourceId: installedSystem.id,
     });
 
-    return NextResponse.json({ installedSystem }, { status: 201 });
+    // #8 Copilot: link the matching Drive manual (or suggest one) right away.
+    const manualMatch = await tryAutoMatchManualsForSystem(installedSystem.id);
+
+    return NextResponse.json({ installedSystem, manualMatch }, { status: 201 });
   } catch (error) {
     return mapRouteError(error);
   }

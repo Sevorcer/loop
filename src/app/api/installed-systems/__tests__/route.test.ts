@@ -24,6 +24,11 @@ vi.mock("@/repositories/installedSystems", () => ({
   getInstalledSystemById: getInstalledSystemByIdMock,
 }));
 
+// #8 Copilot manual auto-match runs after create; keep it inert here.
+vi.mock("@/services/manualAutoMatch", () => ({
+  tryAutoMatchManualsForSystem: vi.fn(async () => null),
+}));
+
 import { GET as getInstalledSystems, POST as postInstalledSystem } from "@/app/api/installed-systems/route";
 import { GET as getInstalledSystemById } from "@/app/api/installed-systems/[id]/route";
 

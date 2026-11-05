@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { pushToast } from "@/components/ui/toast";
 import { requestJson } from "@/lib/api/client";
 import { useCurrentRole } from "@/features/auth";
 import type { Customer } from "@/features/customers/types/customer";
@@ -359,7 +360,10 @@ export function InstalledSystemForm({
         await refreshSystems();
         router.push(ROUTE_BUILDERS.INSTALLED_SYSTEM_DETAIL(system.id));
       } else {
-        const response = await requestJson<{ installedSystem: InstalledSystem }>(
+        const response = await requestJson<{
+          installedSystem: InstalledSystem;
+          manualMatch?: { action: "linked" | "suggested" | "none"; reason: string } | null;
+        }>(
           "/api/installed-systems",
           {
             method: "POST",
@@ -382,6 +386,10 @@ export function InstalledSystemForm({
           },
         );
         await refreshSystems();
+        // #8 Copilot: say which Drive manual was linked or suggested, and why.
+        if (response.manualMatch && response.manualMatch.action !== "none") {
+          pushToast(response.manualMatch.reason, "success");
+        }
         if (onCreated) {
           // Dialog mode: hand the new system back to the caller (which closes
           // the dialog). The provider refresh above already makes it visible in

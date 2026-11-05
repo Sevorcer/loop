@@ -13,6 +13,7 @@ import { createApiErrorResponse, invalidJsonResponse, mapRepositoryError, mapRou
 import { emitAuditEvent } from "@/lib/audit";
 import { getCurrentOperator } from "@/services/currentOperator";
 import { getInstalledSystemById } from "@/repositories/installedSystems";
+import { tryAutoMatchManualsForSystem } from "@/services/manualAutoMatch";
 import {
   deleteInstalledSystem,
   updateInstalledSystem,
@@ -119,7 +120,15 @@ export async function PATCH(
       resourceId: id,
     });
 
-    return NextResponse.json({ installedSystem: updated });
+    // #8 Copilot: a brand/model edit re-runs the manual auto-match.
+    const manualMatch =
+      patch.manufacturer !== undefined || patch.modelNumber !== undefined || patch.systemName !== undefined
+        ? await tryAutoMatchManualsForSystem(id)
+        : undefined;
+
+    return NextResponse.json(
+      manualMatch === undefined ? { installedSystem: updated } : { installedSystem: updated, manualMatch },
+    );
   } catch (error) {
     return mapRouteError(error);
   }
