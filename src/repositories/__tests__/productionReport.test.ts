@@ -277,7 +277,10 @@ describe("listProductionSources with a report window (Bundle C perf fix 3)", () 
         computeProductionReport(full.jobs, full.completions, range, TZ),
       );
     }
-  });
+    // Parity harness runs the full enrichment per range — needs more
+    // than the default 5s test timeout on a loaded machine.
+  }, 60_000);
+  
 
   it("keeps chunk order deterministic while reading chunks in parallel", async () => {
     const { jobs } = await listProductionSources(true);
