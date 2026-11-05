@@ -288,7 +288,7 @@ function PermitCard({
         </div>
         <div className="flex items-center gap-1.5">
           {permit.documentStorageId && (
-            <Paperclip className="h-3.5 w-3.5 text-muted" title="Document attached" />
+            <span title="Document attached"><Paperclip className="h-3.5 w-3.5 text-muted" /></span>
           )}
           <AgeIndicator days={d} />
         </div>
