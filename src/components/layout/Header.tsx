@@ -337,7 +337,7 @@ export default function Header({
             type="button"
             variant="ghost"
             size="icon"
-            aria-label="Open command bar (Cmd/Ctrl+K)"
+            aria-label="Search / Ask Copilot"
             onClick={onOpenCommandBar}
             className="h-11 w-11 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
           >

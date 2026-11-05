@@ -57,7 +57,7 @@ afterEach(() => {
 
 const phoneActions: SidebarPhoneAction[] = [
   {
-    label: "Search",
+    label: "Ask Copilot",
     icon: Search,
     keyShortcuts: "Control+K Meta+K",
     onSelect: vi.fn(),
@@ -70,12 +70,12 @@ const phoneActions: SidebarPhoneAction[] = [
 ];
 
 describe("Sidebar phone actions", () => {
-  it("renders Search and Send feedback only as phone menu rows", async () => {
+  it("renders Ask Copilot and Send feedback only as phone menu rows", async () => {
     const container = await render(
       createElement(Sidebar, { id: "mobile-navigation", phoneActions }),
     );
     const search = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Search",
+      (button) => button.textContent === "Ask Copilot",
     );
     const feedback = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Send feedback",
@@ -93,7 +93,7 @@ describe("Sidebar phone actions", () => {
       (button) => button.textContent,
     );
 
-    expect(labels).not.toContain("Search");
+    expect(labels).not.toContain("Ask Copilot");
     expect(labels).not.toContain("Send feedback");
   });
 });

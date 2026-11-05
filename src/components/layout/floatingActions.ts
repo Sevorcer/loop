@@ -13,18 +13,18 @@ export function hidesFloatingActions(pathname: string): boolean {
 }
 
 /**
- * Phones hide the corner buttons. Search and feedback move into the
- * slide-out menu instead.
+ * Field feedback 2026-11-05 (item 6): phones must show the same Copilot and
+ * feedback corner buttons as desktop. The stack stays visible at every
+ * breakpoint; job create/edit still hide it via hidesFloatingActions.
  *
- * The cutoff is Tailwind's `md` breakpoint (768px). That matches the width
- * the shell already treats as a phone when a sticky action bar would sit
- * under the buttons (`max-width: 767px` in globals.css). Tablet and desktop
- * keep the buttons, including on the job forms that hide them by route.
+ * Phone slide-out menu still carries Ask Copilot + Send feedback as a
+ * backup (and as the only entry on job forms). Those menu rows stay
+ * phone-only so tablets/desktops that already see the corner buttons do
+ * not also see duplicates in the drawer. The desktop sidebar never
+ * receives the entries.
  *
- * The slide-out menu itself stays available up to `lg` (1024px), which
- * includes tablets. The menu entries are phone-only so a tablet does not
- * show them next to the corner buttons. The desktop sidebar never receives
- * the entries.
+ * Sticky mobile action bars lift the stack via globals.css
+ * (body[data-mobile-action-bar="1"]).
  */
-export const CORNER_ACTIONS_VISIBILITY_CLASS = "hidden md:flex";
+export const CORNER_ACTIONS_VISIBILITY_CLASS = "flex";
 export const PHONE_NAV_ACTIONS_VISIBILITY_CLASS = "md:hidden";

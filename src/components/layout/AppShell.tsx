@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Command, Menu, MessageSquarePlus, Search } from "lucide-react";
+import { Command, Menu, MessageSquarePlus } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { UniversalCommandBar } from "@/features/command-bar";
@@ -73,8 +73,8 @@ export default function AppShell({ children }: AppShellProps) {
 
   const phoneActions: readonly SidebarPhoneAction[] = [
     {
-      label: "Search",
-      icon: Search,
+      label: "Ask Copilot",
+      icon: Command,
       keyShortcuts: "Control+K Meta+K",
       onSelect: openSearch,
     },
@@ -221,9 +221,9 @@ export default function AppShell({ children }: AppShellProps) {
       />
 
       {/* Floating Actions Stack — vertical column, bottom-right corner.
-          Lifts above any sticky mobile action bar via the body flag.
-          Hidden on phones (the slide-out menu carries Search and Send
-          feedback there) and on job create/edit so it cannot cover the form. */}
+          Visible on phones too (item 6 field parity). Lifts above any sticky
+          mobile action bar via the body flag. Hidden on job create/edit so
+          it cannot cover the form. */}
       {hideFloatingActions ? null : (
         <div
           className={cn(
@@ -235,14 +235,14 @@ export default function AppShell({ children }: AppShellProps) {
           {/* Report Feedback */}
           <FeedbackButton onOpen={openFeedback} />
 
-          {/* Ask Copilot — desktop */}
-          <div className="group relative hidden sm:block">
+          {/* Ask Copilot — all breakpoints */}
+          <div className="group relative">
             <Button
               type="button"
               variant="secondary"
               size="icon"
               onClick={openSearch}
-              aria-label="Open command bar"
+              aria-label="Ask Copilot"
               className="h-10 w-10 rounded-full border border-white/15 bg-slate-900/90 text-slate-200 shadow-xl hover:bg-slate-800"
             >
               <Command className="h-4 w-4" />
