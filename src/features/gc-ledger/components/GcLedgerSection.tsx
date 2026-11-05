@@ -63,9 +63,10 @@ export function GcLedgerSection({ customerId, customerName }: GcLedgerSectionPro
     setLoading(true);
     setError(null);
     try {
-      const [entriesRes, overviewRes] = await Promise.all([
+      const [entriesRes, overviewRes, contactsRes] = await Promise.all([
         fetch(`/api/customers/${customerId}/gc-ledger`),
         fetch(`/api/gc-overview`),
+        fetch(`/api/customers/${customerId}/contacts`),
       ]);
 
       if (entriesRes.ok) {
@@ -79,6 +80,11 @@ export function GcLedgerSection({ customerId, customerName }: GcLedgerSectionPro
           (b: GcBuilderRollup) => b.customerId === customerId,
         );
         if (builderRollup) setRollup(builderRollup);
+      }
+
+      if (contactsRes.ok) {
+        const { contacts: fetchedContacts } = await contactsRes.json();
+        setContacts(fetchedContacts ?? []);
       }
     } catch {
       setError("Failed to load GC ledger data.");

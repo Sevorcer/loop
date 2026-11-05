@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requirePermission } from "@/lib/api-auth";
-import { invalidJsonResponse, mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
+import { mapRouteError, readJsonObject } from "@/lib/api/routeErrors";
 import { getGcLedgerEntries, createGcLedgerEntry } from "@/services/gcLedger";
 
 export async function GET(
@@ -28,8 +28,35 @@ export async function POST(
   if (!guard.ok) return guard.response;
 
   try {
-    await params; // validate route param exists
+    const { id: parentCustomerId } = await params;
     const body = await readJsonObject(request);
+
+    // Validate that the job belongs to the URL customer (or a child of it)
+    const jobId = String(body.jobId ?? "");
+    if (jobId) {
+      const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+      const supabase = await createSupabaseServerClient();
+      const { data: job } = await supabase
+        .from("jobs")
+        .select("customer_id, customers!inner(parent_customer_id)")
+        .eq("id", jobId)
+        .single();
+
+      if (!job) {
+        return NextResponse.json({ error: "Job not found." }, { status: 404 });
+      }
+
+      const jobCustomerId = job.customer_id as string;
+      const customers = job.customers as unknown as { parent_customer_id: string | null } | null;
+      const parentId = customers?.parent_customer_id;
+      if (jobCustomerId !== parentCustomerId && parentId !== parentCustomerId) {
+        return NextResponse.json(
+          { error: "Job does not belong to this customer." },
+          { status: 400 },
+        );
+      }
+    }
+
     const entry = await createGcLedgerEntry({
       jobId: String(body.jobId ?? ""),
       estimateNumber: body.estimateNumber as string | undefined,

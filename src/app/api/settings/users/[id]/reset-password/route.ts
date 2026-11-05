@@ -51,11 +51,11 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
     }
 
-    // Generate a recovery link (Supabase sends the email automatically)
-    const { error } = await admin.auth.admin.generateLink({
-      type: "recovery",
-      email: userData.user.email,
-    });
+    // Send a password reset email via Supabase
+    const { error } = await admin.auth.resetPasswordForEmail(
+      userData.user.email,
+      { redirectTo: `${new URL(request.url).origin}/auth/reset-password` },
+    );
 
     if (error) throw new Error(error.message);
 
