@@ -71,6 +71,7 @@ import { JobDayByDay } from "./JobDayByDay";
 import { JobBidPanel } from "./JobBidPanel";
 import { JobInspectionsCard } from "./JobInspectionsCard";
 import { JobPermitsCard } from "./JobPermitsCard";
+import { JobChangeOrdersCard } from "./JobChangeOrdersCard";
 import { JobPriceEditor } from "./JobPriceEditor";
 import { JobMoneySection } from "./JobMoneySection";
 import { JobTimeline } from "./JobTimeline";
@@ -196,6 +197,8 @@ export function JobDetailScreen({
   const isTech = role === "tech";
   const canEditInspectionsForRole = role === "owner" || role === "manager" || role === "office";
   const canEditPermitsForRole = role === "owner" || role === "manager" || role === "office";
+  const canEditChangeOrders = role === "owner" || role === "manager" || role === "office";
+  const canDeleteChangeOrders = role === "owner" || role === "manager";
   const { getInstalledSystemsForJob } = useInstalledSystems();
   const { contractors } = useContractors();
   const [fileCount, setFileCount] = useState(0);
@@ -551,6 +554,15 @@ export function JobDetailScreen({
 
             <PermissionGuard table="job_inspections" action="select">
               <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
+            </PermissionGuard>
+
+            <PermissionGuard table="job_change_orders" action="select">
+              <JobChangeOrdersCard
+                jobId={job.id}
+                canEdit={canEditChangeOrders}
+                canDelete={canDeleteChangeOrders}
+                priceCents={priceCents}
+              />
             </PermissionGuard>
 
             {/* GC Portal section — office+ only */}
