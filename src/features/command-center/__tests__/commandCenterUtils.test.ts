@@ -533,11 +533,13 @@ describe("KPI_DEFINITIONS", () => {
     }
   });
 
-  it("every definition has a non-empty label, description, and href", () => {
+  it("every definition has a non-empty label and description, and any href is a real path", () => {
     for (const def of KPI_DEFINITIONS) {
       expect(def.label.length).toBeGreaterThan(0);
       expect(def.description.length).toBeGreaterThan(0);
-      expect(def.href.startsWith("/")).toBe(true);
+      // Lane 4: a tile with no real destination is deliberately
+      // non-interactive (href ""); any non-empty href must be a path.
+      expect(def.href === "" || def.href.startsWith("/")).toBe(true);
     }
   });
 });
