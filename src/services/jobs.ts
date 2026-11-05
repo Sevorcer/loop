@@ -1024,6 +1024,14 @@ export async function softDeleteJob(
 /**
  * Restore a soft-deleted job (clear `deleted_at`). Only the owner role can
  * restore deleted jobs.
+  *
+   * Restore is idempotent: if the job exists but is not currently deleted
+    * (e.g. a double-tap fired restore twice, and the first call already
+     * restored it), the call still succeeds — the desired end state holds.
+      * Returns false ONLY when the job does not exist in the org at all, so
+       * the route's 404 means "no such job", never "already restored".
+        * (Collin's live report, 2026-11-04: Restore answered "job not found"
+         * on a job that had in fact been restored.)
  */
 export async function restoreJob(
   id: string,
@@ -1043,7 +1051,13 @@ export async function restoreJob(
       title: "Job restored",
       description: "Job was restored from soft-delete.",
     });
+        return true;
   }
 
-  return restored;
+  // The UPDATE matched no row: the job is either already active or
+    // truly missing. getJobById does not filter deleted_at, so it sees
+    // both states; null here means the 404 is honest.
+    const existing = await getJobById(id);
+    return existing !== null;
+
 }
