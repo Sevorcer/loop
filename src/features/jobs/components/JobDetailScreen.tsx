@@ -8,7 +8,9 @@ import {
   Camera,
   ClipboardCheck,
   ClipboardList,
+  DollarSign,
   ExternalLink,
+  FileText,
   Globe,
   HardHat,
   History,
@@ -16,6 +18,7 @@ import {
   MapPin,
   Navigation,
   RotateCcw,
+  Shield,
   Trash2,
   User,
   Wrench,
@@ -116,6 +119,24 @@ function getStatusVariant(status: JobStatus) {
  */
 type JobDetailTab = "overview" | "tasks" | "photos" | "systems" | "activity";
 
+/** Sub-tabs within the Overview tab for specialized sections below the fold. */
+type OverviewSubTab = "permits" | "portal" | "financials" | "bid";
+
+interface OverviewSubTabDef {
+  key: OverviewSubTab;
+  label: string;
+  icon: LucideIcon;
+  /** When provided, only show this sub-tab for these roles. */
+  roles?: string[];
+}
+
+const OVERVIEW_SUB_TABS: OverviewSubTabDef[] = [
+  { key: "permits", label: "Permits & Inspections", icon: Shield },
+  { key: "portal", label: "GC Portal", icon: Globe, roles: ["owner", "manager", "office"] },
+  { key: "financials", label: "Financials", icon: DollarSign },
+  { key: "bid", label: "Bid", icon: FileText },
+];
+
 interface JobDetailTabDef {
   key: JobDetailTab;
   label: string;
@@ -211,6 +232,7 @@ export function JobDetailScreen({
   const [photoCount, setPhotoCount] = useState(0);
   const [latestSignature, setLatestSignature] = useState<JobSignature | null>(null);
   const [activeTab, setActiveTab] = useState<JobDetailTab>("overview");
+  const [overviewSubTab, setOverviewSubTab] = useState<OverviewSubTab>("permits");
   const [taskCounts, setTaskCounts] = useState<{ done: number; total: number } | null>(null);
   const [systemsCount, setSystemsCount] = useState<number | null>(null);
 
@@ -296,6 +318,11 @@ export function JobDetailScreen({
     () => sortJobActivity(activityWithJobNotes(activity, noteHistory)),
     [activity, noteHistory],
   );
+  const visibleSubTabs = useMemo(
+    () => OVERVIEW_SUB_TABS.filter((t) => !t.roles || (role && t.roles.includes(role))),
+    [role],
+  );
+
   // F20: prefer the real scheduled time over the legacy appointment-hour
   // field, which always falls back to 9 AM for jobs created by the new form.
   const appointmentDisplay = formatJobAppointmentDisplay(job);
@@ -340,6 +367,7 @@ export function JobDetailScreen({
          * The proper fix (loading.tsx/error.tsx Suspense boundary on jobs/[id],
          * PR #325) should let soft nav commit again and retire this workaround.
          */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- hard-navigation required: PRs #324/#326 fix soft-nav bug */}
         <a href="/jobs" data-testid="back-to-jobs-link">
           <Button
             type="button"
@@ -417,34 +445,48 @@ export function JobDetailScreen({
       </div>
 
       <SurfaceCard className="overflow-hidden">
-        <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-red-300">
-              <Wrench className="h-3.5 w-3.5" />
-              Job Detail
-            </div>
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-medium text-slate-400 sm:text-sm">
+                  {job.jobNumber}
+                </p>
+                <StatusBadge variant={statusVariant}>
+                  {job.status}
+                </StatusBadge>
+              </div>
 
-            <div>
-              <p className="text-sm font-medium text-slate-400">
-                {job.jobNumber}
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+              <h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
                 {job.title}
               </h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                {job.summary}
-              </p>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge variant={statusVariant}>
-                {job.status}
-              </StatusBadge>
-              <StatusBadge variant="neutral">{job.type}</StatusBadge>
+              {/* Inline meta row */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-slate-400 sm:text-xs [&>span]:basis-[calc(50%-0.5rem)] sm:[&>span]:basis-auto">
+                <span className="inline-flex items-center gap-1">
+                  <CalendarClock className="h-3 w-3" />
+                  {scheduleRangeLabel ?? (job.scheduledFor ? formatDate(job.scheduledFor) : job.scheduledStartAt ? formatDate(job.scheduledStartAt) : "Unscheduled")}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  {currentTeam || "Unassigned"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <ClipboardCheck className="h-3 w-3" />
+                  {jobCloseoutModeLabel(job.closeoutMode)}
+                </span>
+                {job.propertyName ? (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {job.propertyName}
+                  </span>
+                ) : null}
+              </div>
+
               {callbackContext.original ? (
                 <Link
                   href={ROUTE_BUILDERS.JOB_DETAIL(callbackContext.original.id)}
-                  className="inline-flex min-h-[44px] items-center text-sm text-amber-200 hover:underline"
+                  className="inline-flex min-h-[44px] items-center text-xs text-amber-200 hover:underline sm:text-sm"
                 >
                   Callback for {callbackContext.original.jobNumber}
                 </Link>
@@ -453,26 +495,19 @@ export function JobDetailScreen({
                 <Link
                   key={visit.id}
                   href={ROUTE_BUILDERS.JOB_DETAIL(visit.id)}
-                  className="inline-flex min-h-[44px] items-center text-sm text-amber-200 hover:underline"
+                  className="inline-flex min-h-[44px] items-center text-xs text-amber-200 hover:underline sm:text-sm"
                 >
                   Return visit {visit.jobNumber}
                 </Link>
               ))}
+              {callbackContext.reason ? (
+                <p className="text-xs text-slate-300 sm:text-sm">Callback reason: {callbackContext.reason}</p>
+              ) : null}
             </div>
-            {callbackContext.reason ? (
-              <p className="text-sm text-slate-300">Callback reason: {callbackContext.reason}</p>
-            ) : null}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Operational intent
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{statusIntent}</p>
+            <div className="hidden shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-red-500/15 to-blue-500/10 ring-1 ring-white/10 sm:flex sm:h-14 sm:w-14">
+              <Briefcase className="h-6 w-6 text-red-300" />
             </div>
-          </div>
-
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-red-500/15 to-blue-500/10 ring-1 ring-white/10">
-            <Briefcase className="h-7 w-7 text-red-300" />
           </div>
         </div>
       </SurfaceCard>
@@ -519,8 +554,11 @@ export function JobDetailScreen({
       </div>
 
       <JobDetailTabPanel tab="overview" activeTab={activeTab}>
-        <div className="grid gap-6 xl:grid-cols-3">
-          <div className="min-w-0 space-y-6 xl:col-span-2">
+        {/* Two-column grid: main (wider) + sidebar (340px sticky) */}
+        <div className="flex flex-col gap-5 sm:gap-6 lg:flex-row lg:items-start">
+
+          {/* ── Main column ── */}
+          <div className="min-w-0 flex-1 space-y-4 sm:space-y-6">
             <PermissionGuard table="jobs" action="update">
               <JobStatusActions
                 status={job.status}
@@ -528,6 +566,7 @@ export function JobDetailScreen({
               />
             </PermissionGuard>
 
+            {/* 1. Closeout Progress */}
             <PermissionGuard table="jobs" action="update">
               <JobCloseoutPanel
                 jobId={job.id}
@@ -538,97 +577,262 @@ export function JobDetailScreen({
               />
             </PermissionGuard>
 
+            {/* 2. Work Summary */}
             <SurfaceCard className="min-w-0">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-white">Work Summary</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-400">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-base font-semibold text-white sm:text-lg">Work Summary</h2>
+                <p className="mt-2 text-xs leading-6 text-slate-400 sm:mt-3 sm:text-sm sm:leading-7">
                   {job.summary}
                 </p>
               </div>
             </SurfaceCard>
+
+            {/* 3. Quick note — composer only. The notes HISTORY (timeline)
+                stays under the Notes tab, never in Overview (pinned by
+                    jobDetailScreenTabs.test.ts). */}
+            <SurfaceCard className="min-w-0">
+              <div className="space-y-4 p-4 sm:space-y-5 sm:p-6">
+                <h2 className="text-base font-semibold text-white sm:text-lg">Add Note</h2>
+
+                <PermissionGuard table="job_notes" action="insert">
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <JobNoteComposer onAddNote={onAddNote} />
+                  </div>
+                </PermissionGuard>
+              </div>
+            </SurfaceCard>
+
+            {/* 4. Sub-tabs for specialized sections below the fold */}
+            <div className="overflow-hidden rounded-3xl border border-default bg-surface shadow-atlas-md">
+              {/* Sub-tab bar — scrolls horizontally on mobile */}
+              <div className="flex gap-0 overflow-x-auto border-b border-white/10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {visibleSubTabs.map((tab) => {
+                  const isActive = overviewSubTab === tab.key;
+                  const TabIcon = tab.icon;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setOverviewSubTab(tab.key)}
+                      className={cn(
+                        "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors sm:px-4 sm:py-3 sm:text-sm",
+                        isActive
+                          ? "border-sky-400 text-sky-300"
+                          : "border-transparent text-slate-400 hover:text-slate-200",
+                      )}
+                    >
+                      <TabIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sub-tab panels */}
+              <div className="p-3 sm:p-5">
+                {/* Permits & Inspections — side by side on desktop, stacked on mobile */}
+                {overviewSubTab === "permits" && (
+                  <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                    <PermissionGuard table="job_permits" action="select">
+                      <JobPermitsCard jobId={job.id} canEdit={canEditPermitsForRole} />
+                    </PermissionGuard>
+                    <PermissionGuard table="job_inspections" action="select">
+                      <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
+                    </PermissionGuard>
+                  </div>
+                )}
+
+                {/* GC Portal */}
+                {overviewSubTab === "portal" && (role === "owner" || role === "manager" || role === "office") && (
+                  <div className="space-y-5">
+                    <ShareLinkControls jobId={job.id} />
+
+                    <div className="border-t border-white/10" />
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <PortalMoneyToggle jobId={job.id} />
+                      <PortalPhotosToggle jobId={job.id} />
+                    </div>
+
+                    <div className="border-t border-white/10" />
+
+                    <PortalSubmissions jobId={job.id} />
+                  </div>
+                )}
+
+                {/* Financials — price editor + change orders */}
+                {overviewSubTab === "financials" && (
+                  <div className="grid gap-4 sm:gap-6">
+                    {priceVisible && canViewJobPrice(role) ? (
+                      <JobPriceEditor
+                        key={`${job.id}:${priceCents ?? "none"}:${role ?? ""}`}
+                        jobId={job.id}
+                        status={job.status}
+                        initialCents={priceCents}
+                        readOnly={!canSeeJobRevenue(role)}
+                        onRecorded={onPriceRecorded}
+                      />
+                    ) : null}
+                    {role && role !== "tech" && role !== "portal" ? (
+                      <JobMoneySection jobId={job.id} />
+                    ) : null}
+                    <PermissionGuard table="job_change_orders" action="select">
+                      <JobChangeOrdersCard
+                        jobId={job.id}
+                        canEdit={canEditChangeOrders}
+                        canDelete={canDeleteChangeOrders}
+                        priceCents={priceCents}
+                      />
+                    </PermissionGuard>
+                  </div>
+                )}
+
+                {/* Bid */}
+                {overviewSubTab === "bid" && (
+                  <PermissionGuard table="job_bids" action="select">
+                    <JobBidPanel jobId={job.id} />
+                  </PermissionGuard>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="min-w-0 space-y-6">
-            <PermissionGuard table="job_bids" action="select">
-              <JobBidPanel jobId={job.id} />
-            </PermissionGuard>
+          {/* ── Sidebar (340px, sticky on desktop) ── */}
+          <div className="w-full space-y-4 sm:space-y-6 lg:sticky lg:top-[110px] lg:w-[340px] lg:shrink-0">
 
-            <PermissionGuard table="job_permits" action="select">
-              <JobPermitsCard jobId={job.id} canEdit={canEditPermitsForRole} />
-            </PermissionGuard>
+            {/* Job Info card */}
+            <SurfaceCard>
+              <div className="p-3 sm:p-5">
+                <h2 className="text-sm font-semibold text-white sm:text-base">Job Info</h2>
 
-            <PermissionGuard table="job_inspections" action="select">
-              <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
-            </PermissionGuard>
-
-            <PermissionGuard table="job_change_orders" action="select">
-              <JobChangeOrdersCard
-                jobId={job.id}
-                canEdit={canEditChangeOrders}
-                canDelete={canDeleteChangeOrders}
-                priceCents={priceCents}
-              />
-            </PermissionGuard>
-
-            {/* GC Portal section — office+ only */}
-            {(role === "owner" || role === "manager" || role === "office") ? (
-              <SurfaceCard>
-                <div className="space-y-5 p-6">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-slate-400" />
-                    <h2 className="text-lg font-semibold text-white">GC Portal</h2>
+                <div className="mt-3 space-y-3 sm:mt-4 sm:space-y-4">
+                  {/* Customer */}
+                  <div className="flex items-start gap-3">
+                    <Briefcase className="mt-0.5 h-4 w-4 text-slate-400" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+                        Customer
+                      </p>
+                      {job.customerId && !isTech ? (
+                        <Link
+                          href={ROUTE_BUILDERS.CUSTOMER_DETAIL(job.customerId)}
+                          className="mt-0.5 inline-flex items-center gap-1 text-xs text-blue-300 hover:text-blue-200 hover:underline sm:text-sm"
+                        >
+                          {job.customerName}
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      ) : (
+                        <p className="mt-0.5 text-xs text-slate-200 sm:text-sm">
+                          {job.customerName || "No customer linked"}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <ShareLinkControls jobId={job.id} />
+                  {/* Location */}
+                  {locationLabel ? (
+                    <div className="flex items-start gap-3">
+                      <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+                          Location
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-200 sm:text-sm">{locationLabel}</p>
+                        <div className="mt-1.5 flex gap-2">
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationLabel)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-white/[0.08] sm:px-3 sm:py-1.5 sm:text-xs"
+                          >
+                            <Navigation className="h-3 w-3" />
+                            Maps
+                          </a>
+                          <a
+                            href={`https://maps.apple.com/?q=${encodeURIComponent(locationLabel)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-white/[0.08] sm:px-3 sm:py-1.5 sm:text-xs"
+                          >
+                            <Navigation className="h-3 w-3" />
+                            Apple
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
 
-                  <div className="border-t border-white/10" />
+                  {/* Property */}
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+                        Property
+                      </p>
+                      {job.propertyId ? (
+                        <Link
+                          href={ROUTE_BUILDERS.PROPERTY_DETAIL(job.propertyId)}
+                          className="mt-0.5 inline-flex items-center gap-1 text-xs text-blue-300 hover:text-blue-200 hover:underline sm:text-sm"
+                        >
+                          {job.propertyName}
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      ) : (
+                        <p className="mt-0.5 text-xs text-slate-200 sm:text-sm">
+                          {job.propertyName || "No property linked"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-                  <PortalMoneyToggle jobId={job.id} />
+                  {/* Schedule */}
+                  <div className="flex items-start gap-3">
+                    <CalendarClock className="mt-0.5 h-4 w-4 text-slate-400" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+                        Scheduled
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-200 sm:text-sm">
+                        {scheduleRangeLabel ?? (job.scheduledFor ? formatDate(job.scheduledFor) : job.scheduledStartAt ? formatDate(job.scheduledStartAt) : "Unscheduled")}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">{appointmentDisplay}</p>
+                    </div>
+                  </div>
 
-                  <div className="border-t border-white/10" />
-
-                  <PortalPhotosToggle jobId={job.id} />
-
-                  <div className="border-t border-white/10" />
-
-                  <PortalSubmissions jobId={job.id} />
+                  {/* Type & Closeout */}
+                  <div className="flex items-start gap-3" data-job-detail-field="closeout-mode">
+                    <ClipboardCheck className="mt-0.5 h-4 w-4 text-slate-400" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+                        Type / Closeout
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-200 sm:text-sm">
+                        {job.type} &middot; {jobCloseoutModeLabel(job.closeoutMode)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </SurfaceCard>
-            ) : null}
+              </div>
+            </SurfaceCard>
 
-            {priceVisible && canViewJobPrice(role) ? (
-              <JobPriceEditor
-                key={`${job.id}:${priceCents ?? "none"}:${role ?? ""}`}
-                jobId={job.id}
-                status={job.status}
-                initialCents={priceCents}
-                readOnly={!canSeeJobRevenue(role)}
-                onRecorded={onPriceRecorded}
-              />
-            ) : null}
-            {/* Financial detail follows the org visibility setting
-                (owner-only by default, Collin 2026-11-04). The section
-                self-hides when the API denies the current role. */}
-            {role && role !== "tech" && role !== "portal" ? (
-              <JobMoneySection jobId={job.id} />
-            ) : null}
+            {/* Crew card */}
             <SurfaceCard>
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-white">Operational Context</h2>
+              <div className="p-3 sm:p-5">
+                <h2 className="text-sm font-semibold text-white sm:text-base">Crew</h2>
 
-                <div className="mt-5 space-y-4">
+                <div className="mt-3 space-y-3 sm:mt-4 sm:space-y-4">
                   <div className="flex items-start gap-3">
                     <User className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
                         Team
                       </p>
-                      <p className="mt-1 text-sm text-slate-200">
+                      <p className="mt-0.5 text-xs text-slate-200 sm:text-sm">
                         {assignedTechNames}
                       </p>
                       {completedTeam && completedTeam !== currentTeam ? (
-                        <p className="mt-1 text-xs text-slate-400">
-                          When it was completed: {completedTeam}
+                        <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">
+                          Completed by: {completedTeam}
                         </p>
                       ) : null}
                     </div>
@@ -636,11 +840,11 @@ export function JobDetailScreen({
 
                   <div className="flex items-start gap-3">
                     <HardHat className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Assigned Contractors
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+                        Contractors
                       </p>
-                      <p className="mt-1 text-sm text-slate-200">
+                      <p className="mt-0.5 text-xs text-slate-200 sm:text-sm">
                         {assignedContractorNames.length > 0
                           ? assignedContractorNames.join(", ")
                           : "None assigned"}
@@ -648,151 +852,22 @@ export function JobDetailScreen({
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3">
-                    <CalendarClock className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Scheduled For
-                      </p>
-                      <p className="mt-1 text-sm text-slate-200">
-                        {scheduleRangeLabel ?? (job.scheduledFor ? formatDate(job.scheduledFor) : job.scheduledStartAt ? formatDate(job.scheduledStartAt) : "Unscheduled")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <CalendarClock className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Appointment Hour
-                      </p>
-                      <p className="mt-1 text-sm text-slate-200">{appointmentDisplay}</p>
-                    </div>
-                  </div>
-
-                  {/* Read-only: the mode is edited in Edit Job. */}
-                  <div className="flex items-start gap-3" data-job-detail-field="closeout-mode">
-                    <ClipboardCheck className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Closeout
-                      </p>
-                      <p className="mt-1 text-sm text-slate-200">
-                        {jobCloseoutModeLabel(job.closeoutMode)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {locationLabel ? (
-                    <div className="flex items-start gap-3">
-                      <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                          Location
-                        </p>
-                        <p className="mt-1 text-sm text-slate-200">{locationLabel}</p>
-                        <div className="mt-2 flex gap-2">
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationLabel)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08]"
-                          >
-                            <Navigation className="h-3.5 w-3.5" />
-                            Google Maps
-                          </a>
-                          <a
-                            href={`https://maps.apple.com/?q=${encodeURIComponent(locationLabel)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08]"
-                          >
-                            <Navigation className="h-3.5 w-3.5" />
-                            Apple Maps
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="flex items-start gap-3">
-                    <Briefcase className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Customer
-                      </p>
-                      {job.customerId && !isTech ? (
-                        <Link
-                          href={ROUTE_BUILDERS.CUSTOMER_DETAIL(job.customerId)}
-                          className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
-                        >
-                          {job.customerName}
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
-                      ) : (
-                        <p className="mt-1 text-sm text-slate-200">
-                          {job.customerName || "No customer linked"}
-                        </p>
-                      )}
-                      <p className="mt-1 text-xs text-slate-500">
-                        {job.customerId
-                          ? "Linked customer record"
-                          : "Reference only — no linked customer record"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <MapPin className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Property
-                      </p>
-                      {job.propertyId ? (
-                        <Link
-                          href={ROUTE_BUILDERS.PROPERTY_DETAIL(job.propertyId)}
-                          className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-sm text-blue-300 hover:text-blue-200 hover:underline"
-                        >
-                          {job.propertyName}
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
-                      ) : (
-                        <p className="mt-1 text-sm text-slate-200">
-                          {job.propertyName || "No property linked"}
-                        </p>
-                      )}
-                      <p className="mt-1 text-xs text-slate-500">
-                        {job.propertyId
-                          ? "Linked property record"
-                          : "Reference only — no linked property record"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Wrench className="mt-0.5 h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Status Intent
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-slate-200">
-                        {statusIntent}
-                      </p>
-                    </div>
-                  </div>
+                  {isTech ? null : <AssignContractorPanel jobId={job.id} />}
                 </div>
               </div>
             </SurfaceCard>
 
+            {/* Callback card */}
             <CreateCallbackPanel
               jobId={job.id}
               status={job.status}
               callbackContext={callbackContext}
             />
 
-            {isTech ? null : <AssignContractorPanel jobId={job.id} />}
-          <JobNotificationsCard jobId={job.id} />
+            {/* Customer notifications card */}
+            <JobNotificationsCard jobId={job.id} />
 
+            {/* Signature card */}
             <JobSignatureCard jobId={job.id} onLatestChange={setLatestSignature} />
           </div>
         </div>
