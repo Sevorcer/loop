@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import { calendarJobCardTone } from "../utils/calendarJobCardTone";
 
 describe("calendarJobCardTone", () => {
-  it("gives completed jobs a dimmed green treatment regardless of job type", () => {
+  it("gives completed jobs the pink completed treatment regardless of job type, not dimmed", () => {
     for (const type of ["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"] as const) {
       const tone = calendarJobCardTone({ status: "Completed", type });
-      expect(tone).toContain("opacity-70");
-      expect(tone).toContain("emerald");
+      expect(tone).toContain("completed-card");
+      expect(tone).not.toContain("opacity");
+      expect(tone).not.toContain("emerald");
+      expect(tone).not.toContain("slate");
     }
   });
 
