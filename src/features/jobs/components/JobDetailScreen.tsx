@@ -71,6 +71,7 @@ import { JobBidPanel } from "./JobBidPanel";
 import { JobInspectionsCard } from "./JobInspectionsCard";
 import { JobPermitsCard } from "./JobPermitsCard";
 import { JobPriceEditor } from "./JobPriceEditor";
+import { JobMoneySection } from "./JobMoneySection";
 import { JobTimeline } from "./JobTimeline";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
@@ -557,6 +558,12 @@ export function JobDetailScreen({
                 readOnly={!canSeeJobRevenue(role)}
                 onRecorded={onPriceRecorded}
               />
+            ) : null}
+            {/* Financial detail follows the org visibility setting
+                (owner-only by default, Collin 2026-11-04). The section
+                self-hides when the API denies the current role. */}
+            {role && role !== "tech" && role !== "portal" ? (
+              <JobMoneySection jobId={job.id} />
             ) : null}
             <SurfaceCard>
               <div className="p-6">
