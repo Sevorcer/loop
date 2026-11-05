@@ -56,6 +56,7 @@ import {
   REQUIRED_QA_CHECKLIST_ITEMS,
   type RequiredQaChecklist,
 } from "../utils/jobCompletionChecklist";
+import { FollowUpControl } from "@/features/follow-ups/components/FollowUpControl";
 import { finalScheduledDayBlocker } from "../utils/jobFinalDay";
 import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
@@ -92,7 +93,6 @@ import { PortalPhotosToggle } from "./PortalPhotosToggle";
 import { PortalSubmissions } from "./PortalSubmissions";
 import { canSeeJobRevenue, canViewJobPrice } from "@/features/reporting/utils/revenueAccess";
 import { formatCompanyScheduleRange, formatJobAppointmentDisplay } from "../utils/schedulingTime";
-import { FollowUpControl } from "@/features/follow-ups/components/FollowUpControl";
 import { formatDateOnly } from "@/lib/dates";
 import { companyTimeZone } from "@/lib/timezone";
 
