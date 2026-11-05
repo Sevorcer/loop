@@ -24,6 +24,8 @@ export interface RepositoryContext {
 export interface SessionRepositoryContextInput {
   /** Authenticated user id resolved earlier in the request pipeline (if already known). */
   userId?: string;
+  /** Org id already resolved from user_profiles earlier in the request (skip re-read). */
+  orgId?: string | null;
   /** Request-scoped Supabase server client bound to incoming request cookies/session. */
   supabase?: SupabaseClient;
   /** Route path for temporary diagnostics. */
@@ -89,6 +91,17 @@ async function loadRepositoryContext(
   }
 
   if (userId) {
+    // When proxy / requirePermission already resolved org_id from the profile,
+    // skip the second user_profiles round trip.
+    if (input?.orgId) {
+      return {
+        orgId: input.orgId,
+        supabase,
+        mode: "session",
+        userId,
+      };
+    }
+
     const { data: profile, error } = await supabase
       .from("user_profiles")
       .select("id,org_id")
@@ -143,7 +156,7 @@ const loadCachedSessionContext = cache(() => loadRepositoryContext());
 export async function getRepositoryContext(
   input?: SessionRepositoryContextInput,
 ): Promise<RepositoryContext> {
-  if (input?.supabase || input?.userId) {
+  if (input?.supabase || input?.userId || input?.orgId) {
     return loadRepositoryContext(input);
   }
   const remembered = readRequestAuth();
@@ -151,6 +164,7 @@ export async function getRepositoryContext(
     return loadRepositoryContext({
       userId: remembered.userId,
       supabase: remembered.supabase,
+      orgId: remembered.orgId,
     });
   }
   return loadCachedSessionContext();

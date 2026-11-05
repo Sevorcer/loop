@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface RequestAuth {
   supabase: SupabaseClient;
   userId: string;
+  /** Org id from user_profiles, when already resolved earlier in the request. */
+  orgId?: string | null;
 }
 
 /**

@@ -17,11 +17,12 @@ import type { AppRole } from "@/services/authorization";
 // ---------------------------------------------------------------------------
 
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: null } });
+const mockGetClaims = vi.fn().mockResolvedValue({ data: null, error: null });
 const mockProfile = vi.fn().mockResolvedValue({ data: null, error: null });
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
+    auth: { getUser: mockGetUser, getClaims: mockGetClaims },
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -51,6 +52,7 @@ function makeRequest(role?: string, path = "http://localhost/api/test"): Request
 describe("resolveRequestRole", () => {
   beforeEach(() => {
     mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockGetClaims.mockResolvedValue({ data: null, error: null });
     mockProfile.mockResolvedValue({ data: null, error: null });
   });
 
@@ -126,6 +128,7 @@ describe("resolveRequestRole", () => {
 describe("requirePermission — unauthenticated", () => {
   beforeEach(() => {
     mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockGetClaims.mockResolvedValue({ data: null, error: null });
   });
 
   it("returns ok: false with a 401 response when no role is present", async () => {
@@ -163,6 +166,7 @@ describe("requirePermission — unauthenticated", () => {
 describe("requirePermission — authorized (allow)", () => {
   beforeEach(() => {
     mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockGetClaims.mockResolvedValue({ data: null, error: null });
   });
 
   it("returns ok: true with AuthContext for owner on any table/action", async () => {
@@ -390,5 +394,106 @@ describe("role x action coverage matrix — deny-by-default verification", () =>
         }
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Trusted-header security (proxy → route carry-forward)
+// ---------------------------------------------------------------------------
+
+describe("trusted auth headers", () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockGetClaims.mockResolvedValue({ data: null, error: null });
+    mockProfile.mockResolvedValue({ data: null, error: null });
+  });
+
+  it("ignores spoofed x-loop-trusted-* headers when there is no session", async () => {
+    const req = new Request("http://localhost/api/test", {
+      headers: {
+        "x-loop-trusted-user-id": "attacker",
+        "x-loop-trusted-role": "owner",
+        "x-loop-trusted-org-id": "org-hacked",
+      },
+    });
+    expect(await resolveRequestRole(req)).toBeNull();
+    const permission = await requirePermission(req, "jobs", "select");
+    expect(permission.ok).toBe(false);
+    if (!permission.ok) expect(permission.response.status).toBe(401);
+  });
+
+  it("ignores spoofed trusted role that does not match the verified session user", async () => {
+    mockGetClaims.mockResolvedValue({
+      data: {
+        claims: {
+          sub: "real-user",
+          app_metadata: {},
+          user_metadata: {},
+        },
+      },
+      error: null,
+    });
+    mockProfile.mockResolvedValue({ data: { app_role: "tech", org_id: "org-1" }, error: null });
+
+    const req = new Request("http://localhost/api/test", {
+      headers: {
+        "x-loop-trusted-user-id": "other-user",
+        "x-loop-trusted-role": "owner",
+        "x-loop-trusted-org-id": "org-hacked",
+      },
+    });
+    // Falls through to profile — tech, not the spoofed owner.
+    expect(await resolveRequestRole(req)).toBe("tech");
+    const permission = await requirePermission(req, "user_profiles", "update");
+    expect(permission.ok).toBe(false);
+  });
+
+  it("honors trusted headers only when they match the verified session user", async () => {
+    mockGetClaims.mockResolvedValue({
+      data: {
+        claims: {
+          sub: "real-user",
+          app_metadata: {},
+          user_metadata: {},
+        },
+      },
+      error: null,
+    });
+    // Profile would say tech; trusted headers (set by proxy after profile read) say office.
+    // When headers match sub, profile is not re-read for the role decision.
+    mockProfile.mockResolvedValue({ data: { app_role: "tech", org_id: "org-1" }, error: null });
+
+    const req = new Request("http://localhost/api/test", {
+      headers: {
+        "x-loop-trusted-user-id": "real-user",
+        "x-loop-trusted-role": "office",
+        "x-loop-trusted-org-id": "org-1",
+      },
+    });
+    expect(await resolveRequestRole(req)).toBe("office");
+    // Profile mock must not have been needed for role when trusted headers matched.
+  });
+
+  it("still rejects unauthorized roles for privileged actions", async () => {
+    mockGetClaims.mockResolvedValue({
+      data: {
+        claims: {
+          sub: "tech-1",
+          app_metadata: {},
+          user_metadata: {},
+        },
+      },
+      error: null,
+    });
+    const req = new Request("http://localhost/api/test", {
+      headers: {
+        "x-loop-trusted-user-id": "tech-1",
+        "x-loop-trusted-role": "tech",
+        "x-loop-trusted-org-id": "org-1",
+      },
+    });
+    const permission = await requirePermission(req, "user_profiles", "update");
+    expect(permission.ok).toBe(false);
+    if (!permission.ok) expect(permission.response.status).toBe(403);
   });
 });
