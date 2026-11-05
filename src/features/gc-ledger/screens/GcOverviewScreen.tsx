@@ -133,7 +133,9 @@ export function GcOverviewScreen() {
             <thead>
               <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="p-3">Builder</th>
-                <th className="p-3 text-right">Jobs Tracked</th>
+                <th className="p-3 text-right">Sites</th>
+                <th className="p-3 text-right">Jobs</th>
+                <th className="p-3 text-right">Open</th>
                 <th className="p-3 text-right">Total Billed</th>
                 <th className="p-3 text-right">Outstanding</th>
                 <th className="p-3 text-right">Retainer</th>
@@ -154,7 +156,9 @@ export function GcOverviewScreen() {
                       {builder.customerName}
                     </Link>
                   </td>
-                  <td className="p-3 text-right tabular-nums">{builder.entryCount}</td>
+                  <td className="p-3 text-right tabular-nums">{builder.siteCount}</td>
+                  <td className="p-3 text-right tabular-nums">{builder.totalJobCount}</td>
+                  <td className="p-3 text-right tabular-nums">{builder.openJobCount}</td>
                   <td className="p-3 text-right tabular-nums">{formatCents(builder.totalBilledCents)}</td>
                   <td className="p-3 text-right tabular-nums text-amber-400">
                     {formatCents(builder.totalOutstandingCents)}
