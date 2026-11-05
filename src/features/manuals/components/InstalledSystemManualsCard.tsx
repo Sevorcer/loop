@@ -11,6 +11,7 @@ import { ROUTE_BUILDERS } from "@/lib/routes";
 import { useInstalledSystemManuals } from "../state/useInstalledSystemManuals";
 import type { InstalledSystemManual, MatchConfidenceLevel, SystemPlacementJob } from "../types/manuals";
 import { MANUAL_DOC_TYPE_LABELS } from "../types/manuals";
+import { manualLink } from "../utils/manualLink";
 
 const LEVEL_STYLE: Record<MatchConfidenceLevel, string> = {
   high: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
@@ -49,19 +50,20 @@ function ManualItem({
   onDecide: (action: "confirm" | "unlink") => void;
 }) {
   const isLinked = item.status === "confirmed" || item.status === "auto_linked";
+  const link = manualLink(item.manual);
   return (
     <li className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">
           <a
-            href={item.manual.webViewLink || undefined}
+            href={link?.href}
             target="_blank"
             rel="noreferrer noopener"
             className="inline-flex max-w-full items-center gap-1 text-sm font-medium text-white hover:underline"
             title={item.manual.name}
           >
             <span className="truncate">{item.manual.name}</span>
-            {item.manual.webViewLink ? <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : null}
+            {link?.external ? <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : null}
           </a>
           <p className="mt-0.5 text-xs text-slate-400">
             {[MANUAL_DOC_TYPE_LABELS[item.manual.docType], item.manual.manufacturer, statusLabel(item)]

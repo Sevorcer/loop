@@ -33,6 +33,7 @@ function manualSummary(file: DriveManualFile): InstalledSystemManual["manual"] {
     id: file.id,
     name: file.name,
     webViewLink: file.webViewLink,
+    hasLocalFile: file.hasLocalFile === true,
     docType: file.docType,
     manufacturer: file.manufacturer,
     models: file.models,

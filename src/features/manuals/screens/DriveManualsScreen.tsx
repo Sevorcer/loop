@@ -13,6 +13,7 @@ import { companyTimeZone } from "@/lib/timezone";
 import { useDriveManuals } from "../state/DriveManualsProvider";
 import type { DriveManualFile } from "../types/manuals";
 import { MANUAL_DOC_TYPE_LABELS } from "../types/manuals";
+import { manualLink } from "../utils/manualLink";
 import { fileKindLabel, filterDriveManuals, manufacturerCounts } from "../utils/manualList";
 
 function formatWhen(value: string | null): string {
@@ -148,19 +149,20 @@ function OverrideEditor({ file, onDone }: { file: DriveManualFile; onDone: () =>
 
 function ManualRow({ file, canManage }: { file: DriveManualFile; canManage: boolean }) {
   const [editing, setEditing] = useState(false);
+  const link = manualLink(file);
   return (
     <li className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">
           <a
-            href={file.webViewLink || undefined}
+            href={link?.href}
             target="_blank"
             rel="noreferrer noopener"
             className="inline-flex max-w-full items-center gap-1 truncate text-sm font-medium text-white hover:underline"
             title={file.name}
           >
             <span className="truncate">{file.name}</span>
-            {file.webViewLink ? <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : null}
+            {link?.external ? <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : null}
           </a>
           <p className="mt-0.5 text-xs text-slate-400">
             {[

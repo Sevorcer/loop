@@ -81,6 +81,8 @@ All authorization failures return a consistent JSON envelope regardless of which
 | `installed-systems/[id]/route.ts` | GET/PATCH/DELETE | `requirePermission` | `installed_systems` | `select`/`update`/`delete` |
 | `knowledge-items/route.ts` | GET/POST | `requirePermission` | `knowledge_items` | `select`/`insert` |
 | `knowledge-items/[id]/route.ts` | GET/PATCH/DELETE | `requirePermission` | `knowledge_items` | `select`/`update`/`delete` |
+| `manuals/route.ts` | GET | `requirePermission` + `canReadManuals` | `knowledge_items` | `select` |
+| `manuals/[id]/file/route.ts` | GET | `requirePermission` + `canReadManuals` | `knowledge_items` | `select` (streams the stored PDF from the private `manuals` bucket; 404 without `storage_path`) |
 | `organizations/route.ts` | GET | `requirePermission` | `organizations` | `select` |
 | `organizations/[id]/route.ts` | GET/PATCH | `requirePermission` | `organizations` | `select`/`update` |
 | `portal-projects/route.ts` | GET/POST | `requirePermission` | `portal_projects` | `select`/`insert` |
