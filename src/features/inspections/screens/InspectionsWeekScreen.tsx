@@ -1,9 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { PageHeader, StatusBadge, EmptyState, LoadingState } from "@/components/atlas";
+import { Button } from "@/components/ui/button";
 import SurfaceCard from "@/components/layout/SurfaceCard";
+import { useCurrentRole } from "@/features/auth";
 import type { InspectionResult, InspectionType, InspectionBookedBy } from "@/services/jobInspections";
+import { ScheduleInspectionDialog } from "../components/ScheduleInspectionDialog";
+
 interface Insp { id: string; jobId: string; inspectionType: InspectionType; scheduledDate: string | null; scheduledWindow: string | null; bookedBy: InspectionBookedBy; inspectorName: string | null; result: InspectionResult; rescheduledDate: string | null; notes: string | null; }
 const TL: Record<InspectionType, string> = { rough_in: "Rough-In", cover: "Cover", final: "Final", other: "Other" };
 const RL: Record<InspectionResult, string> = { scheduled: "Scheduled", passed: "Passed", failed: "Failed", partial: "Partial", rescheduled_by_city: "Rescheduled" };
@@ -15,12 +19,159 @@ function itw(ds: string | null): boolean { if (!ds) return false; const d = new 
 function ibt(ds: string | null): boolean { if (!ds) return false; const d = new Date(ds); const t = new Date(); t.setHours(0,0,0,0); return d < t; }
 function isy(ds: string | null): boolean { if (!ds) return false; const d = new Date(ds); const y = new Date(); y.setDate(y.getDate()-1); return d.getFullYear()===y.getFullYear()&&d.getMonth()===y.getMonth()&&d.getDate()===y.getDate(); }
 function fds(ds: string): string { const d = new Date(ds); return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]+", "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]+" "+d.getDate(); }
+
 export function InspectionsWeekScreen() {
-const [inspections, setInspections] = useState<Insp[]>([]); const [loading, setLoading] = useState(true);
-const f_ = useCallback(async () => { try { const r = await fetch("/api/inspections"); if (!r.ok) return; const j = (await r.json()) as { inspections: Insp[] }; setInspections(j.inspections ?? []); } finally { setLoading(false); } }, []);
-useEffect(() => { void f_(); }, [f_]);
-const week = useMemo(() => inspections.filter((i) => itw(i.scheduledDate)).sort((a, b) => (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "")), [inspections]);
-const awaiting = useMemo(() => inspections.filter((i) => i.result === "scheduled" && i.scheduledDate && ibt(i.scheduledDate)).sort((a, b) => { const ay = isy(a.scheduledDate); const by_ = isy(b.scheduledDate); if (ay && !by_) return -1; if (!ay && by_) return 1; return (b.scheduledDate ?? "").localeCompare(a.scheduledDate ?? ""); }), [inspections]);
-if (loading) return <div className="space-y-6 p-6"><PageHeader title="Inspections" /><LoadingState message="Loading inspections..." /></div>;
-return (<div className="space-y-6 p-6"><PageHeader title="Inspections" description={`${week.length} this week${awaiting.length > 0 ? ` · ${awaiting.length} awaiting result` : ""}`} />{awaiting.length > 0 && <SurfaceCard><div className="p-4"><div className="flex items-center gap-2 mb-3"><AlertTriangle className="h-4 w-4 text-warning" /><h3 className="text-sm font-medium text-primary">Awaiting Result ({awaiting.length})</h3></div><div className="space-y-2">{awaiting.map((i) => (<div key={i.id} className="rounded-lg border border-border p-3 transition-colors hover:bg-surface-elevated/50"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="flex items-center gap-2 mb-0.5"><span className="text-sm font-medium text-primary">{TL[i.inspectionType]}</span>{isy(i.scheduledDate) && <span className="text-xs font-medium text-warning">Yesterday</span>}</div><p className="text-xs text-muted">{i.scheduledDate ? fds(i.scheduledDate) : "—"} · Booked by {BL[i.bookedBy]}</p></div><StatusBadge variant="warning">No Result</StatusBadge></div></div>))}</div></div></SurfaceCard>}{week.length === 0 && awaiting.length === 0 ? <EmptyState title="No inspections this week" description="Inspections will appear here when scheduled on jobs." /> : week.length > 0 ? <SurfaceCard><div className="p-4"><h3 className="text-sm font-medium text-primary mb-3">This Week ({week.length})</h3><div className="space-y-2">{week.map((i) => (<div key={i.id} className="rounded-lg border border-border p-3 transition-colors hover:bg-surface-elevated/50"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="flex items-center gap-2 mb-0.5"><span className="text-sm font-medium text-primary">{TL[i.inspectionType]}</span><StatusBadge variant={RI[i.result]}>{RL[i.result]}</StatusBadge></div><p className="text-xs text-muted">{i.scheduledDate ? fds(i.scheduledDate) : "—"}{i.scheduledWindow ? ` · ${i.scheduledWindow}` : ""} · Booked by {BL[i.bookedBy]}</p>{i.inspectorName && <p className="text-xs text-muted">Inspector: {i.inspectorName}</p>}</div></div></div>))}</div></div></SurfaceCard> : null}</div>);
+  const [inspections, setInspections] = useState<Insp[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const { role } = useCurrentRole();
+  const canEdit = role === "owner" || role === "manager" || role === "office";
+
+  const f_ = useCallback(async () => {
+    try {
+      const r = await fetch("/api/inspections");
+      if (!r.ok) return;
+      const j = (await r.json()) as { inspections: Insp[] };
+      setInspections(j.inspections ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void f_(); }, [f_]);
+
+  const week = useMemo(
+    () => inspections.filter((i) => itw(i.scheduledDate)).sort((a, b) => (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "")),
+    [inspections],
+  );
+
+  const awaiting = useMemo(
+    () => inspections.filter((i) => i.result === "scheduled" && i.scheduledDate && ibt(i.scheduledDate)).sort((a, b) => {
+      const ay = isy(a.scheduledDate);
+      const by_ = isy(b.scheduledDate);
+      if (ay && !by_) return -1;
+      if (!ay && by_) return 1;
+      return (b.scheduledDate ?? "").localeCompare(a.scheduledDate ?? "");
+    }),
+    [inspections],
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-6 p-6">
+        <PageHeader title="Inspections" />
+        <LoadingState message="Loading inspections..." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader
+          title="Inspections"
+          description={`${week.length} this week${awaiting.length > 0 ? ` · ${awaiting.length} awaiting result` : ""}`}
+        />
+        {canEdit && (
+          <Button
+            onClick={() => setShowSchedule(true)}
+            className="shrink-0"
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Schedule Inspection
+          </Button>
+        )}
+      </div>
+
+      {awaiting.length > 0 && (
+        <SurfaceCard>
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <h3 className="text-sm font-medium text-primary">
+                Awaiting Result ({awaiting.length})
+              </h3>
+            </div>
+            <div className="space-y-2">
+              {awaiting.map((i) => (
+                <div
+                  key={i.id}
+                  className="rounded-lg border border-border p-3 transition-colors hover:bg-surface-elevated/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-primary">{TL[i.inspectionType]}</span>
+                        {isy(i.scheduledDate) && (
+                          <span className="text-xs font-medium text-warning">Yesterday</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted">
+                        {i.scheduledDate ? fds(i.scheduledDate) : "—"} {"·"} Booked by {BL[i.bookedBy]}
+                      </p>
+                    </div>
+                    <StatusBadge variant="warning">No Result</StatusBadge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </SurfaceCard>
+      )}
+
+      {week.length === 0 && awaiting.length === 0 ? (
+        <EmptyState
+          title="No inspections this week"
+          description={
+            canEdit
+              ? "Click “Schedule Inspection” to add one, or inspections will appear here when scheduled on jobs."
+              : "Inspections will appear here when scheduled on jobs."
+          }
+        />
+      ) : week.length > 0 ? (
+        <SurfaceCard>
+          <div className="p-4">
+            <h3 className="text-sm font-medium text-primary mb-3">
+              This Week ({week.length})
+            </h3>
+            <div className="space-y-2">
+              {week.map((i) => (
+                <div
+                  key={i.id}
+                  className="rounded-lg border border-border p-3 transition-colors hover:bg-surface-elevated/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-primary">{TL[i.inspectionType]}</span>
+                        <StatusBadge variant={RI[i.result]}>{RL[i.result]}</StatusBadge>
+                      </div>
+                      <p className="text-xs text-muted">
+                        {i.scheduledDate ? fds(i.scheduledDate) : "—"}
+                        {i.scheduledWindow ? ` · ${i.scheduledWindow}` : ""} {"·"} Booked by {BL[i.bookedBy]}
+                      </p>
+                      {i.inspectorName && (
+                        <p className="text-xs text-muted">Inspector: {i.inspectorName}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </SurfaceCard>
+      ) : null}
+
+      {showSchedule && (
+        <ScheduleInspectionDialog
+          onClose={() => setShowSchedule(false)}
+          onSaved={() => {
+            setShowSchedule(false);
+            setLoading(true);
+            void f_();
+          }}
+        />
+      )}
+    </div>
+  );
 }
