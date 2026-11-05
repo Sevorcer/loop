@@ -37,7 +37,6 @@ export function missingJobFormFields(
   }
 
   if (form.location.trim().length === 0) missing.push("Location");
-  if (form.summary.trim().length === 0) missing.push("Work summary");
   if (windows.scheduledWindowError) missing.push(windows.scheduledWindowError);
   if (windows.arrivalWindowError) missing.push(windows.arrivalWindowError);
 
@@ -62,7 +61,6 @@ export function missingPersistedJobFields(input: {
   if (!input.customerName.trim()) missing.push("Customer");
   if (!input.propertyName.trim()) missing.push("Property");
   if (!input.location.trim()) missing.push("Location");
-  if (!input.summary.trim()) missing.push("Work summary");
   return missing;
 }
 

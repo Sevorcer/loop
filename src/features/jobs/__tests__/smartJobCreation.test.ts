@@ -5,6 +5,7 @@ import {
   applyPropertyAutocomplete,
   buildTechnicianSuggestions,
   getScopedProperties,
+  pickMainPropertyId,
   resolveInitialSmartSelection,
 } from "../utils/smartJobCreation";
 
@@ -98,5 +99,35 @@ describe("buildTechnicianSuggestions (SF-name display fallback source)", () => {
   it("preserves a historical free-text assignment with no matching profile", () => {
     const suggestions = buildTechnicianSuggestions(["Marcus Rivera"]);
     expect(suggestions).toContain("Marcus Rivera");
+  });
+});
+
+describe("customer-page job create: main property preselect", () => {
+  const owned = [
+    { ...properties[0], id: "property-newest", name: "Newest Site" },
+    { ...properties[0], id: "property-older", name: "Older Site" },
+  ];
+
+  it("picks the first property of the customer in the order given", () => {
+    expect(pickMainPropertyId(owned, "customer-1")).toBe("property-newest");
+  });
+
+  it("ignores other customers' properties and returns undefined when none match", () => {
+    expect(pickMainPropertyId([properties[1]], "customer-1")).toBeUndefined();
+    expect(pickMainPropertyId([], "customer-1")).toBeUndefined();
+  });
+
+  it("does nothing without a customer, so other entry points are unchanged", () => {
+    expect(pickMainPropertyId(owned, undefined)).toBeUndefined();
+  });
+
+  it("binds customer, property and location once the main property is supplied", () => {
+    const result = resolveInitialSmartSelection(customers, owned, {
+      customerId: "customer-1",
+      propertyId: pickMainPropertyId(owned, "customer-1"),
+    });
+    expect(result.state).toEqual({ propertyId: "property-newest", customerId: "customer-1" });
+    expect(result.formPatch.propertyName).toBe("Newest Site");
+    expect(result.formPatch.customerName).toBe("Northside Retail Group");
   });
 });

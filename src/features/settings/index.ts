@@ -18,7 +18,13 @@ export { UserStatusBadge } from "./components/UserStatusBadge";
 export { useAppearancePreferences } from "./hooks/useAppearancePreferences";
 
 // Config
-export { SETTINGS_NAV_ITEMS, SETTINGS_AREA_LABEL } from "./config/settingsNavItems";
+export {
+  SETTINGS_NAV_ITEMS,
+  SETTINGS_AREA_LABEL,
+  canAccessManagementSettings,
+  getSettingsNavItems,
+  getSettingsLandingHref,
+} from "./config/settingsNavItems";
 export type { SettingsNavItem } from "./config/settingsNavItems";
 
 // Types

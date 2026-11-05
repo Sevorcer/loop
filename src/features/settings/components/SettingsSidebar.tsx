@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation";
 import { Users, Shield, Palette, MessageSquare } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { SETTINGS_NAV_ITEMS, type SettingsNavItem } from "../config/settingsNavItems";
+import { getSettingsNavItems, type SettingsNavItem } from "../config/settingsNavItems";
 
 const NAV_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Users,
@@ -25,17 +25,18 @@ type SettingsNavItemWithIcon = SettingsNavItem & {
   icon: React.ComponentType<{ size?: number; className?: string }>;
 };
 
-const navItemsWithIcons: SettingsNavItemWithIcon[] = SETTINGS_NAV_ITEMS.map((item) => ({
-  ...item,
-  icon: NAV_ICONS[item.name] ?? Shield,
-}));
-
 interface SettingsSidebarProps {
   onNavigate?: () => void;
+  /** Signed-in user's app_role; filters out sections the role cannot open. */
+  appRole?: string | null;
 }
 
-export function SettingsSidebar({ onNavigate }: SettingsSidebarProps) {
+export function SettingsSidebar({ onNavigate, appRole }: SettingsSidebarProps) {
   const pathname = usePathname();
+  const navItemsWithIcons: SettingsNavItemWithIcon[] = getSettingsNavItems(appRole).map((item) => ({
+    ...item,
+    icon: NAV_ICONS[item.name] ?? Shield,
+  }));
 
   return (
     <aside className="flex h-full flex-col">

@@ -17,6 +17,7 @@ import { ROUTES } from "@/lib/routes";
 import type { Crew } from "@/features/dispatch/types/dispatch";
 import {
   buildTechnicianSuggestions,
+  pickMainPropertyId,
   resolveInitialSmartSelection,
 } from "@/features/jobs/utils/smartJobCreation";
 
@@ -58,6 +59,32 @@ function NewJobFormContent({ initialContext, initialDate }: NewJobFormProps) {
   } = useCustomerPropertyOptions(role);
 
   const propertySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Opened from a customer page (customer, no property): load that customer's
+  // properties first so the main one can be preselected before the form mounts.
+  // Any other entry point skips this entirely.
+  const needsMainProperty = Boolean(initialContext?.customerId && !initialContext?.propertyId);
+  const [mainPropertyId, setMainPropertyId] = useState<string | undefined>(undefined);
+  const [mainPropertyResolved, setMainPropertyResolved] = useState(!needsMainProperty);
+  useEffect(() => {
+    if (!role || !needsMainProperty || !initialContext?.customerId) return;
+    const customerId = initialContext.customerId;
+    let cancelled = false;
+    void loadPropertiesForCustomer(customerId)
+      .then((owned) => {
+        if (!cancelled) setMainPropertyId(pickMainPropertyId(owned, customerId));
+      })
+      .catch((error) => {
+        // Preselect is a convenience; the picker still works without it.
+        console.error("[jobs] failed to preload customer properties", error);
+      })
+      .finally(() => {
+        if (!cancelled) setMainPropertyResolved(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, needsMainProperty, initialContext?.customerId, loadPropertiesForCustomer]);
   const handlePropertyServerSearch = (text: string, customerId?: string) => {
     if (propertySearchTimer.current) clearTimeout(propertySearchTimer.current);
     const query = text.trim();
@@ -127,7 +154,7 @@ function NewJobFormContent({ initialContext, initialDate }: NewJobFormProps) {
     const initialized = resolveInitialSmartSelection(
       customerOptions,
       propertyOptions,
-      initialContext,
+      { ...initialContext, propertyId: initialContext.propertyId ?? mainPropertyId },
     );
     if (
       Object.keys(initialized.formPatch).length === 0 &&
@@ -142,7 +169,7 @@ function NewJobFormContent({ initialContext, initialDate }: NewJobFormProps) {
       customerId: initialized.state.customerId ?? null,
       propertyId: initialized.state.propertyId ?? null,
     };
-  }, [customerOptions, initialContext, initialDate, propertyOptions]);
+  }, [customerOptions, initialContext, initialDate, mainPropertyId, propertyOptions]);
 
   async function handleSubmit(values: JobFormValues) {
     const parsed = canSeeJobRevenue(role) ? parseDollarsToCents(priceDraft) : { ok: true as const, cents: null };
@@ -204,7 +231,7 @@ function NewJobFormContent({ initialContext, initialDate }: NewJobFormProps) {
     );
   }
 
-  if (role && !hasLoadedOptions) {
+  if (role && (!hasLoadedOptions || !mainPropertyResolved)) {
     return (
       <SurfaceCard className="mx-auto max-w-3xl p-8 text-center text-sm text-slate-400">
         Loading scheduling context...

@@ -2,11 +2,13 @@
 
 import { useCallback, useRef } from "react";
 import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { Job, JobType } from "@/features/jobs/types/job";
 
+import { calendarJobCardTone } from "../utils/calendarJobCardTone";
 import {
   calendarJobHeading,
   calendarJobSubtitle,
@@ -22,15 +24,6 @@ export const JOB_TYPE_DOT: Record<JobType, string> = {
   Inspection: "bg-violet-400",
   Estimate: "bg-slate-400",
   Callback: "bg-rose-400",
-};
-
-const JOB_TYPE_CARD: Record<JobType, string> = {
-  Install: "border-blue-400/40 border-l-blue-400 bg-blue-500/15",
-  Service: "border-emerald-400/40 border-l-emerald-400 bg-emerald-500/15",
-  Maintenance: "border-amber-400/40 border-l-amber-400 bg-amber-500/15",
-  Inspection: "border-violet-400/40 border-l-violet-400 bg-violet-500/15",
-  Estimate: "border-slate-400/40 border-l-slate-400 bg-slate-500/15",
-  Callback: "border-rose-400/40 border-l-rose-400 bg-rose-500/15",
 };
 
 /** Statuses that must not be draggable. */
@@ -103,7 +96,7 @@ export function CalendarJobCard({
         "hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
         comfortable ? "px-2.5 py-2" : "px-1.5 py-1",
         isDraggable && "cursor-grab active:cursor-grabbing",
-        JOB_TYPE_CARD[job.type] ?? "border-white/15 border-l-slate-400 bg-white/[0.04]",
+        calendarJobCardTone(job),
       )}
       aria-label={`${time}. ${heading}${subtitle ? `. ${subtitle}` : ""}. ${techs}. Open job.`}
     >
@@ -141,7 +134,12 @@ export function CalendarJobCard({
       >
         {techs}
       </span>
-      {job.status !== "Scheduled" ? (
+      {job.status === "Completed" ? (
+        <span className="mt-0.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+          Completed
+        </span>
+      ) : job.status !== "Scheduled" ? (
         <span className="mt-0.5 block whitespace-normal break-words text-[10px] font-medium uppercase tracking-wide text-muted">
           {job.status}
         </span>

@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { SettingsShell } from "@/features/settings";
+import { getCurrentOperator } from "@/services/currentOperator";
 
-export default function SettingsLayout({ children }: { children: ReactNode }) {
-  return <SettingsShell>{children}</SettingsShell>;
+export const dynamic = "force-dynamic";
+
+export default async function SettingsLayout({ children }: { children: ReactNode }) {
+  const { appRole } = await getCurrentOperator();
+  return <SettingsShell appRole={appRole}>{children}</SettingsShell>;
 }

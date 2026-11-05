@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/routes";
+import { getSettingsLandingHref } from "@/features/settings";
+import { getCurrentOperator } from "@/services/currentOperator";
 
-export default function SettingsPage() {
-  redirect(ROUTES.SETTINGS_USERS);
+export const dynamic = "force-dynamic";
+
+export default async function SettingsPage() {
+  const { appRole } = await getCurrentOperator();
+  redirect(getSettingsLandingHref(appRole));
 }
