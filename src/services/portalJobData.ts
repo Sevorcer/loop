@@ -1,11 +1,15 @@
 import "server-only";
 
 /**
- * Portal Job Data service — GC Portal Tasks 1-3
+ * Portal Job Data service — GC Portal v1 + v2
  *
  * Fetches scoped job data for the public GC portal. All data is strictly
  * scoped to a single job within an org. No internal notes or sensitive
  * personal data beyond crew first names is exposed.
+ *
+ * CRITICAL: When portal_money_visible is false, NO financial fields appear
+ * in the response at all (omitted from JSON, not just hidden in the UI).
+ * When portal_photos_visible is false, no photos appear.
  */
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -19,7 +23,7 @@ export const JOB_FILES_BUCKET = "job-files";
 
 /** Columns selected from the `jobs` table. */
 export const JOBS_SELECT_COLUMNS =
-  "id, job_number, status, type, scheduled_for, property_id, customer_id, portal_money_visible";
+  "id, job_number, status, type, scheduled_for, property_id, customer_id, portal_money_visible, portal_photos_visible";
 
 /** Columns selected from the `job_activity` table. */
 export const JOB_ACTIVITY_SELECT_COLUMNS = "id, type, description, created_at";
@@ -52,12 +56,24 @@ export interface PortalJobData {
   crewFirstNames: string[];
   /** Timeline events visible to portal */
   timeline: PortalTimelineEvent[];
-  /** Photos visible to portal */
+  /** Photos visible to portal — only present when portal_photos_visible is true */
   photos: PortalPhoto[];
   /** Documents visible to portal */
   documents: PortalDocument[];
   /** Money fields — only present when portal_money_visible is true */
   money?: PortalMoneyData;
+  /** Permits (non-voided) for the job */
+  permits: PortalPermit[];
+  /** Inspections for the job */
+  inspections: PortalInspection[];
+  /** Progress milestones derived from status-change activity */
+  progressTimeline: PortalMilestone[];
+  /** Estimate (current bid) — only present when portal_money_visible is true */
+  estimate?: PortalEstimate;
+  /** Billing snapshot — only present when portal_money_visible is true */
+  billing?: PortalBilling;
+  /** Change orders — title/status always present; amounts only when money visible */
+  changeOrders: PortalChangeOrderV2[];
 }
 
 export interface PortalTimelineEvent {
@@ -96,6 +112,52 @@ export interface PortalChangeOrder {
   changeOrderNumber: string;
   amountCents: number;
   description: string;
+}
+
+export interface PortalPermit {
+  id: string;
+  jurisdiction: string;
+  permitType: string;
+  permitNumber: string | null;
+  status: string;
+  appliedAt: string | null;
+  issuedAt: string | null;
+  documentUrl: string | null;
+}
+
+export interface PortalInspection {
+  id: string;
+  inspectionType: string;
+  scheduledDate: string | null;
+  result: string;
+  resultDate: string | null;
+  inspectorName: string | null;
+  correctionsCount: number;
+}
+
+export interface PortalMilestone {
+  label: string;
+  date: string | null;
+  reached: boolean;
+}
+
+export interface PortalEstimate {
+  amountCents: number;
+  status: string;
+}
+
+export interface PortalBilling {
+  revenueCents: number | null;
+  totalPaymentsCents: number;
+  balanceCents: number;
+}
+
+export interface PortalChangeOrderV2 {
+  id: string;
+  title: string;
+  status: string;
+  /** Only present when portal_money_visible is true */
+  amountCents?: number;
 }
 
 // ─── Data loading ─────────────────────────────────────────────────────────────
@@ -218,26 +280,28 @@ export async function getPortalJobData(
     }
   }
 
-  // Load photos from storage_objects (job files where mime_type is an image)
+  // Load photos from storage_objects — only when portal_photos_visible is true
   const photos: PortalPhoto[] = [];
-  const { data: photoRows } = await admin
-    .from(STORAGE_OBJECTS_TABLE)
-    .select(STORAGE_OBJECTS_SELECT_COLUMNS)
-    .eq("job_id", jobId)
-    .eq("bucket", JOB_FILES_BUCKET)
-    .eq("visibility", "customer")
-    .ilike("mime_type", "image/%")
-    .order("created_at", { ascending: false });
+  if (jobRow.portal_photos_visible === true) {
+    const { data: photoRows } = await admin
+      .from(STORAGE_OBJECTS_TABLE)
+      .select(STORAGE_OBJECTS_SELECT_COLUMNS)
+      .eq("job_id", jobId)
+      .eq("bucket", JOB_FILES_BUCKET)
+      .eq("visibility", "customer")
+      .ilike("mime_type", "image/%")
+      .order("created_at", { ascending: false });
 
-  if (photoRows && Array.isArray(photoRows)) {
-    for (const photo of photoRows) {
-      const p = photo as Record<string, unknown>;
-      photos.push({
-        id: p.id as string,
-        url: `/api/portal/files/${p.id as string}`,
-        caption: null,
-        uploadedAt: p.created_at as string,
-      });
+    if (photoRows && Array.isArray(photoRows)) {
+      for (const photo of photoRows) {
+        const p = photo as Record<string, unknown>;
+        photos.push({
+          id: p.id as string,
+          url: `/api/portal/files/${p.id as string}`,
+          caption: null,
+          uploadedAt: p.created_at as string,
+        });
+      }
     }
   }
 
@@ -264,9 +328,109 @@ export async function getPortalJobData(
     }
   }
 
+  // ── Permits (non-voided) ────────────────────────────────────────────────
+  // Table: job_permits — columns verified against src/repositories/jobPermits.ts
+  const permits: PortalPermit[] = [];
+  const { data: permitRows } = await admin
+    .from("job_permits")
+    .select("id, jurisdiction, permit_type, permit_number, status, applied_at, issued_at, document_storage_id")
+    .eq("job_id", jobId)
+    .eq("org_id", orgId)
+    .is("voided_at", null)
+    .order("created_at", { ascending: true });
+
+  if (permitRows && Array.isArray(permitRows)) {
+    for (const row of permitRows) {
+      const r = row as Record<string, unknown>;
+      permits.push({
+        id: r.id as string,
+        jurisdiction: r.jurisdiction as string,
+        permitType: r.permit_type as string,
+        permitNumber: (r.permit_number as string | null) ?? null,
+        status: r.status as string,
+        appliedAt: (r.applied_at as string | null) ?? null,
+        issuedAt: (r.issued_at as string | null) ?? null,
+        documentUrl: r.document_storage_id
+          ? `/api/portal/files/${r.document_storage_id as string}`
+          : null,
+      });
+    }
+  }
+
+  // ── Inspections ─────────────────────────────────────────────────────────
+  // Table: job_inspections — columns verified against src/repositories/jobInspections.ts
+  const inspections: PortalInspection[] = [];
+  const { data: inspectionRows } = await admin
+    .from("job_inspections")
+    .select("id, inspection_type, scheduled_date, result, result_date, inspector_name")
+    .eq("job_id", jobId)
+    .eq("org_id", orgId)
+    .order("scheduled_date", { ascending: true });
+
+  if (inspectionRows && Array.isArray(inspectionRows)) {
+    for (const row of inspectionRows) {
+      const r = row as Record<string, unknown>;
+      // Count corrections for this inspection
+      const { count } = await admin
+        .from("inspection_corrections")
+        .select("id", { count: "exact", head: true })
+        .eq("inspection_id", r.id as string)
+        .eq("org_id", orgId);
+
+      inspections.push({
+        id: r.id as string,
+        inspectionType: r.inspection_type as string,
+        scheduledDate: (r.scheduled_date as string | null) ?? null,
+        result: r.result as string,
+        resultDate: (r.result_date as string | null) ?? null,
+        inspectorName: (r.inspector_name as string | null) ?? null,
+        correctionsCount: count ?? 0,
+      });
+    }
+  }
+
+  // ── Progress Timeline (status milestones) ───────────────────────────────
+  // Table: job_activity — type='status' entries ordered by created_at
+  const progressTimeline: PortalMilestone[] = [];
+  const { data: statusActivities } = await admin
+    .from("job_activity")
+    .select("description, created_at")
+    .eq("job_id", jobId)
+    .eq(JOB_ACTIVITY_TYPE_COLUMN, "status")
+    .order("created_at", { ascending: true });
+
+  // Build milestones: Scheduled -> In Progress -> Completed
+  const milestoneStatuses = ["Scheduled", "In Progress", "Completed"] as const;
+  const milestoneDates: Record<string, string | null> = {};
+  if (statusActivities && Array.isArray(statusActivities)) {
+    for (const row of statusActivities) {
+      const r = row as Record<string, unknown>;
+      const desc = r.description as string;
+      for (const ms of milestoneStatuses) {
+        if (desc.includes(`to ${ms}`)) {
+          milestoneDates[ms] = r.created_at as string;
+        }
+      }
+    }
+  }
+  for (const ms of milestoneStatuses) {
+    progressTimeline.push({
+      label: ms,
+      date: milestoneDates[ms] ?? null,
+      reached: milestoneDates[ms] != null,
+    });
+  }
+
+  // ── Money-gated sections ────────────────────────────────────────────────
+  const moneyVisible = jobRow.portal_money_visible === true;
+
   // Load money data only if the portal_money_visible flag is true
   let money: PortalMoneyData | undefined;
-  if (jobRow.portal_money_visible === true) {
+  let estimate: PortalEstimate | undefined;
+  let billing: PortalBilling | undefined;
+
+  if (moneyVisible) {
+    // Legacy money (gc_ledger_entries)
     const { data: ledgerEntry } = await admin
       .from("gc_ledger_entries")
       .select("id, balance_cents, retainer_cents, date_sent, date_received")
@@ -287,7 +451,7 @@ export async function getPortalJobData(
     // Load invoice number from jobs
     const invoiceNumber = (jobRow as Record<string, unknown>).qb_invoice_number as string | null ?? null;
 
-    // Load change orders
+    // Load change orders from gc_change_orders (legacy)
     const changeOrders: PortalChangeOrder[] = [];
     if (ledgerEntry) {
       const le = ledgerEntry as Record<string, unknown>;
@@ -330,6 +494,87 @@ export async function getPortalJobData(
         retainerCents: 0,
       };
     }
+
+    // ── Estimate (current bid) ──────────────────────────────────────────
+    // Table: job_bids — columns verified against src/repositories/jobBids.ts
+    const { data: currentBid } = await admin
+      .from("job_bids")
+      .select("amount_cents, status")
+      .eq("job_id", jobId)
+      .eq("is_current", true)
+      .maybeSingle();
+
+    if (currentBid) {
+      const b = currentBid as Record<string, unknown>;
+      estimate = {
+        amountCents: b.amount_cents as number,
+        status: b.status as string,
+      };
+    }
+
+    // ── Billing snapshot ────────────────────────────────────────────────
+    // Table: job_financials — columns verified against src/repositories/jobPrice.ts
+    // job_financials has: revenue_cents (bigint). For payments, use payments table.
+    const { data: financialRow } = await admin
+      .from("job_financials")
+      .select("revenue_cents")
+      .eq("job_id", jobId)
+      .eq("org_id", orgId)
+      .maybeSingle();
+
+    // Sum payments for this job
+    const { data: paymentRows } = await admin
+      .from("payments")
+      .select("amount_cents")
+      .eq("job_id", jobId)
+      .eq("org_id", orgId);
+
+    const revenueCents = financialRow
+      ? ((financialRow as Record<string, unknown>).revenue_cents as number | null)
+      : null;
+    const totalPaymentsCents = (paymentRows ?? []).reduce(
+      (sum: number, row: unknown) => sum + (((row as Record<string, unknown>).amount_cents as number) ?? 0),
+      0,
+    );
+    const balanceCents = (revenueCents ?? 0) - totalPaymentsCents;
+
+    billing = {
+      revenueCents,
+      totalPaymentsCents,
+      balanceCents,
+    };
+  }
+
+  // ── Change Orders (from job_change_orders table — PR #387) ────────────
+  // Table may not exist yet; try/catch returns empty array on failure.
+  // Columns verified against supabase/migrations/20261120900000_job_change_orders.sql:
+  //   id, org_id, job_id, title, description, amount_cents, status, created_by, approved_at, created_at, updated_at
+  const changeOrders: PortalChangeOrderV2[] = [];
+  try {
+    const { data: coRows, error: coError } = await admin
+      .from("job_change_orders")
+      .select("id, title, status, amount_cents")
+      .eq("job_id", jobId)
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: true });
+
+    if (!coError && coRows && Array.isArray(coRows)) {
+      for (const row of coRows) {
+        const r = row as Record<string, unknown>;
+        const co: PortalChangeOrderV2 = {
+          id: r.id as string,
+          title: r.title as string,
+          status: r.status as string,
+        };
+        // Only include amount when money is visible
+        if (moneyVisible) {
+          co.amountCents = r.amount_cents as number;
+        }
+        changeOrders.push(co);
+      }
+    }
+  } catch {
+    // Table doesn't exist yet (PR #387 not merged) — return empty array
   }
 
   return {
@@ -346,5 +591,11 @@ export async function getPortalJobData(
     photos,
     documents,
     money,
+    permits,
+    inspections,
+    progressTimeline,
+    estimate,
+    billing,
+    changeOrders,
   };
 }

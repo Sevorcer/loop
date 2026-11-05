@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * GcPortalScreen — Task 2
+ * GcPortalScreen — GC Portal v1 + v2
  *
- * The main builder-facing portal view. Shows job status, timeline, photos,
- * documents, crew first names, and scheduled dates. No internal notes,
- * no personal data beyond first names.
+ * The main builder-facing portal view. Shows job status, progress timeline,
+ * permits, inspections, timeline, photos, documents, financials, and
+ * change orders. No internal notes, no personal data beyond first names.
  *
  * Fetches data client-side via the public portal API using the share-link token.
  */
@@ -19,6 +19,12 @@ import { GcPortalPhotos } from "../components/GcPortalPhotos";
 import { GcPortalDocuments } from "../components/GcPortalDocuments";
 import { GcPortalMoney } from "../components/GcPortalMoney";
 import { GcPortalSubmitForm } from "../components/GcPortalSubmitForm";
+import { GcPortalPermits } from "../components/GcPortalPermits";
+import { GcPortalInspections } from "../components/GcPortalInspections";
+import { GcPortalProgress } from "../components/GcPortalProgress";
+import { GcPortalEstimate } from "../components/GcPortalEstimate";
+import { GcPortalBilling } from "../components/GcPortalBilling";
+import { GcPortalChangeOrders } from "../components/GcPortalChangeOrders";
 
 interface GcPortalScreenProps {
   token: string;
@@ -132,8 +138,34 @@ export function GcPortalScreen({ token }: GcPortalScreenProps) {
         )}
       </div>
 
-      {/* Money Section — only shown when portal_money_visible is true */}
+      {/* Progress Timeline */}
+      {job.progressTimeline && job.progressTimeline.length > 0 && (
+        <GcPortalProgress milestones={job.progressTimeline} />
+      )}
+
+      {/* Estimate — only shown when portal_money_visible is true */}
+      {job.estimate && <GcPortalEstimate estimate={job.estimate} />}
+
+      {/* Billing Snapshot — only shown when portal_money_visible is true */}
+      {job.billing && <GcPortalBilling billing={job.billing} />}
+
+      {/* Money Section (legacy) — only shown when portal_money_visible is true */}
       {job.money && <GcPortalMoney money={job.money} />}
+
+      {/* Change Orders */}
+      {job.changeOrders && job.changeOrders.length > 0 && (
+        <GcPortalChangeOrders changeOrders={job.changeOrders} />
+      )}
+
+      {/* Permits */}
+      {job.permits && job.permits.length > 0 && (
+        <GcPortalPermits permits={job.permits} />
+      )}
+
+      {/* Inspections */}
+      {job.inspections && job.inspections.length > 0 && (
+        <GcPortalInspections inspections={job.inspections} />
+      )}
 
       {/* Timeline */}
       {job.timeline.length > 0 && (

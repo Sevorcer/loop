@@ -32,6 +32,7 @@ const REAL_JOBS_COLUMNS = [
   "property_id",
   "customer_id",
   "portal_money_visible",
+  "portal_photos_visible",
 ];
 
 /**

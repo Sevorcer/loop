@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  Paperclip,
   Pencil,
   Search,
   Trash2,
@@ -63,6 +64,7 @@ interface Permit {
   updatedAt: string;
   jobCustomerName: string | null;
   jobPropertyName: string | null;
+  documentStorageId: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,7 +286,12 @@ function PermitCard({
             <p className="text-xs text-muted mt-0.5">#{permit.permitNumber}</p>
           )}
         </div>
-        <AgeIndicator days={d} />
+        <div className="flex items-center gap-1.5">
+          {permit.documentStorageId && (
+            <span title="Document attached"><Paperclip className="h-3.5 w-3.5 text-muted" /></span>
+          )}
+          <AgeIndicator days={d} />
+        </div>
       </div>
 
       {/* Customer / property info */}
