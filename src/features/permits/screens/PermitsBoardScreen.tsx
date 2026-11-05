@@ -22,6 +22,7 @@ import {
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
+import { CappedSelect } from "@/features/permits/components/CappedSelect";
 import { requestJson } from "@/lib/api/client";
 import { ROUTE_BUILDERS } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -193,23 +194,15 @@ function StatusDropdown({
   disabled?: boolean;
 }) {
   return (
-    <select
+    <CappedSelect
       value={current}
-      onChange={(e) => {
-        e.stopPropagation();
-        onChange(e.target.value as PermitStatus);
-      }}
-      onClick={(e) => e.stopPropagation()}
+      options={ALL_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
+      onChange={(v) => onChange(v as PermitStatus)}
       disabled={disabled}
-      className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
-      aria-label="Change status"
-    >
-      {ALL_STATUSES.map((s) => (
-        <option key={s} value={s}>
-          {STATUS_LABELS[s]}
-        </option>
-      ))}
-    </select>
+      ariaLabel="Change status"
+      stopPropagation
+      triggerClassName="rounded-md border border-border bg-surface px-2 py-1 text-xs text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+    />
   );
 }
 
