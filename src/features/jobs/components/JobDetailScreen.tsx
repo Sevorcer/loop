@@ -123,7 +123,7 @@ const JOB_DETAIL_TABS: JobDetailTabDef[] = [
   { key: "tasks", label: "Tasks & QA", mobileLabel: "Tasks", icon: ClipboardList },
   { key: "photos", label: "Photos & Files", mobileLabel: "Photos", icon: Camera },
   { key: "systems", label: "Systems", mobileLabel: "Systems", icon: Wrench },
-  { key: "activity", label: "Activity", mobileLabel: "Activity", icon: History },
+  { key: "activity", label: "Notes", mobileLabel: "Notes", icon: History },
 ];
 
 function jobDetailPanelId(tab: JobDetailTab) {
