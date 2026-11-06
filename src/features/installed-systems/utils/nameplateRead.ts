@@ -1,14 +1,9 @@
 /**
- * Nameplate reading for an installed system.
+ * Nameplate reading from photos that already belong to a job.
  *
  * A photo can suggest a model and serial. Nothing here writes those fields.
- * Saving is a separate, explicit confirmation so an existing value is never
- * replaced just because a photo was uploaded or a read was requested.
+ * Saving is a separate confirmation onto an installed system on that job.
  */
-
-import { MAX_JOB_FILE_SIZE_BYTES } from "@/lib/fileValidation";
-
-export const NAMEPLATE_PHOTO_BUCKET = "installed-system-photos";
 
 export const NAMEPLATE_PHOTO_MIME_TYPES = new Set([
   "image/jpeg",
@@ -18,19 +13,36 @@ export const NAMEPLATE_PHOTO_MIME_TYPES = new Set([
   "image/heif",
 ]);
 
-/** Formats the vision reader can actually send. HEIC is stored, then refused. */
+/** Formats the vision reader can send after HEIC has been converted. */
 export const NAMEPLATE_VISION_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-/** Stay under a single vision request. Larger photos are kept, not read. */
+/** Stay under a single vision request. Larger photos are skipped. */
 export const MAX_NAMEPLATE_READ_BYTES = 8 * 1024 * 1024;
 
-export const NAMEPLATE_PHOTO_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+/**
+ * How many of the job's newest photos a single search will open.
+ * Each one is a paid vision call, so this stays a deliberate action
+ * rather than a scan of every upload.
+ */
+export const MAX_NAMEPLATE_PHOTOS_TO_READ = 8;
 
 export const NAMEPLATE_UNREADABLE_MESSAGE =
   "This photo could not be read. Model and serial were left unchanged.";
 
 export const NAMEPLATE_UNCONFIGURED_MESSAGE =
-  "This photo could not be read. Nameplate reading needs the OPENAI_API_KEY server setting before Loop can read a nameplate. Model and serial were left unchanged.";
+  "Nameplate reading needs the OPENAI_API_KEY server setting before Loop can read a nameplate. Model and serial were left unchanged.";
+
+export const NAMEPLATE_NO_PHOTOS_MESSAGE =
+  "This job has no photos to search. Model and serial were left unchanged.";
+
+export const NAMEPLATE_NO_NAMEPLATE_MESSAGE =
+  "No nameplate was found in this job's photos. Model and serial were left unchanged.";
+
+export const NAMEPLATE_NO_SYSTEM_MESSAGE =
+  "This job has no installed system yet. Model and serial were left unchanged.";
+
+export const NAMEPLATE_CHOOSE_SYSTEM_MESSAGE =
+  "Choose which installed system these values belong to. Nothing was changed.";
 
 export const NAMEPLATE_CONFIRM_REQUIRED_MESSAGE =
   "Confirm the model and serial before saving. Nothing was changed.";
@@ -46,7 +58,6 @@ export interface NameplateExtraction {
 
 export interface NameplateReview {
   status: "proposed" | "unreadable";
-  /** Draft for the review form. Null when nothing was proposed. */
   modelNumber: string | null;
   serialNumber: string | null;
   modelFromPhoto: boolean;
@@ -54,34 +65,34 @@ export interface NameplateReview {
   message: string;
 }
 
+export interface NameplatePhotoHit {
+  fileId: string;
+  fileName: string;
+  extraction: NameplateExtraction;
+}
+
 export function normalizeNameplateMime(mimeType: string): string {
   const normalized = mimeType.toLowerCase().trim();
   return normalized === "image/jpg" ? "image/jpeg" : normalized;
 }
 
-export function validateNameplatePhoto(input: { mimeType: string; sizeBytes: number }): string | null {
-  const mimeType = normalizeNameplateMime(input.mimeType);
-  if (!NAMEPLATE_PHOTO_MIME_TYPES.has(mimeType)) {
-    return "Upload a JPEG, PNG, WebP, or HEIC photo of the nameplate.";
-  }
-  if (!Number.isFinite(input.sizeBytes) || input.sizeBytes <= 0) {
-    return "A photo file is required.";
-  }
-  if (input.sizeBytes > MAX_JOB_FILE_SIZE_BYTES) {
-    return "That photo is too large. Maximum size is 20 MB.";
-  }
-  return null;
+export function isNameplateCandidate(file: { mimeType: string; fileName: string }): boolean {
+  const mime = normalizeNameplateMime(file.mimeType);
+  if (NAMEPLATE_PHOTO_MIME_TYPES.has(mime)) return true;
+  return /\.(heic|heif|jpe?g|png|webp)$/i.test(file.fileName);
 }
 
-export function isNameplatePhotoPath(systemId: string, storagePath: string): boolean {
-  const prefix = `installed-systems/${systemId}/`;
-  return storagePath.startsWith(prefix) && !storagePath.includes("..") && storagePath.length > prefix.length;
+/** Mime to decode with, including iPhone photos saved with a generic type. */
+export function effectiveNameplateMime(file: { mimeType: string; fileName: string }): string {
+  const mime = normalizeNameplateMime(file.mimeType);
+  if (NAMEPLATE_PHOTO_MIME_TYPES.has(mime)) return mime;
+  if (/\.heic$/i.test(file.fileName) || /\.heif$/i.test(file.fileName)) return "image/heic";
+  if (/\.png$/i.test(file.fileName)) return "image/png";
+  if (/\.webp$/i.test(file.fileName)) return "image/webp";
+  if (/\.jpe?g$/i.test(file.fileName)) return "image/jpeg";
+  return mime;
 }
 
-/**
- * Keep a nameplate token only when it looks like a model or serial.
- * Sentences, empty strings, and values with no digit are dropped.
- */
 export function cleanNameplateToken(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const compact = value.trim().replace(/\s+/g, "");
@@ -93,10 +104,6 @@ export function unreadableExtraction(message: string): NameplateExtraction {
   return { status: "unreadable", modelNumber: null, serialNumber: null, message };
 }
 
-/**
- * Turn a model response into an extraction. `readable: false` is always
- * unreadable, even if the payload also contains numbers.
- */
 export function extractionFromModelPayload(payload: unknown): NameplateExtraction {
   const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
   if (!record || record.readable !== true) {
@@ -107,12 +114,7 @@ export function extractionFromModelPayload(payload: unknown): NameplateExtractio
   if (!modelNumber && !serialNumber) {
     return unreadableExtraction(NAMEPLATE_UNREADABLE_MESSAGE);
   }
-  return {
-    status: "read",
-    modelNumber,
-    serialNumber,
-    message: "",
-  };
+  return { status: "read", modelNumber, serialNumber, message: "" };
 }
 
 export function parseNameplateModelContent(content: string): NameplateExtraction {
@@ -122,6 +124,19 @@ export function parseNameplateModelContent(content: string): NameplateExtraction
   } catch {
     return unreadableExtraction(NAMEPLATE_UNREADABLE_MESSAGE);
   }
+}
+
+/**
+ * Prefer the first photo that has both a model and a serial.
+ * A partial read is kept only when nothing better was found.
+ */
+export function chooseNameplateHit(hits: readonly NameplatePhotoHit[]): NameplatePhotoHit | null {
+  const readable = hits.filter((hit) => hit.extraction.status === "read");
+  return (
+    readable.find((hit) => hit.extraction.modelNumber && hit.extraction.serialNumber) ??
+    readable[0] ??
+    null
+  );
 }
 
 export function reviewFromExtraction(input: {
@@ -136,7 +151,7 @@ export function reviewFromExtraction(input: {
       serialNumber: null,
       modelFromPhoto: false,
       serialFromPhoto: false,
-      message: input.extraction.message || NAMEPLATE_UNREADABLE_MESSAGE,
+      message: input.extraction.message || NAMEPLATE_NO_NAMEPLATE_MESSAGE,
     };
   }
 
@@ -150,7 +165,7 @@ export function reviewFromExtraction(input: {
   if (!modelFromPhoto) missing.push("model");
   if (!serialFromPhoto) missing.push("serial");
 
-  let message = "Review the model and serial read from this photo. Nothing is saved until you confirm.";
+  let message = "Review the model and serial read from this job's photos. Nothing is saved until you confirm.";
   if (missing.length > 0) {
     const kept = missing.filter((field) => (field === "model" ? existingModel : existingSerial));
     const blank = missing.filter((field) => !kept.includes(field));
@@ -172,7 +187,7 @@ export function reviewFromExtraction(input: {
 }
 
 export function isNameplateSaveAttempt(body: Record<string, unknown>): boolean {
-  return "confirm" in body || "modelNumber" in body || "serialNumber" in body;
+  return "confirm" in body || "modelNumber" in body || "serialNumber" in body || "installedSystemId" in body;
 }
 
 export function decideNameplateSave(body: {
@@ -197,13 +212,36 @@ export function decideNameplateSave(body: {
   return { ok: true, modelNumber, serialNumber };
 }
 
-/**
- * The confirmed serial becomes the primary serial. Any additional serials
- * already on the system stay after it.
- */
 export function mergeConfirmedSerial(existing: readonly string[] | null | undefined, confirmed: string): string[] {
   const next = confirmed.trim();
   const rest = (existing ?? []).map((value) => value.trim()).filter(Boolean);
   const tail = rest.slice(1).filter((value) => value !== next);
   return [next, ...tail];
+}
+
+export interface NameplateSystemChoice {
+  id: string;
+}
+
+/**
+ * One installed system on the job is the target. Several systems require
+ * an explicit choice. A system that is not on the job is refused.
+ */
+export function resolveNameplateSystem(
+  systems: readonly NameplateSystemChoice[],
+  requestedId: unknown,
+): { ok: true; id: string } | { ok: false; message: string } {
+  if (systems.length === 0) {
+    return { ok: false, message: NAMEPLATE_NO_SYSTEM_MESSAGE };
+  }
+  if (systems.length === 1) {
+    if (typeof requestedId === "string" && requestedId.length > 0 && requestedId !== systems[0].id) {
+      return { ok: false, message: "That installed system is not on this job. Nothing was changed." };
+    }
+    return { ok: true, id: systems[0].id };
+  }
+  if (typeof requestedId !== "string" || !systems.some((system) => system.id === requestedId)) {
+    return { ok: false, message: NAMEPLATE_CHOOSE_SYSTEM_MESSAGE };
+  }
+  return { ok: true, id: requestedId };
 }

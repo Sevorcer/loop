@@ -28,7 +28,6 @@ export interface StorageObjectRow {
   uploaded_by: string | null;
   job_id: string | null;
   property_id: string | null;
-  installed_system_id?: string | null;
   visibility: "internal" | "customer";
   created_at: string;
   updated_at: string;
@@ -46,7 +45,6 @@ export interface StorageObjectMeta {
   uploaderRole: string | null;
   jobId: string | null;
   propertyId: string | null;
-  installedSystemId: string | null;
   visibility: "internal" | "customer";
   createdAt: string;
 }
@@ -64,7 +62,6 @@ function mapStorageObject(row: StorageObjectRow): StorageObjectMeta {
     uploaderRole: null,
     jobId: row.job_id,
     propertyId: row.property_id,
-    installedSystemId: row.installed_system_id ?? null,
     visibility: row.visibility,
     createdAt: row.created_at,
   };
@@ -79,8 +76,6 @@ export interface UploadInput {
   file: Uint8Array | ArrayBuffer;
   jobId?: string;
   propertyId?: string;
-  /** Set only for an installed-system photo. Omitted otherwise so job uploads do not require the column. */
-  installedSystemId?: string;
   visibility?: "internal" | "customer";
   /** UUID of the authenticated user performing the upload */
   uploadedBy?: string | null;
@@ -132,25 +127,20 @@ async function insertStorageObjectMeta(
   orgId: string,
   input: Omit<UploadInput, "file">,
 ): Promise<StorageObjectMeta> {
-  const row: Record<string, unknown> = {
-    org_id: orgId,
-    bucket: input.bucket,
-    storage_path: input.storagePath,
-    file_name: input.fileName,
-    mime_type: input.mimeType,
-    size_bytes: input.sizeBytes,
-    uploaded_by: input.uploadedBy ?? null,
-    job_id: input.jobId ?? null,
-    property_id: input.propertyId ?? null,
-    visibility: input.visibility ?? "internal",
-  };
-  // Only nameplate uploads send this. Job-file inserts stay on the columns
-  // that already exist if the nameplate migration has not been applied yet.
-  if (input.installedSystemId) row.installed_system_id = input.installedSystemId;
-
   const { data, error: metaError } = await supabase
     .from("storage_objects")
-    .insert(row)
+    .insert({
+      org_id: orgId,
+      bucket: input.bucket,
+      storage_path: input.storagePath,
+      file_name: input.fileName,
+      mime_type: input.mimeType,
+      size_bytes: input.sizeBytes,
+      uploaded_by: input.uploadedBy ?? null,
+      job_id: input.jobId ?? null,
+      property_id: input.propertyId ?? null,
+      visibility: input.visibility ?? "internal",
+    })
     .select("*")
     .single();
 
@@ -352,8 +342,6 @@ export async function listStorageObjects(
   filter?: {
     jobId?: string;
     propertyId?: string;
-    installedSystemId?: string;
-    bucket?: string;
     visibility?: "internal" | "customer";
   },
   options?: { page?: number; pageSize?: number },
@@ -373,8 +361,6 @@ export async function listStorageObjects(
 
   if (filter?.jobId) query = query.eq("job_id", filter.jobId);
   if (filter?.propertyId) query = query.eq("property_id", filter.propertyId);
-  if (filter?.installedSystemId) query = query.eq("installed_system_id", filter.installedSystemId);
-  if (filter?.bucket) query = query.eq("bucket", filter.bucket);
   if (filter?.visibility) query = query.eq("visibility", filter.visibility);
 
   query = query.range(from, to);

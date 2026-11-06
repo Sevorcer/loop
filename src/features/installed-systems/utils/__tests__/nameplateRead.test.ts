@@ -1,18 +1,33 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  NAMEPLATE_CHOOSE_SYSTEM_MESSAGE,
   NAMEPLATE_CONFIRM_REQUIRED_MESSAGE,
+  NAMEPLATE_NO_NAMEPLATE_MESSAGE,
+  NAMEPLATE_NO_SYSTEM_MESSAGE,
   NAMEPLATE_UNREADABLE_MESSAGE,
+  chooseNameplateHit,
   decideNameplateSave,
   extractionFromModelPayload,
+  isNameplateCandidate,
   isNameplateSaveAttempt,
   mergeConfirmedSerial,
+  resolveNameplateSystem,
   reviewFromExtraction,
-  validateNameplatePhoto,
+  type NameplateExtraction,
 } from "../nameplateRead";
 
 const EXISTING_MODEL = "OLD-MODEL-1";
 const EXISTING_SERIAL = "OLD-SERIAL-9";
+
+function extraction(partial: Partial<NameplateExtraction> & { status: NameplateExtraction["status"] }): NameplateExtraction {
+  return {
+    modelNumber: null,
+    serialNumber: null,
+    message: "",
+    ...partial,
+  };
+}
 
 describe("nameplate read proposal", () => {
   it("proposes model and serial from a successful read and does not describe them as saved", () => {
@@ -69,19 +84,32 @@ describe("nameplate read proposal", () => {
     expect(review.message).toBe(NAMEPLATE_UNREADABLE_MESSAGE);
   });
 
-  it("drops a guessed sentence instead of treating it as a model", () => {
-    const review = reviewFromExtraction({
-      existingModel: EXISTING_MODEL,
-      existingSerial: EXISTING_SERIAL,
-      extraction: extractionFromModelPayload({
-        readable: true,
-        modelNumber: "could not tell",
-        serialNumber: "also unclear",
-      }),
-    });
+  it("prefers a job photo that has both model and serial", () => {
+    const chosen = chooseNameplateHit([
+      {
+        fileId: "site",
+        fileName: "site.jpg",
+        extraction: extraction({ status: "read", modelNumber: "ONLY-1" }),
+      },
+      {
+        fileId: "plate",
+        fileName: "plate.heic",
+        extraction: extraction({ status: "read", modelNumber: "MXZ-3C24NAHZ2", serialNumber: "SN1234567" }),
+      },
+    ]);
 
-    expect(review.status).toBe("unreadable");
-    expect(review.modelNumber).toBeNull();
+    expect(chosen?.fileId).toBe("plate");
+  });
+
+  it("says no nameplate was found when every photo is unreadable", () => {
+    expect(chooseNameplateHit([
+      { fileId: "a", fileName: "a.jpg", extraction: extraction({ status: "unreadable", message: NAMEPLATE_NO_NAMEPLATE_MESSAGE }) },
+    ])).toBeNull();
+  });
+
+  it("treats an iPhone HEIC file as a photo even with a generic type", () => {
+    expect(isNameplateCandidate({ mimeType: "application/octet-stream", fileName: "IMG_2043.HEIC" })).toBe(true);
+    expect(isNameplateCandidate({ mimeType: "application/pdf", fileName: "manual.pdf" })).toBe(false);
   });
 });
 
@@ -124,17 +152,22 @@ describe("nameplate confirmation", () => {
     ]);
   });
 
-  it("does not treat a photo id by itself as a save", () => {
-    expect(isNameplateSaveAttempt({ photoId: "11111111-1111-4111-8111-111111111111" })).toBe(false);
-  });
-});
-
-describe("nameplate photo validation", () => {
-  it("rejects a PDF because it is not a nameplate photo", () => {
-    expect(validateNameplatePhoto({ mimeType: "application/pdf", sizeBytes: 1000 })).toMatch(/photo/i);
+  it("uses the only installed system on the job", () => {
+    expect(resolveNameplateSystem([{ id: "sys-1" }], undefined)).toEqual({ ok: true, id: "sys-1" });
   });
 
-  it("accepts a jpeg", () => {
-    expect(validateNameplatePhoto({ mimeType: "image/jpeg", sizeBytes: 1000 })).toBeNull();
+  it("requires a choice when the job has more than one system", () => {
+    const decision = resolveNameplateSystem([{ id: "sys-1" }, { id: "sys-2" }], undefined);
+    expect(decision).toEqual({ ok: false, message: NAMEPLATE_CHOOSE_SYSTEM_MESSAGE });
+    expect(resolveNameplateSystem([{ id: "sys-1" }, { id: "sys-2" }], "sys-2")).toEqual({ ok: true, id: "sys-2" });
+  });
+
+  it("refuses a system that is not on the job and a job with no system", () => {
+    expect(resolveNameplateSystem([], "sys-1")).toEqual({ ok: false, message: NAMEPLATE_NO_SYSTEM_MESSAGE });
+    expect(resolveNameplateSystem([{ id: "sys-1" }], "other").ok).toBe(false);
+  });
+
+  it("does not treat a search by itself as a save", () => {
+    expect(isNameplateSaveAttempt({})).toBe(false);
   });
 });

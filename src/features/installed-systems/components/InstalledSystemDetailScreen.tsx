@@ -15,7 +15,6 @@ import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import type { InstalledSystem } from "../types/installedSystem";
 import { InstalledSystemDeleteButton } from "./InstalledSystemDeleteButton";
-import { InstalledSystemNameplateCard } from "./InstalledSystemNameplateCard";
 
 function getMatchVariant(state: InstalledSystem["matchState"]) {
   if (state === "exact") return "success" as const;
@@ -227,12 +226,6 @@ export function InstalledSystemDetailScreen({
               />
             </div>
           </SurfaceCard>
-
-          <InstalledSystemNameplateCard
-            systemId={installedSystem.id}
-            modelNumber={installedSystem.modelNumber}
-            serialNumber={installedSystem.serialNumbers[0] ?? ""}
-          />
 
           <SurfaceCard>
             <div className="border-b border-white/10 px-6 py-5">
