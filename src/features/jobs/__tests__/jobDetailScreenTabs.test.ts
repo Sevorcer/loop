@@ -376,13 +376,13 @@ describe("JobDetailScreen tabs", () => {
     expect(mobileTasks?.textContent).toContain("5 left");
   });
 
-  it("keeps the notes history under Notes, not Overview", async () => {
+  it("shows the notes history next to the add-note composer on Overview", async () => {
     const container = await renderScreen();
 
-    expect(panel(container, "activity")?.textContent).toContain(
+    expect(panel(container, "overview")?.textContent).toContain(
       "Old unit is out, new unit is on the curb.",
     );
-    expect(panel(container, "overview")?.textContent).not.toContain(
+    expect(panel(container, "activity")?.textContent).toContain(
       "Old unit is out, new unit is on the curb.",
     );
     expect(panel(container, "overview")?.textContent).toContain("Work Summary");

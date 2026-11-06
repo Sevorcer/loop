@@ -74,7 +74,7 @@ import { getCurrentOperator } from "@/services/currentOperator";
 import { canSeeJobRevenue } from "@/features/reporting/utils/revenueAccess";
 import { redactJobPriceActivity } from "@/features/jobs/utils/jobPrice";
 import { listFiles } from "@/services/storage";
-import { insertJobNote, listJobNotes } from "@/repositories/jobNotes";
+import { insertJobNote, listJobNotes, updateJobNote as updateJobNoteRecord } from "@/repositories/jobNotes";
 import { setBillingEligible } from "@/repositories/billing";
 import { releaseAndRecheck } from "./inventoryReservations";
 import { getMaterialsGate } from "./closeoutReconciliation";
@@ -801,6 +801,39 @@ export async function listJobNotesForJob(jobId: string) {
 export async function addJobNote(id: string, note: string, context?: JobMutationContext) {
   return appendJobNote(id, note, context);
 }
+
+/** R2: any signed-in role may edit any note; activity log keeps the edit trace. */
+export async function updateJobNoteBody(
+  jobId: string,
+  noteId: string,
+  body: string,
+  context?: JobMutationContext,
+) {
+  const trimmed = body.trim();
+  if (!trimmed) throw new Error("Note is required.");
+
+  const existing = await getJobById(jobId);
+  if (!existing) return null;
+
+  const updated = await updateJobNoteRecord(noteId, trimmed);
+  if (updated.jobId !== jobId) {
+    throw new Error("Job note not found.");
+  }
+
+  const author = await noteAuthor(context);
+  const roleLabel = jobNoteRoleLabel(author.role);
+  const byline = [author.name, roleLabel].filter(Boolean).join(" · ");
+  await createJobActivityRecord({
+    jobId,
+    actorId: context?.actorId,
+    type: "note",
+    title: "Note edited",
+    description: byline ? `${byline} edited a note:\n${trimmed}` : `Note edited:\n${trimmed}`,
+  });
+
+  return updated;
+}
+
 
 /** F19: persist a contractor assignment to jobs.contractor_ids + timeline event. */
 export async function assignContractor(
