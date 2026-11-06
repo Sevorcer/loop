@@ -84,6 +84,10 @@ const pageContent: Record<string, PageMeta> = {
     title: "Inventory",
     description: "Track material availability, job allocations, and warehouse readiness.",
   },
+  [ROUTES.INVENTORY_MY_VAN]: {
+    title: "My van",
+    description: "What's on your truck, what to pull from the shop, and a recount.",
+  },
   [ROUTES.INVENTORY_RESTOCK]: {
     title: "Needs restock",
     description: "Vans under par, and what to pull from the shop.",

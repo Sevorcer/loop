@@ -71,7 +71,7 @@ describe("composeSidebarNav", () => {
     expect(groups[1]?.items[0]?.href).toBe(ROUTES.JOBS);
   });
 
-  it("prioritizes tech links toward dashboard and jobs", () => {
+  it("prioritizes tech links toward dashboard, jobs, and my van", () => {
     const groups = composeSidebarNav({ role: "tech" });
 
     expect(groups.map((group) => group.label).slice(0, 2)).toEqual([
@@ -80,12 +80,14 @@ describe("composeSidebarNav", () => {
     ]);
     expect(groups[0]?.items[0]?.href).toBe(ROUTES.DASHBOARD);
     // Customers, contractors, and vehicle alerts stay off the tech sidebar.
-    // Jobs, properties, and installed systems are the field records a tech can open.
+    // My van sits next to Jobs. Office inventory stays off this preset.
     expect(groups[1]?.items.map((item) => item.href)).toEqual([
       ROUTES.JOBS,
+      ROUTES.INVENTORY_MY_VAN,
       ROUTES.PROPERTIES,
       ROUTES.INSTALLED_SYSTEMS,
     ]);
+    expect(groups.flatMap((group) => group.items).map((item) => item.href)).not.toContain(ROUTES.INVENTORY);
   });
 
   it("lets a user nav override take precedence over the role preset", () => {

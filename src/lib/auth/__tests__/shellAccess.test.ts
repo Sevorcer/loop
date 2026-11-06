@@ -20,6 +20,21 @@ describe("technician route guard", () => {
     expect(isTechDeniedPath("/jobs/job-1/edit")).toBe(true);
   });
 
+  it("keeps office inventory closed and opens only My van", () => {
+    expect(isTechDeniedPath("/inventory")).toBe(true);
+    expect(isTechDeniedPath("/inventory/")).toBe(true);
+    expect(isTechDeniedPath("/inventory/restock")).toBe(true);
+    expect(isTechDeniedPath("/inventory/catalog")).toBe(true);
+    expect(isTechDeniedPath("/inventory/vans/van-1")).toBe(true);
+    expect(isTechDeniedPath("/inventory/my-van-other")).toBe(true);
+    expect(isTechDeniedPath("/inventory/my-van")).toBe(false);
+    expect(isTechDeniedPath("/inventory/my-van/")).toBe(false);
+    expect(isRoleDeniedPath("sales", "/inventory/my-van")).toBe(true);
+    expect(isRoleDeniedPath("portal", "/inventory")).toBe(false);
+    expect(isRoleDeniedPath("office", "/inventory")).toBe(false);
+    expect(isRoleDeniedPath("office", "/inventory/my-van")).toBe(false);
+  });
+
   it("leaves a technician's own work open", () => {
     expect(isTechDeniedPath("/jobs")).toBe(false);
     expect(isTechDeniedPath("/jobs/job-1")).toBe(false);

@@ -21,6 +21,7 @@ export const ROUTES = {
   /** Legacy address — redirects to OPERATIONS_LIVE. */
   LIVE_OPERATIONS: "/live-operations",
   INVENTORY: "/inventory",
+  INVENTORY_MY_VAN: "/inventory/my-van",
   INVENTORY_CATALOG: "/inventory/catalog",
   INVENTORY_KITS: "/inventory/kits",
   INVENTORY_NEEDS_SKU: "/inventory/needs-sku",

@@ -78,6 +78,7 @@ describe("FIELD group", () => {
   it("contains the field records in sidebar order", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.JOBS,
+      ROUTES.INVENTORY_MY_VAN,
       ROUTES.PERMITS_BOARD,
       ROUTES.INSPECTIONS_WEEK,
       ROUTES.PROPERTIES,
@@ -91,6 +92,7 @@ describe("FIELD group", () => {
   it("item names match the field records", () => {
     expect(group.items.map((i) => i.name)).toEqual([
       "Jobs",
+      "My van",
       "Permits",
       "Inspections",
       "Properties",
