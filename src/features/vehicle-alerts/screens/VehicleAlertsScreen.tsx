@@ -1,17 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { BellRing, Siren, Activity } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 import { VehicleAlertTable } from "../components/VehicleAlertTable";
+import { useVehicleOptions } from "../hooks/useVehicleOptions";
 import { useVehicleAlerts } from "../state/VehicleAlertsProvider";
 import type { VehicleAlertPriority } from "../types/vehicleAlert";
 
 interface NewVehicleAlertFormValues {
-  vehicleName: string;
+  /** A vehicle id, or "" while nothing is chosen. */
+  vehicleChoice: string;
   title: string;
   description: string;
   reportedBy: string;
@@ -19,7 +23,7 @@ interface NewVehicleAlertFormValues {
 }
 
 const defaultFormValues: NewVehicleAlertFormValues = {
-  vehicleName: "",
+  vehicleChoice: "",
   title: "",
   description: "",
   reportedBy: "",
@@ -31,8 +35,10 @@ export function VehicleAlertsScreen() {
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
   const [form, setForm] = useState<NewVehicleAlertFormValues>(defaultFormValues);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { options: vehicleOptions } = useVehicleOptions();
+  const pickedVehicle = vehicleOptions.find((option) => option.id === form.vehicleChoice) ?? null;
   const canSubmit =
-    form.vehicleName.trim().length > 0 &&
+    pickedVehicle !== null &&
     form.title.trim().length > 0 &&
     form.description.trim().length > 0 &&
     form.reportedBy.trim().length > 0;
@@ -57,13 +63,14 @@ export function VehicleAlertsScreen() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!canSubmit) {
+    if (!canSubmit || !pickedVehicle) {
       setSubmitError("Complete all required fields before reporting an alert.");
       return;
     }
 
     createAlert({
-      vehicleName: form.vehicleName,
+      vehicleId: pickedVehicle.id,
+      vehicleName: pickedVehicle.name,
       title: form.title,
       description: form.description,
       reportedBy: form.reportedBy,
@@ -111,13 +118,29 @@ export function VehicleAlertsScreen() {
                 <label className="text-sm font-medium text-slate-200">
                   Vehicle
                 </label>
-                <input
-                  value={form.vehicleName}
-                  onChange={(e) => updateField("vehicleName", e.target.value)}
-                  placeholder="Install Van 4"
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-red-500/40"
-                  required
-                />
+                {vehicleOptions.length > 0 ? (
+                  <select
+                    value={form.vehicleChoice}
+                    onChange={(e) => updateField("vehicleChoice", e.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-red-500/40"
+                    required
+                  >
+                    <option value="">Choose a vehicle</option>
+                    {vehicleOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+                    No vehicles yet. Add one under{" "}
+                    <Link href={ROUTES.INVENTORY_LOCATIONS} className="text-slate-200 underline">
+                      Locations &amp; vans
+                    </Link>
+                    , then report the alert.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

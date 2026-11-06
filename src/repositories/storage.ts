@@ -118,7 +118,15 @@ export async function uploadFile(
     throw new Error(`Storage upload failed after ${maxAttempts} attempts: ${lastError.message}`);
   }
 
-  // Persist metadata row
+  return insertStorageObjectMeta(supabase, orgId, input);
+}
+
+/** Persists the `storage_objects` metadata row for an uploaded object. */
+async function insertStorageObjectMeta(
+  supabase: Awaited<ReturnType<typeof getRepositoryContext>>["supabase"],
+  orgId: string,
+  input: Omit<UploadInput, "file">,
+): Promise<StorageObjectMeta> {
   const { data, error: metaError } = await supabase
     .from("storage_objects")
     .insert({
@@ -141,6 +149,96 @@ export async function uploadFile(
   }
 
   return mapStorageObject(data as StorageObjectRow);
+}
+
+/**
+ * Records metadata for an object the client already uploaded directly to
+ * Storage through a signed upload URL (see createSignedUploadUrl).
+ */
+export async function recordStorageObject(input: Omit<UploadInput, "file">): Promise<StorageObjectMeta> {
+  const { supabase, orgId } = await getRepositoryContext();
+  return insertStorageObjectMeta(supabase, orgId, input);
+}
+
+/**
+ * Creates a signed URL the client can PUT a file to directly, so file bytes
+ * never pass through the app server (whose platform request-body limit of
+ * ~4.5 MB silently killed larger field photos).
+ */
+export async function createSignedUploadUrl(
+  bucket: string,
+  storagePath: string,
+): Promise<{ signedUrl: string }> {
+  const { supabase } = await getRepositoryContext();
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUploadUrl(storagePath);
+
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message ?? "Failed to create a signed upload URL.");
+  }
+
+  return { signedUrl: data.signedUrl };
+}
+
+/**
+ * Reads just the head of a stored object: its total size and first bytes
+ * (for magic-byte MIME verification) — without downloading the whole file.
+ * Returns null when the object does not exist.
+ */
+export async function fetchStorageObjectHead(
+  bucket: string,
+  storagePath: string,
+): Promise<{ sizeBytes: number; head: Uint8Array } | null> {
+  const { supabase } = await getRepositoryContext();
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(storagePath, 60);
+
+  if (error || !data?.signedUrl) {
+    return null;
+  }
+
+  const response = await fetch(data.signedUrl, {
+    headers: { Range: "bytes=0-31" },
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok && response.status !== 206) {
+    throw new Error(`Storage head check failed (${response.status}).`);
+  }
+
+  // Total size: content-range on a 206, content-length when Range is ignored.
+  let sizeBytes = Number(response.headers.get("content-length") ?? NaN);
+  const contentRange = response.headers.get("content-range");
+  if (contentRange) {
+    const total = Number(contentRange.split("/").pop());
+    if (Number.isFinite(total)) sizeBytes = total;
+  }
+
+  // Read only the first chunk(s) — enough for magic bytes — then stop.
+  const reader = response.body?.getReader();
+  let head = new Uint8Array(0);
+  if (reader) {
+    while (head.length < 32) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        const merged = new Uint8Array(head.length + value.length);
+        merged.set(head);
+        merged.set(value, head.length);
+        head = merged;
+      }
+    }
+    await reader.cancel().catch(() => undefined);
+  }
+
+  if (!Number.isFinite(sizeBytes)) {
+    throw new Error("Storage head check did not report an object size.");
+  }
+
+  return { sizeBytes, head };
 }
 
 // ─── Download (signed URL) ────────────────────────────────────────────────────

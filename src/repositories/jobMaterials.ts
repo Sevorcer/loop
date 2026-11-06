@@ -6,9 +6,12 @@ import type {
   JobMaterialPatchInput,
   JobMaterialState,
   JobMaterialSummary,
+  MaterialLineStage,
 } from "@/features/job-materials/types/jobMaterials";
+import { MATERIAL_READINESS_LEVELS, type MaterialReadinessLevel } from "@/features/inventory/types/readiness";
 import {
   emptyJobMaterialSummary,
+  isJobMaterialSource,
   isJobMaterialState,
   summarizeJobMaterialStates,
 } from "@/features/job-materials/utils/jobMaterials";
@@ -39,10 +42,29 @@ interface JobMaterialLineRow {
   updated_at: string;
   state_changed_by: string | null;
   state_changed_at: string | null;
+  plan_id?: string | null;
+  catalog_item_id?: string | null;
+  catalog_item?: { name: string; sku: string | null } | Array<{ name: string; sku: string | null }> | null;
+  source?: string | null;
+  kit_id?: string | null;
+  kit_quantity?: number | string | null;
+  is_optional?: boolean | null;
+  non_stock_reason?: string | null;
+  stage?: string | null;
+  readiness_state?: string | null;
+  readiness_reason?: string | null;
+  readiness_eta?: string | null;
+  fulfil_location_id?: string | null;
 }
 
+const LINE_STAGES: readonly MaterialLineStage[] = ["planned", "reserved", "pulled", "reconciled"];
+
+/** Legacy columns plus the Lane 4 plan columns; the catalog name rides along as an embed. */
 export const JOB_MATERIAL_COLUMNS =
-  "id,job_id,name,quantity,unit,part_number,notes,state,sort_order,created_by,created_at,updated_by,updated_at,state_changed_by,state_changed_at";
+  "id,job_id,name,quantity,unit,part_number,notes,state,sort_order,created_by,created_at,updated_by,updated_at,state_changed_by,state_changed_at," +
+  "plan_id,catalog_item_id,source,kit_id,kit_quantity,is_optional,non_stock_reason," +
+  "stage,readiness_state,readiness_reason,readiness_eta,fulfil_location_id," +
+  "catalog_item:catalog_items!job_material_lines_item_same_org_fkey(name,sku)";
 
 /** PostgREST caps responses at 1,000 rows; read in pages. */
 const PAGE_SIZE = 500;
@@ -66,7 +88,31 @@ export function mapJobMaterialLine(row: JobMaterialLineRow): JobMaterialLine {
     updatedAt: row.updated_at,
     stateChangedBy: row.state_changed_by ?? null,
     stateChangedAt: row.state_changed_at ?? null,
+    planId: row.plan_id ?? null,
+    catalogItemId: row.catalog_item_id ?? null,
+    catalogItem: mapCatalogRef(row.catalog_item),
+    source: isJobMaterialSource(row.source) ? row.source : "manual",
+    kitId: row.kit_id ?? null,
+    kitQuantity: row.kit_quantity == null ? null : Number(row.kit_quantity),
+    isOptional: row.is_optional === true,
+    nonStockReason: row.non_stock_reason ?? null,
+    stage: LINE_STAGES.find((stage) => stage === row.stage) ?? "planned",
+    readinessState: toReadinessLevel(row.readiness_state),
+    readinessReason: row.readiness_reason ?? null,
+    readinessEta: row.readiness_eta ?? null,
+    fulfilLocationId: row.fulfil_location_id ?? null,
   };
+}
+
+function toReadinessLevel(value: string | null | undefined): MaterialReadinessLevel | null {
+  return MATERIAL_READINESS_LEVELS.find((level) => level === value) ?? null;
+}
+
+function mapCatalogRef(
+  value: JobMaterialLineRow["catalog_item"],
+): { name: string; sku: string | null } | null {
+  const ref = Array.isArray(value) ? value[0] : value;
+  return ref ? { name: ref.name, sku: ref.sku ?? null } : null;
 }
 
 function notFound(message: string) {
@@ -95,7 +141,7 @@ export async function listJobMaterialLines(jobId: string): Promise<JobMaterialLi
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw toRepositoryError(error);
-    const page = (data ?? []) as JobMaterialLineRow[];
+    const page = (data ?? []) as unknown as JobMaterialLineRow[];
     rows.push(...page);
     if (page.length < PAGE_SIZE) break;
   }
@@ -106,6 +152,7 @@ export async function createJobMaterialLine(
   jobId: string,
   input: JobMaterialCreateInput,
   sortOrder: number,
+  planId: string | null = null,
 ): Promise<JobMaterialLine> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
@@ -120,11 +167,13 @@ export async function createJobMaterialLine(
       notes: input.notes,
       state: input.state,
       sort_order: sortOrder,
+      // A line added to a job that has a plan joins the plan (history + needs-SKU queue).
+      ...(planId ? { plan_id: planId } : {}),
     })
     .select(JOB_MATERIAL_COLUMNS)
     .single();
   if (error) throw toRepositoryError(error);
-  return mapJobMaterialLine(data as JobMaterialLineRow);
+  return mapJobMaterialLine(data as unknown as JobMaterialLineRow);
 }
 
 export async function nextJobMaterialSortOrder(jobId: string): Promise<number> {
@@ -166,7 +215,7 @@ export async function updateJobMaterialLine(
   if (error) throw toRepositoryError(error);
   // RLS hides lines a tech is not assigned to — same answer as "no such line".
   if (!data) throw notFound("Material line not found.");
-  return mapJobMaterialLine(data as JobMaterialLineRow);
+  return mapJobMaterialLine(data as unknown as JobMaterialLineRow);
 }
 
 export async function deleteJobMaterialLine(jobId: string, lineId: string): Promise<void> {

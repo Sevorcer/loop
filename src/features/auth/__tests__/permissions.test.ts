@@ -78,7 +78,8 @@ describe("owner role", () => {
   it("can see all sidebar nav sections", () => {
     const hrefs = allVisibleHrefs("owner");
     expect(hrefs).toContain(ROUTES.DASHBOARD);
-    expect(hrefs).toContain(ROUTES.COMMAND_CENTER);
+    expect(hrefs).toContain(ROUTES.OPERATIONS);
+    expect(hrefs).not.toContain(ROUTES.COMMAND_CENTER);
     expect(hrefs).toContain(ROUTES.DISPATCH);
     expect(hrefs).toContain(ROUTES.JOBS);
     expect(hrefs).toContain(ROUTES.PROPERTIES);
@@ -87,6 +88,7 @@ describe("owner role", () => {
     expect(hrefs).toContain(ROUTES.REPORTING);
     expect(hrefs).toContain(ROUTES.COMPANY_BRAIN);
     expect(hrefs).toContain(ROUTES.INVENTORY);
+    expect(hrefs).not.toContain(ROUTES.INVENTORY_MY_VAN);
     expect(hrefs).toContain(ROUTES.SETTINGS);
   });
 });
@@ -114,7 +116,8 @@ describe("dispatch role", () => {
 
   it("cannot see restricted management sections", () => {
     expect(canSee("dispatch", ROUTES.REPORTING)).toBe(true);
-    expect(canSee("dispatch", ROUTES.COMPANY_BRAIN)).toBe(false);
+    // Company Brain is viewable by every internal role (Collin, 2026-11-06).
+    expect(canSee("dispatch", ROUTES.COMPANY_BRAIN)).toBe(true);
     expect(canSee("dispatch", ROUTES.SETTINGS)).toBe(false);
   });
 });
@@ -126,6 +129,9 @@ describe("tech role", () => {
     expect(canSee("tech", ROUTES.JOBS)).toBe(true);
     expect(canSee("tech", ROUTES.PROPERTIES)).toBe(true);
     expect(canSee("tech", ROUTES.INSTALLED_SYSTEMS)).toBe(true);
+    // Vehicle alerts and Company Brain are open to techs (Collin, 2026-11-06).
+    expect(canSee("tech", ROUTES.VEHICLE_ALERTS)).toBe(true);
+    expect(canSee("tech", ROUTES.COMPANY_BRAIN)).toBe(true);
   });
 
   it("cannot see customers", () => {
@@ -134,9 +140,14 @@ describe("tech role", () => {
 
   it("cannot see management sections", () => {
     expect(canSee("tech", ROUTES.REPORTING)).toBe(false);
-    expect(canSee("tech", ROUTES.COMPANY_BRAIN)).toBe(false);
     expect(canSee("tech", ROUTES.SETTINGS)).toBe(false);
     expect(canSee("tech", ROUTES.DISPATCH)).toBe(false);
+  });
+
+  it("sees My van and not office inventory", () => {
+    expect(canSee("tech", ROUTES.INVENTORY_MY_VAN)).toBe(true);
+    expect(canSee("tech", ROUTES.INVENTORY)).toBe(false);
+    expect(NAV_ROUTE_ROLES[ROUTES.INVENTORY_MY_VAN]).toEqual(["tech"]);
   });
 });
 
@@ -155,7 +166,8 @@ describe("office role", () => {
   });
 
   it("cannot see management sections", () => {
-    expect(canSee("office", ROUTES.COMPANY_BRAIN)).toBe(false);
+    // Company Brain is viewable by every internal role (Collin, 2026-11-06).
+    expect(canSee("office", ROUTES.COMPANY_BRAIN)).toBe(true);
     expect(canSee("office", ROUTES.SETTINGS)).toBe(false);
   });
 });
@@ -175,7 +187,8 @@ describe("sales role", () => {
   });
 
   it("cannot see management or operations sections", () => {
-    expect(canSee("sales", ROUTES.COMPANY_BRAIN)).toBe(false);
+    // Company Brain is viewable by every internal role (Collin, 2026-11-06).
+    expect(canSee("sales", ROUTES.COMPANY_BRAIN)).toBe(true);
     expect(canSee("sales", ROUTES.SETTINGS)).toBe(false);
     expect(canSee("sales", ROUTES.DISPATCH)).toBe(false);
   });

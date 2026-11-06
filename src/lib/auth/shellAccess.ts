@@ -15,12 +15,13 @@ import { ADMIN_BASE, ROUTES } from "@/lib/routes";
 const TECH_DENIED_PREFIXES: readonly string[] = [
   ROUTES.BILLING,
   ROUTES.GC_OVERVIEW,
+  // Operations (ex-Command Center) and its Live view. /command-center and
+  // /live-operations stay listed so the legacy redirects never leak to techs.
+  ROUTES.OPERATIONS,
   ROUTES.COMMAND_CENTER,
   ROUTES.DAILY_PLANS,
   ROUTES.DISPATCH,
   ROUTES.CONTRACTORS,
-  ROUTES.VEHICLE_ALERTS,
-  ROUTES.COMPANY_BRAIN,
   ROUTES.SETTINGS,
   ROUTES.OPS_FEEDBACK,
   ROUTES.INVENTORY,
@@ -35,13 +36,24 @@ const SALES_DENIED_PREFIXES: readonly string[] = [
   ROUTES.DISPATCH,
   ROUTES.DAILY_PLANS,
   ROUTES.CONTRACTORS,
-  ROUTES.VEHICLE_ALERTS,
-  ROUTES.COMPANY_BRAIN,
   ROUTES.SETTINGS,
   ROUTES.OPS_FEEDBACK,
   ROUTES.INVENTORY,
   ROUTES.LIVE_OPERATIONS,
+  // Sales may open the Operations overview but not its Live tab (2026-11-05).
+  ROUTES.OPERATIONS_LIVE,
   ADMIN_BASE,
+];
+
+/**
+ * Portal (builder) users have no business in the internal Operations area.
+ * Collin's ruling (2026-11-05): techs and portal users get no access to
+ * /operations at all, including the legacy addresses that redirect there.
+ */
+const PORTAL_DENIED_PREFIXES: readonly string[] = [
+  ROUTES.OPERATIONS,
+  ROUTES.COMMAND_CENTER,
+  ROUTES.LIVE_OPERATIONS,
 ];
 
 /**
@@ -54,6 +66,7 @@ const SALES_DENIED_PREFIXES: readonly string[] = [
 const ROLE_DENIED_PREFIXES: Partial<Record<AppRole, readonly string[]>> = {
   tech: TECH_DENIED_PREFIXES,
   sales: SALES_DENIED_PREFIXES,
+  portal: PORTAL_DENIED_PREFIXES,
 };
 
 function normalizePath(pathname: string): string {
@@ -88,7 +101,16 @@ export function isRoleDeniedPath(role: string | null | undefined, pathname: stri
   // Tech role has additional job editor restrictions
   if (role === "tech" && isTechJobEditorPath(path)) return true;
 
+  // My van is the one inventory path a technician may open. The /inventory
+  // prefix stays denied, which would otherwise swallow /inventory/my-van.
+  if (role === "tech" && isTechMyVanPath(path)) return false;
+
   return deniedPrefixes.some((prefix) => matchesPrefix(path, prefix));
+}
+
+/** Exact /inventory/my-van, not a sibling such as /inventory/my-van-other. */
+function isTechMyVanPath(pathname: string): boolean {
+  return pathname === ROUTES.INVENTORY_MY_VAN || pathname.startsWith(`${ROUTES.INVENTORY_MY_VAN}/`);
 }
 
 /**

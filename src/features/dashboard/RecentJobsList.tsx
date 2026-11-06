@@ -19,7 +19,7 @@ function getStatusColor(status: string) {
     case "Scheduled":
       return "bg-blue-500/15 text-blue-300";
     case "Completed":
-      return "bg-emerald-500/15 text-emerald-300";
+      return "completed-tint";
     case "On Hold":
       return "bg-slate-500/15 text-slate-400";
     case "Cancelled":

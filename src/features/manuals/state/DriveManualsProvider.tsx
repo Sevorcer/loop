@@ -50,7 +50,7 @@ export function DriveManualsProvider({ children }: { children: ReactNode }) {
       const data = await requestJson<DriveManualsSnapshot>("/api/manuals", { role, cache: "no-store" });
       return { data, error: null as string | null };
     } catch (loadError) {
-      return { data: null, error: messageOf(loadError, "Could not load Drive manuals.") };
+      return { data: null, error: messageOf(loadError, "Could not load manuals.") };
     }
   }, [role]);
 

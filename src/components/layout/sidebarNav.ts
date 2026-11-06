@@ -14,39 +14,58 @@ import {
   HardHat,
   AirVent,
   Truck,
-  Workflow,
   MessageSquare,
   Receipt,
   Landmark,
   FileCheck,
   ClipboardCheck,
+  ListChecks,
 } from "lucide-react";
 
 import { getNavItemsForRole, type NavGroup } from "@/features/auth";
+import { isAppRole } from "@/features/auth/utils/appRole";
 import { ROUTES } from "@/lib/routes";
 import type { AppRole } from "@/services/authorization";
 
 // Navigation groups — workflow-based grouping (PR1 UI/IA hardening).
 // Group labels use uppercase to match the established convention.
+// Standalone top-level entries, rendered above every group with no group
+// heading. My Jobs lives here (Collin, 2026-11-05): its own tab, not part of
+// TODAY. Role rules come from NAV_ROUTE_ROLES like every other entry.
+export const SHELL_TOP_LEVEL_ITEMS: NavGroup["items"] = [
+  { name: "My Jobs", href: ROUTES.MY_JOBS, icon: ListChecks },
+];
+
+/**
+ * Top-level entries the role may see. Portal and unknown roles get none
+ * (unlike the grouped nav, this does not fall back to tech-level links).
+ */
+export function composeTopLevelNav(
+  role: AppRole | string | null | undefined,
+  items: NavGroup["items"] = SHELL_TOP_LEVEL_ITEMS,
+): NavGroup["items"] {
+  if (!isAppRole(role) || role === "portal") return [];
+  return getNavItemsForRole(role, [{ label: "", items }])[0]?.items ?? [];
+}
+
 export const SHELL_NAV_GROUPS: NavGroup[] = [
   {
     label: "TODAY",
     items: [
       { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
-      { name: "Command Center", href: ROUTES.COMMAND_CENTER, icon: MonitorDot },
-      { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
+      // "Operations" is the former Command Center (renamed 2026-11-05). The old
+      // Operations launcher hub was removed — it only repeated these links.
+      { name: "Operations", href: ROUTES.OPERATIONS, icon: MonitorDot },
       { name: "Daily Plans", href: ROUTES.DAILY_PLANS, icon: CalendarDays },
+      { name: "Dispatch", href: ROUTES.DISPATCH, icon: Send },
       { name: "Calendar", href: ROUTES.CALENDAR, icon: CalendarRange },
-      // Live Operations hidden 2026-09-30 — mock-data tab, parked until it can
-      // run on real crew/job data (likely folded into Dispatch same-day view).
-      // { name: "Live Operations", href: ROUTES.LIVE_OPERATIONS, icon: Radio },
-      { name: "Operations", href: ROUTES.OPERATIONS, icon: Workflow },
     ],
   },
   {
     label: "FIELD",
     items: [
       { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
+      { name: "My van", href: ROUTES.INVENTORY_MY_VAN, icon: Truck },
       { name: "Permits", href: ROUTES.PERMITS_BOARD, icon: FileCheck },
       { name: "Inspections", href: ROUTES.INSPECTIONS_WEEK, icon: ClipboardCheck },
       { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
@@ -83,9 +102,9 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
 // every other role keeps the baseline group/item order unless a user override
 // exists in local preferences.
 const ROLE_NAV_PRESET_ORDER: Partial<Record<AppRole, readonly string[]>> = {
-  owner: [ROUTES.DASHBOARD, ROUTES.COMMAND_CENTER, ROUTES.REPORTING, ROUTES.SETTINGS],
-  dispatch: [ROUTES.DISPATCH, ROUTES.COMMAND_CENTER, ROUTES.JOBS],
-  tech: [ROUTES.DASHBOARD, ROUTES.JOBS],
+  owner: [ROUTES.DASHBOARD, ROUTES.OPERATIONS, ROUTES.REPORTING, ROUTES.SETTINGS],
+  dispatch: [ROUTES.DISPATCH, ROUTES.OPERATIONS, ROUTES.JOBS],
+  tech: [ROUTES.DASHBOARD, ROUTES.JOBS, ROUTES.INVENTORY_MY_VAN],
 };
 
 export interface ComposeSidebarNavOptions {
@@ -131,6 +150,24 @@ function getPreferredHrefOrder(
   }
 
   return ROLE_NAV_PRESET_ORDER[role as AppRole] ?? [];
+}
+
+/**
+ * True for a job detail route: /jobs/<id> and its children (edit, pull
+ * list), but not the /jobs list or /jobs/new.
+ *
+ * Soft navigation OUT of this segment silently fails to commit in the App
+ * Router (framework-level; first seen 2026-11-03 — the flight response
+ * arrives but the router never commits it, so <Link> clicks and
+ * router.push no-op). JobDetailScreen's own exits already hard-navigate
+ * for this reason (PRs #324/#326). The Sidebar uses this to render plain
+ * anchors from job detail routes so the tabs always work; everywhere
+ * else it keeps soft navigation.
+ */
+export function isJobDetailPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const segments = pathname.split("/").filter(Boolean);
+  return segments[0] === "jobs" && segments.length >= 2 && segments[1] !== "new";
 }
 
 export function composeSidebarNav({

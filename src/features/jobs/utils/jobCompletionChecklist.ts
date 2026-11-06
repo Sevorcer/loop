@@ -28,6 +28,12 @@ export interface JobCompletionChecklistStatus {
   requiresInstallGates: boolean;
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
+  /**
+   * Crew attested that no system was installed — satisfies the systems gate.
+   * Optional like the materials fields so older fixtures keep compiling;
+   * the server always fills it.
+   */
+  noSystemInstalled?: boolean;
   jobNotesCompleted: boolean;
   requiredQaItemsComplete: boolean;
   customerSignaturePlaceholder: "optional";
@@ -38,6 +44,18 @@ export interface JobCompletionChecklistStatus {
    * completed today. Applies in both closeout modes.
    */
   finalDayBlocker: string | null;
+  /**
+   * Inventory Lane 4 closeout reconciliation. Optional so older callers and fixtures keep
+   * compiling; the server always fills them. `materialsRequired` = a full-closeout job with a
+   * confirmed plan that has catalog-linked lines. `materialsReconciled` is also true after an
+   * office override. `materialsBlocked` = the stage (soft / hard) currently stops completion.
+   */
+  materialsRequired?: boolean;
+  materialsReconciled?: boolean;
+  materialsEnforcement?: "warn" | "soft" | "hard";
+  materialsBlocked?: boolean;
+  /** The viewer may record an office override (soft stage, owner / manager / office). */
+  materialsCanOverride?: boolean;
   /** All gates satisfied and no final-day block — mirrors the server. */
   canComplete: boolean;
 }
@@ -88,6 +106,7 @@ const COMPLETION_BLOCKER_LABELS: Record<string, string> = {
   "missing installed systems": "Installed systems",
   "missing job notes": "Job notes",
   "incomplete required qa items": "Required QA items",
+  "materials are not reconciled": "Materials reconciled",
 };
 
 /**

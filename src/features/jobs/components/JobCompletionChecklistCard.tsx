@@ -36,6 +36,9 @@ export function JobCompletionChecklistCard({
   signaturePreviewUrl,
   initialChecklist,
   onSaveChecklist,
+  noSystemInstalled = false,
+  noSystemInstalledCaption,
+  onToggleNoSystemInstalled,
 }: {
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
@@ -51,27 +54,62 @@ export function JobCompletionChecklistCard({
   signaturePreviewUrl?: string | null;
   initialChecklist: RequiredQaChecklist;
   onSaveChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
+  /**
+   * The crew's "no system installed" attestation. When no handler is
+   * supplied the row stays a read-only status, as before.
+   */
+  noSystemInstalled?: boolean;
+  noSystemInstalledCaption?: string | null;
+  onToggleNoSystemInstalled?: (value: boolean) => Promise<void>;
 }) {
   const [qaChecklist, setQaChecklist] = useState<RequiredQaChecklist>(initialChecklist);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [attested, setAttested] = useState(noSystemInstalled);
+  const [attestSaving, setAttestSaving] = useState(false);
 
   const visitMode = closeoutMode === "visit";
   const qaComplete = isRequiredQaChecklistCompleteForStage(qaChecklist, requiresInstallGates);
+  const systemsSatisfied = installedSystemsEntered || attested;
   const gatesComplete = useMemo(
     () =>
       visitMode
         ? jobNotesCompleted
         : photosUploaded &&
-          (!requiresInstallGates || installedSystemsEntered) &&
+          (!requiresInstallGates || systemsSatisfied) &&
           jobNotesCompleted &&
           qaComplete,
-    [installedSystemsEntered, jobNotesCompleted, photosUploaded, qaComplete, requiresInstallGates, visitMode],
+    [jobNotesCompleted, photosUploaded, qaComplete, systemsSatisfied, requiresInstallGates, visitMode],
   );
   // Mirrors the server: the final-day block keeps the card from reading
   // "ready" even when every checklist item is done.
   const canComplete = gatesComplete && !finalDayBlocker;
+
+  async function toggleAttestation(value: boolean) {
+    if (!onToggleNoSystemInstalled) return;
+    setAttested(value);
+    setAttestSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await onToggleNoSystemInstalled(value);
+      setSuccess(
+        value
+          ? "Marked as no system installed."
+          : "Attestation removed — an installed system must be entered.",
+      );
+    } catch (toggleError) {
+      setAttested(!value);
+      setError(
+        toggleError instanceof Error
+          ? toggleError.message
+          : "Failed to save the attestation.",
+      );
+    } finally {
+      setAttestSaving(false);
+    }
+  }
 
   async function saveChecklist() {
     try {
@@ -122,10 +160,36 @@ export function JobCompletionChecklistCard({
             </div>
           ) : null}
           <ChecklistRow label="Photos uploaded" complete={photosUploaded} />
-          {requiresInstallGates ? (
-            <ChecklistRow label="Installed systems entered" complete={installedSystemsEntered} />
-          ) : (
+          {!requiresInstallGates && !visitMode ? (
             <ChecklistRow label="Installed systems (not required for this visit)" complete={true} />
+          ) : installedSystemsEntered || visitMode || !onToggleNoSystemInstalled ? (
+            <ChecklistRow
+              label="Installed systems entered"
+              complete={systemsSatisfied}
+            />
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-200">Installed systems entered</span>
+                {attested ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <Circle className="h-4 w-4 text-slate-500" />
+                )}
+              </div>
+              <label className="mt-2 flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={attested}
+                  disabled={attestSaving}
+                  onChange={(event) => void toggleAttestation(event.target.checked)}
+                />
+                No system was installed on this job
+              </label>
+              {attested && noSystemInstalledCaption ? (
+                <p className="mt-1 text-xs text-slate-500">{noSystemInstalledCaption}</p>
+              ) : null}
+            </div>
           )}
           <ChecklistRow label="Job notes completed" complete={jobNotesCompleted} />
           <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">

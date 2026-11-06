@@ -198,7 +198,10 @@ export interface Crew {
   members: CrewMember[];
   certifications: string[];
   availability: CrewAvailability;
+  /** Display name: the linked vehicle when there is one, else the legacy truck text (until M4). */
   truckName: string;
+  /** Linked `vehicles` row (crews.vehicle_id), or null while unlinked. */
+  vehicleId?: string | null;
 }
 
 // ------------------------------------------------------------------

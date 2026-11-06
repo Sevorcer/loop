@@ -1,3 +1,5 @@
+import { resolveVehicleName, type LinkedVehicleEmbed } from "@/features/inventory/utils/vehicleName";
+
 import type {
   VehicleAlert,
   VehicleAlertPriority,
@@ -7,7 +9,8 @@ import type {
 export interface VehicleAlertRow {
   id: string;
   org_id: string;
-  vehicle_name: string;
+  vehicle_id: string;
+  vehicle?: LinkedVehicleEmbed;
   title: string;
   description: string;
   priority: VehicleAlertPriority;
@@ -27,7 +30,8 @@ export function mapVehicleAlertRow(row: VehicleAlertRow): VehicleAlert {
 
   return {
     id: row.id,
-    vehicleName: row.vehicle_name,
+    vehicleName: resolveVehicleName(row.vehicle),
+    vehicleId: row.vehicle_id,
     title: row.title,
     description: row.description,
     priority: row.priority,

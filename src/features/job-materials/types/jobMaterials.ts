@@ -8,6 +8,7 @@
 // ============================================================
 
 import type { ReadinessState } from "@/features/dispatch/types/dispatch";
+import type { MaterialReadinessLevel } from "@/features/inventory/types/readiness";
 import type { InstalledSystemManual } from "@/features/manuals/types/manuals";
 
 export const JOB_MATERIAL_STATES = ["needed", "on_truck", "used"] as const;
@@ -18,6 +19,33 @@ export const JOB_MATERIAL_STATE_LABELS: Record<JobMaterialState, string> = {
   on_truck: "On truck",
   used: "Used",
 };
+
+/** Where a plan line came from (Inventory Lane 4). Legacy lines are "manual". */
+export const JOB_MATERIAL_SOURCES = ["manual", "estimate", "kit", "field"] as const;
+export type JobMaterialSource = (typeof JOB_MATERIAL_SOURCES)[number];
+
+export const JOB_MATERIAL_SOURCE_LABELS: Record<JobMaterialSource, string> = {
+  manual: "Added by hand",
+  estimate: "From estimate",
+  kit: "From kit",
+  field: "Added in the field",
+};
+
+/** Where a plan line is in the stock flow (Inventory Lane 4, PR C). */
+export const MATERIAL_LINE_STAGES = ["planned", "reserved", "pulled", "reconciled"] as const;
+export type MaterialLineStage = (typeof MATERIAL_LINE_STAGES)[number];
+
+export const MATERIAL_LINE_STAGE_LABELS: Record<MaterialLineStage, string> = {
+  planned: "Planned",
+  reserved: "Reserved",
+  pulled: "Pulled",
+  reconciled: "Reconciled",
+};
+
+export interface JobMaterialCatalogRef {
+  name: string;
+  sku: string | null;
+}
 
 export interface JobMaterialLine {
   id: string;
@@ -35,6 +63,26 @@ export interface JobMaterialLine {
   updatedAt: string;
   stateChangedBy: string | null;
   stateChangedAt: string | null;
+  // ── Plan fields (Inventory Lane 4, migration 20261126100000) ──
+  planId: string | null;
+  /** null = "needs SKU": free text that is not linked to a catalog item yet. */
+  catalogItemId: string | null;
+  catalogItem: JobMaterialCatalogRef | null;
+  source: JobMaterialSource;
+  kitId: string | null;
+  /** What the kit asked for when it differs from `quantity` (estimate wins, D7). */
+  kitQuantity: number | null;
+  isOptional: boolean;
+  /** Set when office decided this line is not a stocked item ("Bought on site"). */
+  nonStockReason: string | null;
+  // ── Reservation and readiness cache (migration 20261126200000). Optional so older
+  //    callers and fixtures keep compiling; the repository always fills them. ──
+  stage?: MaterialLineStage;
+  readinessState?: MaterialReadinessLevel | null;
+  readinessReason?: string | null;
+  /** Date the missing quantity is expected, "YYYY-MM-DD". */
+  readinessEta?: string | null;
+  fulfilLocationId?: string | null;
 }
 
 /** Fields an office role may set when adding a line. */

@@ -64,6 +64,12 @@ export interface Job {
     // default off; enRouteAt is stamped on the first "On The Way" tap.
     customerNotificationsEnabled?: boolean;
     enRouteAt?: string | null;
+  // Closeout "no system installed" attestation (migration 20261126800000) —
+  // when true, the full-closeout installed-systems gate is satisfied without
+  // a system record; by/at stamp the attester for the audit trail.
+  noSystemInstalled?: boolean;
+  noSystemInstalledBy?: string | null;
+  noSystemInstalledAt?: string | null;
   
   contractorIds?: string[];   assignees?: { id: string; name: string }[];
   /** People on the job when it was first marked completed. */

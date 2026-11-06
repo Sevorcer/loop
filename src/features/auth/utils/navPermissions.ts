@@ -38,10 +38,16 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   // Dashboard — all internal roles
   // (absent from map → visible to all)
 
+  // My Jobs — every internal role (the page only lists the viewer's own jobs)
+  [ROUTES.MY_JOBS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
+
   // Operations
   [ROUTES.DAILY_PLANS]: ["owner", "manager", "dispatch", "office"],
-  [ROUTES.LIVE_OPERATIONS]: ["owner", "manager", "dispatch"],
-  [ROUTES.COMMAND_CENTER]: ["owner", "manager", "dispatch", "office", "sales"], [ROUTES.DISPATCH]: ["owner", "manager", "dispatch"],
+  // Operations = the former Command Center (renamed 2026-11-05).
+  [ROUTES.OPERATIONS]: ["owner", "manager", "dispatch", "office", "sales"],
+  // Live tab inside Operations — office included, sales not (Collin, 2026-11-05).
+  [ROUTES.OPERATIONS_LIVE]: ["owner", "manager", "dispatch", "office"],
+  [ROUTES.DISPATCH]: ["owner", "manager", "dispatch"],
 
   // Field
   [ROUTES.JOBS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
@@ -49,11 +55,15 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   [ROUTES.CONTRACTORS]: ["owner", "manager", "dispatch"],
   [ROUTES.CUSTOMERS]: ["owner", "manager", "dispatch", "office", "sales"],
   [ROUTES.INSTALLED_SYSTEMS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
-  [ROUTES.VEHICLE_ALERTS]: ["owner", "manager", "dispatch"],
+  // Vehicle Alerts — every internal role (Collin, 2026-11-06: techs get full access).
+  [ROUTES.VEHICLE_ALERTS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
 
-  // Resources
+  // Resources. My van is the technician phone screen. Office inventory stays closed to techs.
   [ROUTES.INVENTORY]: ["owner", "manager", "dispatch", "office"],
-  [ROUTES.COMPANY_BRAIN]: ["owner", "manager"],
+  [ROUTES.INVENTORY_MY_VAN]: ["tech"],
+  // Company Brain — viewable by every internal role (Collin, 2026-11-06);
+  // editing stays owner/manager via the knowledge_items matrix.
+  [ROUTES.COMPANY_BRAIN]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
 
   // Insights
   [ROUTES.BILLING]: ["owner", "manager", "office"],

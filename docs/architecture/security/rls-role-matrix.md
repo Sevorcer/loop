@@ -176,6 +176,289 @@ Legend: `✓` = allowed | `own` = own rows only | `status` = status column only 
 
 ---
 
+### Storage: `manuals` bucket (private)
+
+PDF copies of indexed manuals (`drive_manual_files.storage_path`). One policy, SELECT only (`manuals_storage_select`, 20261124000000):
+owner / manager / dispatch / office / sales / tech may read an object only when a `drive_manual_files` row visible to them (so same-org, via that table's RLS) points at its path. No INSERT/UPDATE/DELETE policy; uploads are service-side. portal / anon: none. Served to the browser only through `GET /api/manuals/:id/file` (no signed-URL redirect).
+
+---
+
+## Inventory Lane 1 (migrations 20261123000000, 20261123100000)
+
+All eight tables are RLS ENABLE + FORCE, org-scoped via `current_org_id()`. Portal users have no access to any of them.
+
+### catalog_categories
+
+Item categories (hierarchical, max 3 levels).
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### catalog_items
+
+Item master (sellable + stockable facets). Retail price lives here; cost does not.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### catalog_price_tiers
+
+Named price tiers per item.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### catalog_item_costs
+
+Unit cost, kept apart so cost never leaks to technicians or sales through the catalog.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### vehicles
+
+Fleet vehicles. Added by hand in the Locations & vans screen; never auto-created. Readable by all internal roles because techs and sales file vehicle alerts.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### inventory_locations
+
+Warehouse, van, job and quarantine locations. Tech SELECT was added in Lane 2 (`20261127200000`) and is limited to the tech's own active van and active warehouses. Other roles are unchanged from Lane 1. Tech still cannot insert, update, or delete.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | own van + shop | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### inventory_stock_levels
+
+Cache maintained by a SECURITY DEFINER trigger on the ledger. No role (including owner) can write it directly; INSERT/UPDATE/DELETE are revoked from `authenticated`. Par changes go through `fn_inventory_set_par` (Lane 2) and are not an UPDATE grant. Tech SELECT matches locations: own active van and active warehouses only.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | own van + shop | ✓     | —     | —      |
+| INSERT | —     | —     | —     | —     | —     | —     | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### inventory_transactions
+
+Append-only stock ledger. `created_by` must equal `auth.uid()`. UPDATE, DELETE and TRUNCATE are blocked by trigger and revoked. Corrections are opposite entries.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+## Inventory Lane 2 (migrations 20261127000000, 20261127100000, 20261127200000)
+
+Collin ruled D1–D10 on 2026-11-06 as the plan recommended. No par-template table and no restock-list table. `20261127300000` and `20261127400000` stay unused. Stock still changes only by appending `inventory_transactions`. Costs stay off every tech path: there is no tech policy on `inventory_transactions` or `catalog_item_costs`.
+
+Person assignment on Locations & vans (writing `vehicle_operators` from the van dialog) is the next PR. This section is the grant.
+
+### vehicle_operators
+
+Who may open which van on the phone. Office assigns people. Techs see their own rows and cannot assign themselves. This does not replace `crews.vehicle_id`.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | own rows | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### inventory_locations (Lane 2)
+
+Tech gains SELECT for the active van locations in `fn_inventory_visible_vehicle_ids()` and for active warehouses. Not job, not quarantine, not someone else's van. Other roles are unchanged. The `inventory_locations` table in the Lane 1 section is the current grant.
+
+### inventory_stock_levels (Lane 2)
+
+Tech gains SELECT for those same locations. Writes stay locked for every role, including owner. `fn_inventory_set_par` (owner, manager, office; active van; active stockable item) is the only par write. The ledger apply sets `inventory.ledger_apply` so a stock movement cannot clear `min_qty` / `max_qty`.
+
+### inventory_transactions (unchanged grants)
+
+Tech does not gain SELECT or INSERT. Cost stays on the row. A tech appends only through `fn_inventory_post_van_entries`: a `count` on an already counted-in van they are assigned to, or a `transfer_out`/`transfer_in` pair from that van's shop warehouse onto that van, with `unit_cost_cents` forced null. Office keeps `postLedgerCommand` and the INSERT policy. `fn_inventory_my_van_activity` returns id, type, item, location, quantity delta, reason, and time. It does not return cost, job, or transfer group.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+## Inventory Lane 4 (migrations 20261126000000, 20261126100000, 20261126200000, 20261126300000, 20261126400000, 20261126500000, 20261126600000)
+
+Kit templates and the inventory rules row. Nothing here is seeded. `save_kit_template()` is SECURITY INVOKER, so these policies apply to it.
+
+### inventory_settings
+
+One row per org (readiness lead/buffer days, closeout enforcement stage). Absent row = built-in defaults. Owner creates and edits; there is no DELETE policy and the privilege is revoked.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | —     | —     | —     | —     | —     | —      |
+| UPDATE | ✓     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### kit_templates
+
+Named install kits built from the catalog. Every internal role reads (crews should see what is in a kit). Kits are snapshots once attached to a job (a later PR), so edits never change existing jobs.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### kit_template_lines
+
+Catalog-backed lines (never free text). A kit save replaces its lines as a set, so owner, manager and office can delete lines (the kit itself stays owner-delete).
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+
+### job_material_plans
+
+One plan header per job (draft or confirmed). Editing is office-side; confirming and reopening are owner, manager, dispatch and office. A trigger stamps who confirmed and when. Techs read the plan but change line state and quantity through `job_material_lines`, not the header.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+| UPDATE | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### job_kits
+
+Kits attached to a job (a snapshot of the kit at attach time). Anyone who can edit a plan can attach or refresh a kit.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+| UPDATE | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+| DELETE | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+
+### job_material_line_events
+
+Append-only history of every plan-line change (who, when, why). The actor and time are stamped by trigger and UPDATE/DELETE privileges are revoked. Most events are written by the line trigger; a tech may only insert quantity-change events.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | ✓     | ✓ (qty only) | ✓ | ✓ | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### catalog_item_aliases
+
+"This estimate wording means that catalog item", written when a needs-SKU line is linked. Resolving needs-SKU lines is owner, manager and office. Dispatch and sales can read.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+
+### inventory_reservations
+
+Stock held for a job line. Rows are never deleted: a database guard allows only active → pulled / released / consumed (and pulled → consumed / released), and the stamp trigger forces new rows to `active` with `auth.uid()`. Created and released by the `reserve_job_materials` / `release_job_reservations` functions (SECURITY INVOKER, role-checked: others get 42501). The `inventory_available` view (security_invoker) subtracts active and pulled claims on live jobs from on-hand.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### inventory_expected_arrivals
+
+What is on its way (item, receiving warehouse, quantity, date, optional job it is a special order for). Non-expected rows are frozen by a guard trigger; item and location never change. `receive_expected_arrival` posts the ledger `receive` and marks the row received in one call (owner, manager, office). Dispatch reads so the board can explain readiness.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓ (not received) | —  | —     | —     | —     | —     | —      |
+
+### job_readiness_snapshots
+
+Append-only record of a job's material readiness when its plan is confirmed, when its rollup changes, and when the job is dispatched. Actor and time are stamped by trigger; UPDATE/DELETE privileges are revoked (a job delete still cascades). A tech may insert only the `dispatched` row on a job assigned to them.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | ✓     | ✓ (dispatched, assigned jobs) | ✓ | — | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### job_material_events
+
+Append-only field events (missing part, wrong part, substitution, unplanned use, supply-house run, kit feedback) used to improve kits. A tech reads and adds events only on jobs assigned to them.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓ (assigned jobs) | ✓ | — | —      |
+| INSERT | ✓     | ✓     | ✓     | ✓ (assigned jobs) | ✓ | — | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+---
+
+### Pull flow (20261126500000)
+
+`inventory_transactions` gains a nullable `material_line_id` (same-org composite FK to `job_material_lines`, `ON DELETE RESTRICT`; the append-only ledger cannot take a `SET NULL` update). A BEFORE INSERT trigger requires a linked row to carry a `job_id` and to match the line's job and catalog item. Ledger policies are unchanged: only owner, manager, and office can write.
+
+`ensure_job_location()`, `pull_job_materials()`, and `return_pallet_to_shop()` are SECURITY INVOKER, granted to `authenticated` only, and refuse every role except owner, manager, and office (SQLSTATE 42501). Returns are allowed only for Cancelled or deleted jobs. `remove_material_line()` now refuses lines that already have ledger rows.
+
+`inventory_stranded_pallets` is a `security_invoker` view over `inventory_stock_levels`, so it shows exactly the rows the caller can already read.
+
+### Closeout reconciliation (20261126600000)
+
+`job_material_lines` gains `used_qty`, `returned_qty`, `recovered_qty`, and `variance_reason`. The technician column guard still limits techs to state, quantity, and these four columns on jobs assigned to them, and a reconciled line is frozen for them. Only `reconcile_job_materials` moves a line to the `reconciled` stage (it sets a transaction-local flag the guard honours).
+
+`reconcile_job_materials()` is the one SECURITY DEFINER function in Lane 4: an assigned technician may reconcile their job but cannot write the ledger. It requires an authenticated owner, manager, office, or assigned tech in the job's own organization, refuses cancelled or deleted jobs, takes advisory locks, and posts `issue_to_job`, a pallet-to-shop transfer, and an explained `adjust` in one transaction. `override_material_reconciliation()` is SECURITY INVOKER (owner, manager, office).
+
+| Table | SELECT | INSERT | UPDATE | DELETE |
+|-------|--------|--------|--------|--------|
+| `job_material_reconciliations` | owner, manager, dispatch, office; tech on assigned jobs | owner, manager, office (overrides only); `submitted` rows come from the function | none | none |
+| `refrigerant_log_entries` | owner, manager, dispatch, office; tech on assigned jobs | none (written only by `reconcile_job_materials`) | none | none |
+
+---
+
 ## Deny Rules — Hard Blocks
 
 The following are always blocked regardless of role or policy evaluation:

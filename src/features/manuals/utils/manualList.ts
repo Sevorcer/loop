@@ -34,6 +34,14 @@ export function manufacturerCounts(files: DriveManualFile[]): Array<{ manufactur
     .sort((a, b) => b.count - a.count || a.manufacturer.localeCompare(b.manufacturer));
 }
 
+/** Label for a row; a Google Doc served from its stored PDF says so (the PDF can go stale if the Doc is edited). */
+export function manualKindLabel(manual: { mimeType: string; hasLocalFile?: boolean }): string {
+  if (manual.hasLocalFile && manual.mimeType === "application/vnd.google-apps.document") {
+    return "PDF · converted from Google Doc";
+  }
+  return fileKindLabel(manual.mimeType);
+}
+
 export function fileKindLabel(mimeType: string): string {
   if (mimeType === "application/pdf") return "PDF";
   if (mimeType === "application/vnd.google-apps.document") return "Google Doc";

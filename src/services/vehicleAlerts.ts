@@ -11,6 +11,9 @@ import {
   updateVehicleAlertStatusRecord,
 } from "@/repositories/vehicleAlerts";
 import type { SessionRepositoryContextInput } from "@/repositories/supabaseContext";
+import { getVehicle } from "@/repositories/vehicles";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PRIORITIES = new Set<VehicleAlertPriority>(["Low", "Medium", "High"]);
 const STATUSES = new Set<VehicleAlertStatus>([
@@ -29,7 +32,8 @@ export function isVehicleAlertStatus(value: unknown): value is VehicleAlertStatu
 }
 
 export interface CreateVehicleAlertServiceInput {
-  vehicleName: string;
+  /** The vehicle the alert is about. Required. */
+  vehicleId: string;
   title: string;
   description: string;
   priority: VehicleAlertPriority;
@@ -37,7 +41,9 @@ export interface CreateVehicleAlertServiceInput {
 }
 
 function validateCreateInput(input: CreateVehicleAlertServiceInput) {
-  if (!input.vehicleName.trim()) throw Object.assign(new Error("vehicleName is required."), { status: 400 });
+  if (!UUID_RE.test(input.vehicleId ?? "")) {
+    throw Object.assign(new Error("Choose a vehicle."), { status: 400 });
+  }
   if (!input.title.trim()) throw Object.assign(new Error("title is required."), { status: 400 });
   if (!input.description.trim()) throw Object.assign(new Error("description is required."), { status: 400 });
   if (!PRIORITIES.has(input.priority)) {
@@ -45,6 +51,15 @@ function validateCreateInput(input: CreateVehicleAlertServiceInput) {
   }
   if (!input.reportedByUserId) {
     throw Object.assign(new Error("Authenticated user is required."), { status: 401 });
+  }
+}
+
+/** The vehicle is looked up in the caller's org; retired vans cannot take new alerts. */
+async function assertAlertVehicle(vehicleId: string): Promise<void> {
+  const vehicle = await getVehicle(vehicleId);
+  if (!vehicle) throw Object.assign(new Error("That vehicle was not found."), { status: 400 });
+  if (vehicle.status === "retired") {
+    throw Object.assign(new Error("That vehicle is retired. Choose another."), { status: 400 });
   }
 }
 
@@ -59,9 +74,10 @@ export async function createVehicleAlert(
   ctx?: SessionRepositoryContextInput,
 ): Promise<VehicleAlert> {
   validateCreateInput(input);
+  await assertAlertVehicle(input.vehicleId);
   return createVehicleAlertRecord(
     {
-      vehicleName: input.vehicleName.trim(),
+      vehicleId: input.vehicleId,
       title: input.title.trim(),
       description: input.description.trim(),
       priority: input.priority,

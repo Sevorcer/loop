@@ -39,6 +39,8 @@ describe("shell route guard", () => {
     expect(isShellRoute("/command-center")).toBe(true);
     expect(isShellRoute("/calendar")).toBe(true);
     expect(isShellRoute("/operations")).toBe(true);
+    expect(isShellRoute("/operations/live")).toBe(true);
+    expect(isShellRoute("/live-operations")).toBe(true);
   });
 
   it("does not treat a longer sibling path as the same prefix", () => {

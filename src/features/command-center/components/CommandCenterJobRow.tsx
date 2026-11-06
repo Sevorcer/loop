@@ -13,12 +13,12 @@ interface CommandCenterJobRowProps {
 
 const STATUS_VARIANT: Record<
   string,
-  "success" | "warning" | "danger" | "info" | "neutral"
+  "success" | "warning" | "danger" | "info" | "neutral" | "completed"
 > = {
   Scheduled: "info",
   "In Progress": "warning",
   "On Hold": "danger",
-  Completed: "success",
+  Completed: "completed",
   Cancelled: "neutral",
 };
 
@@ -54,7 +54,8 @@ export function CommandCenterJobRow({ job, badges }: CommandCenterJobRowProps) {
 
       {/* Assigned tech */}
       <span className="hidden w-28 shrink-0 truncate text-right text-xs text-muted sm:block">
-        {job.assignedTo?.trim() || (
+        {/* Techs come from job_assignees; the legacy assigned_to text is a fallback. */}
+        {job.assignees?.map((person) => person.name).join(", ") || job.assignedTo?.trim() || (
           <span className="text-danger">Unassigned</span>
         )}
       </span>

@@ -1,8 +1,10 @@
 import {
+  JOB_MATERIAL_SOURCES,
   JOB_MATERIAL_STATES,
   type JobMaterialCreateInput,
   type JobMaterialLine,
   type JobMaterialPatchInput,
+  type JobMaterialSource,
   type JobMaterialState,
   type JobMaterialSummary,
   type MaterialReadiness,
@@ -54,6 +56,10 @@ export function isUuid(value: unknown): value is string {
 
 export function isJobMaterialState(value: unknown): value is JobMaterialState {
   return typeof value === "string" && (JOB_MATERIAL_STATES as readonly string[]).includes(value);
+}
+
+export function isJobMaterialSource(value: unknown): value is JobMaterialSource {
+  return typeof value === "string" && (JOB_MATERIAL_SOURCES as readonly string[]).includes(value);
 }
 
 const MAX_NAME = 200;

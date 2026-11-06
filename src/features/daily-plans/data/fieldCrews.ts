@@ -7,7 +7,8 @@ export interface CrewRecord {
   members: unknown;
   certifications: string[] | null;
   availability: string;
-  truck_name: string;
+  /** Display name of the linked van (resolved from vehicles; "" when none). */
+  van_name: string;
 }
 
 export interface TechnicianRecord {
@@ -155,7 +156,7 @@ export function buildDailyCrewRoster(input: {
         technician: lead,
         leadInstaller: lead,
         helper,
-        truckName: clean(crew.truck_name) || "—",
+        truckName: clean(crew.van_name) || "—",
         truckInService: true,
         certifications: Array.isArray(crew.certifications)
           ? crew.certifications.filter(Boolean)

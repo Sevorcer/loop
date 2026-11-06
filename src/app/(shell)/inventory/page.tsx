@@ -1,5 +1,11 @@
-import { InventoryScreen } from "@/features/inventory";
+import { StockScreen } from "@/features/inventory";
 
-export default function InventoryPage() {
-  return <InventoryScreen />;
+export const dynamic = "force-dynamic";
+
+export default function InventoryPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return <StockScreen searchParams={searchParams} />;
 }

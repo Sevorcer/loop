@@ -5,6 +5,7 @@ import { BookOpen, Cpu, FileText, Info, Loader2 } from "lucide-react";
 
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import type { InstalledSystemManual } from "@/features/manuals/types/manuals";
+import { manualLink } from "@/features/manuals/utils/manualLink";
 
 import { useJobTechnicalData } from "../state/JobTechnicalDataProvider";
 import type { TechnicalDataSystem, TechnicalManualMatch } from "../types/jobMaterials";
@@ -109,9 +110,9 @@ function SystemCard({ system }: { system: TechnicalDataSystem }) {
           {system.driveManuals.map((item) => (
             <li key={item.manual.id} className="flex items-center gap-2 text-xs text-slate-300">
               <FileText className="h-3.5 w-3.5 shrink-0 text-sky-300" />
-              {item.manual.webViewLink ? (
+              {manualLink(item.manual) ? (
                 <a
-                  href={item.manual.webViewLink}
+                  href={manualLink(item.manual)?.href}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="min-w-0 flex-1 truncate hover:underline"

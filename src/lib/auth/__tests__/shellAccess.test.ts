@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isTechDeniedApiPath, isTechDeniedPath, isTechJobEditorPath } from "../shellAccess";
+import {
+  isRoleDeniedPath,
+  isTechDeniedApiPath,
+  isTechDeniedPath,
+  isTechJobEditorPath,
+} from "../shellAccess";
 
 describe("technician route guard", () => {
   it("blocks office screens and job editors", () => {
@@ -13,6 +18,21 @@ describe("technician route guard", () => {
     expect(isTechDeniedPath("/admin/organizations")).toBe(true);
     expect(isTechJobEditorPath("/jobs/new")).toBe(true);
     expect(isTechDeniedPath("/jobs/job-1/edit")).toBe(true);
+  });
+
+  it("keeps office inventory closed and opens only My van", () => {
+    expect(isTechDeniedPath("/inventory")).toBe(true);
+    expect(isTechDeniedPath("/inventory/")).toBe(true);
+    expect(isTechDeniedPath("/inventory/restock")).toBe(true);
+    expect(isTechDeniedPath("/inventory/catalog")).toBe(true);
+    expect(isTechDeniedPath("/inventory/vans/van-1")).toBe(true);
+    expect(isTechDeniedPath("/inventory/my-van-other")).toBe(true);
+    expect(isTechDeniedPath("/inventory/my-van")).toBe(false);
+    expect(isTechDeniedPath("/inventory/my-van/")).toBe(false);
+    expect(isRoleDeniedPath("sales", "/inventory/my-van")).toBe(true);
+    expect(isRoleDeniedPath("portal", "/inventory")).toBe(false);
+    expect(isRoleDeniedPath("office", "/inventory")).toBe(false);
+    expect(isRoleDeniedPath("office", "/inventory/my-van")).toBe(false);
   });
 
   it("leaves a technician's own work open", () => {
@@ -32,5 +52,41 @@ describe("technician route guard", () => {
     expect(isTechDeniedApiPath("/api/reports/production")).toBe(true);
     expect(isTechDeniedApiPath("/api/jobs")).toBe(false);
     expect(isTechDeniedApiPath("/api/jobs/job-1")).toBe(false);
+  });
+});
+
+describe("Operations (ex-Command Center) access — 2026-11-05", () => {
+  const operationsPaths = ["/operations", "/operations/live", "/command-center", "/live-operations"];
+
+  it("blocks techs from Operations, its Live view, and the legacy addresses", () => {
+    for (const path of operationsPaths) {
+      expect(isRoleDeniedPath("tech", path), path).toBe(true);
+    }
+  });
+
+  it("blocks portal users from Operations entirely", () => {
+    for (const path of operationsPaths) {
+      expect(isRoleDeniedPath("portal", path), path).toBe(true);
+    }
+  });
+
+  it("lets office staff, managers, dispatchers, and owners into Operations", () => {
+    for (const role of ["owner", "manager", "dispatch", "office"]) {
+      expect(isRoleDeniedPath(role, "/operations"), role).toBe(false);
+    }
+  });
+
+  it("lets sales open the Operations overview but not the Live tab", () => {
+    expect(isRoleDeniedPath("sales", "/operations")).toBe(false);
+    expect(isRoleDeniedPath("sales", "/operations/live")).toBe(true);
+    expect(isRoleDeniedPath("sales", "/live-operations")).toBe(true);
+  });
+
+  it("lets office staff into the Live tab", () => {
+    expect(isRoleDeniedPath("office", "/operations/live")).toBe(false);
+  });
+
+  it("does not treat /ops/feedback as part of /operations", () => {
+    expect(isRoleDeniedPath("portal", "/ops/feedback")).toBe(false);
   });
 });

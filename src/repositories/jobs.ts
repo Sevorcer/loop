@@ -76,6 +76,11 @@ async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositor
     // Customer notifications — absent when migration 20261121600000 not yet applied.
     customer_notifications_enabled?: boolean | null;
     en_route_at?: string | null;
+  // Closeout "no system installed" attestation — absent when migration
+  // 20261126800000 not yet applied.
+  no_system_installed?: boolean | null;
+  no_system_installed_by?: string | null;
+  no_system_installed_at?: string | null;
   summary: string;
   location: string;
   notes: string;
@@ -172,6 +177,10 @@ function mapJob(row: JobRow): Job {
         // Notifications are opt-in: anything but an explicit true is off.
         customerNotificationsEnabled: row.customer_notifications_enabled === true,
         enRouteAt: row.en_route_at ?? null,
+    // Attestation reads as false until the crew explicitly marks it.
+    noSystemInstalled: row.no_system_installed === true,
+    noSystemInstalledBy: row.no_system_installed_by ?? null,
+    noSystemInstalledAt: row.no_system_installed_at ?? null,
     summary: row.summary,
     location: row.location,
     notes: row.notes,
@@ -189,7 +198,7 @@ const JOB_SELECT_WITH_LEGACY = JOB_SELECT_BASE + ",appointment_window";
 // fallback chain drops it together with the PR3C columns pre-migration.
 const JOB_SELECT =
   JOB_SELECT_WITH_LEGACY +
-  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode,customer_notifications_enabled,en_route_at";
+  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode,customer_notifications_enabled,en_route_at,no_system_installed,no_system_installed_by,no_system_installed_at";
 
 /**
  * Returns true when the Supabase/PostgREST error indicates that a scheduling
@@ -1295,6 +1304,46 @@ export async function markJobEnRoute(id: string): Promise<boolean> {
     }
   
     return (data ?? []).length > 0;
+}
+
+/**
+ * Set or clear the job's "no system installed" closeout attestation.
+ * Stamping writes who/when; clearing wipes both so a stale attester never
+ * lingers on an un-attested job. Returns the updated job, or null when the
+ * job does not exist (or is soft-deleted).
+ */
+export async function updateJobNoSystemInstalled(
+  id: string,
+  noneInstalled: boolean,
+  actorId: string | null,
+): Promise<Job | null> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("jobs")
+    .update(
+      noneInstalled
+        ? {
+            no_system_installed: true,
+            no_system_installed_by: actorId,
+            no_system_installed_at: new Date().toISOString(),
+          }
+        : {
+            no_system_installed: false,
+            no_system_installed_by: null,
+            no_system_installed_at: null,
+          },
+    )
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .select(JOB_SELECT_BASE);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const row = (data ?? [])[0] as JobRow | undefined;
+  return row ? mapJob(row) : null;
 }
 
 export async function createJobActivity(

@@ -424,7 +424,7 @@ function JobsSection({
                 </div>
 
                 <StatusBadge
-                  variant={job.status === "Completed" ? "success" : "warning"}
+                  variant={job.status === "Completed" ? "completed" : "warning"}
                 >
                   {job.status}
                 </StatusBadge>

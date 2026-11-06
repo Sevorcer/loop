@@ -43,7 +43,7 @@ describe("composeSidebarNav", () => {
     expect(getComposedHrefsForRole("tech")).toHaveLength(baseline.length);
   });
 
-  it("prioritizes owner links toward dashboard, command center, reporting, and settings", () => {
+  it("prioritizes owner links toward dashboard, operations, reporting, and settings", () => {
     const groups = composeSidebarNav({ role: "owner" });
 
     expect(groups.map((group) => group.label).slice(0, 3)).toEqual([
@@ -53,11 +53,11 @@ describe("composeSidebarNav", () => {
     ]);
     expect(groups[0]?.items.map((item) => item.href).slice(0, 2)).toEqual([
       ROUTES.DASHBOARD,
-      ROUTES.COMMAND_CENTER,
+      ROUTES.OPERATIONS,
     ]);
   });
 
-  it("prioritizes dispatch links toward dispatch, command center, and jobs", () => {
+  it("prioritizes dispatch links toward dispatch, operations, and jobs", () => {
     const groups = composeSidebarNav({ role: "dispatch" });
 
     expect(groups.map((group) => group.label).slice(0, 2)).toEqual([
@@ -66,12 +66,12 @@ describe("composeSidebarNav", () => {
     ]);
     expect(groups[0]?.items.map((item) => item.href).slice(0, 2)).toEqual([
       ROUTES.DISPATCH,
-      ROUTES.COMMAND_CENTER,
+      ROUTES.OPERATIONS,
     ]);
     expect(groups[1]?.items[0]?.href).toBe(ROUTES.JOBS);
   });
 
-  it("prioritizes tech links toward dashboard and jobs", () => {
+  it("prioritizes tech links toward dashboard, jobs, and my van", () => {
     const groups = composeSidebarNav({ role: "tech" });
 
     expect(groups.map((group) => group.label).slice(0, 2)).toEqual([
@@ -79,13 +79,17 @@ describe("composeSidebarNav", () => {
       "FIELD",
     ]);
     expect(groups[0]?.items[0]?.href).toBe(ROUTES.DASHBOARD);
-    // Customers, contractors, and vehicle alerts stay off the tech sidebar.
-    // Jobs, properties, and installed systems are the field records a tech can open.
+    // Customers and contractors stay off the tech sidebar. Vehicle alerts
+    // joined it on 2026-11-06 (Collin: techs get full access).
+    // My van sits next to Jobs. Office inventory stays off this preset.
     expect(groups[1]?.items.map((item) => item.href)).toEqual([
       ROUTES.JOBS,
+      ROUTES.INVENTORY_MY_VAN,
       ROUTES.PROPERTIES,
       ROUTES.INSTALLED_SYSTEMS,
+      ROUTES.VEHICLE_ALERTS,
     ]);
+    expect(groups.flatMap((group) => group.items).map((item) => item.href)).not.toContain(ROUTES.INVENTORY);
   });
 
   it("lets a user nav override take precedence over the role preset", () => {

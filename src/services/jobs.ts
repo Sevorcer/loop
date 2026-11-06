@@ -55,6 +55,7 @@ import {
   listRecentJobs as listRecentJobRecords,
   toJob,
   updateJob as updateJobRecord,
+  updateJobNoSystemInstalled,
 } from "@/repositories/jobs";
 import type { JobBoardCounts, JobListFilter, PaginatedJobsResult } from "@/repositories/jobs";
 import {
@@ -75,6 +76,9 @@ import { redactJobPriceActivity } from "@/features/jobs/utils/jobPrice";
 import { listFiles } from "@/services/storage";
 import { insertJobNote, listJobNotes } from "@/repositories/jobNotes";
 import { setBillingEligible } from "@/repositories/billing";
+import { releaseAndRecheck } from "./inventoryReservations";
+import { getMaterialsGate } from "./closeoutReconciliation";
+import { MATERIALS_BLOCKER_TEXT, canOverrideMaterials, materialsBlocksCompletion } from "@/features/inventory/utils/reconciliation";
 
 const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_STATUSES = new Set<JobStatus>([
@@ -570,6 +574,14 @@ export async function updateJob(id: string, input: UpdateJobInput) {
 
   await Promise.all([syncRelatedCounters(previousJob), syncRelatedCounters(updatedJob)]); await ensureDispatchPlanForJob(updatedJob);
 
+  // Material stock follows the job's date (amendment 7): a move goes to the back of
+  // the reservation queue; scheduling or unscheduling re-derives what the job holds.
+  if (changedFields.includes("schedule")) {
+    const wasScheduled = (existing.scheduled_for ?? null) !== null;
+    const isScheduled = (updatedJob.scheduledFor ?? null) !== null;
+    await releaseAndRecheck(updatedJob.id, wasScheduled && isScheduled ? "rescheduled" : "changed");
+  }
+
   return updatedJob;
 }
 
@@ -624,12 +636,18 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
         if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
       } else {
         if (!checklist.photosUploaded) blockers.push("missing at least one photo");
-        if (checklist.requiresInstallGates && !checklist.installedSystemsEntered) {
+        if (
+          checklist.requiresInstallGates &&
+          !checklist.installedSystemsEntered &&
+          !checklist.noSystemInstalled
+        ) {
           blockers.push("missing installed systems");
         }
         if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
         if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
       }
+      // Inventory Lane 4: the materials gate only blocks at the soft / hard stages.
+      if (checklist.materialsBlocked) blockers.push(MATERIALS_BLOCKER_TEXT);
       throw new Error(`Cannot complete job — ${blockers.join(", ")}.`);
     }
   }
@@ -678,6 +696,11 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
   }
 
   await Promise.all(sideEffects);
+
+  // Cancelled / On Hold release the job's stock; resuming claims it again.
+  if (existing.status !== updatedJob.status) {
+    await releaseAndRecheck(updatedJob.id, "changed");
+  }
 
     // Customer notifications (#35): the Finished email fires on the
     // transition into Completed, only when the job opted in. The helper
@@ -890,6 +913,50 @@ export async function updateRequiredQaChecklist(
   return normalizedChecklist;
 }
 
+/**
+ * Record (or clear) the crew's "no system installed" attestation. The
+ * attestation satisfies the full-closeout installed-systems gate on jobs
+ * where nothing was installed, so the crew is never forced to invent a
+ * system record to finish closeout. Every change lands in the activity
+ * feed with its actor. Returns the refreshed completion checklist so
+ * callers resync from the server's view in one round trip.
+ */
+export async function setJobNoSystemInstalled(
+  id: string,
+  noneInstalled: boolean,
+  context?: JobMutationContext,
+): Promise<JobCompletionChecklistStatus | null> {
+  const existing = await getJobById(id);
+  if (!existing) {
+    return null;
+  }
+
+  if ((existing.noSystemInstalled === true) !== noneInstalled) {
+    const updated = await updateJobNoSystemInstalled(
+      id,
+      noneInstalled,
+      context?.actorId ?? null,
+    );
+    if (!updated) {
+      return null;
+    }
+
+    await createJobActivityRecord({
+      jobId: id,
+      actorId: context?.actorId,
+      type: "edited",
+      title: noneInstalled
+        ? "No system installed — attested"
+        : "System attestation removed",
+      description: noneInstalled
+        ? `Marked as no system installed by ${actorDisplayName(context?.actorId) ?? "a team member"}. This satisfies the closeout installed-systems requirement.`
+        : `Attestation cleared by ${actorDisplayName(context?.actorId) ?? "a team member"} — an installed system must now be entered before closeout.`,
+    });
+  }
+
+  return getJobCompletionChecklist(id, context?.role);
+}
+
 // Customer signatures are stored as job files too: captureJobSignature
 // (services/jobSignatures.ts) uploads the PNG through the shared storage
 // service with the job id attached, so it lands in the same per-job file
@@ -953,28 +1020,52 @@ export async function getJobCompletionChecklist(
     requiresInstallGates,
   );
 
+  // The installed-systems gate is satisfied by a system record OR by the
+  // crew's "no system installed" attestation — never require a fake system.
+  const noSystemInstalled = job.noSystemInstalled === true;
   const gatesComplete =
     closeoutMode === "visit"
       ? jobNotesCompleted
       : photosUploaded &&
-        (!requiresInstallGates || installedSystemsEntered) &&
+        (!requiresInstallGates || installedSystemsEntered || noSystemInstalled) &&
         jobNotesCompleted &&
         requiredQaItemsComplete;
   // The multi-day final-day block applies in both modes, same as the
   // completion path — canComplete must never be true while it stands.
   const finalDayBlocker = finalScheduledDayBlocker(job);
 
+  // Inventory Lane 4 closeout reconciliation. At the default `warn` stage this never blocks;
+  // `soft` / `hard` block until reconciled (soft also clears when an office role records an
+  // override first, which writes the reconciliation row this reads).
+  const materials = await getMaterialsGate(jobId, closeoutMode);
+  const materialsBlocked = materialsBlocksCompletion(materials);
+
   return {
     closeoutMode,
     requiresInstallGates,
     photosUploaded,
     installedSystemsEntered,
+    noSystemInstalled,
     jobNotesCompleted,
     requiredQaItemsComplete,
     customerSignaturePlaceholder: "optional",
     finalDayBlocker,
-    canComplete: gatesComplete && finalDayBlocker === null,
+    materialsRequired: materials.required,
+    materialsReconciled: materials.reconciled,
+    materialsEnforcement: materials.enforcement,
+    materialsBlocked,
+    materialsCanOverride: materialsBlocked && canOverrideMaterials(materials.enforcement, role),
+    canComplete: gatesComplete && finalDayBlocker === null && !materialsBlocked,
   };
+}
+
+/** "full" unless the job is an explicit "visit" closeout (same default as the checklist). */
+export async function getJobCloseoutMode(jobId: string): Promise<JobCloseoutMode> {
+  const job = await getJobById(jobId);
+  if (!job) {
+    throw Object.assign(new Error(`Job '${jobId}' not found.`), { status: 404 });
+  }
+  return job.closeoutMode === "visit" ? "visit" : "full";
 }
 
 export async function listJobFiles(jobId: string, role?: AppRole) {
@@ -1059,6 +1150,7 @@ export async function softDeleteJob(
       title: "Job deleted",
       description: "Job was soft-deleted.",
     });
+    await releaseAndRecheck(id, "changed");
   }
 
   return deleted;
@@ -1094,6 +1186,7 @@ export async function restoreJob(
       title: "Job restored",
       description: "Job was restored from soft-delete.",
     });
+    await releaseAndRecheck(id, "changed");
         return true;
   }
 

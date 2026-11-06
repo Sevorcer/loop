@@ -12,9 +12,10 @@ import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 import { UserDisplay } from "@/features/auth/components/UserDisplay";
 import { PHONE_NAV_ACTIONS_VISIBILITY_CLASS } from "./floatingActions";
-import { composeSidebarNav, SHELL_NAV_GROUPS } from "./sidebarNav";
+import { composeSidebarNav, composeTopLevelNav, isJobDetailPath, SHELL_NAV_GROUPS, SHELL_TOP_LEVEL_ITEMS } from "./sidebarNav";
 
-const NAV_SKELETON_ROWS = SHELL_NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
+const NAV_SKELETON_ROWS =
+  SHELL_TOP_LEVEL_ITEMS.length + SHELL_NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
 
 export interface SidebarPhoneAction {
   label: string;
@@ -51,11 +52,19 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { role, loading } = useSession();
+  // From a job detail route, soft navigation never commits (see
+  // isJobDetailPath) — sidebar links hard-navigate there instead.
+  const hardNav = isJobDetailPath(pathname);
 
   const visibleGroups = composeSidebarNav({
     role,
     navOverride,
   });
+  const topLevelItems = composeTopLevelNav(role);
+  // Top-level entries render first, as a heading-less block above the groups.
+  const renderedGroups = topLevelItems.length > 0 && visibleGroups.length > 0
+    ? [{ label: "", items: topLevelItems }, ...visibleGroups]
+    : visibleGroups;
 
   return (
     <aside
@@ -116,11 +125,13 @@ export default function Sidebar({
                 No navigation items available.
               </div>
             ) : (
-              visibleGroups.map((group) => (
-                <div key={group.label}>
-                  <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    {group.label}
-                  </p>
+              renderedGroups.map((group) => (
+                <div key={group.label || "top-level"}>
+                  {group.label ? (
+                    <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      {group.label}
+                    </p>
+                  ) : null}
 
                   <div className="space-y-0.5">
                     {group.items.map((item) => {
@@ -129,19 +140,14 @@ export default function Sidebar({
                         pathname === item.href ||
                         (item.href !== ROUTES.DASHBOARD &&
                           pathname.startsWith(`${item.href}/`));
-
-                      return (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          onClick={onNavigate}
-                          className={cn(
-                            "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
-                            isActive
-                              ? "bg-accent-soft border border-accent-soft text-white"
-                              : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-                          )}
-                        >
+                      const linkClassName = cn(
+                        "group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+                        isActive
+                          ? "bg-accent-soft border border-accent-soft text-white"
+                          : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                      );
+                      const linkContent = (
+                        <>
                           <span
                             className={cn(
                               "absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-r-full transition-all",
@@ -163,6 +169,30 @@ export default function Sidebar({
                           </div>
 
                           <span className="relative z-10 truncate">{item.name}</span>
+                        </>
+                      );
+
+                      // Hard navigation from job detail routes: soft nav out
+                      // of /jobs/[id] never commits, which left these tabs
+                      // dead (same bug as PRs #324/#326 in JobDetailScreen).
+                      return hardNav ? (
+                        // eslint-disable-next-line @next/next/no-html-link-for-pages -- hard-navigation required: soft-nav out of job detail never commits
+                        <a
+                          key={item.name}
+                          href={item.href}
+                          onClick={onNavigate}
+                          className={linkClassName}
+                        >
+                          {linkContent}
+                        </a>
+                      ) : (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          onClick={onNavigate}
+                          className={linkClassName}
+                        >
+                          {linkContent}
                         </Link>
                       );
                     })}
