@@ -31,6 +31,8 @@ describe("getPageMeta", () => {
     expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc`).title).toBe("Van stock");
     expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc/pars`).title).toBe("Edit pars");
     expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc/count`).title).toBe("Count in");
+    expect(getPageMeta(ROUTES.INVENTORY_MY_VAN).title).toBe("My van");
+    expect(getPageMeta(ROUTES.INVENTORY_MY_VAN).parent).toBeUndefined();
   });
 
   it("falls back to Dashboard for unknown routes", () => {

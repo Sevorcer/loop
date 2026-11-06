@@ -115,6 +115,8 @@ All authorization failures return a consistent JSON envelope regardless of which
 | `inventory/pars/route.ts` | POST | `requirePermission` | `inventory_locations` | `update` |
 | `inventory/vans/[vehicleId]/count/route.ts` | POST | `requirePermission` | `inventory_transactions` | `insert` |
 | `inventory/restock/route.ts` | POST | `requirePermission` | `inventory_transactions` | `insert` |
+| `inventory/my-van/count/route.ts` | POST | `requireApiSession` + tech role | n/a (not `inventory_transactions` insert) | n/a |
+| `inventory/my-van/restock/route.ts` | POST | `requireApiSession` + tech role | n/a (not `inventory_transactions` insert) | n/a |
 | `inventory/locations/route.ts` | GET | `requirePermission` | `inventory_locations` | `select` |
 | `inventory/locations/route.ts` | POST | `requirePermission` | `inventory_locations` | `insert` |
 | `inventory/locations/[id]/route.ts` | PATCH | `requirePermission` | `inventory_locations` | `update` |
@@ -191,6 +193,7 @@ The test file `src/lib/__tests__/api-route-authz-coverage.test.ts` enforces cove
 
 ## Changelog
 
+- **2.6 (2026-11-06):** Inventory Lane 2 PR D adds `inventory/my-van/count/route.ts` (POST) and `inventory/my-van/restock/route.ts` (POST). Both require a session and `app_role = tech`. They do not call `requirePermission` for `inventory_transactions` insert, so technicians do not gain that grant. Each handler calls `fn_inventory_post_van_entries`, which checks the technician role again and refuses adjust, cost, another van, and a count before the office count-in. Restock is limited to lines below par on the caller's van. Cost is not read and `unit_cost_cents` is not sent. `/inventory` stays denied for technicians; `/inventory/my-van` is the shell exception.
 - **2.5 (2026-11-06):** Inventory Lane 2 PR C adds `inventory/vans/[vehicleId]/count/route.ts` (POST) and `inventory/restock/route.ts` (POST). Both gates are `inventory_transactions` insert — owner, manager, and office. Count-in appends `count` rows for lines that differ from on-hand. Restock appends one shop-to-van transfer pair per line, reason `Restock`, each with its own transfer group. Neither route reads cost or writes `unit_cost_cents`. Dispatch can still read Needs restock and cannot post. Techs do not use these routes. Adjust and count of any location remain `POST inventory/transactions`.
 - **2.4 (2026-11-06):** Inventory Lane 2 PR B adds `inventory/pars/route.ts` (POST). The gate is `inventory_locations` update — owner, manager, and office — and the handler calls `fn_inventory_set_par`, which checks that role again. It does not grant updates on `inventory_stock_levels`. Vehicle PATCH (`inventory/vehicles/[id]/route.ts`) may also write `vehicle_operators` when `operators` is present: insert requires owner, manager, or office, and removing someone stays owner-only. `ensureLocation` reuses the existing van-location create. Cost is not read on either route. Count-in and restock posting are not in this PR.
 - **2.3 (2026-11-05):** Inventory Lane 4 PR B adds 6 route files under `jobs/[id]/material-plan/` (plan, history, kits, kits/[kitId], lines/[lineId], save-as-kit), each guarded by `requirePermission`. Plan writes go through SECURITY INVOKER SQL functions so RLS applies. Totals are not recounted here (see 2.1).

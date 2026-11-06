@@ -88,6 +88,7 @@ describe("owner role", () => {
     expect(hrefs).toContain(ROUTES.REPORTING);
     expect(hrefs).toContain(ROUTES.COMPANY_BRAIN);
     expect(hrefs).toContain(ROUTES.INVENTORY);
+    expect(hrefs).not.toContain(ROUTES.INVENTORY_MY_VAN);
     expect(hrefs).toContain(ROUTES.SETTINGS);
   });
 });
@@ -138,6 +139,12 @@ describe("tech role", () => {
     expect(canSee("tech", ROUTES.COMPANY_BRAIN)).toBe(false);
     expect(canSee("tech", ROUTES.SETTINGS)).toBe(false);
     expect(canSee("tech", ROUTES.DISPATCH)).toBe(false);
+  });
+
+  it("sees My van and not office inventory", () => {
+    expect(canSee("tech", ROUTES.INVENTORY_MY_VAN)).toBe(true);
+    expect(canSee("tech", ROUTES.INVENTORY)).toBe(false);
+    expect(NAV_ROUTE_ROLES[ROUTES.INVENTORY_MY_VAN]).toEqual(["tech"]);
   });
 });
 
