@@ -11,11 +11,10 @@ import "server-only";
 
 import type { AppRole } from "@/services/authorization";
 
-import { verifyMimeType } from "@/lib/security/mimeVerify";
 import {
   createSignedUploadUrl as createSignedUploadUrlRecord,
   deleteFile as deleteFileRecord,
-  fetchStorageObjectHead,
+  fetchStorageObjectMeta,
   getSignedDownloadUrl,
   getStorageObjectById,
   listStorageObjects,
@@ -127,8 +126,8 @@ export interface CompleteSignedUploadInput {
 
 /**
  * Finalizes a direct upload: proves the object really landed in Storage
- * (existence + actual size + magic-byte MIME check against the declared
- * type) and only then writes the metadata row the app lists files from.
+ * (existence + actual size + the content type Storage recorded for it)
+ * and only then writes the metadata row the app lists files from.
  */
 export async function completeJobFileSignedUpload(
   role: AppRole,
@@ -136,18 +135,19 @@ export async function completeJobFileSignedUpload(
 ): Promise<StorageObjectMeta> {
   assertCanUpload(role);
 
-  const head = await fetchStorageObjectHead(input.bucket, input.storagePath);
-  if (!head) {
+  const meta = await fetchStorageObjectMeta(input.bucket, input.storagePath);
+  if (!meta) {
     throw new Error("The uploaded file was not found in storage. Please try again.");
   }
-  if (head.sizeBytes !== input.sizeBytes) {
+  if (meta.sizeBytes !== input.sizeBytes) {
     throw new Error(
-      `Uploaded file size mismatch (expected ${input.sizeBytes} bytes, storage has ${head.sizeBytes}). Please try again.`,
+      `Uploaded file size mismatch (expected ${input.sizeBytes} bytes, storage has ${meta.sizeBytes}). Please try again.`,
     );
   }
-  const mimeError = verifyMimeType(head.head, input.mimeType);
-  if (mimeError) {
-    throw new Error(mimeError);
+  if (meta.mimeType && meta.mimeType.toLowerCase() !== input.mimeType.toLowerCase()) {
+    throw new Error(
+      `Uploaded file type mismatch (declared ${input.mimeType}, storage recorded ${meta.mimeType}). Please try again.`,
+    );
   }
 
   return recordStorageObject({

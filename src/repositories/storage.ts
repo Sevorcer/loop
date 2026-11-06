@@ -182,63 +182,45 @@ export async function createSignedUploadUrl(
 }
 
 /**
- * Reads just the head of a stored object: its total size and first bytes
- * (for magic-byte MIME verification) — without downloading the whole file.
- * Returns null when the object does not exist.
+ * Reads a stored object's metadata — its actual size and the content type
+ * recorded at upload — through the Storage list API, without fetching any
+ * object bytes. Returns null when the object does not exist.
+ *
+ * This replaced a signed-URL ranged fetch of the object's first bytes:
+ * inside the serverless function that fetch never returned, so the
+ * /files/complete route ran into the 300 s invocation timeout on every
+ * large upload (Vercel logs, 2026-11-06) and no file could be finalized.
+ * The list API answers the same existence/size questions in milliseconds.
  */
-export async function fetchStorageObjectHead(
+export async function fetchStorageObjectMeta(
   bucket: string,
   storagePath: string,
-): Promise<{ sizeBytes: number; head: Uint8Array } | null> {
+): Promise<{ sizeBytes: number; mimeType: string | null } | null> {
   const { supabase } = await getRepositoryContext();
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(storagePath, 60);
+  const slash = storagePath.lastIndexOf("/");
+  const folder = slash >= 0 ? storagePath.slice(0, slash) : "";
+  const name = slash >= 0 ? storagePath.slice(slash + 1) : storagePath;
 
-  if (error || !data?.signedUrl) {
-    return null;
-  }
-
-  const response = await fetch(data.signedUrl, {
-    headers: { Range: "bytes=0-31" },
-  });
-  if (response.status === 404) {
-    return null;
-  }
-  if (!response.ok && response.status !== 206) {
-    throw new Error(`Storage head check failed (${response.status}).`);
-  }
-
-  // Total size: content-range on a 206, content-length when Range is ignored.
-  let sizeBytes = Number(response.headers.get("content-length") ?? NaN);
-  const contentRange = response.headers.get("content-range");
-  if (contentRange) {
-    const total = Number(contentRange.split("/").pop());
-    if (Number.isFinite(total)) sizeBytes = total;
-  }
-
-  // Read only the first chunk(s) — enough for magic bytes — then stop.
-  const reader = response.body?.getReader();
-  let head = new Uint8Array(0);
-  if (reader) {
-    while (head.length < 32) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        const merged = new Uint8Array(head.length + value.length);
-        merged.set(head);
-        merged.set(value, head.length);
-        head = merged;
-      }
+  const PAGE_SIZE = 200;
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase.storage.from(bucket).list(folder, {
+      limit: PAGE_SIZE,
+      offset,
+      sortBy: { column: "name", order: "asc" },
+    });
+    if (error) {
+      throw new Error(`Storage metadata check failed: ${error.message}`);
     }
-    await reader.cancel().catch(() => undefined);
+    const match = (data ?? []).find((entry) => entry.name === name);
+    if (match) {
+      const sizeBytes = Number(match.metadata?.size);
+      // Folder entries carry no size metadata — a name match without one
+      // is not the uploaded file.
+      if (!Number.isFinite(sizeBytes)) return null;
+      return { sizeBytes, mimeType: match.metadata?.mimetype ?? null };
+    }
+    if (!data || data.length < PAGE_SIZE) return null;
   }
-
-  if (!Number.isFinite(sizeBytes)) {
-    throw new Error("Storage head check did not report an object size.");
-  }
-
-  return { sizeBytes, head };
 }
 
 // ─── Download (signed URL) ────────────────────────────────────────────────────
