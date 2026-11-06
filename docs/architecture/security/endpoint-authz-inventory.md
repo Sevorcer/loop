@@ -112,6 +112,7 @@ All authorization failures return a consistent JSON envelope regardless of which
 | `inventory/vehicles/route.ts` | GET | `requirePermission` | `vehicles` | `select` |
 | `inventory/vehicles/route.ts` | POST | `requirePermission` | `vehicles` | `insert` |
 | `inventory/vehicles/[id]/route.ts` | PATCH | `requirePermission` | `vehicles` | `update` |
+| `inventory/pars/route.ts` | POST | `requirePermission` | `inventory_locations` | `update` |
 | `inventory/locations/route.ts` | GET | `requirePermission` | `inventory_locations` | `select` |
 | `inventory/locations/route.ts` | POST | `requirePermission` | `inventory_locations` | `insert` |
 | `inventory/locations/[id]/route.ts` | PATCH | `requirePermission` | `inventory_locations` | `update` |
@@ -188,6 +189,7 @@ The test file `src/lib/__tests__/api-route-authz-coverage.test.ts` enforces cove
 
 ## Changelog
 
+- **2.4 (2026-11-06):** Inventory Lane 2 PR B adds `inventory/pars/route.ts` (POST). The gate is `inventory_locations` update — owner, manager, and office — and the handler calls `fn_inventory_set_par`, which checks that role again. It does not grant updates on `inventory_stock_levels`. Vehicle PATCH (`inventory/vehicles/[id]/route.ts`) may also write `vehicle_operators` when `operators` is present: insert requires owner, manager, or office, and removing someone stays owner-only. `ensureLocation` reuses the existing van-location create. Cost is not read on either route. Count-in and restock posting are not in this PR.
 - **2.3 (2026-11-05):** Inventory Lane 4 PR B adds 6 route files under `jobs/[id]/material-plan/` (plan, history, kits, kits/[kitId], lines/[lineId], save-as-kit), each guarded by `requirePermission`. Plan writes go through SECURITY INVOKER SQL functions so RLS applies. Totals are not recounted here (see 2.1).
 - **2.2 (2026-11-05):** Inventory Lane 4 PR A adds 3 route files under `inventory/` (kits, kits/[id], settings), each guarded by `requirePermission` on its own table (`kit_templates`, `inventory_settings`). Kit saves go through the `save_kit_template` SQL function, which is SECURITY INVOKER so RLS applies. Totals are not recounted here (see 2.1).
 - **2.1 (2026-11-05):** Inventory Lane 1 PR A adds 12 route files under `inventory/` (items, tiers, categories, vehicles, locations, stock, transactions), each guarded by `requirePermission` on its own table. PR B removes the legacy `inventory/route.ts` stub (it borrowed the `jobs` permission). The totals below were already out of date before this change (main has 107 route files, not 46) and are not recounted here.

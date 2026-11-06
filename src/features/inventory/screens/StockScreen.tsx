@@ -74,6 +74,8 @@ export async function StockScreen({ searchParams }: StockScreenProps) {
   const rows = buildStockRows(items, byLocation.get(selectedId) ?? [], search);
   const flags = countFlags(rows);
   const selected = options.find((option) => option.id === selectedId);
+  const selectedLocation = locations.find((location) => location.id === selectedId);
+  const vanVehicleId = selected?.type === "van" ? selectedLocation?.vehicleId : null;
 
   const dialogData: StockDialogData = {
     items: items
@@ -103,6 +105,14 @@ export async function StockScreen({ searchParams }: StockScreenProps) {
               options={options.map((option) => ({ value: option.id, label: option.label }))}
             />
             <SearchParamInput param="q" label="Search stock" placeholder="Search name, SKU, brand…" initialValue={search} />
+            {vanVehicleId ? (
+              <Link
+                href={ROUTE_BUILDERS.INVENTORY_VAN(vanVehicleId)}
+                className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+              >
+                Open van stock
+              </Link>
+            ) : null}
           </div>
 
           {flags.negative > 0 || flags.zero > 0 ? (
@@ -137,9 +147,11 @@ export async function StockScreen({ searchParams }: StockScreenProps) {
                   </Td>
                   <Td align="right" className="text-muted">{row.minQty ?? "—"}</Td>
                   <Td>
-                    {row.flag === "negative" ? <StatusBadge variant="danger">Negative</StatusBadge> : null}
-                    {row.flag === "zero" ? <StatusBadge variant="warning">Out</StatusBadge> : null}
-                    {row.belowMin ? <StatusBadge variant="warning">Low</StatusBadge> : null}
+                    <span className="flex flex-wrap gap-1">
+                      {row.flag === "negative" ? <StatusBadge variant="danger">Negative</StatusBadge> : null}
+                      {row.flag === "zero" ? <StatusBadge variant="warning">Out</StatusBadge> : null}
+                      {row.belowMin ? <StatusBadge variant="warning">Low</StatusBadge> : null}
+                    </span>
                   </Td>
                 </tr>
               ))}
