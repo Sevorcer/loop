@@ -39,6 +39,7 @@ import {
   JobTechnicalDataProvider,
 } from "@/features/job-materials";
 import { canViewJobMaterials } from "@/features/job-materials/utils/jobMaterials";
+import { canEditPermits } from "@/features/permits/components/permitForm";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { joinAddressParts } from "@/lib/address";
@@ -231,7 +232,7 @@ export function JobDetailScreen({
   const { role } = useCurrentRole();
   const isTech = role === "tech";
   const canEditInspectionsForRole = role === "owner" || role === "manager" || role === "office";
-  const canEditPermitsForRole = role === "owner" || role === "manager" || role === "office";
+  const canEditPermitsForRole = canEditPermits(role);
   const canEditChangeOrders = role === "owner" || role === "manager" || role === "office";
   const canDeleteChangeOrders = role === "owner" || role === "manager";
   const { getInstalledSystemsForJob } = useInstalledSystems();
@@ -653,7 +654,13 @@ export function JobDetailScreen({
                 {overviewSubTab === "permits" && (
                   <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
                     <PermissionGuard table="job_permits" action="select">
-                      <JobPermitsCard jobId={job.id} canEdit={canEditPermitsForRole} />
+                      <JobPermitsCard
+                        jobId={job.id}
+                        canEdit={canEditPermitsForRole}
+                        jobLabel={[job.jobNumber, job.customerName]
+                          .filter((part) => part && part.trim())
+                          .join(" — ")}
+                      />
                     </PermissionGuard>
                     <PermissionGuard table="job_inspections" action="select">
                       <JobInspectionsCard jobId={job.id} canEdit={canEditInspectionsForRole} />
