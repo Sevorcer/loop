@@ -122,7 +122,14 @@ export type CoreTable =
   | "job_material_events"
   // Inventory Lane 4 — closeout reconciliation and the EPA refrigerant log
   | "job_material_reconciliations"
-  | "refrigerant_log_entries";
+  | "refrigerant_log_entries"
+  // Billing Phase 1 — native invoices, payments, tax rates, per-account billing rules
+  | "invoices"
+  | "invoice_lines"
+  | "payments"
+  | "tax_rates"
+  | "customer_billing_settings"
+  | "invoice_number_counters";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -436,9 +443,9 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner", "manager"]),
   },
-  // Customer invoices — read-only view of imported invoices on a customer
-  // account (invoicing stays in QuickBooks). Mirrors the invoices RLS policy
-  // ("invoices: finance read"); no role can write here.
+  // Customer invoices — the read-only list of invoices on a customer account.
+  // Mirrors the invoices SELECT policy ("invoices: finance read"). Writing
+  // invoices is the separate `invoices` table below.
   customer_invoices: {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
     insert: new Set<AppRole>([]),
@@ -623,6 +630,52 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
   },
+  // ── Billing Phase 1 ───────────────────────────────────────────────────────
+  // LOOP invoices: finance roles read; owner/manager/office write. The database limits writes
+  // to LOOP-source rows (imported Service Fusion invoices stay read-only), an issued invoice is
+  // frozen, and only a draft can be deleted. Techs and portal never see invoices.
+  invoices: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
+  invoice_lines: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
+  // Append-only: a correction is a full reversing row with a reason, never an edit.
+  payments: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // Washington city rates. A rate changes money everywhere, so owner/manager maintain it.
+  // Rates are deactivated, never deleted.
+  tax_rates: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager"]),
+    update: new Set<AppRole>(["owner", "manager"]),
+    delete: new Set<AppRole>([]),
+  },
+  // PO-required, default terms and tax rate, invoice copy roles. Set on the parent account.
+  customer_billing_settings: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>([]),
+  },
+  // Automatic invoice numbering ships off. Only the owner turns it on; office roles take numbers
+  // through next_invoice_number() (a definer function) without write access here.
+  invoice_number_counters: {
+    select: new Set<AppRole>(["owner", "manager", "office"]),
+    insert: new Set<AppRole>(["owner"]),
+    update: new Set<AppRole>(["owner"]),
+    delete: new Set<AppRole>([]),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -644,6 +697,7 @@ const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new M
   ["job_material_events", new Set<TableAction>(["update", "delete"])],
   ["job_material_reconciliations", new Set<TableAction>(["update", "delete"])],
   ["refrigerant_log_entries", new Set<TableAction>(["update", "delete"])],
+  ["payments", new Set<TableAction>(["update", "delete"])],
 ]);
 
 /**

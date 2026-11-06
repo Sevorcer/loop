@@ -142,6 +142,12 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   job_material_events: "Field Material Events",
   job_material_reconciliations: "Closeout Material Reconciliation",
   refrigerant_log_entries: "Refrigerant Log",
+  invoices: "Invoices",
+  invoice_lines: "Invoice Lines",
+  payments: "Payments",
+  tax_rates: "Tax Rates",
+  customer_billing_settings: "Customer Billing Settings",
+  invoice_number_counters: "Invoice Numbering",
 };
 
 export interface RolePermissionRow {
