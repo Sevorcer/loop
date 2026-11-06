@@ -22,8 +22,10 @@ export const ROUTES = {
   LIVE_OPERATIONS: "/live-operations",
   INVENTORY: "/inventory",
   INVENTORY_CATALOG: "/inventory/catalog",
+  INVENTORY_KITS: "/inventory/kits",
   INVENTORY_LOCATIONS: "/inventory/locations",
   INVENTORY_ACTIVITY: "/inventory/activity",
+  INVENTORY_RULES: "/inventory/rules",
   DISPATCH: "/dispatch",
   COMPANY_BRAIN: "/company-brain",
   BILLING: "/billing",
@@ -41,6 +43,7 @@ export const ROUTES = {
 
 export const ROUTE_BUILDERS = {
   INVENTORY_ITEM: (itemId: string) => `${ROUTES.INVENTORY_CATALOG}/${itemId}`,
+  INVENTORY_KIT: (kitId: string) => `${ROUTES.INVENTORY_KITS}/${kitId}`,
   JOB_NEW: (context?: { customerId?: string; propertyId?: string; date?: string }) => {
     const params = new URLSearchParams();
     if (context?.customerId) params.set("customerId", context.customerId);

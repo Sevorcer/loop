@@ -275,6 +275,43 @@ Append-only stock ledger. `created_by` must equal `auth.uid()`. UPDATE, DELETE a
 | UPDATE | —     | —     | —     | —     | —     | —     | —      |
 | DELETE | —     | —     | —     | —     | —     | —     | —      |
 
+## Inventory Lane 4 (migration 20261126000000)
+
+Kit templates and the inventory rules row. Nothing here is seeded. `save_kit_template()` is SECURITY INVOKER, so these policies apply to it.
+
+### inventory_settings
+
+One row per org (readiness lead/buffer days, closeout enforcement stage). Absent row = built-in defaults. Owner creates and edits; there is no DELETE policy and the privilege is revoked.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | —     | —     | —     | —     | —     | —      |
+| UPDATE | ✓     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### kit_templates
+
+Named install kits built from the catalog. Every internal role reads (crews should see what is in a kit). Kits are snapshots once attached to a job (a later PR), so edits never change existing jobs.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### kit_template_lines
+
+Catalog-backed lines (never free text). A kit save replaces its lines as a set, so owner, manager and office can delete lines (the kit itself stays owner-delete).
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+
 ---
 
 ## Deny Rules — Hard Blocks

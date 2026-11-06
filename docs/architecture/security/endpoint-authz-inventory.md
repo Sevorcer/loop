@@ -118,6 +118,12 @@ All authorization failures return a consistent JSON envelope regardless of which
 | `inventory/stock/route.ts` | GET | `requirePermission` | `inventory_stock_levels` | `select` |
 | `inventory/transactions/route.ts` | GET | `requirePermission` | `inventory_transactions` | `select` |
 | `inventory/transactions/route.ts` | POST | `requirePermission` | `inventory_transactions` | `insert` |
+| `inventory/kits/route.ts` | GET | `requirePermission` | `kit_templates` | `select` |
+| `inventory/kits/route.ts` | POST | `requirePermission` | `kit_templates` | `insert` |
+| `inventory/kits/[id]/route.ts` | GET | `requirePermission` | `kit_templates` | `select` |
+| `inventory/kits/[id]/route.ts` | PATCH | `requirePermission` | `kit_templates` | `update` |
+| `inventory/settings/route.ts` | GET | `requirePermission` | `inventory_settings` | `select` |
+| `inventory/settings/route.ts` | PATCH | `requirePermission` | `inventory_settings` | `update` |
 | `inventory/items/route.ts`, `inventory/items/[id]/route.ts` | POST/PATCH (cost field) | `hasPermission` | `catalog_item_costs` | `insert` (cost is written only when the caller holds it; otherwise 403) |
 
 **Total route files:** 46
@@ -174,6 +180,7 @@ The test file `src/lib/__tests__/api-route-authz-coverage.test.ts` enforces cove
 
 ## Changelog
 
+- **2.2 (2026-11-05):** Inventory Lane 4 PR A adds 3 route files under `inventory/` (kits, kits/[id], settings), each guarded by `requirePermission` on its own table (`kit_templates`, `inventory_settings`). Kit saves go through the `save_kit_template` SQL function, which is SECURITY INVOKER so RLS applies. Totals are not recounted here (see 2.1).
 - **2.1 (2026-11-05):** Inventory Lane 1 PR A adds 12 route files under `inventory/` (items, tiers, categories, vehicles, locations, stock, transactions), each guarded by `requirePermission` on its own table. PR B removes the legacy `inventory/route.ts` stub (it borrowed the `jobs` permission). The totals below were already out of date before this change (main has 107 route files, not 46) and are not recounted here.
 - **2.0 (2026-10-03):** Full re-inventory — all 46 route files mapped (was 20). Added bearer-token CI endpoints, file delete route, warranty registration PATCH, settings/users routes. Documented Vercel NODE_ENV verification and known RLS gaps.
 - **1.0 (2026-07-25):** Initial inventory (20 endpoints, Sprint 26).

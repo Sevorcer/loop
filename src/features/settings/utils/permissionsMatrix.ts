@@ -128,6 +128,9 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   inventory_locations: "Inventory Locations",
   inventory_stock_levels: "Stock Levels",
   inventory_transactions: "Inventory Ledger",
+  inventory_settings: "Inventory Rules",
+  kit_templates: "Kit Templates",
+  kit_template_lines: "Kit Template Lines",
 };
 
 export interface RolePermissionRow {

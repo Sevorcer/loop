@@ -1,7 +1,7 @@
 import { ROUTES } from "@/lib/routes";
 
 export interface InventoryTabDef {
-  key: "stock" | "catalog" | "locations" | "activity";
+  key: "stock" | "catalog" | "kits" | "locations" | "activity" | "rules";
   label: string;
   href: string;
 }
@@ -9,8 +9,10 @@ export interface InventoryTabDef {
 export const INVENTORY_TABS: readonly InventoryTabDef[] = [
   { key: "stock", label: "Stock", href: ROUTES.INVENTORY },
   { key: "catalog", label: "Catalog", href: ROUTES.INVENTORY_CATALOG },
+  { key: "kits", label: "Kits", href: ROUTES.INVENTORY_KITS },
   { key: "locations", label: "Locations & vans", href: ROUTES.INVENTORY_LOCATIONS },
   { key: "activity", label: "Activity", href: ROUTES.INVENTORY_ACTIVITY },
+  { key: "rules", label: "Rules", href: ROUTES.INVENTORY_RULES },
 ];
 
 /** Active tab for a pathname; the Stock tab is exact so sub-routes do not light it up. */

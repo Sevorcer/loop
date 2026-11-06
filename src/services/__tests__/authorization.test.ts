@@ -704,3 +704,43 @@ describe("inventory Lane 1 permissions", () => {
     expect(isLockedDeny("inventory_transactions", "delete")).toBe(true);
   });
 });
+
+// ─── Inventory Lane 4 (kits + rules) ──────────────────────────────────────────
+
+describe("inventory Lane 4 permissions", () => {
+  const INTERNAL: AppRole[] = ["owner", "manager", "dispatch", "tech", "office", "sales"];
+
+  it("lets every internal role read kits and their lines, never the portal", () => {
+    for (const table of ["kit_templates", "kit_template_lines"] as const) {
+      for (const role of INTERNAL) expectAllowed(role, table, ["select"]);
+      expectDenied("portal", table, ["select", "insert", "update", "delete"]);
+    }
+  });
+
+  it("limits kit edits to owner/manager/office; only the owner deletes a kit", () => {
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "kit_templates", ["insert", "update"]);
+      expectAllowed(role, "kit_template_lines", ["insert", "update", "delete"]);
+    }
+    for (const role of ["dispatch", "tech", "sales"] as const) {
+      expectDenied(role, "kit_templates", ["insert", "update", "delete"]);
+      expectDenied(role, "kit_template_lines", ["insert", "update", "delete"]);
+    }
+    expectAllowed("owner", "kit_templates", ["delete"]);
+    expectDenied("manager", "kit_templates", ["delete"]);
+    expectDenied("office", "kit_templates", ["delete"]);
+  });
+
+  it("lets ops roles read the rules row but only the owner write it, and nobody delete it", () => {
+    for (const role of ["owner", "manager", "dispatch", "office"] as const) expectAllowed(role, "inventory_settings", ["select"]);
+    for (const role of ["tech", "sales", "portal"] as const) expectDenied(role, "inventory_settings", ["select"]);
+    expectAllowed("owner", "inventory_settings", ["insert", "update"]);
+    for (const role of ["manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_settings", ["insert", "update"]);
+    }
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_settings", ["delete"]);
+    }
+    expect(isLockedDeny("inventory_settings", "delete")).toBe(true);
+  });
+});
