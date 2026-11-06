@@ -75,6 +75,8 @@ import { listFiles } from "@/services/storage";
 import { insertJobNote, listJobNotes } from "@/repositories/jobNotes";
 import { setBillingEligible } from "@/repositories/billing";
 import { releaseAndRecheck } from "./inventoryReservations";
+import { getMaterialsGate } from "./closeoutReconciliation";
+import { MATERIALS_BLOCKER_TEXT, canOverrideMaterials, materialsBlocksCompletion } from "@/features/inventory/utils/reconciliation";
 
 const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_STATUSES = new Set<JobStatus>([
@@ -636,6 +638,8 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
         if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
         if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
       }
+      // Inventory Lane 4: the materials gate only blocks at the soft / hard stages.
+      if (checklist.materialsBlocked) blockers.push(MATERIALS_BLOCKER_TEXT);
       throw new Error(`Cannot complete job — ${blockers.join(", ")}.`);
     }
   }
@@ -967,6 +971,12 @@ export async function getJobCompletionChecklist(
   // completion path — canComplete must never be true while it stands.
   const finalDayBlocker = finalScheduledDayBlocker(job);
 
+  // Inventory Lane 4 closeout reconciliation. At the default `warn` stage this never blocks;
+  // `soft` / `hard` block until reconciled (soft also clears when an office role records an
+  // override first, which writes the reconciliation row this reads).
+  const materials = await getMaterialsGate(jobId, closeoutMode);
+  const materialsBlocked = materialsBlocksCompletion(materials);
+
   return {
     closeoutMode,
     photosUploaded,
@@ -975,8 +985,22 @@ export async function getJobCompletionChecklist(
     requiredQaItemsComplete,
     customerSignaturePlaceholder: "optional",
     finalDayBlocker,
-    canComplete: gatesComplete && finalDayBlocker === null,
+    materialsRequired: materials.required,
+    materialsReconciled: materials.reconciled,
+    materialsEnforcement: materials.enforcement,
+    materialsBlocked,
+    materialsCanOverride: materialsBlocked && canOverrideMaterials(materials.enforcement, role),
+    canComplete: gatesComplete && finalDayBlocker === null && !materialsBlocked,
   };
+}
+
+/** "full" unless the job is an explicit "visit" closeout (same default as the checklist). */
+export async function getJobCloseoutMode(jobId: string): Promise<JobCloseoutMode> {
+  const job = await getJobById(jobId);
+  if (!job) {
+    throw Object.assign(new Error(`Job '${jobId}' not found.`), { status: 404 });
+  }
+  return job.closeoutMode === "visit" ? "visit" : "full";
 }
 
 export async function listJobFiles(jobId: string, role?: AppRole) {

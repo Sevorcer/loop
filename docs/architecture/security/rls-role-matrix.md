@@ -311,7 +311,7 @@ Tech does not gain SELECT or INSERT. Cost stays on the row. A tech appends only 
 | UPDATE | —     | —     | —     | —     | —     | —     | —      |
 | DELETE | —     | —     | —     | —     | —     | —     | —      |
 
-## Inventory Lane 4 (migrations 20261126000000, 20261126100000, 20261126200000, 20261126300000, 20261126400000, 20261126500000)
+## Inventory Lane 4 (migrations 20261126000000, 20261126100000, 20261126200000, 20261126300000, 20261126400000, 20261126500000, 20261126600000)
 
 Kit templates and the inventory rules row. Nothing here is seeded. `save_kit_template()` is SECURITY INVOKER, so these policies apply to it.
 
@@ -445,6 +445,17 @@ Append-only field events (missing part, wrong part, substitution, unplanned use,
 `ensure_job_location()`, `pull_job_materials()`, and `return_pallet_to_shop()` are SECURITY INVOKER, granted to `authenticated` only, and refuse every role except owner, manager, and office (SQLSTATE 42501). Returns are allowed only for Cancelled or deleted jobs. `remove_material_line()` now refuses lines that already have ledger rows.
 
 `inventory_stranded_pallets` is a `security_invoker` view over `inventory_stock_levels`, so it shows exactly the rows the caller can already read.
+
+### Closeout reconciliation (20261126600000)
+
+`job_material_lines` gains `used_qty`, `returned_qty`, `recovered_qty`, and `variance_reason`. The technician column guard still limits techs to state, quantity, and these four columns on jobs assigned to them, and a reconciled line is frozen for them. Only `reconcile_job_materials` moves a line to the `reconciled` stage (it sets a transaction-local flag the guard honours).
+
+`reconcile_job_materials()` is the one SECURITY DEFINER function in Lane 4: an assigned technician may reconcile their job but cannot write the ledger. It requires an authenticated owner, manager, office, or assigned tech in the job's own organization, refuses cancelled or deleted jobs, takes advisory locks, and posts `issue_to_job`, a pallet-to-shop transfer, and an explained `adjust` in one transaction. `override_material_reconciliation()` is SECURITY INVOKER (owner, manager, office).
+
+| Table | SELECT | INSERT | UPDATE | DELETE |
+|-------|--------|--------|--------|--------|
+| `job_material_reconciliations` | owner, manager, dispatch, office; tech on assigned jobs | owner, manager, office (overrides only); `submitted` rows come from the function | none | none |
+| `refrigerant_log_entries` | owner, manager, dispatch, office; tech on assigned jobs | none (written only by `reconcile_job_materials`) | none | none |
 
 ---
 

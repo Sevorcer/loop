@@ -128,8 +128,10 @@ describe("normalizeSettingsPatch", () => {
     expect(normalizeSettingsPatch({ arrivalBufferDays: "2" }).ok).toBe(false);
   });
 
-  it("refuses to change the closeout enforcement stage in this PR", () => {
-    expect(normalizeSettingsPatch({ closeoutEnforcement: "hard" }).ok).toBe(false);
+  it("accepts a valid closeout enforcement stage and rejects anything else", () => {
+    expect(normalizeSettingsPatch({ closeoutEnforcement: "soft" })).toEqual({ ok: true, value: { closeoutEnforcement: "soft" } });
+    expect(normalizeSettingsPatch({ closeoutEnforcement: "strict" }).ok).toBe(false);
+    expect(normalizeSettingsPatch({ closeoutEnforcement: 2 }).ok).toBe(false);
   });
 
   it("rejects an empty patch", () => {

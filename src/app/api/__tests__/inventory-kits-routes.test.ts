@@ -205,10 +205,10 @@ describe("/api/inventory/settings", () => {
     expect(m.saveInventorySettings).toHaveBeenCalledWith({ readinessLeadDays: 5, arrivalBufferDays: 2 });
   });
 
-  it("refuses an out-of-range value and a closeout stage change", async () => {
+  it("refuses an out-of-range value and an unknown closeout stage", async () => {
     m.requirePermission.mockResolvedValue(allow("owner"));
     expect((await patchSettingsRoute(req("PATCH", { readinessLeadDays: 99 }))).status).toBe(400);
-    expect((await patchSettingsRoute(req("PATCH", { closeoutEnforcement: "hard" }))).status).toBe(400);
+    expect((await patchSettingsRoute(req("PATCH", { closeoutEnforcement: "strict" }))).status).toBe(400);
     expect(m.saveInventorySettings).not.toHaveBeenCalled();
   });
 });
