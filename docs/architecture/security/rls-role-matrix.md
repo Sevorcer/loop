@@ -457,6 +457,10 @@ Append-only field events (missing part, wrong part, substitution, unplanned use,
 | `job_material_reconciliations` | owner, manager, dispatch, office; tech on assigned jobs | owner, manager, office (overrides only); `submitted` rows come from the function | none | none |
 | `refrigerant_log_entries` | owner, manager, dispatch, office; tech on assigned jobs | none (written only by `reconcile_job_materials`) | none | none |
 
+### Technician "no system installed" attestation (20261127700000)
+
+`guard_tech_job_update` stays an allowlist (technicians may change only `status`), but now also exempts `jobs.no_system_installed`, `no_system_installed_by` and `no_system_installed_at`. A technician may set or clear the closeout attestation, matching what the UI and API already allow every role. Integrity rule: setting it must stamp `_by = auth.uid()` and a non-null `_at`; clearing must null both. Every other column, including any added later, stays locked for technicians. Other roles are unaffected.
+
 ---
 
 ## Deny Rules — Hard Blocks
