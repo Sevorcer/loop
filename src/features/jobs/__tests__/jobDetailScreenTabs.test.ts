@@ -518,6 +518,19 @@ describe("JobDetailScreen Edit Job navigation", () => {
   });
 });
 
+describe("JobDetailScreen back navigation", () => {
+  it("renders Back to My Jobs as a hard-navigation anchor to My Jobs", async () => {
+    authState.role = "owner";
+    const container = await renderScreen();
+
+    const backLink = container.querySelector("[data-testid='back-to-jobs-link']");
+
+    expect(backLink, "expected a Back to My Jobs link").toBeTruthy();
+    expect(backLink?.getAttribute("href")).toBe("/my-jobs");
+    expect(backLink?.textContent).toContain("Back to My Jobs");
+  });
+});
+
 describe("JobDetailScreen delete / restore buttons", () => {
   function renderWithDeleteRestore(job: Job) {
     return render(

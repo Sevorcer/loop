@@ -415,6 +415,8 @@ describe("stage-aware full closeout (prep / rough-in)", () => {
     expect(checklist.requiredQaItemsComplete).toBe(true);
     expect(checklist.canComplete).toBe(true);
   });
+});
+
 // ─── No-system attestation ───────────────────────────────────────────────────
 
 describe("no-system attestation — full closeout gate", () => {
