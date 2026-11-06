@@ -869,6 +869,52 @@ describe("inventory Lane 4 permissions", () => {
     }
   });
 
+  it("keeps payments append-only and limits invoice writes to owner/manager/office", () => {
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+      expectDenied(role, "payments", ["update", "delete"]);
+    }
+    expect(isLockedDeny("payments", "update")).toBe(true);
+    expect(isLockedDeny("payments", "delete")).toBe(true);
+    for (const table of ["invoices", "invoice_lines", "payments"] as const) {
+      for (const role of ["owner", "manager", "office"] as const) {
+        expectAllowed(role, table, ["select", "insert"]);
+      }
+      for (const role of ["dispatch", "sales"] as const) {
+        expectAllowed(role, table, ["select"]);
+        expectDenied(role, table, ["insert"]);
+      }
+      expectDenied("tech", table, ["select", "insert"]);
+      expectDenied("portal", table, ["select", "insert"]);
+    }
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "invoices", ["update", "delete"]);
+    }
+    expectDenied("dispatch", "invoices", ["update", "delete"]);
+  });
+
+  it("limits tax rates to owner/manager writers, and numbering to the owner", () => {
+    for (const role of ["owner", "manager"] as const) {
+      expectAllowed(role, "tax_rates", ["select", "insert", "update"]);
+    }
+    for (const role of ["office", "dispatch", "sales"] as const) {
+      expectAllowed(role, "tax_rates", ["select"]);
+      expectDenied(role, "tax_rates", ["insert", "update"]);
+    }
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales"] as const) {
+      expectDenied(role, "tax_rates", ["delete"]);
+      expectDenied(role, "customer_billing_settings", ["delete"]);
+      expectDenied(role, "invoice_number_counters", ["delete"]);
+    }
+    expectAllowed("owner", "invoice_number_counters", ["select", "insert", "update"]);
+    expectDenied("manager", "invoice_number_counters", ["insert", "update"]);
+    expectDenied("office", "invoice_number_counters", ["insert", "update"]);
+    expectAllowed("office", "invoice_number_counters", ["select"]);
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "customer_billing_settings", ["select", "insert", "update"]);
+    }
+    expectDenied("dispatch", "customer_billing_settings", ["insert", "update"]);
+  });
+
   it("limits aliases to owner/manager/office writers and ops-role readers", () => {
     for (const role of ["owner", "manager", "office"] as const) {
       expectAllowed(role, "catalog_item_aliases", ["select", "insert", "update", "delete"]);

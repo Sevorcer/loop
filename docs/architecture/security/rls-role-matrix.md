@@ -457,6 +457,29 @@ Append-only field events (missing part, wrong part, substitution, unplanned use,
 | `job_material_reconciliations` | owner, manager, dispatch, office; tech on assigned jobs | owner, manager, office (overrides only); `submitted` rows come from the function | none | none |
 | `refrigerant_log_entries` | owner, manager, dispatch, office; tech on assigned jobs | none (written only by `reconcile_job_materials`) | none | none |
 
+## Billing Phase 1 (migration 20261127300000)
+
+LOOP gains its own invoices. `invoices` and `payments` already existed as read-only Service Fusion history; this migration adds a `source` column (`sf_import` for every existing row, `loop` for new ones) and lets owner, manager, and office write **LOOP rows only**. This is a deliberate widening: before this migration no role could write either table.
+
+- **Imported rows stay read-only.** The RLS write policies require `source = 'loop'`, and a guard trigger refuses updates or deletes of imported rows from any app session (`auth.uid()` set). The import scripts run as the service role and are unaffected.
+- **Invoice lifecycle.** A new invoice is always a `draft`. `issue_invoice()` assigns the number, sets the due date from the terms, and freezes it; after that only `void_invoice()` (owner or manager, no net payments, reason required) and the paid flag (driven by payments) can change it. Totals and tax are computed in SQL from `invoice_lines`: the line total is quantity × rate, tax applies to taxable lines at the invoice's tax-rate snapshot, rounded once per invoice. Only a draft can be deleted.
+- **Payments are append-only.** No UPDATE or DELETE grant exists for any role. A correction is a full reversing row (negative amount, reason required, one reversal per payment). A payment must hit an issued LOOP invoice and cannot exceed its balance. Customer and job are copied from the invoice, never taken from the caller.
+- **Tax rates** are per-company Washington city rates, maintained by owner and manager only, deactivated rather than deleted. Nothing is seeded.
+- **Customer billing settings** (PO required, default terms, default tax rate, contact roles copied on invoices) are set on a parent account; `issue_invoice()` reads the customer's row, else its parent's.
+- **Invoice numbering** ships off. Until the owner enables the counter, the office types the number. `next_invoice_number()` is the one SECURITY DEFINER function here: it lets office roles take the next number without write access to the counter table. It takes the company from the session (never a parameter), re-checks the role, and pins `search_path`. A direct call burns a number (a gap), so it is limited to owner, manager, and office.
+- **`invoice_balances`** is a `security_invoker` view: paid, balance, and a display status (draft, issued, partial, overdue, paid, void) derived from the invoice and its payments. It shows exactly the rows the caller can already read.
+
+| Table | SELECT | INSERT | UPDATE | DELETE |
+|-------|--------|--------|--------|--------|
+| `invoices` (LOOP rows) | owner, manager, dispatch, office, sales | owner, manager, office (drafts only) | owner, manager, office (draft edits; issue and void through the functions) | owner, manager, office (drafts only) |
+| `invoice_lines` | owner, manager, dispatch, office, sales | owner, manager, office (draft invoices only) | owner, manager, office (draft invoices only) | owner, manager, office (draft invoices only) |
+| `payments` (LOOP rows) | owner, manager, dispatch, office, sales | owner, manager, office | none | none |
+| `tax_rates` | owner, manager, dispatch, office, sales | owner, manager | owner, manager | none |
+| `customer_billing_settings` | owner, manager, dispatch, office, sales | owner, manager, office | owner, manager, office | none |
+| `invoice_number_counters` | owner, manager, office | owner | owner | none |
+
+Technicians and portal users have no access to any of these tables.
+
 ---
 
 ## Deny Rules — Hard Blocks
