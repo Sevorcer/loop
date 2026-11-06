@@ -18,6 +18,7 @@ import {
 import { formatMaterialQuantity } from "../utils/jobMaterials";
 import { MaterialPlanBar } from "./plan/MaterialPlanBar";
 import { PlanLineBadges, PlanLineControls, planLineDetail } from "./plan/PlanLineParts";
+import { ReportLineButton } from "./plan/ReportMaterialEventDialog";
 
 const STATE_STYLES: Record<JobMaterialState, { on: string; dot: string }> = {
   needed: { on: "border-red-500/40 bg-red-500/15 text-red-200", dot: "bg-red-400" },
@@ -335,6 +336,9 @@ function MaterialsBody({ compact }: { compact: boolean }) {
                   ) : (
                     <span className="text-xs text-slate-400">{JOB_MATERIAL_STATE_LABELS[line.state]}</span>
                   )}
+                  {line.planId !== null && line.catalogItemId !== null && (canProgress || planManaged) ? (
+                    <ReportLineButton line={line} />
+                  ) : null}
                   {planManaged ? <PlanLineControls line={line} disabled={pending} /> : null}
                   {canManage && !planManaged ? (
                     <button

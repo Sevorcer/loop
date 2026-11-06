@@ -311,7 +311,7 @@ Tech does not gain SELECT or INSERT. Cost stays on the row. A tech appends only 
 | UPDATE | —     | —     | —     | —     | —     | —     | —      |
 | DELETE | —     | —     | —     | —     | —     | —     | —      |
 
-## Inventory Lane 4 (migrations 20261126000000, 20261126100000, 20261126200000, 20261126300000, 20261126400000)
+## Inventory Lane 4 (migrations 20261126000000, 20261126100000, 20261126200000, 20261126300000, 20261126400000, 20261126500000)
 
 Kit templates and the inventory rules row. Nothing here is seeded. `save_kit_template()` is SECURITY INVOKER, so these policies apply to it.
 
@@ -435,6 +435,16 @@ Append-only field events (missing part, wrong part, substitution, unplanned use,
 | INSERT | ✓     | ✓     | ✓     | ✓ (assigned jobs) | ✓ | — | —      |
 | UPDATE | —     | —     | —     | —     | —     | —     | —      |
 | DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+---
+
+### Pull flow (20261126500000)
+
+`inventory_transactions` gains a nullable `material_line_id` (same-org composite FK to `job_material_lines`, `ON DELETE RESTRICT`; the append-only ledger cannot take a `SET NULL` update). A BEFORE INSERT trigger requires a linked row to carry a `job_id` and to match the line's job and catalog item. Ledger policies are unchanged: only owner, manager, and office can write.
+
+`ensure_job_location()`, `pull_job_materials()`, and `return_pallet_to_shop()` are SECURITY INVOKER, granted to `authenticated` only, and refuse every role except owner, manager, and office (SQLSTATE 42501). Returns are allowed only for Cancelled or deleted jobs. `remove_material_line()` now refuses lines that already have ledger rows.
+
+`inventory_stranded_pallets` is a `security_invoker` view over `inventory_stock_levels`, so it shows exactly the rows the caller can already read.
 
 ---
 
