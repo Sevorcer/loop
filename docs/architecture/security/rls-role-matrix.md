@@ -244,22 +244,22 @@ Fleet vehicles. Added by hand in the Locations & vans screen; never auto-created
 
 ### inventory_locations
 
-Warehouse, van, job and quarantine locations.
+Warehouse, van, job and quarantine locations. Tech SELECT was added in Lane 2 (`20261127200000`) and is limited to the tech's own active van and active warehouses. Other roles are unchanged from Lane 1. Tech still cannot insert, update, or delete.
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|
-| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| SELECT | ✓     | ✓     | ✓     | own van + shop | ✓     | —     | —      |
 | INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
 | UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
 | DELETE | ✓     | —     | —     | —     | —     | —     | —      |
 
 ### inventory_stock_levels
 
-Cache maintained by a SECURITY DEFINER trigger on the ledger. No role (including owner) can write it directly; INSERT/UPDATE/DELETE are revoked from `authenticated`.
+Cache maintained by a SECURITY DEFINER trigger on the ledger. No role (including owner) can write it directly; INSERT/UPDATE/DELETE are revoked from `authenticated`. Par changes go through `fn_inventory_set_par` (Lane 2) and are not an UPDATE grant. Tech SELECT matches locations: own active van and active warehouses only.
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|
-| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| SELECT | ✓     | ✓     | ✓     | own van + shop | ✓     | —     | —      |
 | INSERT | —     | —     | —     | —     | —     | —     | —      |
 | UPDATE | —     | —     | —     | —     | —     | —     | —      |
 | DELETE | —     | —     | —     | —     | —     | —     | —      |
@@ -267,6 +267,42 @@ Cache maintained by a SECURITY DEFINER trigger on the ledger. No role (including
 ### inventory_transactions
 
 Append-only stock ledger. `created_by` must equal `auth.uid()`. UPDATE, DELETE and TRUNCATE are blocked by trigger and revoked. Corrections are opposite entries.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+## Inventory Lane 2 (migrations 20261127000000, 20261127100000, 20261127200000)
+
+Collin ruled D1–D10 on 2026-11-06 as the plan recommended. No par-template table and no restock-list table. `20261127300000` and `20261127400000` stay unused. Stock still changes only by appending `inventory_transactions`. Costs stay off every tech path: there is no tech policy on `inventory_transactions` or `catalog_item_costs`.
+
+Person assignment on Locations & vans (writing `vehicle_operators` from the van dialog) is the next PR. This section is the grant.
+
+### vehicle_operators
+
+Who may open which van on the phone. Office assigns people. Techs see their own rows and cannot assign themselves. This does not replace `crews.vehicle_id`.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | own rows | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | —     | —     | —     | —     | —     | —      |
+
+### inventory_locations (Lane 2)
+
+Tech gains SELECT for the active van locations in `fn_inventory_visible_vehicle_ids()` and for active warehouses. Not job, not quarantine, not someone else's van. Other roles are unchanged. The `inventory_locations` table in the Lane 1 section is the current grant.
+
+### inventory_stock_levels (Lane 2)
+
+Tech gains SELECT for those same locations. Writes stay locked for every role, including owner. `fn_inventory_set_par` (owner, manager, office; active van; active stockable item) is the only par write. The ledger apply sets `inventory.ledger_apply` so a stock movement cannot clear `min_qty` / `max_qty`.
+
+### inventory_transactions (unchanged grants)
+
+Tech does not gain SELECT or INSERT. Cost stays on the row. A tech appends only through `fn_inventory_post_van_entries`: a `count` on an already counted-in van they are assigned to, or a `transfer_out`/`transfer_in` pair from that van's shop warehouse onto that van, with `unit_cost_cents` forced null. Office keeps `postLedgerCommand` and the INSERT policy. `fn_inventory_my_van_activity` returns id, type, item, location, quantity delta, reason, and time. It does not return cost, job, or transfer group.
 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|

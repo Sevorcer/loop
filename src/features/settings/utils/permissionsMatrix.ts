@@ -125,6 +125,7 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   catalog_price_tiers: "Catalog Price Tiers",
   catalog_item_costs: "Item Costs",
   vehicles: "Vehicles",
+  vehicle_operators: "Van assignments",
   inventory_locations: "Inventory Locations",
   inventory_stock_levels: "Stock Levels",
   inventory_transactions: "Inventory Ledger",
