@@ -36,10 +36,16 @@ function resolveActiveView(
 }
 
 interface MapViewCardProps {
-  /** Pre-built static street-side image URL, or null if unavailable. */
+  /** Pre-built static street-side image URL, or null when no panorama was confirmed. */
   streetImageSrc: string | null;
-  /** Pre-built Maps Embed API satellite view src, or null if unavailable. */
+  /** Pre-built Maps Embed API satellite view src, or null when it cannot be built. */
   aerialSrc: string | null;
+  /**
+   * True when a Maps key is configured. Distinguishes "maps are off" from
+   * "this address has no street-side photo" so a failed load is not labeled
+   * as an administrator error.
+   */
+  mapsConfigured: boolean;
   /** Google Maps navigation URL for the Navigate button. */
   navigationUrl: string;
   /** Apple Maps navigation URL (same destination). */
@@ -48,6 +54,21 @@ interface MapViewCardProps {
   arrivalAddress: string;
   /** Property name used for image alt text and iframe accessibility title. */
   propertyName: string;
+}
+
+function emptyImageryCopy(mapsConfigured: boolean): { title: string; description: string } {
+  if (!mapsConfigured) {
+    return {
+      title: "Property imagery unavailable",
+      description:
+        "Property imagery is not available. Contact your administrator to enable maps.",
+    };
+  }
+
+  return {
+    title: "No street-side photo",
+    description: "There is no street-side photo for this address.",
+  };
 }
 
 /**
@@ -62,14 +83,17 @@ interface MapViewCardProps {
 export function MapViewCard({
   streetImageSrc,
   aerialSrc,
+  mapsConfigured,
   navigationUrl,
   appleMapsUrl,
   arrivalAddress,
   propertyName,
 }: MapViewCardProps) {
   const [activeView, setActiveView] = useState<MapView>("street");
+  const [failedStreetSrc, setFailedStreetSrc] = useState<string | null>(null);
+  const streetFailed = streetImageSrc != null && failedStreetSrc === streetImageSrc;
 
-  const hasStreetImage = streetImageSrc !== null;
+  const hasStreetImage = streetImageSrc !== null && !streetFailed;
   const hasAerial = aerialSrc !== null;
   const hasViewToggle = hasStreetImage && hasAerial;
 
@@ -82,9 +106,7 @@ export function MapViewCard({
   const activeSrc =
     activeResolvedView === "street" ? streetImageSrc : aerialSrc;
 
-  const activeLabel = activeResolvedView
-    ? viewLabels[activeResolvedView]
-    : "Property imagery";
+  const emptyCopy = emptyImageryCopy(mapsConfigured);
 
   return (
     <Card className="overflow-hidden">
@@ -97,7 +119,9 @@ export function MapViewCard({
                 ? "Static street-side image for a stable arrival view."
                 : activeResolvedView === "aerial"
                   ? "Satellite overview — roof, lot, and surroundings."
-                  : "Map imagery becomes available once Google Maps is configured."}
+                  : mapsConfigured
+                    ? "No street-side photo for this address."
+                    : "Map imagery becomes available once Google Maps is configured."}
             </p>
           </div>
 
@@ -182,6 +206,9 @@ export function MapViewCard({
                 // which is acceptable here because the source imagery is
                 // already optimized upstream.
                 unoptimized
+                onError={() => {
+                  if (streetImageSrc) setFailedStreetSrc(streetImageSrc);
+                }}
               />
             </div>
           ) : (
@@ -206,12 +233,10 @@ export function MapViewCard({
                 <MapPin className="h-6 w-6 text-primary" />
               </div>
 
-              <h3 className="text-lg font-semibold">
-                {activeLabel} unavailable
-              </h3>
+              <h3 className="text-lg font-semibold">{emptyCopy.title}</h3>
 
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Property imagery is not available. Contact your administrator to enable maps.
+                {emptyCopy.description}
               </p>
 
               {arrivalAddress ? (
