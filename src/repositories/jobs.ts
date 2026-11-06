@@ -1637,16 +1637,30 @@ async function readCompletionTeams(
 ): Promise<Map<string, { id: string | null; name: string }[]>> {
   const byJob = new Map<string, { id: string | null; name: string }[]>();
   if (jobIds.length === 0) return byJob;
-  const { data, error } = await supabase
-    .from("job_completion_team")
-    .select("job_id,user_id,person_name")
-    .eq("org_id", orgId)
-    .in("job_id", jobIds);
-  if (error) {
-    if (isMissingCompletionTeam(error)) return byJob;
-    throw new Error(error.message);
+  // Chunk the id list: the full-org report passes thousands of ids, and one
+  // `in (...)` that long overflows the request URL (the Reports page 500).
+  const chunks: string[][] = [];
+  for (let index = 0; index < jobIds.length; index += JOB_ID_QUERY_CHUNK_SIZE) {
+    chunks.push(jobIds.slice(index, index + JOB_ID_QUERY_CHUNK_SIZE));
   }
-  for (const row of (data ?? []) as Array<{ job_id: string; user_id: string | null; person_name: string }>) {
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      supabase
+        .from("job_completion_team")
+        .select("job_id,user_id,person_name")
+        .eq("org_id", orgId)
+        .in("job_id", chunk),
+    ),
+  );
+  const rows: Array<{ job_id: string; user_id: string | null; person_name: string }> = [];
+  for (const { data, error } of results) {
+    if (error) {
+      if (isMissingCompletionTeam(error)) return byJob;
+      throw new Error(error.message);
+    }
+    rows.push(...((data ?? []) as typeof rows));
+  }
+  for (const row of rows) {
     const list = byJob.get(row.job_id) ?? [];
     list.push({ id: row.user_id, name: row.person_name });
     byJob.set(row.job_id, list);

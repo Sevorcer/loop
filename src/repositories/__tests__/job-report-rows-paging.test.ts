@@ -26,8 +26,10 @@ type JobRow = {
   deleted_at: string | null;
 };
 
-const { fakeSupabase, jobsTable, rangeCalls } = vi.hoisted(() => {
+const { fakeSupabase, jobsTable, rangeCalls, inCalls } = vi.hoisted(() => {
   const jobsTable: JobRow[] = [];
+  // Size of every `.in(...)` id list sent to the side tables.
+  const inCalls: Array<{ table: string; size: number }> = [];
   const rangeCalls: Array<{ from: number; to: number }> = [];
 
   class FakeQuery {
@@ -88,7 +90,8 @@ const { fakeSupabase, jobsTable, rangeCalls } = vi.hoisted(() => {
           eq() {
             return this;
           },
-          in() {
+          in(_field: string, values: unknown[]) {
+            inCalls.push({ table: name, size: values.length });
             return this;
           },
           order() {
@@ -106,7 +109,7 @@ const { fakeSupabase, jobsTable, rangeCalls } = vi.hoisted(() => {
     },
   };
 
-  return { fakeSupabase, jobsTable, rangeCalls };
+  return { fakeSupabase, jobsTable, rangeCalls, inCalls };
 });
 
 vi.mock("@/repositories/supabaseContext", () => ({
@@ -160,5 +163,20 @@ describe("listJobReportRows paging", () => {
     const rows = await listJobReportRows(undefined, { page: 1, pageSize: 50 });
     expect(rows).toHaveLength(50);
     expect(rangeCalls).toEqual([{ from: 0, to: 49 }]);
+  });
+
+  it("chunks id lists sent to side tables so a full-org report never overflows the URL", async () => {
+    jobsTable.length = 0;
+    rangeCalls.length = 0;
+    inCalls.length = 0;
+    for (let i = 0; i < 250; i += 1) jobsTable.push(makeJob(i));
+
+    const rows = await listJobReportRows();
+
+    expect(rows).toHaveLength(250);
+    const completionCalls = inCalls.filter((call) => call.table === "job_completion_team");
+    expect(completionCalls.length).toBeGreaterThan(1);
+    expect(Math.max(...completionCalls.map((call) => call.size))).toBeLessThanOrEqual(80);
+    expect(completionCalls.reduce((sum, call) => sum + call.size, 0)).toBe(250);
   });
 });
