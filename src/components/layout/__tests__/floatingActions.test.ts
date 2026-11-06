@@ -137,8 +137,8 @@ describe("hidesFloatingActions", () => {
 });
 
 describe("phone corner-action breakpoint", () => {
-  it("hides the corner buttons below md and shows the menu actions there", () => {
-    expect(CORNER_ACTIONS_VISIBILITY_CLASS).toBe("hidden md:flex");
+  it("keeps the corner buttons visible on phones (item 6 parity)", () => {
+    expect(CORNER_ACTIONS_VISIBILITY_CLASS).toBe("flex");
     expect(PHONE_NAV_ACTIONS_VISIBILITY_CLASS).toBe("md:hidden");
   });
 
@@ -158,21 +158,21 @@ describe("AppShell floating actions", () => {
     const stack = container.querySelector(".floating-actions-stack");
 
     expect(stack).not.toBeNull();
-    expect(stack?.classList.contains("hidden")).toBe(true);
-    expect(stack?.classList.contains("md:flex")).toBe(true);
+    expect(stack?.classList.contains("flex")).toBe(true);
+    expect(stack?.classList.contains("hidden")).toBe(false);
     expect(container.querySelector("[aria-label='Report feedback']")).not.toBeNull();
-    expect(container.querySelector("[aria-label='Open command bar']")).not.toBeNull();
+    expect(container.querySelector("[aria-label='Ask Copilot']")).not.toBeNull();
     expect(container.querySelector(".safe-area-content--form")).toBeNull();
     expect(container.querySelector("[data-command-bar='mounted']")).not.toBeNull();
   });
 
-  it("puts Search and Send feedback on the phone menu only", async () => {
+  it("puts Ask Copilot and Send feedback on the phone menu only", async () => {
     pathname.current = "/dashboard";
     const container = await render(createElement(AppShell, null, "page"));
     const mobileNav = container.querySelector("#mobile-navigation");
     const desktopNav = container.querySelector("#desktop-navigation");
 
-    expect(mobileNav?.textContent).toContain("Search");
+    expect(mobileNav?.textContent).toContain("Ask Copilot");
     expect(mobileNav?.textContent).toContain("Send feedback");
     expect(desktopNav?.textContent ?? "").not.toContain("Send feedback");
     expect(
@@ -180,12 +180,12 @@ describe("AppShell floating actions", () => {
     ).not.toBeNull();
   });
 
-  it("opens search and the feedback form from the phone menu", async () => {
+  it("opens Copilot and the feedback form from the phone menu", async () => {
     pathname.current = "/jobs";
     const container = await render(createElement(AppShell, null, "jobs"));
     const mobileNav = container.querySelector("#mobile-navigation");
     const search = Array.from(mobileNav?.querySelectorAll("button") ?? []).find(
-      (button) => button.textContent === "Search",
+      (button) => button.textContent === "Ask Copilot",
     );
     const feedback = Array.from(mobileNav?.querySelectorAll("button") ?? []).find(
       (button) => button.textContent === "Send feedback",
@@ -212,9 +212,9 @@ describe("AppShell floating actions", () => {
 
     expect(container.querySelector(".floating-actions-stack")).toBeNull();
     expect(container.querySelector("[aria-label='Report feedback']")).toBeNull();
-    expect(container.querySelector("[aria-label='Open command bar']")).toBeNull();
+    expect(container.querySelector("[aria-label='Ask Copilot']")).toBeNull();
     expect(content?.classList.contains("safe-area-content--form")).toBe(true);
-    expect(container.querySelector("#mobile-navigation")?.textContent).toContain("Search");
+    expect(container.querySelector("#mobile-navigation")?.textContent).toContain("Ask Copilot");
     expect(container.querySelector("[data-command-bar='mounted']")).not.toBeNull();
   });
 
