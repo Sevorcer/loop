@@ -48,6 +48,7 @@ export const ROUTE_BUILDERS = {
   INVENTORY_KIT: (kitId: string) => `${ROUTES.INVENTORY_KITS}/${kitId}`,
   INVENTORY_VAN: (vehicleId: string) => `${ROUTES.INVENTORY}/vans/${vehicleId}`,
   INVENTORY_VAN_PARS: (vehicleId: string) => `${ROUTES.INVENTORY}/vans/${vehicleId}/pars`,
+  INVENTORY_VAN_COUNT: (vehicleId: string) => `${ROUTES.INVENTORY}/vans/${vehicleId}/count`,
   JOB_NEW: (context?: { customerId?: string; propertyId?: string; date?: string }) => {
     const params = new URLSearchParams();
     if (context?.customerId) params.set("customerId", context.customerId);

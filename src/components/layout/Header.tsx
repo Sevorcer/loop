@@ -145,6 +145,14 @@ interface DynamicRoute {
 // Ordered most-specific first: /new and /edit must come before /:id.
 const dynamicPageMeta: DynamicRoute[] = [
   {
+    test: (p) => /^\/inventory\/vans\/[^/]+\/count\/?$/.test(p),
+    meta: {
+      title: "Count in",
+      description: "Count what is on this van. A blank line is skipped, and a match posts nothing.",
+      parent: { title: "Inventory", href: ROUTES.INVENTORY },
+    },
+  },
+  {
     test: (p) => /^\/inventory\/vans\/[^/]+\/pars\/?$/.test(p),
     meta: {
       title: "Edit pars",
