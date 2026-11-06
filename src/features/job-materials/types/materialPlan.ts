@@ -7,6 +7,8 @@
 // kits and an append-only history. Draft plans never reserve stock.
 // ============================================================
 
+import type { MaterialReadinessLevel } from "@/features/inventory/types/readiness";
+
 import type { JobMaterialLine } from "./jobMaterials";
 
 export const MATERIAL_PLAN_STATUSES = ["draft", "confirmed"] as const;
@@ -23,6 +25,10 @@ export interface MaterialPlan {
   generatedAt: string;
   confirmedBy: string | null;
   confirmedAt: string | null;
+  /** Worst line state, cached by the readiness engine; null = not computed / not applicable. */
+  readinessState?: MaterialReadinessLevel | null;
+  readinessReason?: string | null;
+  readinessCheckedAt?: string | null;
 }
 
 export interface JobKitAttachment {

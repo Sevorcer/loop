@@ -25,6 +25,8 @@ export interface InventoryAccess {
   canViewKits: boolean;
   canEditKits: boolean;
   canViewMaterialPlans: boolean;
+  canViewArrivals: boolean;
+  canEditArrivals: boolean;
   canViewSettings: boolean;
   canEditSettings: boolean;
 }
@@ -60,6 +62,8 @@ export async function getInventoryAccess(): Promise<InventoryAccess> {
     canViewKits: can("kit_templates", "select"),
     canEditKits: can("kit_templates", "update"),
     canViewMaterialPlans: can("job_material_plans", "select"),
+    canViewArrivals: can("inventory_expected_arrivals", "select"),
+    canEditArrivals: can("inventory_expected_arrivals", "update"),
     canViewSettings: can("inventory_settings", "select"),
     canEditSettings: can("inventory_settings", "update"),
   };

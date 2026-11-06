@@ -275,7 +275,7 @@ Append-only stock ledger. `created_by` must equal `auth.uid()`. UPDATE, DELETE a
 | UPDATE | —     | —     | —     | —     | —     | —     | —      |
 | DELETE | —     | —     | —     | —     | —     | —     | —      |
 
-## Inventory Lane 4 (migrations 20261126000000, 20261126100000)
+## Inventory Lane 4 (migrations 20261126000000, 20261126100000, 20261126200000, 20261126300000, 20261126400000)
 
 Kit templates and the inventory rules row. Nothing here is seeded. `save_kit_template()` is SECURITY INVOKER, so these policies apply to it.
 
@@ -355,6 +355,50 @@ Append-only history of every plan-line change (who, when, why). The actor and ti
 | INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
 | UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
 | DELETE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+
+### inventory_reservations
+
+Stock held for a job line. Rows are never deleted: a database guard allows only active → pulled / released / consumed (and pulled → consumed / released), and the stamp trigger forces new rows to `active` with `auth.uid()`. Created and released by the `reserve_job_materials` / `release_job_reservations` functions (SECURITY INVOKER, role-checked: others get 42501). The `inventory_available` view (security_invoker) subtracts active and pulled claims on live jobs from on-hand.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### inventory_expected_arrivals
+
+What is on its way (item, receiving warehouse, quantity, date, optional job it is a special order for). Non-expected rows are frozen by a guard trigger; item and location never change. `receive_expected_arrival` posts the ledger `receive` and marks the row received in one call (owner, manager, office). Dispatch reads so the board can explain readiness.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓ (not received) | —  | —     | —     | —     | —     | —      |
+
+### job_readiness_snapshots
+
+Append-only record of a job's material readiness when its plan is confirmed, when its rollup changes, and when the job is dispatched. Actor and time are stamped by trigger; UPDATE/DELETE privileges are revoked (a job delete still cascades). A tech may insert only the `dispatched` row on a job assigned to them.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| INSERT | ✓     | ✓     | ✓     | ✓ (dispatched, assigned jobs) | ✓ | — | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### job_material_events
+
+Append-only field events (missing part, wrong part, substitution, unplanned use, supply-house run, kit feedback) used to improve kits. A tech reads and adds events only on jobs assigned to them.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓ (assigned jobs) | ✓ | — | —      |
+| INSERT | ✓     | ✓     | ✓     | ✓ (assigned jobs) | ✓ | — | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
 
 ---
 

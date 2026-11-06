@@ -130,6 +130,12 @@ All authorization failures return a consistent JSON envelope regardless of which
 | `jobs/[id]/material-plan/kits/[kitId]/route.ts` | POST (refresh) | `requirePermission` | `job_kits` | `update` |
 | `jobs/[id]/material-plan/lines/[lineId]/route.ts` | PATCH (adjust/link/not_stock/remove) | `requirePermission` | `job_material_plans` | `insert` (link and not-stock also require owner, manager or office in the handler) |
 | `jobs/[id]/material-plan/save-as-kit/route.ts` | POST | `requirePermission` | `kit_templates` | `insert` |
+| `inventory/needs-sku/route.ts` | GET | `requirePermission` | `catalog_item_aliases` | `select` |
+| `inventory/arrivals/route.ts` | GET | `requirePermission` | `inventory_expected_arrivals` | `select` |
+| `inventory/arrivals/route.ts` | POST | `requirePermission` | `inventory_expected_arrivals` | `insert` |
+| `inventory/arrivals/[id]/route.ts` | PATCH (edit/cancel) | `requirePermission` | `inventory_expected_arrivals` | `update` |
+| `inventory/arrivals/[id]/receive/route.ts` | POST (mark received) | `requirePermission` | `inventory_expected_arrivals` | `update` (the `receive_expected_arrival` function also requires owner, manager or office) |
+| `jobs/[id]/material-plan/recheck/route.ts` | POST | `requirePermission` | `inventory_reservations` | `update` (the reserve function also requires owner, manager, dispatch or office) |
 | `inventory/settings/route.ts` | GET | `requirePermission` | `inventory_settings` | `select` |
 | `inventory/settings/route.ts` | PATCH | `requirePermission` | `inventory_settings` | `update` |
 | `inventory/items/route.ts`, `inventory/items/[id]/route.ts` | POST/PATCH (cost field) | `hasPermission` | `catalog_item_costs` | `insert` (cost is written only when the caller holds it; otherwise 403) |
@@ -188,6 +194,7 @@ The test file `src/lib/__tests__/api-route-authz-coverage.test.ts` enforces cove
 
 ## Changelog
 
+- **2.4 (2026-11-05):** Inventory Lane 4 PR C adds 4 route files under `inventory/arrivals/` (list/add, edit/cancel, receive) and `jobs/[id]/material-plan/recheck/`, each guarded by `requirePermission`. Reserving, releasing and receiving go through SECURITY INVOKER SQL functions that also check the role and raise 42501 for others. Also lists `inventory/needs-sku` (added in PR B). Totals are not recounted here (see 2.1).
 - **2.3 (2026-11-05):** Inventory Lane 4 PR B adds 6 route files under `jobs/[id]/material-plan/` (plan, history, kits, kits/[kitId], lines/[lineId], save-as-kit), each guarded by `requirePermission`. Plan writes go through SECURITY INVOKER SQL functions so RLS applies. Totals are not recounted here (see 2.1).
 - **2.2 (2026-11-05):** Inventory Lane 4 PR A adds 3 route files under `inventory/` (kits, kits/[id], settings), each guarded by `requirePermission` on its own table (`kit_templates`, `inventory_settings`). Kit saves go through the `save_kit_template` SQL function, which is SECURITY INVOKER so RLS applies. Totals are not recounted here (see 2.1).
 - **2.1 (2026-11-05):** Inventory Lane 1 PR A adds 12 route files under `inventory/` (items, tiers, categories, vehicles, locations, stock, transactions), each guarded by `requirePermission` on its own table. PR B removes the legacy `inventory/route.ts` stub (it borrowed the `jobs` permission). The totals below were already out of date before this change (main has 107 route files, not 46) and are not recounted here.

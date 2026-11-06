@@ -2,8 +2,11 @@ import type { JobMaterialSummary } from "@/features/job-materials/types/jobMater
 import { materialReadinessFromSummary } from "@/features/job-materials/utils/jobMaterials";
 import { technicalReadinessFromCounts } from "@/features/job-materials/utils/technicalData";
 
+import { toDispatchReadiness } from "@/features/inventory/utils/readiness";
+
 import type { DispatchSnapshot } from "../types/dispatch";
 import { deriveIsDispatchable } from "./dispatchUtils";
+import type { PlanReadinessForBoard } from "./materialRisk";
 
 /**
  * #23: the board's Materials and Technical chips were stored jsonb that
@@ -21,6 +24,11 @@ export function applyPrepReadiness(
     jobPropertyIds: Readonly<Record<string, string | null | undefined>>;
     /** property id → system counts */
     systemCounts: Readonly<Record<string, { systems: number; withProfile: number }>>;
+    /**
+     * Inventory Lane 4: the cached plan rollup. When a job has a plan with a computed state
+     * (or unlinked lines) it replaces the count-based chip; jobs without one keep that chip.
+     */
+    planReadiness?: Readonly<Record<string, PlanReadinessForBoard>>;
   },
 ): DispatchSnapshot {
   return {
@@ -30,9 +38,17 @@ export function applyPrepReadiness(
       const summary = input.materialSummaries[plan.jobId];
       const propertyId = input.jobPropertyIds[plan.jobId];
       const counts = propertyId ? input.systemCounts[propertyId] : undefined;
-      const materialReadiness = summary
-        ? materialReadinessFromSummary(summary)
-        : plan.dispatchability.materialReadiness;
+      const planReadiness = input.planReadiness?.[plan.jobId];
+      const fromPlan =
+        planReadiness && (planReadiness.state !== null || planReadiness.needsSku > 0)
+          ? {
+              state: toDispatchReadiness(planReadiness.state, planReadiness.needsSku),
+              reason: planReadinessReason(planReadiness),
+            }
+          : null;
+      const materialReadiness =
+        fromPlan ??
+        (summary ? materialReadinessFromSummary(summary) : plan.dispatchability.materialReadiness);
       const technicalReadiness =
         propertyId === undefined
           ? plan.dispatchability.technicalReadiness
@@ -51,4 +67,13 @@ export function applyPrepReadiness(
       };
     }),
   };
+}
+
+/** One line for the chip tooltip: the engine's reason, or the unlinked-line count. */
+function planReadinessReason(plan: PlanReadinessForBoard): string {
+  if (plan.reason) return plan.reason;
+  if (plan.needsSku > 0) {
+    return plan.needsSku === 1 ? "1 line needs a SKU" : `${plan.needsSku} lines need a SKU`;
+  }
+  return "Materials covered";
 }

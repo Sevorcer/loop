@@ -21,9 +21,11 @@ import { getDispatchQueueMetrics, sortDispatchEvents } from "../utils/dispatchWo
 
 interface DispatchScreenProps {
   snapshot: DispatchSnapshot;
+  /** Installs in the next 3 days whose materials are At risk; null = not available. */
+  installsAtRisk?: number | null;
 }
 
-export function DispatchScreen({ snapshot }: DispatchScreenProps) {
+export function DispatchScreen({ snapshot, installsAtRisk = null }: DispatchScreenProps) {
   const queueMetrics = getDispatchQueueMetrics(snapshot.metrics);
 
   const recentEvents = sortDispatchEvents(snapshot.dispatchEvents).slice(0, 8);
@@ -83,6 +85,13 @@ export function DispatchScreen({ snapshot }: DispatchScreenProps) {
           </div>
         </div>
       </SurfaceCard>
+
+      {installsAtRisk !== null && installsAtRisk > 0 ? (
+        <p role="status" className="status-danger rounded-atlas-md px-4 py-2 text-sm">
+          Next 3 days: {installsAtRisk} {installsAtRisk === 1 ? "install" : "installs"} at risk. Open the Materials chip on a
+          card for the reason.
+        </p>
+      ) : null}
 
       {/* ── Dispatch Board ── */}
       <div>

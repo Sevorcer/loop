@@ -48,6 +48,8 @@ import {
 } from "@/repositories/materialPlans";
 import { createKit } from "./kitTemplates";
 
+import { afterPlanChange } from "./inventoryReservations";
+
 // ---------------------------------------------------------------------------
 // Job material plans (Inventory Lane 4, PR B).
 //
@@ -186,6 +188,7 @@ export async function generateMaterialPlan(
   if (needsSku > 0) parts.push(`${needsSku} need${needsSku === 1 ? "s" : ""} a catalog item`);
   if (newKits.length > 0) parts.push(`kits: ${newKits.join(", ")}`);
   await logPlanActivity(jobId, actorId, "Material plan generated", `${parts.join(" · ")}.`);
+  await afterPlanChange(jobId);
 
   return {
     planId: result.planId,
@@ -235,6 +238,7 @@ export async function refreshJobKit(
     "Material plan adjusted",
     `Refreshed from kit "${name}": ${result.added} added, ${result.updated} updated, ${result.skipped} left as adjusted.`,
   );
+  await afterPlanChange(jobId);
   return result;
 }
 
@@ -262,6 +266,7 @@ export async function adjustPlanLine(
   if (patch.quantity !== undefined || patch.name !== undefined || patch.unit !== undefined) {
     await logPlanActivity(jobId, actorId, "Material plan adjusted", reason ? `A line was changed: ${reason}` : "A line was changed.");
   }
+  await afterPlanChange(jobId);
 }
 
 export async function linkPlanLineToItem(
@@ -273,6 +278,7 @@ export async function linkPlanLineToItem(
   await requirePlanLine(jobId, lineId);
   const itemId = assertId(catalogItemId, "catalogItemId");
   await rpcLinkMaterialLineSku(lineId, itemId, writeAlias);
+  await afterPlanChange(jobId);
 }
 
 /** "Not stock": office decided this line is bought on site / not a stocked item. */
@@ -282,6 +288,7 @@ export async function markPlanLineNotStock(jobId: string, lineId: string, reason
   const reason = parseReason(reasonInput);
   if (!reason || reason.length < 3) badRequest("Say why this is not a stocked item (for example, bought on site).");
   await rpcAdjustMaterialLine(lineId, { non_stock_reason: reason }, null);
+  await afterPlanChange(jobId);
 }
 
 export async function removePlanLine(
@@ -295,6 +302,7 @@ export async function removePlanLine(
   if (!reason || reason.length < 3) badRequest("Say why this line is coming off the plan.");
   await rpcRemoveMaterialLine(lineId, reason);
   await logPlanActivity(jobId, actorId, "Material plan adjusted", `A line was removed: ${reason}`);
+  await afterPlanChange(jobId);
 }
 
 // -- Plan status ------------------------------------------------------------
@@ -308,6 +316,8 @@ export async function confirmMaterialPlan(
   if (lines.length === 0) badRequest("Add at least one material before confirming the plan.");
   const plan = await setMaterialPlanStatus(jobId, "confirmed");
   await logPlanActivity(jobId, actorId, "Material plan confirmed", `${lines.length} line${lines.length === 1 ? "" : "s"} confirmed.`);
+  // Confirming is what claims stock (draft plans never reserve).
+  await afterPlanChange(jobId, { forceSnapshotFor: [jobId], forceSnapshotTrigger: "plan_confirmed" });
   return { plan, needsSkuCount: countNeedsSku(lines) };
 }
 
@@ -315,6 +325,7 @@ export async function reopenMaterialPlan(jobId: string, actorId?: string): Promi
   assertId(jobId, "Job id");
   const plan = await setMaterialPlanStatus(jobId, "draft");
   await logPlanActivity(jobId, actorId, "Material plan reopened", "The plan is a draft again.");
+  await afterPlanChange(jobId);
   return plan;
 }
 

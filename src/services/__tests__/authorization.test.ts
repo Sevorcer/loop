@@ -759,6 +759,48 @@ describe("inventory Lane 4 permissions", () => {
     expectDenied("portal", "job_material_line_events", ["select", "insert"]);
   });
 
+  it("lets office roles hold stock, never delete a reservation, and keeps portal out", () => {
+    for (const role of ["owner", "manager", "dispatch", "office"] as const) {
+      expectAllowed(role, "inventory_reservations", ["select", "insert", "update"]);
+    }
+    for (const role of ["tech", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_reservations", ["select", "insert", "update"]);
+    }
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_reservations", ["delete"]);
+    }
+  });
+
+  it("lets dispatch read arrivals but only owner/manager/office edit and only the owner delete", () => {
+    for (const role of ["owner", "manager", "dispatch", "office"] as const) {
+      expectAllowed(role, "inventory_expected_arrivals", ["select"]);
+    }
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "inventory_expected_arrivals", ["insert", "update"]);
+    }
+    expectDenied("dispatch", "inventory_expected_arrivals", ["insert", "update", "delete"]);
+    expectAllowed("owner", "inventory_expected_arrivals", ["delete"]);
+    expectDenied("manager", "inventory_expected_arrivals", ["delete"]);
+    for (const role of ["tech", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_expected_arrivals", ["select", "insert", "update", "delete"]);
+    }
+  });
+
+  it("keeps readiness snapshots and field events append-only for every role", () => {
+    for (const table of ["job_readiness_snapshots", "job_material_events"] as const) {
+      for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+        expectDenied(role, table, ["update", "delete"]);
+      }
+      expect(isLockedDeny(table, "update")).toBe(true);
+      expect(isLockedDeny(table, "delete")).toBe(true);
+      expectDenied("portal", table, ["select", "insert"]);
+      expectDenied("sales", table, ["select", "insert"]);
+    }
+    expectAllowed("tech", "job_material_events", ["select", "insert"]);
+    expectAllowed("tech", "job_readiness_snapshots", ["insert"]);
+    expectDenied("tech", "job_readiness_snapshots", ["select"]);
+  });
+
   it("limits aliases to owner/manager/office writers and ops-role readers", () => {
     for (const role of ["owner", "manager", "office"] as const) {
       expectAllowed(role, "catalog_item_aliases", ["select", "insert", "update", "delete"]);
