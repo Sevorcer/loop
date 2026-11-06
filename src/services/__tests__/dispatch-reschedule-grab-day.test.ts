@@ -11,6 +11,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/services/inventoryReservations", () => ({ releaseAndRecheck: vi.fn(async () => undefined) }));
 
 const getJobByIdMock = vi.hoisted(() => vi.fn());
 const updateJobMock = vi.hoisted(() => vi.fn());

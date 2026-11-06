@@ -1,5 +1,6 @@
 import "server-only";
 
+import { MATERIAL_READINESS_LEVELS } from "@/features/inventory/types/readiness";
 import type {
   CatalogMatchItem,
   JobKitAttachment,
@@ -47,9 +48,13 @@ interface PlanRow {
   generated_at: string;
   confirmed_by: string | null;
   confirmed_at: string | null;
+  readiness_state?: string | null;
+  readiness_reason?: string | null;
+  readiness_checked_at?: string | null;
 }
 
-const PLAN_COLUMNS = "id,job_id,status,generated_from,generated_at,confirmed_by,confirmed_at";
+const PLAN_COLUMNS =
+  "id,job_id,status,generated_from,generated_at,confirmed_by,confirmed_at,readiness_state,readiness_reason,readiness_checked_at";
 
 function mapPlan(row: PlanRow): MaterialPlan {
   return {
@@ -62,6 +67,9 @@ function mapPlan(row: PlanRow): MaterialPlan {
     generatedAt: row.generated_at,
     confirmedBy: row.confirmed_by,
     confirmedAt: row.confirmed_at,
+    readinessState: MATERIAL_READINESS_LEVELS.find((level) => level === row.readiness_state) ?? null,
+    readinessReason: row.readiness_reason ?? null,
+    readinessCheckedAt: row.readiness_checked_at ?? null,
   };
 }
 

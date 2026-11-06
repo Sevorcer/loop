@@ -6,7 +6,9 @@ import type {
   JobMaterialPatchInput,
   JobMaterialState,
   JobMaterialSummary,
+  MaterialLineStage,
 } from "@/features/job-materials/types/jobMaterials";
+import { MATERIAL_READINESS_LEVELS, type MaterialReadinessLevel } from "@/features/inventory/types/readiness";
 import {
   emptyJobMaterialSummary,
   isJobMaterialSource,
@@ -48,12 +50,20 @@ interface JobMaterialLineRow {
   kit_quantity?: number | string | null;
   is_optional?: boolean | null;
   non_stock_reason?: string | null;
+  stage?: string | null;
+  readiness_state?: string | null;
+  readiness_reason?: string | null;
+  readiness_eta?: string | null;
+  fulfil_location_id?: string | null;
 }
+
+const LINE_STAGES: readonly MaterialLineStage[] = ["planned", "reserved", "pulled", "reconciled"];
 
 /** Legacy columns plus the Lane 4 plan columns; the catalog name rides along as an embed. */
 export const JOB_MATERIAL_COLUMNS =
   "id,job_id,name,quantity,unit,part_number,notes,state,sort_order,created_by,created_at,updated_by,updated_at,state_changed_by,state_changed_at," +
   "plan_id,catalog_item_id,source,kit_id,kit_quantity,is_optional,non_stock_reason," +
+  "stage,readiness_state,readiness_reason,readiness_eta,fulfil_location_id," +
   "catalog_item:catalog_items!job_material_lines_item_same_org_fkey(name,sku)";
 
 /** PostgREST caps responses at 1,000 rows; read in pages. */
@@ -86,7 +96,16 @@ export function mapJobMaterialLine(row: JobMaterialLineRow): JobMaterialLine {
     kitQuantity: row.kit_quantity == null ? null : Number(row.kit_quantity),
     isOptional: row.is_optional === true,
     nonStockReason: row.non_stock_reason ?? null,
+    stage: LINE_STAGES.find((stage) => stage === row.stage) ?? "planned",
+    readinessState: toReadinessLevel(row.readiness_state),
+    readinessReason: row.readiness_reason ?? null,
+    readinessEta: row.readiness_eta ?? null,
+    fulfilLocationId: row.fulfil_location_id ?? null,
   };
+}
+
+function toReadinessLevel(value: string | null | undefined): MaterialReadinessLevel | null {
+  return MATERIAL_READINESS_LEVELS.find((level) => level === value) ?? null;
 }
 
 function mapCatalogRef(

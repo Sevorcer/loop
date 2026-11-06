@@ -136,6 +136,10 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   job_kits: "Job Kits",
   job_material_line_events: "Job Material History",
   catalog_item_aliases: "Catalog Item Aliases",
+  inventory_reservations: "Stock Reservations",
+  inventory_expected_arrivals: "Expected Arrivals",
+  job_readiness_snapshots: "Readiness History",
+  job_material_events: "Field Material Events",
 };
 
 export interface RolePermissionRow {

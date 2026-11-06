@@ -8,6 +8,7 @@
 // ============================================================
 
 import type { ReadinessState } from "@/features/dispatch/types/dispatch";
+import type { MaterialReadinessLevel } from "@/features/inventory/types/readiness";
 import type { InstalledSystemManual } from "@/features/manuals/types/manuals";
 
 export const JOB_MATERIAL_STATES = ["needed", "on_truck", "used"] as const;
@@ -28,6 +29,17 @@ export const JOB_MATERIAL_SOURCE_LABELS: Record<JobMaterialSource, string> = {
   estimate: "From estimate",
   kit: "From kit",
   field: "Added in the field",
+};
+
+/** Where a plan line is in the stock flow (Inventory Lane 4, PR C). */
+export const MATERIAL_LINE_STAGES = ["planned", "reserved", "pulled", "reconciled"] as const;
+export type MaterialLineStage = (typeof MATERIAL_LINE_STAGES)[number];
+
+export const MATERIAL_LINE_STAGE_LABELS: Record<MaterialLineStage, string> = {
+  planned: "Planned",
+  reserved: "Reserved",
+  pulled: "Pulled",
+  reconciled: "Reconciled",
 };
 
 export interface JobMaterialCatalogRef {
@@ -63,6 +75,14 @@ export interface JobMaterialLine {
   isOptional: boolean;
   /** Set when office decided this line is not a stocked item ("Bought on site"). */
   nonStockReason: string | null;
+  // ── Reservation and readiness cache (migration 20261126200000). Optional so older
+  //    callers and fixtures keep compiling; the repository always fills them. ──
+  stage?: MaterialLineStage;
+  readinessState?: MaterialReadinessLevel | null;
+  readinessReason?: string | null;
+  /** Date the missing quantity is expected, "YYYY-MM-DD". */
+  readinessEta?: string | null;
+  fulfilLocationId?: string | null;
 }
 
 /** Fields an office role may set when adding a line. */

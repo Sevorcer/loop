@@ -74,6 +74,7 @@ import { redactJobPriceActivity } from "@/features/jobs/utils/jobPrice";
 import { listFiles } from "@/services/storage";
 import { insertJobNote, listJobNotes } from "@/repositories/jobNotes";
 import { setBillingEligible } from "@/repositories/billing";
+import { releaseAndRecheck } from "./inventoryReservations";
 
 const JOB_TYPES = new Set<JobType>(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_STATUSES = new Set<JobStatus>([
@@ -569,6 +570,14 @@ export async function updateJob(id: string, input: UpdateJobInput) {
 
   await Promise.all([syncRelatedCounters(previousJob), syncRelatedCounters(updatedJob)]); await ensureDispatchPlanForJob(updatedJob);
 
+  // Material stock follows the job's date (amendment 7): a move goes to the back of
+  // the reservation queue; scheduling or unscheduling re-derives what the job holds.
+  if (changedFields.includes("schedule")) {
+    const wasScheduled = (existing.scheduled_for ?? null) !== null;
+    const isScheduled = (updatedJob.scheduledFor ?? null) !== null;
+    await releaseAndRecheck(updatedJob.id, wasScheduled && isScheduled ? "rescheduled" : "changed");
+  }
+
   return updatedJob;
 }
 
@@ -675,6 +684,11 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
   }
 
   await Promise.all(sideEffects);
+
+  // Cancelled / On Hold release the job's stock; resuming claims it again.
+  if (existing.status !== updatedJob.status) {
+    await releaseAndRecheck(updatedJob.id, "changed");
+  }
 
     // Customer notifications (#35): the Finished email fires on the
     // transition into Completed, only when the job opted in. The helper
@@ -1047,6 +1061,7 @@ export async function softDeleteJob(
       title: "Job deleted",
       description: "Job was soft-deleted.",
     });
+    await releaseAndRecheck(id, "changed");
   }
 
   return deleted;
@@ -1082,6 +1097,7 @@ export async function restoreJob(
       title: "Job restored",
       description: "Job was restored from soft-delete.",
     });
+    await releaseAndRecheck(id, "changed");
         return true;
   }
 

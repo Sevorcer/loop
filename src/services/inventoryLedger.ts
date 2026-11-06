@@ -15,6 +15,8 @@ import {
 } from "@/repositories/inventoryLedger";
 import { getLocation } from "@/repositories/inventoryLocations";
 
+import { reconcileAfterStockChange } from "./inventoryReservations";
+
 export { LedgerRuleError };
 
 function notFound(what: string): never {
@@ -63,6 +65,16 @@ export interface PostLedgerResult {
  * level (negative on-hand is allowed; the UI warns).
  */
 export async function postLedgerCommand(command: LedgerCommand, userId: string): Promise<PostLedgerResult> {
+  const result = await postCommand(command, userId);
+  // Stock changed: jobs waiting on these items are topped up in date order and
+  // readiness is refreshed. Quiet by design: the ledger post has already succeeded.
+  if (result.entries.length > 0) {
+    await reconcileAfterStockChange([...new Set(result.entries.map((entry) => entry.itemId))]);
+  }
+  return result;
+}
+
+async function postCommand(command: LedgerCommand, userId: string): Promise<PostLedgerResult> {
   if (!userId) throw Object.assign(new Error("Authenticated user is required."), { status: 401 });
 
   if (command.kind === "reverse") {

@@ -6,7 +6,10 @@ import { DispatchScreen } from "@/features/dispatch";
 import type { DispatchSnapshot } from "@/features/dispatch/types/dispatch";
 import { alignDispatchSnapshotWithJobs } from "@/features/dispatch/utils/alignDispatchWithJobs";
 import { assembleDispatchSnapshot } from "@/features/dispatch/utils/dispatchUtils";
+import { countInstallsAtRisk } from "@/features/dispatch/utils/materialRisk";
 import { applyPrepReadiness } from "@/features/dispatch/utils/prepReadiness";
+import { todayInCompanyTimeZone } from "@/lib/timezone";
+import { getPlanReadinessForJobs } from "@/services/readiness";
 import { listCalendarTeam, listTimeOff } from "@/repositories/calendarEntries";
 import {
   loadBoardDispatchSnapshot,
@@ -86,18 +89,24 @@ export default async function DispatchPage() {
   const propertyIds = [
     ...new Set(Object.values(jobPropertyIds).filter((id): id is string => !!id)),
   ];
-  const [materialSummaries, systemCounts] = await Promise.all([
+  const [materialSummaries, systemCounts, planReadiness] = await Promise.all([
     getJobMaterialSummaries(jobIds).catch(() => null),
     getSystemCountsForProperties(propertyIds).catch(() => null),
+    getPlanReadinessForJobs(jobIds).catch(() => null),
   ]);
   const dispatchSnapshot =
-    materialSummaries || systemCounts
+    materialSummaries || systemCounts || planReadiness
       ? applyPrepReadiness(aligned, {
           materialSummaries: materialSummaries ?? {},
           jobPropertyIds: systemCounts ? jobPropertyIds : {},
           systemCounts: systemCounts ?? {},
+          planReadiness: planReadiness ?? {},
         })
       : aligned;
 
-  return <DispatchScreen snapshot={dispatchSnapshot} />;
+  const installsAtRisk = planReadiness
+    ? countInstallsAtRisk(jobContext?.jobs ?? [], planReadiness, todayInCompanyTimeZone())
+    : null;
+
+  return <DispatchScreen snapshot={dispatchSnapshot} installsAtRisk={installsAtRisk} />;
 }

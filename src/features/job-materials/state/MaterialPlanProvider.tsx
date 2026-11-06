@@ -44,6 +44,8 @@ interface MaterialPlanContextValue {
   attachKit: (kitId: string, multiplier: number) => Promise<ActionResult>;
   refreshKit: (kitId: string) => Promise<ActionResult>;
   setStatus: (status: "confirmed" | "draft") => Promise<ActionResult>;
+  /** Re-derives what the job may hold and refreshes readiness (office roles). */
+  recheck: () => Promise<ActionResult>;
   adjustLine: (lineId: string, body: Record<string, unknown>) => Promise<ActionResult>;
   linkLine: (lineId: string, catalogItemId: string, writeAlias: boolean) => Promise<ActionResult>;
   markNotStock: (lineId: string, reason: string) => Promise<ActionResult>;
@@ -151,6 +153,7 @@ export function MaterialPlanProvider({ children }: { children: ReactNode }) {
       attachKit: (kitId, multiplier) => act(`${base}/kits`, "POST", { kitId, multiplier }, "Could not attach the kit."),
       refreshKit: (kitId) => act(`${base}/kits/${encodeURIComponent(kitId)}`, "POST", undefined, "Could not refresh from the kit."),
       setStatus: (status) => act(base, "PATCH", { status }, "Could not change the plan status."),
+      recheck: () => act(`${base}/recheck`, "POST", undefined, "Could not re-check the materials."),
       adjustLine: (lineId, body) => act(lineUrl(lineId), "PATCH", { action: "adjust", ...body }, "Could not change the line."),
       linkLine: (lineId, catalogItemId, writeAlias) =>
         act(lineUrl(lineId), "PATCH", { action: "link", catalogItemId, writeAlias }, "Could not link the item."),

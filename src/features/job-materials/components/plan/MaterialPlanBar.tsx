@@ -1,10 +1,11 @@
 "use client";
 
-import { History, Layers, RefreshCw, Sparkles } from "lucide-react";
+import { History, Layers, RefreshCw, RotateCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { StatusBadge } from "@/components/atlas";
 import { Button } from "@/components/ui/button";
+import { MaterialReadinessChip } from "@/features/inventory/components/MaterialReadinessChip";
 
 import { useJobMaterials } from "../../state/JobMaterialsProvider";
 import { useMaterialPlan } from "../../state/MaterialPlanProvider";
@@ -20,7 +21,7 @@ type Open = "generate" | "kit" | "history" | "save" | null;
  */
 export function MaterialPlanBar() {
   const { lines } = useJobMaterials();
-  const { plan, kits, needsSkuCount, loading, busy, canEdit, canConfirm, canResolve, refreshKit, setStatus } = useMaterialPlan();
+  const { plan, kits, needsSkuCount, loading, busy, canEdit, canConfirm, canResolve, refreshKit, setStatus, recheck } = useMaterialPlan();
   const [open, setOpen] = useState<Open>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
@@ -36,6 +37,11 @@ export function MaterialPlanBar() {
         ? { tone: "ok", text: `Confirmed. ${needsSkuCount} line${needsSkuCount === 1 ? " still needs" : "s still need"} a catalog item before they can be reserved.` }
         : null,
     );
+  }
+
+  async function runRecheck() {
+    const result = await recheck();
+    setMessage(result.ok ? null : { tone: "error", text: result.message ?? "Could not re-check the materials." });
   }
 
   async function refresh(kitId: string, name: string) {
@@ -65,9 +71,19 @@ export function MaterialPlanBar() {
                 {needsSkuCount} need{needsSkuCount === 1 ? "s" : ""} a catalog item
               </StatusBadge>
             ) : null}
+            {plan.readinessState ? <MaterialReadinessChip level={plan.readinessState} /> : null}
             <span className="text-xs text-muted">
-              {plan.status === "confirmed" ? "Reservations are not live yet." : "Nothing is reserved yet."}
+              {plan.readinessReason ??
+                (plan.status === "confirmed"
+                  ? "Stock is held once the job has a date."
+                  : "Nothing is reserved until the plan is confirmed.")}
             </span>
+            {canConfirm && plan.status === "confirmed" ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => void runRecheck()} disabled={busy}>
+                <RotateCw size={14} aria-hidden="true" />
+                Re-check
+              </Button>
+            ) : null}
           </>
         ) : (
           <span className="text-sm text-muted">No plan yet. Build one from the estimate or a kit.</span>

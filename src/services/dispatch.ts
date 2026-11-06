@@ -1,6 +1,7 @@
 import "server-only";
 
 import { listContractors } from "@/repositories/contractors";
+import { releaseAndRecheck } from "@/services/inventoryReservations";
 import { createJobActivity, getJobById, listJobsByIds, setJobPeople, updateJob } from "@/repositories/jobs";
 import {
   addCalendarDays,
@@ -249,6 +250,8 @@ export async function rescheduleJobByDayShift(
       ...(shifted?.scheduledStartAt ? { scheduledStartAt: shifted.scheduledStartAt } : {}),
       ...(shifted?.scheduledEndAt ? { scheduledEndAt: shifted.scheduledEndAt } : {}),
     });
+    // Material stock follows the date: the moved job goes to the back of the queue.
+    await releaseAndRecheck(jobId, "rescheduled");
   }
 }
 
@@ -264,6 +267,8 @@ export async function schedulePlan(
   let scheduledStartTime = input.scheduledStartTime;
   let scheduledEndTime = input.scheduledEndTime;
   let estimatedDurationHours = input.estimatedDurationHours;
+  let scheduleMoved = false;
+  let scheduleWasSet = false;
 
   if (job) {
     // When the job already has a scheduledStartAt, compute the day delta
@@ -312,6 +317,8 @@ export async function schedulePlan(
       ...(shiftedStart ? { scheduledStartAt: shiftedStart } : {}),
       ...(shiftedEnd ? { scheduledEndAt: shiftedEnd } : {}),
     });
+    scheduleMoved = (job.scheduledFor ?? null) !== input.scheduledDate;
+    scheduleWasSet = (job.scheduledFor ?? null) !== null;
   }
 
   const [blockResult, statusResult] = await Promise.all([
@@ -329,6 +336,10 @@ export async function schedulePlan(
       estimatedDurationHours,
     }),
   ]);
+  if (job && scheduleMoved) {
+    // Material stock follows the date (amendment 7); a first-time schedule just claims.
+    await releaseAndRecheck(job.id, scheduleWasSet ? "rescheduled" : "changed");
+  }
   return { blockResult, statusResult };
 }
 

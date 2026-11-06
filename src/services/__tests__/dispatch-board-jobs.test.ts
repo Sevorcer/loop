@@ -15,6 +15,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/services/inventoryReservations", () => ({ releaseAndRecheck: vi.fn(async () => undefined) }));
 
 // ---------------------------------------------------------------------------
 // In-memory Supabase fake: chainable, thenable, honours eq/in filters and

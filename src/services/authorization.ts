@@ -114,7 +114,12 @@ export type CoreTable =
   | "job_material_plans"
   | "job_kits"
   | "job_material_line_events"
-  | "catalog_item_aliases";
+  | "catalog_item_aliases"
+  // Inventory Lane 4 — reservations, expected arrivals, readiness history, field events
+  | "inventory_reservations"
+  | "inventory_expected_arrivals"
+  | "job_readiness_snapshots"
+  | "job_material_events";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -564,6 +569,38 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner", "manager", "office"]),
   },
+  // Stock held for a job. Rows are never deleted: they are released, pulled or consumed
+  // (a database guard allows only those status moves).
+  inventory_reservations: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>([]),
+  },
+  // What is on its way: dispatch reads; owner/manager/office edit; owner may delete an
+  // arrival that has not been received.
+  inventory_expected_arrivals: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Append-only readiness history (plan confirmed / state changed / dispatched). Techs
+  // may add only the "dispatched" row on a job assigned to them (database policy).
+  job_readiness_snapshots: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // Append-only field events (missing part, wrong part, substitution...). Techs read and
+  // add events only on jobs assigned to them (database policy).
+  job_material_events: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -581,6 +618,8 @@ const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new M
   ["job_financials_history", new Set<TableAction>(["update", "delete"])],
   ["inventory_transactions", new Set<TableAction>(["update", "delete"])],
   ["job_material_line_events", new Set<TableAction>(["update", "delete"])],
+  ["job_readiness_snapshots", new Set<TableAction>(["update", "delete"])],
+  ["job_material_events", new Set<TableAction>(["update", "delete"])],
 ]);
 
 /**

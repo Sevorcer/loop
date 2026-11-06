@@ -4,9 +4,10 @@ import { Link2, PackageX, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { StatusBadge } from "@/components/atlas";
+import { MaterialReadinessChip } from "@/features/inventory/components/MaterialReadinessChip";
 
 import { useMaterialPlan } from "../../state/MaterialPlanProvider";
-import { JOB_MATERIAL_SOURCE_LABELS, type JobMaterialLine } from "../../types/jobMaterials";
+import { JOB_MATERIAL_SOURCE_LABELS, MATERIAL_LINE_STAGE_LABELS, type JobMaterialLine } from "../../types/jobMaterials";
 import { isNeedsSku } from "../../utils/materialPlan";
 import { LinkItemDialog } from "./LinkItemDialog";
 import { AdjustQuantityDialog, NotStockDialog, RemoveLineDialog } from "./LineDialogs";
@@ -26,6 +27,14 @@ export function PlanLineBadges({ line }: { line: JobMaterialLine }) {
         <StatusBadge variant="info" className="px-2 py-0.5 text-[11px]">
           Needs SKU
         </StatusBadge>
+      ) : null}
+      {line.stage === "reserved" || line.stage === "pulled" ? (
+        <StatusBadge variant="neutral" className="px-2 py-0.5 text-[11px]">
+          {MATERIAL_LINE_STAGE_LABELS[line.stage]}
+        </StatusBadge>
+      ) : null}
+      {line.readinessState && line.readinessState !== "ok" ? (
+        <MaterialReadinessChip level={line.readinessState} className="px-2 py-0.5 text-[11px]" />
       ) : null}
       {line.nonStockReason ? (
         <StatusBadge variant="neutral" className="px-2 py-0.5 text-[11px]">
@@ -49,6 +58,7 @@ export function planLineDetail(line: JobMaterialLine): string | null {
   if (line.catalogItem?.sku) parts.push(`SKU ${line.catalogItem.sku}`);
   if (line.kitQuantity !== null && line.kitQuantity !== line.quantity) parts.push(`Kit asks for ${line.kitQuantity}`);
   if (line.nonStockReason) parts.push(line.nonStockReason);
+  if (line.readinessState && line.readinessState !== "ok" && line.readinessReason) parts.push(line.readinessReason);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
