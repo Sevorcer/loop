@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { companyTimeZone } from "@/lib/timezone";
 
 import { useJobMaterials } from "../state/JobMaterialsProvider";
+import { MaterialPlanProvider } from "../state/MaterialPlanProvider";
 import {
   JOB_MATERIAL_STATES,
   JOB_MATERIAL_STATE_LABELS,
@@ -15,6 +16,8 @@ import {
   type JobMaterialState,
 } from "../types/jobMaterials";
 import { formatMaterialQuantity } from "../utils/jobMaterials";
+import { MaterialPlanBar } from "./plan/MaterialPlanBar";
+import { PlanLineBadges, PlanLineControls, planLineDetail } from "./plan/PlanLineParts";
 
 const STATE_STYLES: Record<JobMaterialState, { on: string; dot: string }> = {
   needed: { on: "border-red-500/40 bg-red-500/15 text-red-200", dot: "bg-red-400" },
@@ -201,11 +204,7 @@ function AddMaterialForm() {
   );
 }
 
-/**
- * Per-job materials checklist (#23). Office adds lines; anyone on the job
- * moves them Needed → On truck → Used and fixes the quantity.
- */
-export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
+function MaterialsBody({ compact }: { compact: boolean }) {
   const {
     lines,
     summary,
@@ -256,6 +255,8 @@ export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
         ) : null}
       </div>
 
+      {!compact ? <MaterialPlanBar /> : null}
+
       {error ? (
         <p role="alert" className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
           {error}
@@ -278,6 +279,9 @@ export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
           {lines.map((line) => {
             const pending = pendingIds.has(line.id);
             const stamp = stateStamp(line);
+            // Office edits to a plan line go through the plan API so the change is explained and recorded.
+            const planManaged = !compact && canManage && line.planId !== null;
+            const detail = planLineDetail(line);
             return (
               <li
                 key={line.id}
@@ -289,15 +293,17 @@ export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
                     title={line.name}
                   >
                     {line.name}
+                    {!compact ? <PlanLineBadges line={line} /> : null}
                     {!canProgress ? (
                       <span className="ml-2 text-xs text-slate-500">
                         {formatMaterialQuantity(line.quantity, line.unit)}
                       </span>
                     ) : null}
                   </p>
-                  {line.partNumber || line.notes || stamp ? (
+                  {line.partNumber || line.notes || stamp || (!compact && detail) ? (
                     <p className="truncate text-xs text-slate-500">
                       {[
+                        !compact ? detail : null,
                         line.partNumber ? `Part ${line.partNumber}` : null,
                         line.notes || null,
                         stamp ? `${JOB_MATERIAL_STATE_LABELS[line.state]} ${stamp}` : null,
@@ -308,12 +314,17 @@ export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  {canProgress ? (
+                  {canProgress && !planManaged ? (
                     <QuantityInput
                       line={line}
                       disabled={pending}
                       onCommit={(quantity) => void setLineQuantity(line.id, quantity)}
                     />
+                  ) : null}
+                  {planManaged ? (
+                    <span className="shrink-0 text-xs text-slate-300">
+                      {formatMaterialQuantity(line.quantity, line.unit)}
+                    </span>
                   ) : null}
                   {canProgress ? (
                     <StateControl
@@ -324,7 +335,8 @@ export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
                   ) : (
                     <span className="text-xs text-slate-400">{JOB_MATERIAL_STATE_LABELS[line.state]}</span>
                   )}
-                  {canManage ? (
+                  {planManaged ? <PlanLineControls line={line} disabled={pending} /> : null}
+                  {canManage && !planManaged ? (
                     <button
                       type="button"
                       onClick={() => void removeLine(line.id)}
@@ -346,10 +358,30 @@ export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
     </>
   );
 
-  if (compact) return <div className="space-y-0">{body}</div>;
+  return body;
+}
+
+/**
+ * Per-job materials checklist (#23) and, below the header, the Lane 4 material plan.
+ * Office builds the plan (estimate lines and kits), confirms it and explains changes;
+ * anyone on the job moves lines Needed → On truck → Used and fixes the quantity.
+ * The compact variant (Dispatch board) stays the plain checklist.
+ */
+export function JobMaterialsPanel({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <div className="space-y-0">
+        <MaterialsBody compact />
+      </div>
+    );
+  }
   return (
     <SurfaceCard>
-      <div className="p-6">{body}</div>
+      <div className="p-6">
+        <MaterialPlanProvider>
+          <MaterialsBody compact={false} />
+        </MaterialPlanProvider>
+      </div>
     </SurfaceCard>
   );
 }

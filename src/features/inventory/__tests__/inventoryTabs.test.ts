@@ -7,7 +7,7 @@ import { activeInventoryTab, INVENTORY_TABS } from "../utils/inventoryTabs";
 describe("inventory tabs", () => {
   it("lists Kits after Catalog and Rules last, each pointing at its route", () => {
     const keys = INVENTORY_TABS.map((tab) => tab.key);
-    expect(keys).toEqual(["stock", "catalog", "kits", "locations", "activity", "rules"]);
+    expect(keys).toEqual(["stock", "catalog", "kits", "needs-sku", "locations", "activity", "rules"]);
     expect(INVENTORY_TABS.find((tab) => tab.key === "kits")?.href).toBe(ROUTES.INVENTORY_KITS);
     expect(INVENTORY_TABS.find((tab) => tab.key === "rules")?.href).toBe(ROUTES.INVENTORY_RULES);
   });

@@ -131,6 +131,10 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   inventory_settings: "Inventory Rules",
   kit_templates: "Kit Templates",
   kit_template_lines: "Kit Template Lines",
+  job_material_plans: "Job Material Plans",
+  job_kits: "Job Kits",
+  job_material_line_events: "Job Material History",
+  catalog_item_aliases: "Catalog Item Aliases",
 };
 
 export interface RolePermissionRow {

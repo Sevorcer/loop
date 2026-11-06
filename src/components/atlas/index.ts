@@ -6,6 +6,7 @@ export { EmptyState } from "./EmptyState";
 export { ErrorState } from "./ErrorState";
 export { KPICard } from "./KPICard";
 export { LoadingState } from "./LoadingState";
+export { ModalDialog } from "./ModalDialog";
 export { PageHeader } from "./PageHeader";
 export { PermissionGuard } from "./PermissionGuard";
 export { RoutePermissionGuard } from "./RoutePermissionGuard";
