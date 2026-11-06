@@ -33,11 +33,13 @@ function ActionMenu({
   onEdit,
   onToggleStatus,
   onResetPassword,
+  onResendInvite,
 }: {
   user: OrgUser;
   onEdit: () => void;
   onToggleStatus: () => void;
   onResetPassword: () => void;
+  onResendInvite: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -69,14 +71,25 @@ function ActionMenu({
               <Pencil size={13} className="text-slate-500" />
               Edit
             </button>
-            <button
-              type="button"
-              onClick={() => { setOpen(false); onResetPassword(); }}
-              className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 md:min-h-0"
-            >
-              <Mail size={13} className="text-slate-500" />
-              Send Password Reset
-            </button>
+            {user.lastSignInAt ? (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onResetPassword(); }}
+                className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 md:min-h-0"
+              >
+                <Mail size={13} className="text-slate-500" />
+                Send Password Reset
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onResendInvite(); }}
+                className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 md:min-h-0"
+              >
+                <Mail size={13} className="text-slate-500" />
+                Resend invite
+              </button>
+            )}
             <div className="my-1 border-t border-slate-800" />
             <button
               type="button"
@@ -150,6 +163,7 @@ export function UsersScreen() {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<OrgUser | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -202,6 +216,7 @@ export function UsersScreen() {
   }
 
   async function handleResetPassword(user: OrgUser) {
+    setActionError(null);
     try {
       const res = await fetch(`/api/settings/users/${user.id}/reset-password`, {
         method: "POST",
@@ -209,9 +224,29 @@ export function UsersScreen() {
       if (res.ok) {
         setActionFeedback(`Password reset email sent to ${user.email}.`);
         setTimeout(() => setActionFeedback(null), FEEDBACK_DISPLAY_DURATION_MS);
+        return;
       }
+      setActionError("Could not send the password reset email.");
     } catch {
-      // Silently ignore
+      setActionError("Could not send the password reset email.");
+    }
+  }
+
+  async function handleResendInvite(user: OrgUser) {
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/settings/users/${user.id}/resend-invite`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setActionFeedback(`A new invite was sent to ${user.email}.`);
+        setTimeout(() => setActionFeedback(null), FEEDBACK_DISPLAY_DURATION_MS);
+        return;
+      }
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      setActionError(body?.message || "Could not resend the invite.");
+    } catch {
+      setActionError("Could not resend the invite.");
     }
   }
 
@@ -238,6 +273,12 @@ export function UsersScreen() {
           <div className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
             <RefreshCw size={14} />
             {actionFeedback}
+          </div>
+        )}
+
+        {actionError && (
+          <div className="flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {actionError}
           </div>
         )}
 
@@ -296,6 +337,7 @@ export function UsersScreen() {
                       onEdit={() => setEditingUser(user)}
                       onToggleStatus={() => handleToggleStatus(user)}
                       onResetPassword={() => handleResetPassword(user)}
+                      onResendInvite={() => handleResendInvite(user)}
                     />
                   </div>
                   <dl className="mt-3 space-y-2 text-sm">
@@ -376,6 +418,7 @@ export function UsersScreen() {
                           onEdit={() => setEditingUser(user)}
                           onToggleStatus={() => handleToggleStatus(user)}
                           onResetPassword={() => handleResetPassword(user)}
+                          onResendInvite={() => handleResendInvite(user)}
                         />
                       </td>
                     </tr>

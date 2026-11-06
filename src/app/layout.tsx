@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+import { PasswordLinkHandoff } from "@/features/auth/components/PasswordLinkHandoff";
 import { AppearancePreferencesEffect } from "@/features/settings/components/AppearancePreferencesEffect";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <AppearancePreferencesEffect />
+        <PasswordLinkHandoff />
         <ServiceWorkerRegister />
         {children}
       </body>

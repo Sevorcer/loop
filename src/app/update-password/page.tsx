@@ -1,11 +1,12 @@
 import { UpdatePasswordScreen } from "@/features/auth";
 
 /**
- * Set-new-password page — public route, no auth required.
+ * Set-password page — public route, no auth required.
  *
- * Landed on from Supabase password-recovery emails, which link here with the
- * recovery session in the URL fragment (type=recovery). The screen consumes
- * the fragment and lets the user choose a new password.
+ * Invite emails land here with type=invite (and flow=invite). Password-reset
+ * emails for people who already have accounts land here with type=recovery.
+ * The screen applies the session from the URL and lets them choose a password.
+ * It does not ask for a role.
  */
 export default function UpdatePasswordPage() {
   return <UpdatePasswordScreen />;

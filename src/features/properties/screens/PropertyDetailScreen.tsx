@@ -18,6 +18,7 @@ import type { TimelineEventItem } from "@/lib/timeline";
 import type { Customer } from "@/features/customers/types/customer";
 import type { CustomerPropertyItem } from "@/features/customers/types/customerDetails";
 import type { Property } from "../types/property";
+import { resolvePropertyMapImagery } from "@/services/propertyImagery";
 import { MapViewCard } from "../components/MapViewCard";
 import { PropertyDeleteButton } from "../components/PropertyDeleteButton";
 import { PropertyDetailTabs } from "../components/PropertyDetailTabs";
@@ -39,7 +40,7 @@ function formatDate(value: string) {
 }
 
 
-export function PropertyDetailScreen({
+export async function PropertyDetailScreen({
   property,
   customer = null,
   customerProperties = [],
@@ -74,22 +75,15 @@ export function PropertyDetailScreen({
       ? `https://maps.apple.com/?q=${encodeURIComponent(addressLine)}`
       : "";
 
-  // Read the Google Maps key server-side so it never reaches the browser
-  // bundle as executable code. Support the existing embed-specific name for
-  // backward compatibility while allowing a general-purpose key name for the
-  // mixed static-image + embed experience.
-  const mapsApiKey =
-    process.env.GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_MAPS_EMBED_API_KEY;
-
-  const streetImageSrc =
-    mapsApiKey && location
-      ? `https://maps.googleapis.com/maps/api/streetview?size=1200x720&location=${location.latitude},${location.longitude}&heading=210&pitch=0&fov=90&source=outdoor&key=${mapsApiKey}`
-      : null;
-
-  const aerialSrc =
-    mapsApiKey && location
-      ? `https://www.google.com/maps/embed/v1/view?key=${mapsApiKey}&center=${location.latitude},${location.longitude}&zoom=19&maptype=satellite`
-      : null;
+  // Imagery URLs are built on the server. A confirmed Street View panorama
+  // becomes the street photo; a miss falls through to the satellite embed
+  // instead of Google's gray "no imagery" tile.
+  const imagery = await resolvePropertyMapImagery({
+    latitude: location?.latitude,
+    longitude: location?.longitude,
+    placeId: location?.placeId,
+    address: addressLine,
+  });
 
   const propertyType = property.type?.trim() ?? "";
   const customerName = property.customer?.trim() ?? "";
@@ -228,8 +222,9 @@ export function PropertyDetailScreen({
 
       {/* Map card — static street-side image primary, aerial secondary */}
       <MapViewCard
-        streetImageSrc={streetImageSrc}
-        aerialSrc={aerialSrc}
+        streetImageSrc={imagery.streetImageSrc}
+        aerialSrc={imagery.aerialSrc}
+        mapsConfigured={imagery.mapsConfigured}
         navigationUrl={navigationUrl}
         appleMapsUrl={appleMapsUrl}
         arrivalAddress={addressLine}
