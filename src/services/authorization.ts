@@ -101,7 +101,11 @@ export type CoreTable =
   | "vehicles"
   | "inventory_locations"
   | "inventory_stock_levels"
-  | "inventory_transactions";
+  | "inventory_transactions"
+  // Inventory Lane 4 — kit templates and the inventory rules row
+  | "inventory_settings"
+  | "kit_templates"
+  | "kit_template_lines";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -485,6 +489,30 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
+  },
+  // ── Inventory Lane 4 ──────────────────────────────────────────────────────
+  // Rules row (readiness lead/buffer days, closeout stage): ops roles read, owner writes.
+  // No delete: the row is only ever created/changed, never removed.
+  inventory_settings: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner"]),
+    update: new Set<AppRole>(["owner"]),
+    delete: new Set<AppRole>([]),
+  },
+  // Kit templates: every internal role reads (crews see what is in a kit);
+  // owner/manager/office edit; owner deletes.
+  kit_templates: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Lines are replaced as a set when a kit is saved, so office roles may delete them.
+  kit_template_lines: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
   },
 };
 

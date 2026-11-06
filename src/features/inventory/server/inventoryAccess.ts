@@ -22,6 +22,10 @@ export interface InventoryAccess {
   canDeleteTiers: boolean;
   canEditVehicles: boolean;
   canEditLocations: boolean;
+  canViewKits: boolean;
+  canEditKits: boolean;
+  canViewSettings: boolean;
+  canEditSettings: boolean;
 }
 
 /**
@@ -52,6 +56,10 @@ export async function getInventoryAccess(): Promise<InventoryAccess> {
     canDeleteTiers: can("catalog_price_tiers", "delete"),
     canEditVehicles: can("vehicles", "update"),
     canEditLocations: can("inventory_locations", "update"),
+    canViewKits: can("kit_templates", "select"),
+    canEditKits: can("kit_templates", "update"),
+    canViewSettings: can("inventory_settings", "select"),
+    canEditSettings: can("inventory_settings", "update"),
   };
 }
 
