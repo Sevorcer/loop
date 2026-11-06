@@ -139,6 +139,10 @@ All authorization failures return a consistent JSON envelope regardless of which
 | `inventory/arrivals/route.ts` | GET | `requirePermission` | `inventory_expected_arrivals` | `select` |
 | `inventory/arrivals/route.ts` | POST | `requirePermission` | `inventory_expected_arrivals` | `insert` |
 | `inventory/arrivals/[id]/route.ts` | PATCH (edit/cancel) | `requirePermission` | `inventory_expected_arrivals` | `update` |
+| `inventory/pulls/route.ts` | GET | `requirePermission` | `inventory_reservations` | `select` |
+| `jobs/[id]/pull/route.ts` | POST | `requirePermission` | `inventory_transactions` | `insert` |
+| `jobs/[id]/return-pallet/route.ts` | POST | `requirePermission` | `inventory_transactions` | `insert` |
+| `jobs/[id]/material-events/route.ts` | POST | `requirePermission` | `job_material_events` | `insert` |
 | `inventory/arrivals/[id]/receive/route.ts` | POST (mark received) | `requirePermission` | `inventory_expected_arrivals` | `update` (the `receive_expected_arrival` function also requires owner, manager or office) |
 | `jobs/[id]/material-plan/recheck/route.ts` | POST | `requirePermission` | `inventory_reservations` | `update` (the reserve function also requires owner, manager, dispatch or office) |
 | `inventory/settings/route.ts` | GET | `requirePermission` | `inventory_settings` | `select` |
@@ -199,6 +203,7 @@ The test file `src/lib/__tests__/api-route-authz-coverage.test.ts` enforces cove
 
 ## Changelog
 
+- **2.8 (2026-11-05):** Inventory Lane 4 PR D adds `inventory/pulls/route.ts` (GET, `inventory_reservations` select), `jobs/[id]/pull/route.ts` and `jobs/[id]/return-pallet/route.ts` (POST, `inventory_transactions` insert — owner, manager, office), and `jobs/[id]/material-events/route.ts` (POST, `job_material_events` insert). Stock moves go through SECURITY INVOKER functions (`pull_job_materials`, `return_pallet_to_shop`) that re-check the role and run under the caller's RLS. No new tables, so no new CoreTables entries.
 - **2.7 (2026-11-05):** Inventory Lane 4 PR C adds 4 route files under `inventory/arrivals/` (list/add, edit/cancel, receive) and `jobs/[id]/material-plan/recheck/`, each guarded by `requirePermission`. Reserving, releasing and receiving go through SECURITY INVOKER SQL functions that also check the role and raise 42501 for others. Also lists `inventory/needs-sku` (added in PR B). Totals are not recounted here (see 2.1).
 - **2.6 (2026-11-06):** Inventory Lane 2 PR D adds `inventory/my-van/count/route.ts` (POST) and `inventory/my-van/restock/route.ts` (POST). Both require a session and `app_role = tech`. They do not call `requirePermission` for `inventory_transactions` insert, so technicians do not gain that grant. Each handler calls `fn_inventory_post_van_entries`, which checks the technician role again and refuses adjust, cost, another van, and a count before the office count-in. Restock is limited to lines below par on the caller's van. Cost is not read and `unit_cost_cents` is not sent. `/inventory` stays denied for technicians; `/inventory/my-van` is the shell exception.
 - **2.5 (2026-11-06):** Inventory Lane 2 PR C adds `inventory/vans/[vehicleId]/count/route.ts` (POST) and `inventory/restock/route.ts` (POST). Both gates are `inventory_transactions` insert — owner, manager, and office. Count-in appends `count` rows for lines that differ from on-hand. Restock appends one shop-to-van transfer pair per line, reason `Restock`, each with its own transfer group. Neither route reads cost or writes `unit_cost_cents`. Dispatch can still read Needs restock and cannot post. Techs do not use these routes. Adjust and count of any location remain `POST inventory/transactions`.

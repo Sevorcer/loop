@@ -26,6 +26,7 @@ export const ROUTES = {
   INVENTORY_KITS: "/inventory/kits",
   INVENTORY_NEEDS_SKU: "/inventory/needs-sku",
   INVENTORY_ARRIVALS: "/inventory/arrivals",
+  INVENTORY_PULLS: "/inventory/pulls",
   INVENTORY_LOCATIONS: "/inventory/locations",
   INVENTORY_RESTOCK: "/inventory/restock",
   INVENTORY_ACTIVITY: "/inventory/activity",
@@ -62,6 +63,7 @@ export const ROUTE_BUILDERS = {
   /** Authenticated PDF stream for an indexed manual stored in LOOP (api route, not a page). */
   MANUAL_FILE: (manualId: string) => `/api/manuals/${manualId}/file`,
   JOB_DETAIL: (jobId: string) => `${ROUTES.JOBS}/${jobId}`,
+  JOB_PULL_LIST: (jobId: string) => `${ROUTES.JOBS}/${jobId}/pull-list`,
   JOB_EDIT: (jobId: string) => `${ROUTES.JOBS}/${jobId}/edit`,
   PROPERTY_NEW: (context?: { customerId?: string }) => {
     const params = new URLSearchParams();

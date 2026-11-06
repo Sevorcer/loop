@@ -33,6 +33,9 @@ export interface InventoryAccess {
   canViewMaterialPlans: boolean;
   canViewArrivals: boolean;
   canEditArrivals: boolean;
+  canViewPulls: boolean;
+  /** Moves stock shop -> pallet and pallet -> shop; the same roles that write the ledger. */
+  canPull: boolean;
   canViewSettings: boolean;
   canEditSettings: boolean;
 }
@@ -73,6 +76,8 @@ export async function getInventoryAccess(): Promise<InventoryAccess> {
     canViewMaterialPlans: can("job_material_plans", "select"),
     canViewArrivals: can("inventory_expected_arrivals", "select"),
     canEditArrivals: can("inventory_expected_arrivals", "update"),
+    canViewPulls: can("inventory_reservations", "select"),
+    canPull: can("inventory_transactions", "insert"),
     canViewSettings: can("inventory_settings", "select"),
     canEditSettings: can("inventory_settings", "update"),
   };
