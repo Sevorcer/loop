@@ -11,6 +11,7 @@ import { listLocations, listVehicles } from "@/services/inventoryLocations";
 
 import { InventoryFrame } from "../components/InventoryFrame";
 import { InventoryTable, Td } from "../components/InventoryTable";
+import { RestockPullTable } from "../components/RestockPullTable";
 import { firstParam, getInventoryAccess } from "../server/inventoryAccess";
 import { negativeOnHandWarning, projectedOnHand } from "../utils/stockView";
 import {
@@ -26,8 +27,8 @@ interface RestockScreenProps {
 }
 
 /**
- * Office pick list. Read-only in this pass: posting the shop-to-van transfer
- * is the next inventory change. Cost is never loaded.
+ * Needs restock. Office posts a shop-to-van transfer for each checked line.
+ * Dispatch can read the list and cannot post. Cost is never loaded.
  */
 export async function RestockScreen({ searchParams }: RestockScreenProps) {
   const access = await getInventoryAccess();
@@ -94,15 +95,16 @@ export async function RestockScreen({ searchParams }: RestockScreenProps) {
   const focus = focusVan ? list.omitted.find((row) => row.vehicleId === focusVan) : undefined;
   const focusOnList = focusVan ? list.groups.some((group) => group.vehicleId === focusVan) : false;
 
+  const canPull = access.canPostLedger;
+
   return (
-    <InventoryFrame
-      title="Inventory"
-      description="Vans under par, and what to pull from the shop. The pull is not posted from this screen yet."
-    >
+    <InventoryFrame title="Inventory" description="Vans under par, and what to pull from the shop.">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           {lineCount > 0 ? <StatusBadge variant="warning">{lineCount} below par</StatusBadge> : null}
-          <p className="text-sm text-muted">The pull is not posted from this screen yet.</p>
+          {lineCount > 0 && !canPull ? (
+            <p className="text-sm text-muted">The office posts the pull from the shop onto the van.</p>
+          ) : null}
         </div>
         {waiting ? (
           <p className="rounded-atlas-md border border-default bg-surface-elevated px-4 py-3 text-sm leading-6 text-primary">
@@ -156,54 +158,61 @@ export async function RestockScreen({ searchParams }: RestockScreenProps) {
               {!group.shopLocationId ? (
                 <p className="mb-4 text-sm text-primary">Set the shop as this van&apos;s parent before anyone pulls parts.</p>
               ) : null}
-              <InventoryTable
-                caption={`Needs restock on ${group.vehicleName}`}
-                headers={[
-                  { label: "Item" },
-                  { label: "On hand", align: "right" },
-                  { label: "Minimum", align: "right" },
-                  { label: "Suggested pull", align: "right" },
-                  { label: "Shop on hand", align: "right" },
-                  { label: "Status" },
-                ]}
-              >
-                {group.lines.map((line) => {
-                  const shopWarning =
-                    line.shopOnHand != null && line.shopShort && group.shopLocationName
-                      ? negativeOnHandWarning({
-                          itemName: line.name,
-                          locationName: group.shopLocationName,
-                          projected: projectedOnHand(line.shopOnHand, -line.suggestedQty),
-                        })
-                      : null;
-                  return (
-                    <tr key={line.itemId} className="transition-colors hover:bg-surface-elevated">
-                      <Td>
-                        <span className="font-medium">{line.name}</span>
-                        {line.sku ? <span className="ml-2 text-xs text-muted">{line.sku}</span> : null}
-                      </Td>
-                      <Td align="right">
-                        <span className="font-semibold">{line.onHand}</span>
-                        {line.unit ? <span className="ml-1 text-xs text-muted">{line.unit}</span> : null}
-                      </Td>
-                      <Td align="right" className="text-muted">{line.minQty}</Td>
-                      <Td align="right">
-                        <span className="font-semibold">{line.suggestedQty}</span>
-                      </Td>
-                      <Td align="right">
-                        <span className="text-muted">{line.shopOnHand ?? "—"}</span>
-                        {shopWarning ? <span className="mt-1 block text-xs status-warning">{shopWarning}</span> : null}
-                      </Td>
-                      <Td>
-                        <span className="flex flex-wrap gap-1">
-                          {line.negative ? <StatusBadge variant="danger">Negative</StatusBadge> : null}
-                          <StatusBadge variant="warning">Below par</StatusBadge>
-                        </span>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </InventoryTable>
+              {canPull && group.shopLocationId ? (
+                <RestockPullTable
+                  key={group.lines.map((line) => `${line.itemId}:${line.onHand}:${line.suggestedQty}`).join("|")}
+                  group={group}
+                />
+              ) : (
+                <InventoryTable
+                  caption={`Needs restock on ${group.vehicleName}`}
+                  headers={[
+                    { label: "Item" },
+                    { label: "On hand", align: "right" },
+                    { label: "Minimum", align: "right" },
+                    { label: "Suggested pull", align: "right" },
+                    { label: "Shop on hand", align: "right" },
+                    { label: "Status" },
+                  ]}
+                >
+                  {group.lines.map((line) => {
+                    const shopWarning =
+                      line.shopOnHand != null && line.shopShort && group.shopLocationName
+                        ? negativeOnHandWarning({
+                            itemName: line.name,
+                            locationName: group.shopLocationName,
+                            projected: projectedOnHand(line.shopOnHand, -line.suggestedQty),
+                          })
+                        : null;
+                    return (
+                      <tr key={line.itemId} className="transition-colors hover:bg-surface-elevated">
+                        <Td>
+                          <span className="font-medium">{line.name}</span>
+                          {line.sku ? <span className="ml-2 text-xs text-muted">{line.sku}</span> : null}
+                        </Td>
+                        <Td align="right">
+                          <span className="font-semibold">{line.onHand}</span>
+                          {line.unit ? <span className="ml-1 text-xs text-muted">{line.unit}</span> : null}
+                        </Td>
+                        <Td align="right" className="text-muted">{line.minQty}</Td>
+                        <Td align="right">
+                          <span className="font-semibold">{line.suggestedQty}</span>
+                        </Td>
+                        <Td align="right">
+                          <span className="text-muted">{line.shopOnHand ?? "—"}</span>
+                          {shopWarning ? <span className="mt-1 block text-xs status-warning">{shopWarning}</span> : null}
+                        </Td>
+                        <Td>
+                          <span className="flex flex-wrap gap-1">
+                            {line.negative ? <StatusBadge variant="danger">Negative</StatusBadge> : null}
+                            <StatusBadge variant="warning">Below par</StatusBadge>
+                          </span>
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </InventoryTable>
+              )}
             </SectionCard>
           ))
         )}

@@ -64,7 +64,9 @@ export async function VanStockScreen({ vehicleId, searchParams }: VanStockScreen
 
   const { vehicle, location, crewName, counted, items, levels, operators, people } = context;
   const status = VEHICLE_STATUS[vehicle.status];
-  const canEditPars = access.canEditPars && location?.isActive === true && vehicle.status !== "retired";
+  const locationOpen = location?.isActive === true && vehicle.status !== "retired";
+  const canEditPars = access.canEditPars && locationOpen;
+  const canCount = access.canPostLedger && locationOpen;
   const names = new Map(people.map((person) => [person.id, person.name]));
   const openedBy = operators.map((row) => names.get(row.userId) ?? "Inactive teammate");
 
@@ -75,19 +77,22 @@ export async function VanStockScreen({ vehicleId, searchParams }: VanStockScreen
     return a.name.localeCompare(b.name);
   });
 
+  const quietLink =
+    "btn-secondary inline-flex min-h-11 items-center rounded-atlas-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]";
+  const primaryLink =
+    "btn-primary inline-flex min-h-11 items-center rounded-atlas-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]";
   const actions = location ? (
     <>
-      <Link
-        href={`${ROUTES.INVENTORY_RESTOCK}?van=${vehicle.id}`}
-        className="btn-secondary inline-flex min-h-11 items-center rounded-atlas-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-      >
+      <Link href={`${ROUTES.INVENTORY_RESTOCK}?van=${vehicle.id}`} className={quietLink}>
         Needs restock
       </Link>
+      {canCount ? (
+        <Link href={ROUTE_BUILDERS.INVENTORY_VAN_COUNT(vehicle.id)} className={counted ? quietLink : primaryLink}>
+          {counted ? "Recount" : "Count in"}
+        </Link>
+      ) : null}
       {canEditPars ? (
-        <Link
-          href={ROUTE_BUILDERS.INVENTORY_VAN_PARS(vehicle.id)}
-          className="btn-primary inline-flex min-h-11 items-center rounded-atlas-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-        >
+        <Link href={ROUTE_BUILDERS.INVENTORY_VAN_PARS(vehicle.id)} className={counted || !canCount ? primaryLink : quietLink}>
           Edit pars
         </Link>
       ) : null}

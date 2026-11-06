@@ -30,6 +30,7 @@ describe("getPageMeta", () => {
     expect(getPageMeta(ROUTES.INVENTORY_RESTOCK).parent).toEqual({ title: "Inventory", href: ROUTES.INVENTORY });
     expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc`).title).toBe("Van stock");
     expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc/pars`).title).toBe("Edit pars");
+    expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc/count`).title).toBe("Count in");
   });
 
   it("falls back to Dashboard for unknown routes", () => {

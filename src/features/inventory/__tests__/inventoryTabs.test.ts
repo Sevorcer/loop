@@ -28,5 +28,6 @@ describe("inventory tabs", () => {
     expect(activeInventoryTab(ROUTES.INVENTORY_RESTOCK)).toBe("restock");
     expect(activeInventoryTab(`${ROUTES.INVENTORY}/vans/abc`)).toBe("locations");
     expect(activeInventoryTab(`${ROUTES.INVENTORY}/vans/abc/pars`)).toBe("locations");
+    expect(activeInventoryTab(`${ROUTES.INVENTORY}/vans/abc/count`)).toBe("locations");
   });
 });
