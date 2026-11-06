@@ -99,34 +99,46 @@ export function JobFilesPanel({
       setError(null);
       setSuccess(null);
 
-      const headers = new Headers();
-      if (process.env.NODE_ENV !== "production" && role) {
-        headers.set("x-loop-role", role);
-      }
-
       let uploadedCount = 0;
       const errors: string[] = [];
 
       // Upload each file individually so one failure doesn't block the rest.
+      // Files go straight to Storage through a signed URL (sign → PUT →
+      // complete): proxying the bytes through the app server silently
+      // killed any photo over the platform's ~4.5 MB request limit.
       for (const file of filesToUpload) {
-        const formData = new FormData();
-        formData.set("file", file);
-
         try {
-          const response = await fetch(`/api/jobs/${jobId}/files`, {
+          const mimeType = file.type || "application/octet-stream";
+
+          const signed = await requestJson<{
+            signedUrl: string;
+            storagePath: string;
+          }>(`/api/jobs/${jobId}/files/sign`, {
             method: "POST",
-            credentials: "include",
-            body: formData,
-            headers,
+            role,
+            body: { fileName: file.name, mimeType, sizeBytes: file.size },
           });
 
-          const payload = (await response.json().catch(() => null)) as
-            | { message?: string; error?: string }
-            | null;
-
-          if (!response.ok) {
-            throw new Error(payload?.message ?? payload?.error ?? "Upload failed.");
+          const putResponse = await fetch(signed.signedUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "content-type": mimeType, "x-upsert": "false" },
+          });
+          if (!putResponse.ok) {
+            throw new Error(`Storage rejected the upload (${putResponse.status}).`);
           }
+
+          await requestJson(`/api/jobs/${jobId}/files/complete`, {
+            method: "POST",
+            role,
+            body: {
+              storagePath: signed.storagePath,
+              fileName: file.name,
+              mimeType,
+              sizeBytes: file.size,
+            },
+          });
+
           uploadedCount++;
         } catch (fileError) {
           errors.push(

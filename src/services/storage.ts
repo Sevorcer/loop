@@ -11,11 +11,15 @@ import "server-only";
 
 import type { AppRole } from "@/services/authorization";
 
+import { verifyMimeType } from "@/lib/security/mimeVerify";
 import {
+  createSignedUploadUrl as createSignedUploadUrlRecord,
   deleteFile as deleteFileRecord,
+  fetchStorageObjectHead,
   getSignedDownloadUrl,
   getStorageObjectById,
   listStorageObjects,
+  recordStorageObject,
   signStoragePaths,
   uploadFile as uploadFileRecord,
 } from "@/repositories/storage";
@@ -89,6 +93,74 @@ export async function uploadStorageFile(
   };
 
   return uploadFileRecord(uploadInput, 3);
+}
+
+// ─── Direct (signed) upload ───────────────────────────────────────────────────
+
+/**
+ * Issues a signed URL so the client can upload a file straight to Storage.
+ * The app server never carries the bytes, so large field photos are not
+ * killed by the platform's ~4.5 MB request-body limit.
+ */
+export async function createJobFileSignedUpload(
+  role: AppRole,
+  input: { bucket: string; storagePath: string },
+): Promise<{ signedUrl: string }> {
+  assertCanUpload(role);
+  if (!input.storagePath) {
+    throw new Error("storagePath is required.");
+  }
+  return createSignedUploadUrlRecord(input.bucket, input.storagePath);
+}
+
+export interface CompleteSignedUploadInput {
+  bucket: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  jobId?: string;
+  propertyId?: string;
+  visibility?: "internal" | "customer";
+  uploadedBy?: string | null;
+}
+
+/**
+ * Finalizes a direct upload: proves the object really landed in Storage
+ * (existence + actual size + magic-byte MIME check against the declared
+ * type) and only then writes the metadata row the app lists files from.
+ */
+export async function completeJobFileSignedUpload(
+  role: AppRole,
+  input: CompleteSignedUploadInput,
+): Promise<StorageObjectMeta> {
+  assertCanUpload(role);
+
+  const head = await fetchStorageObjectHead(input.bucket, input.storagePath);
+  if (!head) {
+    throw new Error("The uploaded file was not found in storage. Please try again.");
+  }
+  if (head.sizeBytes !== input.sizeBytes) {
+    throw new Error(
+      `Uploaded file size mismatch (expected ${input.sizeBytes} bytes, storage has ${head.sizeBytes}). Please try again.`,
+    );
+  }
+  const mimeError = verifyMimeType(head.head, input.mimeType);
+  if (mimeError) {
+    throw new Error(mimeError);
+  }
+
+  return recordStorageObject({
+    bucket: input.bucket,
+    storagePath: input.storagePath,
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    sizeBytes: input.sizeBytes,
+    jobId: input.jobId,
+    propertyId: input.propertyId,
+    visibility: input.visibility ?? "internal",
+    uploadedBy: input.uploadedBy ?? null,
+  });
 }
 
 // ─── Download ─────────────────────────────────────────────────────────────────
