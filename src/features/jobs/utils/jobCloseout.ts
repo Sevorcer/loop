@@ -97,8 +97,10 @@ export function buildCloseoutSteps(
     {
       key: "systems",
       label: "Installed systems",
-      hint: "Record the equipment installed on this job.",
-      complete: checklist.installedSystemsEntered,
+      hint: checklist.noSystemInstalled
+        ? "Marked as no system installed on this job."
+        : "Record the equipment installed on this job — or mark that none was.",
+      complete: checklist.installedSystemsEntered || Boolean(checklist.noSystemInstalled),
       sectionId: JOB_CLOSEOUT_SECTION_IDS.systems,
       actionLabel: "Go to Installed systems",
     },

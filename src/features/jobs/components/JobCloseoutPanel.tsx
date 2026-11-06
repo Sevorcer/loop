@@ -112,6 +112,8 @@ export function JobCloseoutPanel({
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [attestSaving, setAttestSaving] = useState(false);
+  const [attestError, setAttestError] = useState<string | null>(null);
 
   const loadChecklist = useCallback(async () => {
     if (!role) return;
@@ -155,6 +157,26 @@ export function JobCloseoutPanel({
       setNoteError(error instanceof Error ? error.message : "Failed to save the note.");
     } finally {
       setNoteSaving(false);
+    }
+  }
+
+  async function attestNoSystem() {
+    if (!role) return;
+    setAttestSaving(true);
+    setAttestError(null);
+    try {
+      await requestJson(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        role,
+        body: { action: "systems_attestation", noneInstalled: true },
+      });
+      await loadChecklist();
+    } catch (error) {
+      setAttestError(
+        error instanceof Error ? error.message : "Failed to save the attestation.",
+      );
+    } finally {
+      setAttestSaving(false);
     }
   }
 
@@ -309,6 +331,24 @@ export function JobCloseoutPanel({
                               {noteSaving ? "Saving..." : "Save note"}
                             </Button>
                           </div>
+                        </div>
+                      ) : null}
+                      {!step.complete && step.key === "systems" ? (
+                        <div className="mt-3">
+                          <label className="flex items-center gap-2 text-sm text-slate-200">
+                            <input
+                              type="checkbox"
+                              checked={false}
+                              disabled={attestSaving}
+                              onChange={() => void attestNoSystem()}
+                            />
+                            No system was installed on this job
+                          </label>
+                          {attestError ? (
+                            <p className="mt-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                              {attestError}
+                            </p>
+                          ) : null}
                         </div>
                       ) : null}
                       {!step.complete && step.sectionId ? (

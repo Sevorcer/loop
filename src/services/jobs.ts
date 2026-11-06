@@ -54,6 +54,7 @@ import {
   listRecentJobs as listRecentJobRecords,
   toJob,
   updateJob as updateJobRecord,
+  updateJobNoSystemInstalled,
 } from "@/repositories/jobs";
 import type { JobBoardCounts, JobListFilter, PaginatedJobsResult } from "@/repositories/jobs";
 import {
@@ -634,7 +635,8 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
         if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
       } else {
         if (!checklist.photosUploaded) blockers.push("missing at least one photo");
-        if (!checklist.installedSystemsEntered) blockers.push("missing installed systems");
+        if (!checklist.installedSystemsEntered && !checklist.noSystemInstalled)
+          blockers.push("missing installed systems");
         if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
         if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
       }
@@ -905,6 +907,50 @@ export async function updateRequiredQaChecklist(
   return normalizedChecklist;
 }
 
+/**
+ * Record (or clear) the crew's "no system installed" attestation. The
+ * attestation satisfies the full-closeout installed-systems gate on jobs
+ * where nothing was installed, so the crew is never forced to invent a
+ * system record to finish closeout. Every change lands in the activity
+ * feed with its actor. Returns the refreshed completion checklist so
+ * callers resync from the server's view in one round trip.
+ */
+export async function setJobNoSystemInstalled(
+  id: string,
+  noneInstalled: boolean,
+  context?: JobMutationContext,
+): Promise<JobCompletionChecklistStatus | null> {
+  const existing = await getJobById(id);
+  if (!existing) {
+    return null;
+  }
+
+  if ((existing.noSystemInstalled === true) !== noneInstalled) {
+    const updated = await updateJobNoSystemInstalled(
+      id,
+      noneInstalled,
+      context?.actorId ?? null,
+    );
+    if (!updated) {
+      return null;
+    }
+
+    await createJobActivityRecord({
+      jobId: id,
+      actorId: context?.actorId,
+      type: "edited",
+      title: noneInstalled
+        ? "No system installed — attested"
+        : "System attestation removed",
+      description: noneInstalled
+        ? `Marked as no system installed by ${actorDisplayName(context?.actorId) ?? "a team member"}. This satisfies the closeout installed-systems requirement.`
+        : `Attestation cleared by ${actorDisplayName(context?.actorId) ?? "a team member"} — an installed system must now be entered before closeout.`,
+    });
+  }
+
+  return getJobCompletionChecklist(id, context?.role);
+}
+
 // Customer signatures are stored as job files too: captureJobSignature
 // (services/jobSignatures.ts) uploads the PNG through the shared storage
 // service with the job id attached, so it lands in the same per-job file
@@ -960,11 +1006,14 @@ export async function getJobCompletionChecklist(
   // migration lands) keeps the full four-gate closeout.
   const closeoutMode: JobCloseoutMode = job.closeoutMode === "visit" ? "visit" : "full";
 
+  // The installed-systems gate is satisfied by a system record OR by the
+  // crew's "no system installed" attestation — never require a fake system.
+  const noSystemInstalled = job.noSystemInstalled === true;
   const gatesComplete =
     closeoutMode === "visit"
       ? jobNotesCompleted
       : photosUploaded &&
-        installedSystemsEntered &&
+        (installedSystemsEntered || noSystemInstalled) &&
         jobNotesCompleted &&
         requiredQaItemsComplete;
   // The multi-day final-day block applies in both modes, same as the
@@ -981,6 +1030,7 @@ export async function getJobCompletionChecklist(
     closeoutMode,
     photosUploaded,
     installedSystemsEntered,
+    noSystemInstalled,
     jobNotesCompleted,
     requiredQaItemsComplete,
     customerSignaturePlaceholder: "optional",

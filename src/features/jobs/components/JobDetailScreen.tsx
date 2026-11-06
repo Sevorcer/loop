@@ -201,6 +201,7 @@ interface JobDetailScreenProps {
   onPriceRecorded?: (activity: JobActivity) => void;
   onAddNote: (note: string) => Promise<void>;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
+  onToggleNoSystemInstalled?: (value: boolean) => Promise<void>;
   onSoftDelete?: () => Promise<void>;
   onRestore?: () => Promise<void>;
     deleteRestorePending?: boolean;
@@ -217,6 +218,7 @@ export function JobDetailScreen({
   onPriceRecorded,
   onAddNote,
   onUpdateQaChecklist,
+  onToggleNoSystemInstalled,
   onSoftDelete,
   onRestore,
     deleteRestorePending = false,
@@ -921,6 +923,18 @@ export function JobDetailScreen({
               signaturePreviewUrl={latestSignature?.previewUrl ?? null}
               initialChecklist={qaChecklist}
               onSaveChecklist={onUpdateQaChecklist}
+              noSystemInstalled={job.noSystemInstalled ?? false}
+              noSystemInstalledCaption={
+                job.noSystemInstalled && job.noSystemInstalledAt
+                  ? `Attested ${new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      timeZone: companyTimeZone(),
+                    }).format(new Date(job.noSystemInstalledAt))} — see activity for who.`
+                  : null
+              }
+              onToggleNoSystemInstalled={onToggleNoSystemInstalled}
             />
           </div>
         </div>
