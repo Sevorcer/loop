@@ -24,6 +24,8 @@ export const REQUIRED_QA_CHECKLIST_ITEMS = [
 
 export interface JobCompletionChecklistStatus {
   closeoutMode: JobCloseoutMode;
+  /** False for visit mode and for prep/rough-in visits (no startup / no system install). */
+  requiresInstallGates: boolean;
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
   /**
@@ -84,6 +86,19 @@ export function isRequiredQaChecklistComplete(checklist: RequiredQaChecklist): b
     checklist.safetyReviewComplete &&
     checklist.workAreaCleaned
   );
+}
+
+/**
+ * Prep / rough-in visits skip startup verification; safety + clean-up still apply.
+ */
+export function isRequiredQaChecklistCompleteForStage(
+  checklist: RequiredQaChecklist,
+  requiresStartupVerification: boolean,
+): boolean {
+  if (!requiresStartupVerification) {
+    return checklist.safetyReviewComplete && checklist.workAreaCleaned;
+  }
+  return isRequiredQaChecklistComplete(checklist);
 }
 
 const COMPLETION_BLOCKER_LABELS: Record<string, string> = {

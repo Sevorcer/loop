@@ -7,12 +7,13 @@ import type { AppRole } from "@/services/authorization";
 import { formatMissingJobFields, missingPersistedJobFields } from "@/features/jobs/utils/jobFormSubmit";
 import { canTransitionStatus } from "@/features/jobs/utils/jobWorkspace";
 import {
-  isRequiredQaChecklistComplete,
+  isRequiredQaChecklistCompleteForStage,
   normalizeQaChecklist,
   parseLatestQaChecklist,
   type JobCompletionChecklistStatus,
   type RequiredQaChecklist,
 } from "@/features/jobs/utils/jobCompletionChecklist";
+import { requiresStartupAndInstalledSystemGates } from "@/features/jobs/utils/jobInstallStage";
 import { notifyJobCompleted } from "@/services/customerNotifications";
 import { resolveCustomerIdByName } from "@/repositories/properties";
 import {
@@ -635,8 +636,13 @@ export async function updateJobStatus(id: string, status: JobStatus, context?: J
         if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
       } else {
         if (!checklist.photosUploaded) blockers.push("missing at least one photo");
-        if (!checklist.installedSystemsEntered && !checklist.noSystemInstalled)
+        if (
+          checklist.requiresInstallGates &&
+          !checklist.installedSystemsEntered &&
+          !checklist.noSystemInstalled
+        ) {
           blockers.push("missing installed systems");
+        }
         if (!checklist.jobNotesCompleted) blockers.push("missing job notes");
         if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
       }
@@ -998,13 +1004,21 @@ export async function getJobCompletionChecklist(
   );
   const noteHistory = await listJobNotesForJob(jobId);
   const jobNotesCompleted = noteHistory.length > 0 || job.notes.trim().length > 0;
-  const requiredQaItemsComplete = isRequiredQaChecklistComplete(qaChecklist);
 
   // Closeout mode (office-picked per job): "visit" jobs — single-visit work
   // like inspection finals — complete on a job note alone. Anything that is
   // not an explicit "visit" (including jobs read before the closeout_mode
-  // migration lands) keeps the full four-gate closeout.
+  // migration lands) keeps the full closeout, with stage-aware install gates.
   const closeoutMode: JobCloseoutMode = job.closeoutMode === "visit" ? "visit" : "full";
+  const requiresInstallGates = requiresStartupAndInstalledSystemGates({
+    closeoutMode,
+    title: job.title,
+    summary: job.summary,
+  });
+  const requiredQaItemsComplete = isRequiredQaChecklistCompleteForStage(
+    qaChecklist,
+    requiresInstallGates,
+  );
 
   // The installed-systems gate is satisfied by a system record OR by the
   // crew's "no system installed" attestation — never require a fake system.
@@ -1013,7 +1027,7 @@ export async function getJobCompletionChecklist(
     closeoutMode === "visit"
       ? jobNotesCompleted
       : photosUploaded &&
-        (installedSystemsEntered || noSystemInstalled) &&
+        (!requiresInstallGates || installedSystemsEntered || noSystemInstalled) &&
         jobNotesCompleted &&
         requiredQaItemsComplete;
   // The multi-day final-day block applies in both modes, same as the
@@ -1028,6 +1042,7 @@ export async function getJobCompletionChecklist(
 
   return {
     closeoutMode,
+    requiresInstallGates,
     photosUploaded,
     installedSystemsEntered,
     noSystemInstalled,

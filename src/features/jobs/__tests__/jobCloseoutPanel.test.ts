@@ -46,6 +46,7 @@ const ALL_MISSING: ChecklistPayload = {
   finalDayBlocker: null,
   canComplete: false,
   closeoutMode: "full",
+  requiresInstallGates: true,
 };
 
 const ALL_DONE: ChecklistPayload = {
@@ -283,6 +284,7 @@ describe("JobCloseoutPanel", () => {
     currentChecklist = {
       ...ALL_MISSING,
       closeoutMode: "visit",
+      requiresInstallGates: false,
       jobNotesCompleted: true,
       canComplete: true,
     };
@@ -332,6 +334,7 @@ describe("JobCloseoutPanel", () => {
     currentChecklist = {
       ...ALL_MISSING,
       closeoutMode: "visit",
+      requiresInstallGates: false,
       jobNotesCompleted: true,
       finalDayBlocker: FINAL_DAY_BLOCKER,
       canComplete: false,

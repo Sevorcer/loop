@@ -109,7 +109,6 @@ export function buildCloseoutSteps(
   if (checklist.closeoutMode === "visit") {
     return steps.filter((step) => step.key === "note");
   }
-
   // Inventory Lane 4: only jobs with a confirmed material plan get this step. At the default
   // "warn" stage it stays open without blocking; the hint says so.
   if (checklist.materialsRequired) {
@@ -124,6 +123,11 @@ export function buildCloseoutSteps(
       sectionId: JOB_CLOSEOUT_SECTION_IDS.materials,
       actionLabel: "Go to Materials",
     });
+  }
+
+  // Prep / rough-in visits keep photo + QA + note, but skip installed systems.
+  if (checklist.requiresInstallGates === false) {
+    return steps.filter((step) => step.key !== "systems");
   }
   return steps;
 }

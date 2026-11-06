@@ -59,6 +59,7 @@ import {
 } from "../utils/jobCompletionChecklist";
 import { FollowUpControl } from "@/features/follow-ups/components/FollowUpControl";
 import { finalScheduledDayBlocker } from "../utils/jobFinalDay";
+import { requiresStartupAndInstalledSystemGates } from "../utils/jobInstallStage";
 import { formatSignatureCaption } from "../utils/jobSignature";
 import { activityWithJobNotes, displayJobNotes } from "../utils/jobNotes";
 import { getJobStatusIntent, sortJobActivity } from "../utils/jobWorkspace";
@@ -909,6 +910,11 @@ export function JobDetailScreen({
               installedSystemsEntered={installedSystemsEntered}
               jobNotesCompleted={jobNotesCompleted}
               closeoutMode={job.closeoutMode ?? "full"}
+              requiresInstallGates={requiresStartupAndInstalledSystemGates({
+                closeoutMode: job.closeoutMode ?? "full",
+                title: job.title,
+                summary: job.summary,
+              })}
               finalDayBlocker={finalScheduledDayBlocker(job)}
               signatureCaption={
                 latestSignature
