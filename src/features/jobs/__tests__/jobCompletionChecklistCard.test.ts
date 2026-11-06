@@ -100,6 +100,7 @@ describe("JobCompletionChecklistCard — no-system attestation", () => {
     installedSystemsEntered?: boolean;
     noSystemInstalled?: boolean;
     onToggle?: (value: boolean) => Promise<void>;
+    initialChecklist?: typeof QA_DONE;
   }) {
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -112,7 +113,7 @@ describe("JobCompletionChecklistCard — no-system attestation", () => {
           installedSystemsEntered: props.installedSystemsEntered ?? false,
           jobNotesCompleted: true,
           closeoutMode: props.closeoutMode,
-          initialChecklist: QA_DONE,
+          initialChecklist: props.initialChecklist ?? QA_DONE,
           onSaveChecklist: vi.fn(async () => {}),
           noSystemInstalled: props.noSystemInstalled ?? false,
           onToggleNoSystemInstalled: props.onToggle,
@@ -152,6 +153,37 @@ describe("JobCompletionChecklistCard — no-system attestation", () => {
 
     expect(attestationCheckbox(container)?.checked).toBe(true);
     expect(container.textContent).toContain("Completion checklist ready.");
+  });
+
+  it("excuses startup verification once attested, and labels it not required", async () => {
+    const container = await renderAttestationCard({
+      noSystemInstalled: true,
+      onToggle: vi.fn(async () => {}),
+      initialChecklist: {
+        startupVerificationComplete: false,
+        safetyReviewComplete: true,
+        workAreaCleaned: true,
+      },
+    });
+
+    expect(container.textContent).toContain(
+      "Startup verification complete (not required — no system installed)",
+    );
+    expect(container.textContent).toContain("Completion checklist ready.");
+  });
+
+  it("still requires startup verification when not attested", async () => {
+    const container = await renderAttestationCard({
+      onToggle: vi.fn(async () => {}),
+      initialChecklist: {
+        startupVerificationComplete: false,
+        safetyReviewComplete: true,
+        workAreaCleaned: true,
+      },
+    });
+
+    expect(container.textContent).not.toContain("not required — no system installed");
+    expect(container.textContent).not.toContain("Completion checklist ready.");
   });
 
   it("shows no checkbox in visit mode or once a system is entered", async () => {
