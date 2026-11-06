@@ -4,7 +4,7 @@ import { ArrowRight, Briefcase, CalendarClock, CheckCircle2, MapPin, Navigation,
 import { EmptyState, PhoneLink, StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
-import { buildDirectionsUrl } from "@/features/jobs/utils/jobMobileActions";
+import { buildDirectionsOptions } from "@/features/jobs/utils/jobMobileActions";
 import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 
 import { countDone, formatCardTime, pickCurrentJobId, type MyJobCard } from "../utils/myJobs";
@@ -79,7 +79,7 @@ export function MyJobsScreen({ todayLabel, cards }: MyJobsScreenProps) {
 
 function MyJobItem({ card, isCurrent }: { card: MyJobCard; isCurrent: boolean }) {
   const href = ROUTE_BUILDERS.JOB_DETAIL(card.id);
-  const directions = buildDirectionsUrl(card.location);
+  const directionsOptions = buildDirectionsOptions(card.location);
   const isDone = card.status === "Completed";
 
   return (
@@ -130,16 +130,28 @@ function MyJobItem({ card, isCurrent }: { card: MyJobCard; isCurrent: boolean })
               Open job <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          {directions ? (
-            <a
-              href={directions}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Directions"
-              className="inline-flex h-10 items-center rounded-lg border border-white/10 bg-white/[0.04] px-3 text-slate-200 hover:bg-white/10"
-            >
-              <Navigation className="h-4 w-4" />
-            </a>
+          {directionsOptions ? (
+            <details className="relative">
+              <summary
+                aria-label="Directions — choose a maps app"
+                className="inline-flex h-10 cursor-pointer list-none items-center rounded-lg border border-white/10 bg-white/[0.04] px-3 text-slate-200 hover:bg-white/10 [&::-webkit-details-marker]:hidden"
+              >
+                <Navigation className="h-4 w-4" />
+              </summary>
+              <div className="absolute right-0 bottom-full z-20 mb-2 w-44 overflow-hidden rounded-xl border border-white/10 bg-slate-900 py-1 shadow-xl">
+                {directionsOptions.map((option) => (
+                  <a
+                    key={option.label}
+                    href={option.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10"
+                  >
+                    {option.label}
+                  </a>
+                ))}
+              </div>
+            </details>
           ) : null}
           {card.phone ? (
             <PhoneLink
