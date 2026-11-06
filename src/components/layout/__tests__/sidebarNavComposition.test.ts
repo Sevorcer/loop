@@ -79,13 +79,15 @@ describe("composeSidebarNav", () => {
       "FIELD",
     ]);
     expect(groups[0]?.items[0]?.href).toBe(ROUTES.DASHBOARD);
-    // Customers, contractors, and vehicle alerts stay off the tech sidebar.
+    // Customers and contractors stay off the tech sidebar. Vehicle alerts
+    // joined it on 2026-11-06 (Collin: techs get full access).
     // My van sits next to Jobs. Office inventory stays off this preset.
     expect(groups[1]?.items.map((item) => item.href)).toEqual([
       ROUTES.JOBS,
       ROUTES.INVENTORY_MY_VAN,
       ROUTES.PROPERTIES,
       ROUTES.INSTALLED_SYSTEMS,
+      ROUTES.VEHICLE_ALERTS,
     ]);
     expect(groups.flatMap((group) => group.items).map((item) => item.href)).not.toContain(ROUTES.INVENTORY);
   });
