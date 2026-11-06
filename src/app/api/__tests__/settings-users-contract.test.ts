@@ -111,11 +111,15 @@ describe("POST /api/settings/users", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(inviteOrgUserMock).toHaveBeenCalledWith("user-1", {
-      email: "alex@example.com",
-      fullName: "Alex Dispatcher",
-      appRole: "dispatch",
-    });
+    expect(inviteOrgUserMock).toHaveBeenCalledWith(
+      "user-1",
+      {
+        email: "alex@example.com",
+        fullName: "Alex Dispatcher",
+        appRole: "dispatch",
+      },
+      { origin: "http://localhost" },
+    );
   });
 
   it("returns actionable Supabase error details on create failure", async () => {

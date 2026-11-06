@@ -26,7 +26,11 @@ vi.mock("@/lib/supabase/client", () => ({
 // Imports after mocks
 // ---------------------------------------------------------------------------
 
-import { updateUserPassword, getRecoverySession } from "@/services/authClient";
+import {
+  establishPasswordLinkSession,
+  updateUserPassword,
+  getRecoverySession,
+} from "@/services/authClient";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -158,5 +162,93 @@ describe("updateUserPassword", () => {
       expect(result.error.code).toBe("SUPABASE_NOT_CONFIGURED");
     }
     expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("establishPasswordLinkSession", () => {
+  const mockSetSession = vi.fn();
+  const mockVerifyOtp = vi.fn();
+  const mockExchangeCode = vi.fn();
+
+  function mockAuth(overrides?: {
+    setSession?: unknown;
+    verifyOtp?: unknown;
+    exchangeCode?: unknown;
+  }) {
+    mockGetSupabaseBrowserClient.mockReturnValue({
+      auth: {
+        setSession: mockSetSession.mockResolvedValue(overrides?.setSession ?? { error: null }),
+        verifyOtp: mockVerifyOtp.mockResolvedValue(overrides?.verifyOtp ?? { error: null }),
+        exchangeCodeForSession: mockExchangeCode.mockResolvedValue(
+          overrides?.exchangeCode ?? { error: null },
+        ),
+      },
+    });
+  }
+
+  it("applies an invite hash with setSession and does not send a role", async () => {
+    mockAuth();
+
+    await expect(
+      establishPasswordLinkSession({
+        accessToken: "invite-access",
+        refreshToken: "invite-refresh",
+        tokenHash: null,
+        otpType: "invite",
+        code: null,
+      }),
+    ).resolves.toBe(true);
+
+    expect(mockSetSession).toHaveBeenCalledWith({
+      access_token: "invite-access",
+      refresh_token: "invite-refresh",
+    });
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
+  it("verifies an invite token hash as type invite", async () => {
+    mockAuth();
+
+    await expect(
+      establishPasswordLinkSession({
+        accessToken: null,
+        refreshToken: null,
+        tokenHash: "hash-1",
+        otpType: "invite",
+        code: null,
+      }),
+    ).resolves.toBe(true);
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({ token_hash: "hash-1", type: "invite" });
+    expect(mockSetSession).not.toHaveBeenCalled();
+  });
+
+  it("verifies a recovery token hash as type recovery", async () => {
+    mockAuth();
+
+    await establishPasswordLinkSession({
+      accessToken: null,
+      refreshToken: null,
+      tokenHash: "hash-2",
+      otpType: "recovery",
+      code: null,
+    });
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({ token_hash: "hash-2", type: "recovery" });
+  });
+
+  it("returns false when the invite session cannot be stored", async () => {
+    mockAuth({ setSession: { error: { message: "invalid" } } });
+
+    await expect(
+      establishPasswordLinkSession({
+        accessToken: "invite-access",
+        refreshToken: "invite-refresh",
+        tokenHash: null,
+        otpType: "invite",
+        code: null,
+      }),
+    ).resolves.toBe(false);
   });
 });

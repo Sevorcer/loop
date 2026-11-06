@@ -62,6 +62,50 @@ export async function getRecoverySession(): Promise<AuthSession | null> {
   return data.session;
 }
 
+/**
+ * Turn an invite or recovery link into a session.
+ *
+ * Admin emails (invite and the office "reset password" action) redirect back
+ * with the session in the URL hash. The SSR browser client is PKCE-only and
+ * will not read that hash, so the tokens have to be applied here. `token_hash`
+ * covers a template that points at this app instead of Supabase's verify URL.
+ * `code` covers a PKCE recovery that was started in this browser.
+ */
+export async function establishPasswordLinkSession(input: {
+  accessToken: string | null;
+  refreshToken: string | null;
+  tokenHash: string | null;
+  otpType: "invite" | "recovery" | null;
+  code: string | null;
+}): Promise<boolean> {
+  const supabase = getSupabaseBrowserClient();
+
+  if (!supabase) return false;
+
+  if (input.accessToken && input.refreshToken) {
+    const { error } = await supabase.auth.setSession({
+      access_token: input.accessToken,
+      refresh_token: input.refreshToken,
+    });
+    return !error;
+  }
+
+  if (input.tokenHash && input.otpType) {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: input.tokenHash,
+      type: input.otpType,
+    });
+    return !error;
+  }
+
+  if (input.code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(input.code);
+    return !error;
+  }
+
+  return false;
+}
+
 export async function signOutFromAuthClient() {
   const supabase = getSupabaseBrowserClient();
 
