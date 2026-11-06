@@ -122,7 +122,7 @@ export async function listJobMaterialLines(jobId: string): Promise<JobMaterialLi
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw toRepositoryError(error);
-    const page = (data ?? []) as JobMaterialLineRow[];
+    const page = (data ?? []) as unknown as JobMaterialLineRow[];
     rows.push(...page);
     if (page.length < PAGE_SIZE) break;
   }
@@ -154,7 +154,7 @@ export async function createJobMaterialLine(
     .select(JOB_MATERIAL_COLUMNS)
     .single();
   if (error) throw toRepositoryError(error);
-  return mapJobMaterialLine(data as JobMaterialLineRow);
+  return mapJobMaterialLine(data as unknown as JobMaterialLineRow);
 }
 
 export async function nextJobMaterialSortOrder(jobId: string): Promise<number> {
@@ -196,7 +196,7 @@ export async function updateJobMaterialLine(
   if (error) throw toRepositoryError(error);
   // RLS hides lines a tech is not assigned to — same answer as "no such line".
   if (!data) throw notFound("Material line not found.");
-  return mapJobMaterialLine(data as JobMaterialLineRow);
+  return mapJobMaterialLine(data as unknown as JobMaterialLineRow);
 }
 
 export async function deleteJobMaterialLine(jobId: string, lineId: string): Promise<void> {
