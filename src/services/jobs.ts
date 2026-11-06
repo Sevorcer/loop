@@ -1048,14 +1048,15 @@ export async function getJobCompletionChecklist(
     title: job.title,
     summary: job.summary,
   });
-  const requiredQaItemsComplete = isRequiredQaChecklistCompleteForStage(
-    qaChecklist,
-    requiresInstallGates,
-  );
-
   // The installed-systems gate is satisfied by a system record OR by the
   // crew's "no system installed" attestation — never require a fake system.
   const noSystemInstalled = job.noSystemInstalled === true;
+  // The attestation also excuses startup verification: nothing was
+  // installed, so nothing was started up. Safety + cleanup still apply.
+  const requiredQaItemsComplete = isRequiredQaChecklistCompleteForStage(
+    qaChecklist,
+    requiresInstallGates && !noSystemInstalled,
+  );
   const gatesComplete =
     closeoutMode === "visit"
       ? jobNotesCompleted
