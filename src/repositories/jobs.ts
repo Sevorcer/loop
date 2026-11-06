@@ -81,6 +81,7 @@ async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositor
   no_system_installed?: boolean | null;
   no_system_installed_by?: string | null;
   no_system_installed_at?: string | null;
+  deleted_at?: string | null;
   summary: string;
   location: string;
   notes: string;
@@ -181,6 +182,7 @@ function mapJob(row: JobRow): Job {
     noSystemInstalled: row.no_system_installed === true,
     noSystemInstalledBy: row.no_system_installed_by ?? null,
     noSystemInstalledAt: row.no_system_installed_at ?? null,
+    deletedAt: row.deleted_at ?? null,
     summary: row.summary,
     location: row.location,
     notes: row.notes,
@@ -198,7 +200,7 @@ const JOB_SELECT_WITH_LEGACY = JOB_SELECT_BASE + ",appointment_window";
 // fallback chain drops it together with the PR3C columns pre-migration.
 const JOB_SELECT =
   JOB_SELECT_WITH_LEGACY +
-  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode,customer_notifications_enabled,en_route_at,no_system_installed,no_system_installed_by,no_system_installed_at";
+  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode,customer_notifications_enabled,en_route_at,no_system_installed,no_system_installed_by,no_system_installed_at,deleted_at";
 
 /**
  * Returns true when the Supabase/PostgREST error indicates that a scheduling
@@ -1637,16 +1639,30 @@ async function readCompletionTeams(
 ): Promise<Map<string, { id: string | null; name: string }[]>> {
   const byJob = new Map<string, { id: string | null; name: string }[]>();
   if (jobIds.length === 0) return byJob;
-  const { data, error } = await supabase
-    .from("job_completion_team")
-    .select("job_id,user_id,person_name")
-    .eq("org_id", orgId)
-    .in("job_id", jobIds);
-  if (error) {
-    if (isMissingCompletionTeam(error)) return byJob;
-    throw new Error(error.message);
+  // Chunk the id list: the full-org report passes thousands of ids, and one
+  // `in (...)` that long overflows the request URL (the Reports page 500).
+  const chunks: string[][] = [];
+  for (let index = 0; index < jobIds.length; index += JOB_ID_QUERY_CHUNK_SIZE) {
+    chunks.push(jobIds.slice(index, index + JOB_ID_QUERY_CHUNK_SIZE));
   }
-  for (const row of (data ?? []) as Array<{ job_id: string; user_id: string | null; person_name: string }>) {
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      supabase
+        .from("job_completion_team")
+        .select("job_id,user_id,person_name")
+        .eq("org_id", orgId)
+        .in("job_id", chunk),
+    ),
+  );
+  const rows: Array<{ job_id: string; user_id: string | null; person_name: string }> = [];
+  for (const { data, error } of results) {
+    if (error) {
+      if (isMissingCompletionTeam(error)) return byJob;
+      throw new Error(error.message);
+    }
+    rows.push(...((data ?? []) as typeof rows));
+  }
+  for (const row of rows) {
     const list = byJob.get(row.job_id) ?? [];
     list.push({ id: row.user_id, name: row.person_name });
     byJob.set(row.job_id, list);

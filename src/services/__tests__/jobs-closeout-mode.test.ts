@@ -415,6 +415,8 @@ describe("stage-aware full closeout (prep / rough-in)", () => {
     expect(checklist.requiredQaItemsComplete).toBe(true);
     expect(checklist.canComplete).toBe(true);
   });
+});
+
 // ─── No-system attestation ───────────────────────────────────────────────────
 
 describe("no-system attestation — full closeout gate", () => {
@@ -467,6 +469,78 @@ describe("no-system attestation — full closeout gate", () => {
     const result = await updateJobStatus("job-001", "Completed", { role: "tech" });
 
     expect(result).toEqual(updated);
+  });
+
+  const QA_WITHOUT_STARTUP_ACTIVITY = [
+    {
+      id: "qa-1",
+      jobId: "job-001",
+      type: "qa",
+      title: "QA checklist updated",
+      description: JSON.stringify({
+        startupVerificationComplete: false,
+        safetyReviewComplete: true,
+        workAreaCleaned: true,
+      }),
+      timestamp: new Date().toISOString(),
+    },
+  ];
+
+  it("excuses startup verification when no system was installed", async () => {
+    getJobByIdMock.mockResolvedValue(
+      makeJob({ closeoutMode: "full", notes: "Service call — nothing installed.", noSystemInstalled: true }),
+    );
+    satisfyPhoto();
+    listActivityByJobIdMock.mockResolvedValue(QA_WITHOUT_STARTUP_ACTIVITY);
+
+    const checklist = await getJobCompletionChecklist("job-001", "tech");
+
+    expect(checklist.requiredQaItemsComplete).toBe(true);
+    expect(checklist.canComplete).toBe(true);
+  });
+
+  it("lets an attested job complete with startup verification unchecked", async () => {
+    const original = makeJob({
+      closeoutMode: "full",
+      notes: "Service call — nothing installed.",
+      noSystemInstalled: true,
+    });
+    const updated = makeJob({
+      closeoutMode: "full",
+      status: "Completed",
+      notes: "Service call — nothing installed.",
+      noSystemInstalled: true,
+    });
+    getJobByIdMock.mockResolvedValue(original);
+    updateJobMock.mockResolvedValue(updated);
+    satisfyPhoto();
+    listActivityByJobIdMock.mockResolvedValue(QA_WITHOUT_STARTUP_ACTIVITY);
+
+    const result = await updateJobStatus("job-001", "Completed", { role: "tech" });
+
+    expect(result).toEqual(updated);
+  });
+
+  it("still requires safety review and cleanup when attested", async () => {
+    getJobByIdMock.mockResolvedValue(
+      makeJob({ closeoutMode: "full", notes: "Service call — nothing installed.", noSystemInstalled: true }),
+    );
+    satisfyPhoto();
+    listActivityByJobIdMock.mockResolvedValue([
+      {
+        ...QA_WITHOUT_STARTUP_ACTIVITY[0],
+        description: JSON.stringify({
+          startupVerificationComplete: true,
+          safetyReviewComplete: false,
+          workAreaCleaned: true,
+        }),
+      },
+    ]);
+
+    const checklist = await getJobCompletionChecklist("job-001", "tech");
+
+    expect(checklist.requiredQaItemsComplete).toBe(false);
+    expect(checklist.canComplete).toBe(false);
   });
 });
 

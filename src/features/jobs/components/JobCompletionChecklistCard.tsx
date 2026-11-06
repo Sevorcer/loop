@@ -70,7 +70,12 @@ export function JobCompletionChecklistCard({
   const [attestSaving, setAttestSaving] = useState(false);
 
   const visitMode = closeoutMode === "visit";
-  const qaComplete = isRequiredQaChecklistCompleteForStage(qaChecklist, requiresInstallGates);
+  // An attested "no system installed" job has nothing to start up, so
+  // startup verification is excused the same way it is for prep visits.
+  const qaComplete = isRequiredQaChecklistCompleteForStage(
+    qaChecklist,
+    requiresInstallGates && !attested,
+  );
   const systemsSatisfied = installedSystemsEntered || attested;
   const gatesComplete = useMemo(
     () =>
@@ -223,14 +228,14 @@ export function JobCompletionChecklistCard({
           </p>
           <div className="mt-3 space-y-2">
             {REQUIRED_QA_CHECKLIST_ITEMS.map(({ key, label }) => {
-              const optionalStartup =
-                key === "startupVerificationComplete" && !requiresInstallGates;
+              const startupExcused =
+                key === "startupVerificationComplete" && (!requiresInstallGates || attested);
               return (
               <label key={key} className="flex items-center gap-2 text-sm text-slate-200">
                 <input
                   type="checkbox"
-                  checked={optionalStartup ? true : qaChecklist[key]}
-                  disabled={optionalStartup}
+                  checked={startupExcused ? true : qaChecklist[key]}
+                  disabled={startupExcused}
                   onChange={(event) =>
                     setQaChecklist((current) => ({
                       ...current,
@@ -238,7 +243,9 @@ export function JobCompletionChecklistCard({
                     }))
                   }
                 />
-                {optionalStartup ? `${label} (not required for this visit)` : label}
+                {startupExcused
+                  ? `${label} (${requiresInstallGates ? "not required — no system installed" : "not required for this visit"})`
+                  : label}
               </label>
               );
             })}

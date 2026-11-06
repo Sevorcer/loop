@@ -40,6 +40,8 @@ export async function GET(request: Request) {
     const reports = computeOperationalReports(rows, activities, month);
     return NextResponse.json({ reports });
   } catch (error) {
+    // mapRouteError hides the cause from the client; keep it in the server log.
+    console.error("[api/reports] failed", error);
     return mapRouteError(error);
   }
 }

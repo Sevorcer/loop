@@ -43,7 +43,7 @@ import { canEditPermits } from "@/features/permits/components/permitForm";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { joinAddressParts } from "@/lib/address";
-import { ROUTE_BUILDERS } from "@/lib/routes";
+import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 import { formatTeamLabel } from "@/lib/teamLabel";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +89,7 @@ import { JobPermitsCard } from "./JobPermitsCard";
 import { JobChangeOrdersCard } from "./JobChangeOrdersCard";
 import { JobPriceEditor } from "./JobPriceEditor";
 import { JobMoneySection } from "./JobMoneySection";
+import { JobInfoContact } from "./JobInfoContact";
 import { JobTimeline } from "./JobTimeline";
 import { ShareLinkControls } from "./ShareLinkControls";
 import { PortalMoneyToggle } from "./PortalMoneyToggle";
@@ -372,21 +373,20 @@ export function JobDetailScreen({
         {/*
          * Stopgap: plain <a>, not router.push, same reason as Edit Job (#324).
          * Soft navigation OUT of /jobs/[id] never commits — the router starts
-         * the transition but it never lands — so router.push("/jobs") here was
-         * a silent no-op and users got stuck on the job page. A plain anchor is
+         * the transition but it never lands — so router.push(ROUTES.MY_JOBS)
+         * here was a silent no-op and users got stuck on the job page. A plain anchor is
          * not intercepted by the App Router and does a real browser navigation.
          * The proper fix (loading.tsx/error.tsx Suspense boundary on jobs/[id],
          * PR #325) should let soft nav commit again and retire this workaround.
          */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- hard-navigation required: PRs #324/#326 fix soft-nav bug */}
-        <a href="/jobs" data-testid="back-to-jobs-link">
+        <a href={ROUTES.MY_JOBS} data-testid="back-to-jobs-link">
           <Button
             type="button"
             variant="ghost"
             className="min-h-[44px] gap-2 text-slate-300 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Jobs
+            Back to My Jobs
           </Button>
         </a>
 
@@ -418,7 +418,7 @@ export function JobDetailScreen({
           </PermissionGuard>
         )}
 
-        {onSoftDelete && !isTech ? (
+        {onSoftDelete && !isTech && !job.deletedAt ? (
           <PermissionGuard table="jobs" action="update">
             <Button
               type="button"
@@ -438,7 +438,7 @@ export function JobDetailScreen({
           </PermissionGuard>
         ) : null}
 
-        {onRestore && role === "owner" ? (
+        {onRestore && role === "owner" && job.deletedAt ? (
           <Button
             type="button"
             variant="ghost"
@@ -754,6 +754,11 @@ export function JobDetailScreen({
                       )}
                     </div>
                   </div>
+
+                  {/* Contact */}
+                  {job.customerId ? (
+                    <JobInfoContact customerId={job.customerId} />
+                  ) : null}
 
                   {/* Location */}
                   {locationLabel ? (
