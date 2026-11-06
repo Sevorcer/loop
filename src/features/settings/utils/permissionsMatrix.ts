@@ -140,6 +140,8 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   inventory_expected_arrivals: "Expected Arrivals",
   job_readiness_snapshots: "Readiness History",
   job_material_events: "Field Material Events",
+  job_material_reconciliations: "Closeout Material Reconciliation",
+  refrigerant_log_entries: "Refrigerant Log",
 };
 
 export interface RolePermissionRow {

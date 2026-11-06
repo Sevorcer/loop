@@ -98,4 +98,5 @@ export const ARRIVAL_BUFFER_DAYS_MAX = 14;
 export interface InventorySettingsPatch {
   readinessLeadDays?: number;
   arrivalBufferDays?: number;
+  closeoutEnforcement?: CloseoutEnforcement;
 }

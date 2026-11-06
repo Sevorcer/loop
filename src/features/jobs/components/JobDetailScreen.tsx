@@ -33,6 +33,7 @@ import { JobInstalledSystemsPanel } from "@/features/installed-systems/component
 import { useInstalledSystems } from "@/features/installed-systems/state/InstalledSystemsProvider";
 import {
   JobMaterialsPanel,
+  ReconcileMaterialsCard,
   JobMaterialsProvider,
   JobTechnicalDataPanel,
   JobTechnicalDataProvider,
@@ -165,6 +166,7 @@ const CLOSEOUT_SECTION_TARGETS: Record<
   files: { tab: "photos", sectionId: JOB_CLOSEOUT_SECTION_IDS.photos },
   tasks: { tab: "tasks", sectionId: JOB_CLOSEOUT_SECTION_IDS.qa },
   systems: { tab: "systems", sectionId: JOB_CLOSEOUT_SECTION_IDS.systems },
+  materials: { tab: "tasks", sectionId: JOB_CLOSEOUT_SECTION_IDS.materials },
 };
 
 function JobDetailTabPanel({
@@ -890,6 +892,10 @@ export function JobDetailScreen({
             <JobMaterialsProvider jobId={job.id}>
               <JobMaterialsPanel />
             </JobMaterialsProvider>
+          ) : null}
+
+          {canViewJobMaterials(role) && job.closeoutMode !== "visit" ? (
+            <ReconcileMaterialsCard jobId={job.id} />
           ) : null}
 
           <div

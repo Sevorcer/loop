@@ -845,6 +845,28 @@ describe("inventory Lane 4 permissions", () => {
     expectDenied("tech", "job_readiness_snapshots", ["select"]);
   });
 
+  it("keeps reconciliation rows and the refrigerant log append-only for every role", () => {
+    for (const table of ["job_material_reconciliations", "refrigerant_log_entries"] as const) {
+      for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+        expectDenied(role, table, ["update", "delete"]);
+      }
+      expect(isLockedDeny(table, "update")).toBe(true);
+      expect(isLockedDeny(table, "delete")).toBe(true);
+      expectDenied("portal", table, ["select", "insert"]);
+      expectDenied("sales", table, ["select", "insert"]);
+    }
+    // Reconciliation: the assigned tech and office roles submit; dispatch only reads.
+    expectAllowed("tech", "job_material_reconciliations", ["select", "insert"]);
+    expectAllowed("office", "job_material_reconciliations", ["select", "insert"]);
+    expectAllowed("dispatch", "job_material_reconciliations", ["select"]);
+    expectDenied("dispatch", "job_material_reconciliations", ["insert"]);
+    // The refrigerant log has no direct writer at all: reconcile_job_materials writes it.
+    for (const role of ["owner", "manager", "dispatch", "tech", "office"] as const) {
+      expectDenied(role, "refrigerant_log_entries", ["insert"]);
+      expectAllowed(role, "refrigerant_log_entries", ["select"]);
+    }
+  });
+
   it("limits aliases to owner/manager/office writers and ops-role readers", () => {
     for (const role of ["owner", "manager", "office"] as const) {
       expectAllowed(role, "catalog_item_aliases", ["select", "insert", "update", "delete"]);

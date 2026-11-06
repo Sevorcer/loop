@@ -206,6 +206,8 @@ export async function PATCH(
               if (!checklist.requiredQaItemsComplete) blockers.push("incomplete required QA items");
             }
 
+            if (checklist.materialsBlocked) blockers.push("materials are not reconciled");
+
             return createApiErrorResponse(
               "INVALID_INPUT",
               `Cannot complete dispatch plan — ${blockers.join(", ")}.`,

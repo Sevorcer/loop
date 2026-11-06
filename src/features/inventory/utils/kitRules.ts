@@ -1,7 +1,9 @@
 import {
   ARRIVAL_BUFFER_DAYS_MAX,
+  CLOSEOUT_ENFORCEMENT_STAGES,
   KIT_STATUSES,
   READINESS_LEAD_DAYS_MAX,
+  type CloseoutEnforcement,
   type InventorySettingsPatch,
   type KitHeaderPatch,
   type KitLineInput,
@@ -148,7 +150,11 @@ export function normalizeSettingsPatch(input: Record<string, unknown>): RuleResu
   const patch: InventorySettingsPatch = {};
 
   if ("closeoutEnforcement" in input) {
-    return fail("The closeout enforcement stage is changed when closeout reconciliation ships, not before.");
+    const value = input.closeoutEnforcement;
+    if (typeof value !== "string" || !(CLOSEOUT_ENFORCEMENT_STAGES as readonly string[]).includes(value)) {
+      return fail("The closeout stage must be warn, soft or hard.");
+    }
+    patch.closeoutEnforcement = value as CloseoutEnforcement;
   }
   if ("readinessLeadDays" in input) {
     const value = input.readinessLeadDays;

@@ -46,6 +46,7 @@ export async function saveInventorySettings(patch: InventorySettingsPatch): Prom
   const row: Record<string, unknown> = { org_id: orgId };
   if (patch.readinessLeadDays !== undefined) row.readiness_lead_days = patch.readinessLeadDays;
   if (patch.arrivalBufferDays !== undefined) row.arrival_buffer_days = patch.arrivalBufferDays;
+  if (patch.closeoutEnforcement !== undefined) row.closeout_enforcement = patch.closeoutEnforcement;
 
   const { data, error } = await supabase
     .from("inventory_settings")

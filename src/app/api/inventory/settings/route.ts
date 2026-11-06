@@ -3,7 +3,7 @@
  *
  * GET   /api/inventory/settings — readiness lead days, arrival buffer, closeout stage
  *       (built-in defaults when the org has not saved any yet)
- * PATCH /api/inventory/settings — owner only; { readinessLeadDays?, arrivalBufferDays? }
+ * PATCH /api/inventory/settings — owner only; { readinessLeadDays?, arrivalBufferDays?, closeoutEnforcement? }
  *
  * Roles: inventory_settings select (owner, manager, dispatch, office) / update (owner).
  */

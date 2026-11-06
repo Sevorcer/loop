@@ -119,7 +119,10 @@ export type CoreTable =
   | "inventory_reservations"
   | "inventory_expected_arrivals"
   | "job_readiness_snapshots"
-  | "job_material_events";
+  | "job_material_events"
+  // Inventory Lane 4 — closeout reconciliation and the EPA refrigerant log
+  | "job_material_reconciliations"
+  | "refrigerant_log_entries";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -601,6 +604,23 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
   },
+  // One row per job: submitted by the assigned tech or office, or an office override at the
+  // soft stage. Insert-only. A database policy limits direct inserts to overrides; submitted
+  // rows are written by reconcile_job_materials.
+  job_material_reconciliations: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "tech", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // Append-only EPA log. Written only by reconcile_job_materials (no INSERT grant), so no role
+  // inserts directly: the empty insert set is an invariant.
+  refrigerant_log_entries: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>([]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -620,6 +640,8 @@ const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new M
   ["job_material_line_events", new Set<TableAction>(["update", "delete"])],
   ["job_readiness_snapshots", new Set<TableAction>(["update", "delete"])],
   ["job_material_events", new Set<TableAction>(["update", "delete"])],
+  ["job_material_reconciliations", new Set<TableAction>(["update", "delete"])],
+  ["refrigerant_log_entries", new Set<TableAction>(["update", "delete"])],
 ]);
 
 /**

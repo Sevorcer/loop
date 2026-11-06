@@ -12,9 +12,10 @@ export const JOB_CLOSEOUT_SECTION_IDS = {
   photos: "job-closeout-photos",
   qa: "job-closeout-qa",
   systems: "job-closeout-systems",
+  materials: "job-closeout-materials",
 } as const;
 
-export type CloseoutStepKey = "note" | "photo" | "qa" | "systems";
+export type CloseoutStepKey = "note" | "photo" | "qa" | "systems" | "materials";
 
 /**
  * Tab sections of the job detail page that own a closeout step's
@@ -22,7 +23,7 @@ export type CloseoutStepKey = "note" | "photo" | "qa" | "systems";
  * route a step's jump button to the tab that owns the section instead of
  * scrolling the single long page.
  */
-export type CloseoutSectionKey = "files" | "tasks" | "systems";
+export type CloseoutSectionKey = "files" | "tasks" | "systems" | "materials";
 
 const SECTION_KEY_BY_STEP_KEY: Record<
   Exclude<CloseoutStepKey, "note">,
@@ -31,6 +32,7 @@ const SECTION_KEY_BY_STEP_KEY: Record<
   photo: "files",
   qa: "tasks",
   systems: "systems",
+  materials: "materials",
 };
 
 /**
@@ -104,6 +106,22 @@ export function buildCloseoutSteps(
 
   if (checklist.closeoutMode === "visit") {
     return steps.filter((step) => step.key === "note");
+  }
+
+  // Inventory Lane 4: only jobs with a confirmed material plan get this step. At the default
+  // "warn" stage it stays open without blocking; the hint says so.
+  if (checklist.materialsRequired) {
+    const enforced = checklist.materialsEnforcement === "soft" || checklist.materialsEnforcement === "hard";
+    steps.push({
+      key: "materials",
+      label: "Materials",
+      hint: enforced
+        ? "Record what was used and what goes back to the shop. The job cannot be completed until this is done."
+        : "Record what was used and what goes back to the shop. Not required yet, but it keeps stock counts right.",
+      complete: Boolean(checklist.materialsReconciled),
+      sectionId: JOB_CLOSEOUT_SECTION_IDS.materials,
+      actionLabel: "Go to Materials",
+    });
   }
   return steps;
 }

@@ -78,6 +78,7 @@ vi.mock("@/features/job-materials", async () => {
     JobMaterialsProvider: passthrough,
     JobTechnicalDataProvider: passthrough,
     JobMaterialsPanel: () => ce("div", null, "Materials stub"),
+    ReconcileMaterialsCard: () => ce("div", null, "Reconcile materials stub"),
     JobTechnicalDataPanel: () => ce("div", null, "Technical data stub"),
   };
 });
