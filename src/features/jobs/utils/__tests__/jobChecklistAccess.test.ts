@@ -2,46 +2,44 @@ import { describe, expect, it } from "vitest";
 
 import {
   canAddJobChecklistItem,
-  canCheckJobTask,
+  canEditJobChecklistItem,
   canRemoveJobChecklistItem,
-} from "@/features/jobs/utils/jobChecklistAccess";
+} from "../jobChecklistAccess";
 
-describe("job checklist access", () => {
-  it("lets anyone on the team add an item, including a technician", () => {
-    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales"]) {
+describe("canAddJobChecklistItem", () => {
+  it("allows every internal role", () => {
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales"] as const) {
       expect(canAddJobChecklistItem(role)).toBe(true);
     }
   });
 
-  it("keeps the customer portal and signed-out callers off the add path", () => {
+  it("denies portal and missing roles", () => {
     expect(canAddJobChecklistItem("portal")).toBe(false);
     expect(canAddJobChecklistItem(null)).toBe(false);
     expect(canAddJobChecklistItem(undefined)).toBe(false);
   });
+});
 
-  it("lets only office and above remove an item", () => {
-    for (const role of ["owner", "manager", "office"]) {
+describe("canRemoveJobChecklistItem (R1)", () => {
+  it("allows office and above plus techs", () => {
+    for (const role of ["owner", "manager", "office", "tech"] as const) {
       expect(canRemoveJobChecklistItem(role)).toBe(true);
     }
   });
 
-  it("does not let a technician or dispatch remove an item", () => {
-    expect(canRemoveJobChecklistItem("tech")).toBe(false);
+  it("denies dispatch, sales, and portal", () => {
     expect(canRemoveJobChecklistItem("dispatch")).toBe(false);
     expect(canRemoveJobChecklistItem("sales")).toBe(false);
     expect(canRemoveJobChecklistItem("portal")).toBe(false);
     expect(canRemoveJobChecklistItem(null)).toBe(false);
   });
+});
 
-  it("lets a technician and office roles check an item off", () => {
-    for (const role of ["owner", "manager", "office", "dispatch", "tech"]) {
-      expect(canCheckJobTask(role)).toBe(true);
+describe("canEditJobChecklistItem", () => {
+  it("allows office roles and techs to rename", () => {
+    for (const role of ["owner", "manager", "office", "dispatch", "tech"] as const) {
+      expect(canEditJobChecklistItem(role)).toBe(true);
     }
-  });
-
-  it("keeps sales and portal off the check path", () => {
-    expect(canCheckJobTask("sales")).toBe(false);
-    expect(canCheckJobTask("portal")).toBe(false);
-    expect(canCheckJobTask(null)).toBe(false);
+    expect(canEditJobChecklistItem("sales")).toBe(false);
   });
 });

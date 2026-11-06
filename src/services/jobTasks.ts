@@ -5,6 +5,7 @@ import {
   updateJobTask as updateJobTaskRecord,
   type JobTask, type JobTaskSection,
 } from "@/repositories/jobTasks";
+import { createJobActivity } from "@/repositories/jobs";
 
 export type { JobTask, JobTaskSection };
 
@@ -52,8 +53,21 @@ export async function renameJobTask(taskId: string, rawLabel: string) {
   return updateJobTaskRecord(taskId, { label });
 }
 
-export async function deleteJobTask(taskId: string) {
-  return deleteJobTaskRecord(taskId);
+export async function deleteJobTask(
+  taskId: string,
+  context?: { actorId?: string | null },
+) {
+  const deleted = await deleteJobTaskRecord(taskId);
+  if (deleted) {
+    await createJobActivity({
+      jobId: deleted.jobId,
+      actorId: context?.actorId ?? undefined,
+      type: "edited",
+      title: "Checklist item removed",
+      description: `Removed checklist item "${deleted.label}".`,
+    });
+  }
+  return deleted;
 }
 
 /**

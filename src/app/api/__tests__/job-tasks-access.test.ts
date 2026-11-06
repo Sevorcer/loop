@@ -61,9 +61,10 @@ describe("job checklist route access", () => {
     expect(setJobTaskDoneMock).toHaveBeenCalledWith("task-1", true);
   });
 
-  it("lets a technician add an item but not remove one", async () => {
+  it("lets a technician add and remove an item (R1)", async () => {
     requirePermissionMock.mockResolvedValue(guard("tech"));
     createJobTaskMock.mockResolvedValue({ id: "task-3" });
+    deleteJobTaskMock.mockResolvedValue({ id: "task-1", label: "Old" });
 
     const add = await POST(
       new Request("http://localhost/api/jobs/job-1/tasks", {
@@ -84,8 +85,8 @@ describe("job checklist route access", () => {
 
     expect(add.status).toBe(200);
     expect(createJobTaskMock).toHaveBeenCalledWith("job-1", "Load lineset", "field");
-    expect(remove.status).toBe(403);
-    expect(deleteJobTaskMock).not.toHaveBeenCalled();
+    expect(remove.status).toBe(200);
+    expect(deleteJobTaskMock).toHaveBeenCalledWith("task-1", { actorId: "user-1" });
   });
 
   it("lets office staff add and remove, and keeps sales from checking", async () => {
@@ -115,7 +116,7 @@ describe("job checklist route access", () => {
     );
 
     expect(remove.status).toBe(200);
-    expect(deleteJobTaskMock).toHaveBeenCalledWith("task-1");
+    expect(deleteJobTaskMock).toHaveBeenCalledWith("task-1", { actorId: "user-1" });
 
     requirePermissionMock.mockResolvedValue(guard("sales"));
     const sales = await PATCH(

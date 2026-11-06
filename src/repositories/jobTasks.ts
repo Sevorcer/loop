@@ -114,8 +114,17 @@ export async function updateJobTask(
   return mapJobTask(data as JobTaskRow);
 }
 
-export async function deleteJobTask(taskId: string): Promise<void> {
+export async function deleteJobTask(taskId: string): Promise<JobTask | null> {
   const { supabase, orgId } = await getRepositoryContext();
+  const existing = await supabase
+    .from("job_tasks")
+    .select(JOB_TASK_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("id", taskId)
+    .maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (!existing.data) return null;
+
   const { error } = await supabase
     .from("job_tasks")
     .delete()
@@ -123,4 +132,5 @@ export async function deleteJobTask(taskId: string): Promise<void> {
     .eq("id", taskId);
 
   if (error) throw new Error(error.message);
+  return mapJobTask(existing.data as JobTaskRow);
 }

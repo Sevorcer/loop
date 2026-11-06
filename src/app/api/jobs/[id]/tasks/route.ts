@@ -127,7 +127,7 @@ export async function DELETE(
   if (!canRemoveJobChecklistItem(guard.ctx.role)) {
     return createApiErrorResponse(
       "FORBIDDEN",
-      "Only office staff can remove checklist items.",
+      "You cannot remove checklist items.",
       403,
     );
   }
@@ -146,7 +146,7 @@ export async function DELETE(
 
     void id;
 
-    await deleteJobTask(taskId);
+    await deleteJobTask(taskId, { actorId: guard.ctx.userId });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (
