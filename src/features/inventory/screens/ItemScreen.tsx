@@ -74,7 +74,7 @@ export async function ItemScreen({ itemId }: ItemScreenProps) {
         </Link>
       }
     >
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
         <SectionCard
           title="Details"
           description="Sell, stock and cost settings for this item."
@@ -89,7 +89,7 @@ export async function ItemScreen({ itemId }: ItemScreenProps) {
           />
         </SectionCard>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {item.isSellable ? (
             <SectionCard title="Price tiers" description="Flat-rate options, such as Good / Better / Best.">
               <PriceTiersEditor

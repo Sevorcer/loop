@@ -72,7 +72,7 @@ export function ItemFormFields({ idPrefix, draft, setDraft, categories, showCost
         <textarea id={id("description")} value={draft.description} onChange={(e) => set("description", e.target.value)} rows={2} className={fieldClass} />
       </FormField>
 
-      <fieldset className="space-y-3 rounded-atlas-md border border-default p-4">
+      <fieldset className="min-w-0 space-y-3 rounded-atlas-md border border-default p-4">
         <legend className="px-1 text-sm font-medium text-primary">Sell</legend>
         <Check id={id("sellable")} label="Sellable (appears on quotes and invoices)" checked={draft.isSellable} onChange={(v) => set("isSellable", v)} />
         {draft.isSellable ? (
@@ -88,7 +88,7 @@ export function ItemFormFields({ idPrefix, draft, setDraft, categories, showCost
         ) : null}
       </fieldset>
 
-      <fieldset className="space-y-3 rounded-atlas-md border border-default p-4">
+      <fieldset className="min-w-0 space-y-3 rounded-atlas-md border border-default p-4">
         <legend className="px-1 text-sm font-medium text-primary">Stock</legend>
         <Check id={id("stockable")} label="Stockable (counted in inventory)" checked={draft.isStockable && !kindLocksStock} onChange={(v) => set("isStockable", v)} />
         {kindLocksStock ? <p className="text-xs text-muted">Services and labor cannot be stocked.</p> : null}
@@ -124,7 +124,7 @@ export function ItemFormFields({ idPrefix, draft, setDraft, categories, showCost
       </div>
 
       {showCost ? (
-        <fieldset className="space-y-3 rounded-atlas-md border border-default p-4">
+        <fieldset className="min-w-0 space-y-3 rounded-atlas-md border border-default p-4">
           <legend className="px-1 text-sm font-medium text-primary">Cost (internal)</legend>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Unit cost ($)" htmlFor={id("cost")}>
