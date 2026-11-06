@@ -14,7 +14,7 @@ export function InventoryTabs() {
 
   return (
     <nav aria-label="Inventory sections" className="overflow-x-auto">
-      <ul className="flex min-w-max gap-2 max-md:min-w-0 max-md:flex-wrap">
+      <ul className="flex min-w-max gap-2 pb-1">
         {INVENTORY_TABS.map((tab) => {
           const isActive = tab.key === active;
           return (

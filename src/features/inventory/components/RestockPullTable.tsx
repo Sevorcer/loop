@@ -95,7 +95,7 @@ export function RestockPullTable({ group }: RestockPullTableProps) {
         </Button>
       </div>
       <div className="w-full overflow-x-auto rounded-atlas-md border border-default">
-        <table className="w-full min-w-[40rem] text-sm">
+        <table className="w-full min-w-[40rem] text-sm max-md:min-w-0">
           <caption className="sr-only">Needs restock on {group.vehicleName}</caption>
           <thead className="bg-surface-elevated">
             <tr>
