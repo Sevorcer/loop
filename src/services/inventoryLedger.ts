@@ -9,6 +9,7 @@ import {
   appendLedgerRows,
   getOnHand,
   getTransactionWithGroup,
+  listCountedLocationIds as listCountedLocationIdRecords,
   listStockLevels as listStockLevelRecords,
   listTransactions as listTransactionRecords,
 } from "@/repositories/inventoryLedger";
@@ -26,6 +27,10 @@ function badRequest(message: string): never {
 
 export async function listStockLevels(filters: { locationId?: string; itemId?: string } = {}): Promise<StockLevel[]> {
   return listStockLevelRecords(filters);
+}
+
+export async function listCountedLocationIds(locationIds: readonly string[]): Promise<Set<string>> {
+  return listCountedLocationIdRecords(locationIds);
 }
 
 export async function listLedger(filters: LedgerFilters = {}): Promise<LedgerEntry[]> {

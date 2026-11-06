@@ -2,6 +2,7 @@
 
 import type { CatalogItem } from "../types/catalog";
 import type { InventoryLocation, StockLevel, Vehicle } from "../types/ledger";
+import { isBelowPar } from "./parRules";
 
 export type StockFlag = "negative" | "zero" | "ok";
 
@@ -19,7 +20,12 @@ export interface StockRow {
   brand: string | null;
   onHand: number;
   minQty: number | null;
-  /** True when on-hand is at or below a configured minimum (and not already negative/zero). */
+  maxQty: number | null;
+  /**
+   * True when a minimum is set and on-hand is under it (D3).
+   * Sitting exactly on the minimum is not low. Zero and negative still count
+   * when a minimum is set. Van screens hide this until the first count-in.
+   */
   belowMin: boolean;
   flag: StockFlag;
 }
@@ -107,8 +113,9 @@ export function buildStockRows(
       brand: item.brand,
       onHand,
       minQty,
+      maxQty: level?.maxQty ?? null,
       flag,
-      belowMin: flag === "ok" && minQty != null && onHand <= minQty,
+      belowMin: isBelowPar(onHand, minQty),
     });
   }
   return rows.sort((a, b) => flagRank(a.flag) - flagRank(b.flag) || a.name.localeCompare(b.name));

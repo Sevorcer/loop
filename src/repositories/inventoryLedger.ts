@@ -80,6 +80,38 @@ export async function listStockLevels(filters: { locationId?: string; itemId?: s
   return ((data ?? []) as StockRow[]).map(mapStock);
 }
 
+/**
+ * Van locations that already have at least one count row.
+ * Pages until every requested location is found or the ledger page runs out,
+ * so a busy van cannot hide another van's first count-in.
+ */
+export async function listCountedLocationIds(locationIds: readonly string[]): Promise<Set<string>> {
+  const wanted = [...new Set(locationIds.filter(Boolean))];
+  const found = new Set<string>();
+  if (wanted.length === 0) return found;
+  const { supabase, orgId } = await getRepositoryContext();
+  const pageSize = 1000;
+
+  for (let offset = 0; offset < wanted.length; offset += 100) {
+    const chunk = wanted.slice(offset, offset + 100);
+    for (let from = 0; found.size < wanted.length; from += pageSize) {
+      const { data, error } = await supabase
+        .from("inventory_transactions")
+        .select("location_id")
+        .eq("org_id", orgId)
+        .eq("txn_type", "count")
+        .in("location_id", chunk)
+        .order("created_at", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as Array<{ location_id: string }>;
+      for (const row of rows) found.add(row.location_id);
+      if (rows.length < pageSize) break;
+    }
+  }
+  return found;
+}
+
 export async function getOnHand(itemId: string, locationId: string): Promise<number> {
   const { supabase, orgId } = await getRepositoryContext();
   const { data, error } = await supabase
