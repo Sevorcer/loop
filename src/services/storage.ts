@@ -53,6 +53,7 @@ export interface StorageUploadInput {
   file: Uint8Array | ArrayBuffer;
   jobId?: string;
   propertyId?: string;
+  installedSystemId?: string;
   /** Defaults to 'internal'; set to 'customer' for portal-visible files */
   visibility?: "internal" | "customer";
   /** UUID of the authenticated user performing the upload */
@@ -87,6 +88,7 @@ export async function uploadStorageFile(
     file: input.file,
     jobId: input.jobId,
     propertyId: input.propertyId,
+    installedSystemId: input.installedSystemId,
     visibility: input.visibility ?? "internal",
     uploadedBy: input.uploadedBy ?? null,
   };
@@ -120,6 +122,7 @@ export interface CompleteSignedUploadInput {
   sizeBytes: number;
   jobId?: string;
   propertyId?: string;
+  installedSystemId?: string;
   visibility?: "internal" | "customer";
   uploadedBy?: string | null;
 }
@@ -158,6 +161,7 @@ export async function completeJobFileSignedUpload(
     sizeBytes: input.sizeBytes,
     jobId: input.jobId,
     propertyId: input.propertyId,
+    installedSystemId: input.installedSystemId,
     visibility: input.visibility ?? "internal",
     uploadedBy: input.uploadedBy ?? null,
   });
@@ -193,7 +197,13 @@ export async function deleteStorageFile(role: AppRole, storageObjectId: string):
 
 export async function listFiles(
   role: AppRole,
-  filter?: { jobId?: string; propertyId?: string; visibility?: "internal" | "customer" },
+  filter?: {
+    jobId?: string;
+    propertyId?: string;
+    installedSystemId?: string;
+    bucket?: string;
+    visibility?: "internal" | "customer";
+  },
 ): Promise<StorageObjectMeta[]> {
   assertCanUpload(role);
   return listStorageObjects(filter);
