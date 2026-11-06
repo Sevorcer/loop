@@ -609,12 +609,12 @@ describe("vehicle_alerts permissions", () => {
     expectDenied("portal", "vehicle_alerts", ["select", "insert", "update", "delete"]);
   });
 
-  it("limits status updates to office+ and dispatch", () => {
+  it("allows staff including tech to update status; sales cannot", () => {
     expectAllowed("owner", "vehicle_alerts", ["update"]);
     expectAllowed("manager", "vehicle_alerts", ["update"]);
     expectAllowed("office", "vehicle_alerts", ["update"]);
     expectAllowed("dispatch", "vehicle_alerts", ["update"]);
-    expectDenied("tech", "vehicle_alerts", ["update"]);
+    expectAllowed("tech", "vehicle_alerts", ["update"]);
     expectDenied("sales", "vehicle_alerts", ["update"]);
   });
 

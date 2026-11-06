@@ -55,12 +55,15 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   [ROUTES.CONTRACTORS]: ["owner", "manager", "dispatch"],
   [ROUTES.CUSTOMERS]: ["owner", "manager", "dispatch", "office", "sales"],
   [ROUTES.INSTALLED_SYSTEMS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
-  [ROUTES.VEHICLE_ALERTS]: ["owner", "manager", "dispatch"],
+  // Vehicle Alerts — every internal role (Collin, 2026-11-06: techs get full access).
+  [ROUTES.VEHICLE_ALERTS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
 
   // Resources. My van is the technician phone screen. Office inventory stays closed to techs.
   [ROUTES.INVENTORY]: ["owner", "manager", "dispatch", "office"],
   [ROUTES.INVENTORY_MY_VAN]: ["tech"],
-  [ROUTES.COMPANY_BRAIN]: ["owner", "manager"],
+  // Company Brain — viewable by every internal role (Collin, 2026-11-06);
+  // editing stays owner/manager via the knowledge_items matrix.
+  [ROUTES.COMPANY_BRAIN]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
 
   // Insights
   [ROUTES.BILLING]: ["owner", "manager", "office"],

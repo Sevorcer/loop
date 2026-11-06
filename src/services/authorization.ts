@@ -444,11 +444,12 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
   },
-  // Vehicle Alerts — staff list/create; office+dispatch update status; owner delete
+  // Vehicle Alerts — staff list/create; staff update status (Collin, 2026-11-06:
+  // techs get full working access); owner delete
   vehicle_alerts: {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales", "tech"]),
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales", "tech"]),
-    update: new Set<AppRole>(["owner", "manager", "office", "dispatch"]),
+    update: new Set<AppRole>(["owner", "manager", "office", "dispatch", "tech"]),
     delete: new Set<AppRole>(["owner"]),
   },
   // ── Inventory Lane 1 ──────────────────────────────────────────────────────
