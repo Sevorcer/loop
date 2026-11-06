@@ -43,6 +43,27 @@ export function buildDirectionsUrl(location: string): string | null {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
+export interface DirectionsOption {
+  label: string;
+  href: string;
+}
+
+/**
+ * Directions choices for the My Jobs card: tapping the directions button
+ * offers the tech's own maps app instead of forcing Google Maps. Each URL
+ * opens turn-by-turn navigation to the job location.
+ */
+export function buildDirectionsOptions(location: string): DirectionsOption[] | null {
+  const query = joinAddressParts([location]);
+  if (!query) return null;
+  const encoded = encodeURIComponent(query);
+  return [
+    { label: "Google Maps", href: `https://www.google.com/maps/dir/?api=1&destination=${encoded}` },
+    { label: "Apple Maps", href: `https://maps.apple.com/?daddr=${encoded}` },
+    { label: "Waze", href: `https://waze.com/ul?q=${encoded}&navigate=yes` },
+  ];
+}
+
 /**
  * F14: maps query for a customer address built from its street/city/ZIP parts.
  */

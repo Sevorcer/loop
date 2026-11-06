@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCustomerDirectionsUrl,
+  buildDirectionsOptions,
   buildDirectionsUrl,
   getPrimaryAdvance,
 } from "../utils/jobMobileActions";
@@ -44,6 +45,30 @@ describe("buildDirectionsUrl", () => {
   it("returns null for an empty location", () => {
     expect(buildDirectionsUrl("   ")).toBeNull();
     expect(buildDirectionsUrl(", ")).toBeNull();
+  });
+});
+
+describe("buildDirectionsOptions", () => {
+  it("offers Google Maps, Apple Maps, and Waze directions for a job location", () => {
+    expect(buildDirectionsOptions("123 Main St, Seattle, WA")).toEqual([
+      {
+        label: "Google Maps",
+        href: "https://www.google.com/maps/dir/?api=1&destination=123%20Main%20St%2C%20Seattle%2C%20WA",
+      },
+      {
+        label: "Apple Maps",
+        href: "https://maps.apple.com/?daddr=123%20Main%20St%2C%20Seattle%2C%20WA",
+      },
+      {
+        label: "Waze",
+        href: "https://waze.com/ul?q=123%20Main%20St%2C%20Seattle%2C%20WA&navigate=yes",
+      },
+    ]);
+  });
+
+  it("returns null for an empty location", () => {
+    expect(buildDirectionsOptions("   ")).toBeNull();
+    expect(buildDirectionsOptions(", ")).toBeNull();
   });
 });
 
