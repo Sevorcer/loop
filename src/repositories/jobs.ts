@@ -81,6 +81,7 @@ async function readJobAssignees(supabase: Awaited<ReturnType<typeof getRepositor
   no_system_installed?: boolean | null;
   no_system_installed_by?: string | null;
   no_system_installed_at?: string | null;
+  deleted_at?: string | null;
   summary: string;
   location: string;
   notes: string;
@@ -181,6 +182,7 @@ function mapJob(row: JobRow): Job {
     noSystemInstalled: row.no_system_installed === true,
     noSystemInstalledBy: row.no_system_installed_by ?? null,
     noSystemInstalledAt: row.no_system_installed_at ?? null,
+    deletedAt: row.deleted_at ?? null,
     summary: row.summary,
     location: row.location,
     notes: row.notes,
@@ -198,7 +200,7 @@ const JOB_SELECT_WITH_LEGACY = JOB_SELECT_BASE + ",appointment_window";
 // fallback chain drops it together with the PR3C columns pre-migration.
 const JOB_SELECT =
   JOB_SELECT_WITH_LEGACY +
-  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode,customer_notifications_enabled,en_route_at,no_system_installed,no_system_installed_by,no_system_installed_at";
+  ",scheduled_start_at,scheduled_end_at,arrival_window_start_at,arrival_window_end_at,closeout_mode,customer_notifications_enabled,en_route_at,no_system_installed,no_system_installed_by,no_system_installed_at,deleted_at";
 
 /**
  * Returns true when the Supabase/PostgREST error indicates that a scheduling

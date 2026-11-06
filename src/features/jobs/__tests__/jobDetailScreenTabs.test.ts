@@ -518,6 +518,42 @@ describe("JobDetailScreen Edit Job navigation", () => {
   });
 });
 
+describe("JobDetailScreen delete / restore buttons", () => {
+  function renderWithDeleteRestore(job: Job) {
+    return render(
+      createElement(JobDetailScreen, {
+        job,
+        activity: [],
+        notes: NOTES,
+        onUpdateStatus: vi.fn(async () => {}),
+        onAddNote: vi.fn(async () => {}),
+        onUpdateQaChecklist: vi.fn(async () => {}),
+        onSoftDelete: vi.fn(async () => {}),
+        onRestore: vi.fn(async () => {}),
+      }),
+    );
+  }
+
+  it("offers Delete, not Restore, on a live job", async () => {
+    authState.role = "owner";
+    const container = await renderWithDeleteRestore({ ...JOB, deletedAt: null });
+
+    expect(container.querySelector("[data-testid='restore-job-btn']")).toBeNull();
+    expect(container.querySelector("[data-testid='soft-delete-job-btn']")).not.toBeNull();
+  });
+
+  it("offers Restore, not Delete, on a deleted job for the owner", async () => {
+    authState.role = "owner";
+    const container = await renderWithDeleteRestore({
+      ...JOB,
+      deletedAt: "2026-11-01T00:00:00.000Z",
+    });
+
+    expect(container.querySelector("[data-testid='restore-job-btn']")).not.toBeNull();
+    expect(container.querySelector("[data-testid='soft-delete-job-btn']")).toBeNull();
+  });
+});
+
 describe("Overview closeout mode", () => {
   function closeoutField(container: HTMLElement) {
     return panel(container, "overview")?.querySelector<HTMLElement>(

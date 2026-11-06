@@ -70,6 +70,8 @@ export interface Job {
   noSystemInstalled?: boolean;
   noSystemInstalledBy?: string | null;
   noSystemInstalledAt?: string | null;
+  /** Set when the job is soft-deleted (owners can restore it). */
+  deletedAt?: string | null;
   
   contractorIds?: string[];   assignees?: { id: string; name: string }[];
   /** People on the job when it was first marked completed. */

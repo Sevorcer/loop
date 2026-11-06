@@ -418,7 +418,7 @@ export function JobDetailScreen({
           </PermissionGuard>
         )}
 
-        {onSoftDelete && !isTech ? (
+        {onSoftDelete && !isTech && !job.deletedAt ? (
           <PermissionGuard table="jobs" action="update">
             <Button
               type="button"
@@ -438,7 +438,7 @@ export function JobDetailScreen({
           </PermissionGuard>
         ) : null}
 
-        {onRestore && role === "owner" ? (
+        {onRestore && role === "owner" && job.deletedAt ? (
           <Button
             type="button"
             variant="ghost"
