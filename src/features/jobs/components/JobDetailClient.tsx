@@ -68,10 +68,9 @@ export function JobDetailClient({
       router.refresh();
     } catch (err) {
       console.error("[JobDetailClient] status update failed", err);
-      pushToast(
-        err instanceof Error ? err.message : "Failed to update job status.",
-        "error",
-      );
+      // Rethrow so every caller (Quick Actions, closeout panel, mobile action
+      // bar) shows its own refusal and never reports a rejected change as done.
+      throw err;
     }
   }
 
