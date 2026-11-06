@@ -6,6 +6,8 @@ import { FileCheck, FileUp, Paperclip, Plus, RotateCcw, Trash2 } from "lucide-re
 import { StatusBadge } from "@/components/atlas";
 import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
+import { PermitCreatePanel } from "@/features/permits/components/PermitCreatePanel";
+import type { PermitWriteBody } from "@/features/permits/components/permitForm";
 import { cn } from "@/lib/utils";
 import type { PermitStatus } from "@/services/jobPermits";
 
@@ -52,11 +54,14 @@ const STATUS_INTENT: Record<PermitStatus, "info" | "warning" | "success" | "dang
 interface JobPermitsCardProps {
   jobId: string;
   canEdit: boolean;
+  /** Shown in the create panel so the new permit is clearly attached to this job. */
+  jobLabel?: string;
 }
 
-export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
+export function JobPermitsCard({ jobId, canEdit, jobLabel }: JobPermitsCardProps) {
   const [permits, setPermits] = useState<Permit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [uploadingPermitId, setUploadingPermitId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPermitIdRef = useRef<string | null>(null);
@@ -78,6 +83,26 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
 
   const activePermits = permits.filter((p: Permit) => !p.voidedAt);
   const voidedPermits = permits.filter((p: Permit) => p.voidedAt);
+
+  const handleCreate = useCallback(
+    async (targetJobId: string, fields: PermitWriteBody) => {
+      const res = await fetch(`/api/jobs/${targetJobId}/permits`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as
+          | { message?: string; error?: string }
+          | null;
+        throw new Error(
+          json?.message || json?.error || "Could not add the permit.",
+        );
+      }
+      await fetchPermits();
+    },
+    [fetchPermits],
+  );
 
   const handleVoid = useCallback(
     async (permitId: string) => {
@@ -165,7 +190,13 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
             </h3>
           </div>
           {canEdit && (
-            <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() => setCreating(true)}
+            >
               <Plus className="h-3 w-3" />
               Add Permit
             </Button>
@@ -243,6 +274,18 @@ export function JobPermitsCard({ jobId, canEdit }: JobPermitsCardProps) {
             </div>
           ))}
         </div>
+
+        {creating && canEdit ? (
+          <PermitCreatePanel
+            open
+            lockedJob={{
+              id: jobId,
+              label: jobLabel?.trim() || "This job",
+            }}
+            onClose={() => setCreating(false)}
+            onCreate={handleCreate}
+          />
+        ) : null}
 
         {canEdit && voidedPermits.length > 0 && (
           <div className="mt-4 pt-3 border-t border-border">

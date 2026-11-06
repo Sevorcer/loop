@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Paperclip,
   Pencil,
+  Plus,
   Search,
   Trash2,
   X,
@@ -23,26 +24,19 @@ import SurfaceCard from "@/components/layout/SurfaceCard";
 import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import { CappedSelect } from "@/features/permits/components/CappedSelect";
-import { requestJson } from "@/lib/api/client";
-import { ROUTE_BUILDERS } from "@/lib/routes";
-import { cn } from "@/lib/utils";
-type PermitStatus =
-  | "applied"
-  | "intake_scheduled"
-  | "corrections_needed"
-  | "resubmitted"
-  | "waiting_on_city"
-  | "issued";
-
-/** Office+ roles that can write permits (mirrors service-layer canEditPermits). */
-function canEditPermits(role: string): boolean {
-  return role === "owner" || role === "manager" || role === "office";
-}
-
+import { PermitCreatePanel } from "@/features/permits/components/PermitCreatePanel";
 import {
   PermitEditPanel,
   type PermitEditData,
-} from "../components/PermitEditPanel";
+} from "@/features/permits/components/PermitEditPanel";
+import {
+  canEditPermits,
+  type PermitStatus,
+  type PermitWriteBody,
+} from "@/features/permits/components/permitForm";
+import { requestJson } from "@/lib/api/client";
+import { ROUTE_BUILDERS } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -365,7 +359,7 @@ function PermitCard({
 
 export function PermitsBoardScreen() {
   const { role } = useCurrentRole();
-  const canEdit = role ? canEditPermits(role) : false;
+  const canEdit = canEditPermits(role);
 
   // Data
   const [permits, setPermits] = useState<Permit[]>([]);
@@ -377,8 +371,9 @@ export function PermitsBoardScreen() {
     new Set(),
   );
 
-  // Edit panel
+  // Edit / create panels
   const [editingPermit, setEditingPermit] = useState<Permit | null>(null);
+  const [creating, setCreating] = useState(false);
 
   // Issued section
   const [issuedExpanded, setIssuedExpanded] = useState(false);
@@ -421,6 +416,17 @@ export function PermitsBoardScreen() {
         // Revert on failure
         void fetchPermits();
       }
+    },
+    [fetchPermits],
+  );
+
+  const handleCreate = useCallback(
+    async (jobId: string, fields: PermitWriteBody) => {
+      await requestJson(`/api/jobs/${jobId}/permits`, {
+        method: "POST",
+        body: fields,
+      });
+      await fetchPermits();
     },
     [fetchPermits],
   );
@@ -484,17 +490,31 @@ export function PermitsBoardScreen() {
   const totalOpen = permits.filter((p) => p.status !== "issued").length;
   const hasActiveFilters = search.trim() !== "" || statusFilters.size > 0;
 
+  const addPermitButton = () =>
+    canEdit ? (
+      <Button type="button" onClick={() => setCreating(true)}>
+        <Plus className="h-4 w-4" />
+        Add Permit
+      </Button>
+    ) : null;
+
   return (
     <div className="space-y-6 p-6">
       <PageHeader
         title="Permits Board"
         description={`${totalOpen} open permit${totalOpen !== 1 ? "s" : ""}`}
+        actions={addPermitButton()}
       />
 
       {permits.length === 0 ? (
         <EmptyState
           title="No permits"
-          description="Permits will appear here when created on jobs."
+          description={
+            canEdit
+              ? "Add a permit for a job. It shows up on this board and on the job."
+              : "Permits added for a job show up on this board."
+          }
+          action={addPermitButton()}
         />
       ) : (
         <>
@@ -625,6 +645,14 @@ export function PermitsBoardScreen() {
             </SurfaceCard>
           )}
         </>
+      )}
+
+      {creating && (
+        <PermitCreatePanel
+          open
+          onClose={() => setCreating(false)}
+          onCreate={handleCreate}
+        />
       )}
 
       {/* ── Edit Panel ── */}
