@@ -5,7 +5,7 @@ import {
   MAX_NAMEPLATE_READ_BYTES,
   NAMEPLATE_NO_NAMEPLATE_MESSAGE,
   NAMEPLATE_NO_PHOTOS_MESSAGE,
-  NAMEPLATE_UNCONFIGURED_MESSAGE,
+  NAMEPLATE_READER_FAILED_MESSAGE,
   effectiveNameplateMime,
   isNameplateCandidate,
   type NameplateExtraction,
@@ -13,7 +13,7 @@ import {
 import { downloadStorageObjectBytes } from "@/repositories/storage";
 import type { AppRole } from "@/services/authorization";
 import { listJobFiles } from "@/services/jobs";
-import { extractNameplateFromImage, isNameplateVisionConfigured } from "@/services/nameplateVision";
+import { withNameplateOcr } from "@/services/nameplateVision";
 
 export interface JobNameplateSearch {
   status: "proposed" | "unreadable";
@@ -38,56 +38,53 @@ export async function searchJobPhotosForNameplate(jobId: string, role: AppRole):
       message: NAMEPLATE_NO_PHOTOS_MESSAGE,
     };
   }
-  if (!isNameplateVisionConfigured()) {
-    return {
-      status: "unreadable",
-      extraction: {
-        status: "unreadable",
-        modelNumber: null,
-        serialNumber: null,
-        message: NAMEPLATE_UNCONFIGURED_MESSAGE,
-      },
-      photoFileName: null,
-      message: NAMEPLATE_UNCONFIGURED_MESSAGE,
-    };
-  }
 
-  let partial: { fileName: string; extraction: NameplateExtraction } | null = null;
-  for (const photo of photos) {
-    if (photo.sizeBytes > MAX_NAMEPLATE_READ_BYTES) continue;
-    const bytes = await downloadStorageObjectBytes(photo.id);
-    if (!bytes) continue;
-    const extraction = await extractNameplateFromImage(bytes, effectiveNameplateMime(photo));
-    if (extraction.status !== "read") continue;
-    if (extraction.modelNumber && extraction.serialNumber) {
+  return withNameplateOcr(async (read) => {
+    let partial: { fileName: string; extraction: NameplateExtraction } | null = null;
+    for (const photo of photos) {
+      if (photo.sizeBytes > MAX_NAMEPLATE_READ_BYTES) continue;
+      const bytes = await downloadStorageObjectBytes(photo.id);
+      if (!bytes) continue;
+      const extraction = await read(bytes, effectiveNameplateMime(photo));
+      if (extraction.message === NAMEPLATE_READER_FAILED_MESSAGE) {
+        return {
+          status: "unreadable" as const,
+          extraction,
+          photoFileName: null,
+          message: extraction.message,
+        };
+      }
+      if (extraction.status !== "read") continue;
+      if (extraction.modelNumber && extraction.serialNumber) {
+        return {
+          status: "proposed" as const,
+          extraction,
+          photoFileName: photo.fileName,
+          message: extraction.message,
+        };
+      }
+      if (!partial) partial = { fileName: photo.fileName, extraction };
+    }
+
+    if (partial) {
       return {
-        status: "proposed",
-        extraction,
-        photoFileName: photo.fileName,
-        message: extraction.message,
+        status: "proposed" as const,
+        extraction: partial.extraction,
+        photoFileName: partial.fileName,
+        message: partial.extraction.message,
       };
     }
-    if (!partial) partial = { fileName: photo.fileName, extraction };
-  }
 
-  if (partial) {
     return {
-      status: "proposed",
-      extraction: partial.extraction,
-      photoFileName: partial.fileName,
-      message: partial.extraction.message,
-    };
-  }
-
-  return {
-    status: "unreadable",
-    extraction: {
-      status: "unreadable",
-      modelNumber: null,
-      serialNumber: null,
+      status: "unreadable" as const,
+      extraction: {
+        status: "unreadable" as const,
+        modelNumber: null,
+        serialNumber: null,
+        message: NAMEPLATE_NO_NAMEPLATE_MESSAGE,
+      },
+      photoFileName: null,
       message: NAMEPLATE_NO_NAMEPLATE_MESSAGE,
-    },
-    photoFileName: null,
-    message: NAMEPLATE_NO_NAMEPLATE_MESSAGE,
-  };
+    };
+  });
 }

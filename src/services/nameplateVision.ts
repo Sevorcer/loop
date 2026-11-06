@@ -1,30 +1,17 @@
 import "server-only";
 
+import os from "os";
+
 import {
   MAX_NAMEPLATE_READ_BYTES,
-  NAMEPLATE_UNCONFIGURED_MESSAGE,
+  NAMEPLATE_READER_FAILED_MESSAGE,
   NAMEPLATE_UNREADABLE_MESSAGE,
   NAMEPLATE_VISION_MIME_TYPES,
   normalizeNameplateMime,
-  parseNameplateModelContent,
+  parseNameplateOcrText,
   unreadableExtraction,
   type NameplateExtraction,
 } from "@/features/installed-systems/utils/nameplateRead";
-
-const DEFAULT_MODEL = "gpt-4o-mini";
-
-const PROMPT = [
-  "You read HVAC equipment nameplates in field photos.",
-  "If this photo is not an equipment nameplate, set readable to false and both values to null.",
-  "Otherwise extract only the model number and the serial number that are clearly printed.",
-  "Return JSON with keys readable (boolean), modelNumber (string or null), and serialNumber (string or null).",
-  "If a value is blurry, cropped, guessed, or not actually a model or serial, set readable to false and both values to null.",
-  "Do not explain and do not include any other equipment data.",
-].join(" ");
-
-export function isNameplateVisionConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
-}
 
 async function convertHeicToJpeg(bytes: Uint8Array): Promise<Uint8Array> {
   const convert = (await import("heic-convert")).default;
@@ -38,7 +25,7 @@ async function convertHeicToJpeg(bytes: Uint8Array): Promise<Uint8Array> {
 
 /**
  * JPEG, PNG, and WebP pass through. HEIC and HEIF (typical iPhone photos)
- * are converted to JPEG before the vision call.
+ * are converted to JPEG before local OCR.
  */
 export async function prepareNameplateImage(
   bytes: Uint8Array,
@@ -65,79 +52,70 @@ export async function prepareNameplateImage(
   return { bytes, mimeType: mime };
 }
 
+type OcrWorker = {
+  recognize: (image: Buffer) => Promise<{ data: { text?: string | null } }>;
+  terminate: () => Promise<unknown>;
+};
+
 /**
- * Read one image. When OPENAI_API_KEY is unset this returns unreadable
- * and does not call a vendor. It never writes model or serial.
+ * Tesseract.js runs in this process. English traineddata is read from the
+ * installed package, not downloaded per photo, and the image is not sent
+ * to a third-party API.
  */
+async function createLocalOcrWorker(): Promise<OcrWorker> {
+  const { createWorker } = await import("tesseract.js");
+  const eng = (await import("@tesseract.js-data/eng")).default;
+  return createWorker("eng", 1, {
+    langPath: eng.langPath,
+    gzip: eng.gzip,
+    cachePath: os.tmpdir(),
+    // A bad image rejects the recognize promise and, without this, also
+    // throws on the worker message handler and can take down the request.
+    errorHandler: () => {},
+  });
+}
+
+/**
+ * Open one local OCR worker, let the caller read several photos, then close it.
+ * A photo that cannot be read returns an unreadable result and does not invent values.
+ */
+export async function withNameplateOcr<T>(
+  run: (read: (bytes: Uint8Array, mimeType: string) => Promise<NameplateExtraction>) => Promise<T>,
+): Promise<T> {
+  const session: { worker: OcrWorker | null } = { worker: null };
+  let failed = false;
+
+  const read = async (bytes: Uint8Array, mimeType: string): Promise<NameplateExtraction> => {
+    if (failed) return unreadableExtraction(NAMEPLATE_READER_FAILED_MESSAGE);
+    const prepared = await prepareNameplateImage(bytes, mimeType);
+    if ("unreadable" in prepared) return unreadableExtraction(prepared.unreadable);
+    if (!session.worker) {
+      try {
+        session.worker = await createLocalOcrWorker();
+      } catch {
+        failed = true;
+        return unreadableExtraction(NAMEPLATE_READER_FAILED_MESSAGE);
+      }
+    }
+    try {
+      const result = await session.worker.recognize(Buffer.from(prepared.bytes));
+      return parseNameplateOcrText(result.data.text ?? "");
+    } catch {
+      return unreadableExtraction(NAMEPLATE_UNREADABLE_MESSAGE);
+    }
+  };
+
+  try {
+    return await run(read);
+  } finally {
+    await session.worker?.terminate();
+  }
+}
+
+/** Read one image with the local OCR worker. */
 export async function extractNameplateFromImage(
   bytes: Uint8Array,
   mimeType: string,
 ): Promise<NameplateExtraction> {
-  const prepared = await prepareNameplateImage(bytes, mimeType);
-  if ("unreadable" in prepared) {
-    return unreadableExtraction(prepared.unreadable);
-  }
-  if (prepared.bytes.byteLength > MAX_NAMEPLATE_READ_BYTES) {
-    return unreadableExtraction("This photo is too large to read. Model and serial were left unchanged.");
-  }
-
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    return unreadableExtraction(NAMEPLATE_UNCONFIGURED_MESSAGE);
-  }
-
-  const model = process.env.OPENAI_NAMEPLATE_MODEL?.trim() || DEFAULT_MODEL;
-  const dataUrl = `data:${prepared.mimeType};base64,${Buffer.from(prepared.bytes).toString("base64")}`;
-
-  let response: Response;
-  try {
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0,
-        max_tokens: 200,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: PROMPT },
-              { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
-            ],
-          },
-        ],
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
-  } catch {
-    return unreadableExtraction(NAMEPLATE_UNREADABLE_MESSAGE);
-  }
-
-  if (!response.ok) {
-    return unreadableExtraction(
-      response.status === 401
-        ? "This photo could not be read. The nameplate reading key was rejected. Model and serial were left unchanged."
-        : NAMEPLATE_UNREADABLE_MESSAGE,
-    );
-  }
-
-  let content = "";
-  try {
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    content = payload.choices?.[0]?.message?.content ?? "";
-  } catch {
-    return unreadableExtraction(NAMEPLATE_UNREADABLE_MESSAGE);
-  }
-
-  const extraction = parseNameplateModelContent(content);
-  return extraction.status === "read"
-    ? { ...extraction, message: extraction.message || "Read from a job photo." }
-    : extraction;
+  return withNameplateOcr((read) => read(bytes, mimeType));
 }

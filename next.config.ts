@@ -1,8 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // HEIC decoding loads a WASM build that must stay external to the bundler.
-  serverExternalPackages: ["heic-convert", "heic-decode"],
+  // HEIC decoding and Tesseract load WASM / traineddata that must stay external.
+  serverExternalPackages: ["heic-convert", "heic-decode", "tesseract.js", "tesseract.js-core"],
+  outputFileTracingIncludes: {
+    "/api/jobs/[id]/nameplate": [
+      "./node_modules/tesseract.js/**/*",
+      "./node_modules/tesseract.js-core/**/*",
+      "./node_modules/@tesseract.js-data/eng/**/*",
+      "./node_modules/heic-convert/**/*",
+      "./node_modules/heic-decode/**/*",
+    ],
+  },
   images: {
     remotePatterns: [
       {

@@ -9,6 +9,7 @@ import {
   chooseNameplateHit,
   decideNameplateSave,
   extractionFromModelPayload,
+  parseNameplateOcrText,
   isNameplateCandidate,
   isNameplateSaveAttempt,
   mergeConfirmedSerial,
@@ -110,6 +111,40 @@ describe("nameplate read proposal", () => {
   it("treats an iPhone HEIC file as a photo even with a generic type", () => {
     expect(isNameplateCandidate({ mimeType: "application/octet-stream", fileName: "IMG_2043.HEIC" })).toBe(true);
     expect(isNameplateCandidate({ mimeType: "application/pdf", fileName: "manual.pdf" })).toBe(false);
+  });
+});
+
+describe("free OCR text", () => {
+  it("reads a labeled model and serial and ignores the rest of the plate", () => {
+    const result = parseNameplateOcrText([
+      "CARRIER",
+      "MODEL NO. MXZ-3C24NAHZ2",
+      "SERIAL NO. SN1234567",
+      "208/230V",
+    ].join("\n"));
+
+    expect(result).toMatchObject({
+      status: "read",
+      modelNumber: "MXZ-3C24NAHZ2",
+      serialNumber: "SN1234567",
+    });
+  });
+
+  it("reads values on the line under the label, including S/N", () => {
+    const result = parseNameplateOcrText("M/N\n24ACC636A003\nS/N\n4312E12345");
+    expect(result.modelNumber).toBe("24ACC636A003");
+    expect(result.serialNumber).toBe("4312E12345");
+  });
+
+  it("does not invent a model from unlabeled text", () => {
+    const result = parseNameplateOcrText("Outdoor unit MXZ-3C24NAHZ2 near the condenser");
+    expect(result.status).toBe("unreadable");
+    expect(result.modelNumber).toBeNull();
+    expect(result.serialNumber).toBeNull();
+  });
+
+  it("returns nothing when the photo text is empty", () => {
+    expect(parseNameplateOcrText("   \n").status).toBe("unreadable");
   });
 });
 

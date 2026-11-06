@@ -2,18 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { listJobFiles, downloadStorageObjectBytes, extractNameplateFromImage, isNameplateVisionConfigured } = vi.hoisted(() => ({
+const { listJobFiles, downloadStorageObjectBytes, extractNameplateFromImage } = vi.hoisted(() => ({
   listJobFiles: vi.fn(),
   downloadStorageObjectBytes: vi.fn(),
   extractNameplateFromImage: vi.fn(),
-  isNameplateVisionConfigured: vi.fn(),
 }));
 
 vi.mock("@/services/jobs", () => ({ listJobFiles }));
 vi.mock("@/repositories/storage", () => ({ downloadStorageObjectBytes }));
-vi.mock("@/services/nameplateVision", () => ({ extractNameplateFromImage, isNameplateVisionConfigured }));
+vi.mock("@/services/nameplateVision", () => ({
+  withNameplateOcr: async (run: (read: typeof extractNameplateFromImage) => Promise<unknown>) => run(extractNameplateFromImage),
+}));
 
-import { NAMEPLATE_NO_NAMEPLATE_MESSAGE, NAMEPLATE_NO_PHOTOS_MESSAGE, NAMEPLATE_UNCONFIGURED_MESSAGE } from "@/features/installed-systems/utils/nameplateRead";
+import { NAMEPLATE_NO_NAMEPLATE_MESSAGE, NAMEPLATE_NO_PHOTOS_MESSAGE } from "@/features/installed-systems/utils/nameplateRead";
 import { searchJobPhotosForNameplate } from "@/services/jobNameplate";
 
 function photo(id: string, fileName: string, mimeType: string) {
@@ -22,7 +23,6 @@ function photo(id: string, fileName: string, mimeType: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  isNameplateVisionConfigured.mockReturnValue(true);
   downloadStorageObjectBytes.mockResolvedValue(new Uint8Array([1, 2, 3]));
 });
 
@@ -68,17 +68,6 @@ describe("searchJobPhotosForNameplate", () => {
     expect(result.extraction.modelNumber).toBeNull();
     expect(result.extraction.serialNumber).toBeNull();
     expect(result.message).toBe(NAMEPLATE_NO_NAMEPLATE_MESSAGE);
-  });
-
-  it("does not download photos when nameplate reading is not configured", async () => {
-    isNameplateVisionConfigured.mockReturnValue(false);
-    listJobFiles.mockResolvedValue([photo("site", "site.jpg", "image/jpeg")]);
-
-    const result = await searchJobPhotosForNameplate("job-1", "tech");
-
-    expect(result.message).toBe(NAMEPLATE_UNCONFIGURED_MESSAGE);
-    expect(downloadStorageObjectBytes).not.toHaveBeenCalled();
-    expect(extractNameplateFromImage).not.toHaveBeenCalled();
   });
 
   it("says the job has no photos when only documents were uploaded", async () => {

@@ -13,24 +13,24 @@ export const NAMEPLATE_PHOTO_MIME_TYPES = new Set([
   "image/heif",
 ]);
 
-/** Formats the vision reader can send after HEIC has been converted. */
+/** Formats local OCR can read after HEIC has been converted to JPEG. */
 export const NAMEPLATE_VISION_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-/** Stay under a single vision request. Larger photos are skipped. */
+/** Skip very large photos so one search does not stall the request. */
 export const MAX_NAMEPLATE_READ_BYTES = 8 * 1024 * 1024;
 
 /**
- * How many of the job's newest photos a single search will open.
- * Each one is a paid vision call, so this stays a deliberate action
- * rather than a scan of every upload.
+ * How many of the job's newest photos one Find nameplate search will open.
+ * OCR runs on the server and does not bill per photo, but each image still
+ * takes CPU time, so this stays a button rather than a scan on every upload.
  */
-export const MAX_NAMEPLATE_PHOTOS_TO_READ = 8;
+export const MAX_NAMEPLATE_PHOTOS_TO_READ = 12;
 
 export const NAMEPLATE_UNREADABLE_MESSAGE =
   "This photo could not be read. Model and serial were left unchanged.";
 
-export const NAMEPLATE_UNCONFIGURED_MESSAGE =
-  "Nameplate reading needs the OPENAI_API_KEY server setting before Loop can read a nameplate. Model and serial were left unchanged.";
+export const NAMEPLATE_READER_FAILED_MESSAGE =
+  "Nameplate reading could not start. Model and serial were left unchanged.";
 
 export const NAMEPLATE_NO_PHOTOS_MESSAGE =
   "This job has no photos to search. Model and serial were left unchanged.";
@@ -98,6 +98,56 @@ export function cleanNameplateToken(value: unknown): string | null {
   const compact = value.trim().replace(/\s+/g, "");
   if (!TOKEN.test(compact) || !/\d/.test(compact)) return null;
   return compact;
+}
+
+const MODEL_LABEL = /\b(?:model(?:\s*(?:no\.?|number|#))?|m\/n|mdl)\b/i;
+const SERIAL_LABEL = /\b(?:serial(?:\s*(?:no\.?|number|#))?|s\/n)\b/i;
+
+function firstNameplateToken(value: string): string | null {
+  for (const part of value.split(/[\s,;|]+/)) {
+    const token = cleanNameplateToken(part);
+    if (token) return token;
+  }
+  return cleanNameplateToken(value);
+}
+
+function valueOnLabelLine(line: string, label: RegExp): string | null {
+  const match = label.exec(line);
+  if (!match) return null;
+  const rest = line.slice(match.index + match[0].length).replace(/^[\s:.#\-_/]+/, "");
+  return firstNameplateToken(rest);
+}
+
+/**
+ * Pull a model and serial only from labeled nameplate text.
+ * Unlabeled words are ignored so a random photo cannot invent a number.
+ */
+export function parseNameplateOcrText(text: string): NameplateExtraction {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  let modelNumber: string | null = null;
+  let serialNumber: string | null = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!modelNumber && MODEL_LABEL.test(line)) {
+      modelNumber = valueOnLabelLine(line, MODEL_LABEL)
+        ?? (!SERIAL_LABEL.test(lines[index + 1] ?? "") ? firstNameplateToken(lines[index + 1] ?? "") : null);
+    }
+    if (!serialNumber && SERIAL_LABEL.test(line)) {
+      serialNumber = valueOnLabelLine(line, SERIAL_LABEL)
+        ?? (!MODEL_LABEL.test(lines[index + 1] ?? "") ? firstNameplateToken(lines[index + 1] ?? "") : null);
+    }
+  }
+
+  if (!modelNumber && !serialNumber) {
+    return unreadableExtraction(NAMEPLATE_UNREADABLE_MESSAGE);
+  }
+  return {
+    status: "read",
+    modelNumber,
+    serialNumber,
+    message: "Read from a job photo.",
+  };
 }
 
 export function unreadableExtraction(message: string): NameplateExtraction {
