@@ -119,6 +119,10 @@ BEGIN
       AND (isy.job_id = NEW.id OR NEW.id::text = ANY (isy.linked_workflow_ids))
   );
 
+  -- The crew's "no system installed" attestation (migration 20261126800000)
+  -- satisfies the installed-system gate the same way a system record does.
+  v_system := v_system OR coalesce(NEW.no_system_installed, false);
+
   BEGIN
     SELECT a.description::jsonb
       INTO v_qa

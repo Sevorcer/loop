@@ -25,4 +25,7 @@ BEGIN
 
   ASSERT position('missing installed systems' IN fn_def) > 0,
     'gate must still name the installed-systems blocker when required';
+
+  ASSERT position('no_system_installed' IN fn_def) > 0,
+    'gate must honor the no-system-installed attestation';
 END $$;
