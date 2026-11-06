@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface DialogShellProps {
   title: string;
@@ -10,7 +11,17 @@ interface DialogShellProps {
   children: ReactNode;
 }
 
-/** Minimal accessible modal: labelled, Escape to close, focus moves in on open and returns on close. */
+/**
+ * Minimal accessible modal: labelled, Escape to close, focus moves in on
+ * open and returns on close.
+ *
+ * Rendered through a portal to <body>: the panel is position:fixed, and a
+ * fixed element is contained by any transformed ancestor — SectionCard's
+ * hover-lift transform (applied while the pointer is over the card, which
+ * is the whole time a dialog launched from the card is open) trapped the
+ * overlay inside the card, clipping tall dialogs (Add van) to a slice of
+ * the card with their top and bottom unreachable (2026-11-06).
+ */
 export function DialogShell({ title, description, onClose, children }: DialogShellProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -35,7 +46,7 @@ export function DialogShell({ title, description, onClose, children }: DialogShe
     };
   }, []);
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -67,6 +78,7 @@ export function DialogShell({ title, description, onClose, children }: DialogShe
         ) : null}
         <div className="mt-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
