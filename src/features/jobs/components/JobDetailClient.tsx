@@ -36,6 +36,7 @@ export function JobDetailClient({
   const router = useRouter();
   const { role } = useCurrentRole();
   const [confirmedStatus, setConfirmedStatus] = useState<JobStatus | null>(null);
+  const [noSystemOverride, setNoSystemOverride] = useState<boolean | null>(null);
   const [recordedActivity, setRecordedActivity] = useState<JobActivity[]>([]);
   const [pendingNotes, setPendingNotes] = useState<JobNote[]>([]);
     const [deleteRestorePending, setDeleteRestorePending] = useState(false);
@@ -44,6 +45,13 @@ export function JobDetailClient({
   const liveJob: Job = {
     ...job,
     status: confirmedStatus && confirmedStatus !== job.status ? confirmedStatus : job.status,
+    noSystemInstalled: noSystemOverride ?? job.noSystemInstalled,
+    noSystemInstalledAt:
+      noSystemOverride === true && !job.noSystemInstalled
+        ? new Date().toISOString()
+        : noSystemOverride === false
+          ? null
+          : job.noSystemInstalledAt,
   };
 
   async function handleUpdateStatus(status: JobStatus) {
@@ -124,6 +132,25 @@ export function JobDetailClient({
     }
   }
 
+  async function handleToggleNoSystemInstalled(value: boolean) {
+    try {
+      await requestJson(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        role,
+        body: { action: "systems_attestation", noneInstalled: value },
+      });
+      setNoSystemOverride(value);
+      pushToast(
+        value ? "Marked as no system installed." : "Attestation removed.",
+        "success",
+      );
+      router.refresh();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Couldn't save the attestation.", "error");
+      throw error;
+    }
+  }
+
   async function handleSoftDelete() {
         // Re-entry guard: a double-tap must not fire the action twice
         // (the duplicate restore used to surface a bogus "job not found").
@@ -173,6 +200,7 @@ export function JobDetailClient({
       onPriceRecorded={handlePriceRecorded}
       onAddNote={handleAddNote}
       onUpdateQaChecklist={handleUpdateQaChecklist}
+      onToggleNoSystemInstalled={handleToggleNoSystemInstalled}
       onSoftDelete={handleSoftDelete}
       onRestore={handleRestore}
             deleteRestorePending={deleteRestorePending}

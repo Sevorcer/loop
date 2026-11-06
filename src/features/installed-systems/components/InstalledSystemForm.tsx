@@ -103,6 +103,12 @@ export function InstalledSystemForm({
   const [isSaving, setIsSaving] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<Property[]>([]);
+  // Directory loads can fail outright (e.g. roles without customer-directory
+  // access get a 403). When one does, the picker would be a dead end — the
+  // form falls back to a plain name field instead, since names are what the
+  // form actually submits.
+  const [customerDirectoryFailed, setCustomerDirectoryFailed] = useState(false);
+  const [propertyDirectoryFailed, setPropertyDirectoryFailed] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   // Server-side picker search results, tagged with the query (and customer
   // scope, for properties) they belong to; stale results are ignored.
@@ -127,10 +133,16 @@ export function InstalledSystemForm({
     if (!role) return;
     requestJson<{ customers: Customer[] }>("/api/customers", { role })
       .then((res) => setCustomerOptions(res.customers ?? []))
-      .catch(() => setCustomerOptions([]));
+      .catch(() => {
+        setCustomerOptions([]);
+        setCustomerDirectoryFailed(true);
+      });
     requestJson<{ properties: Property[] }>("/api/properties", { role })
       .then((res) => setPropertyOptions(res.properties ?? []))
-      .catch(() => setPropertyOptions([]));
+      .catch(() => {
+        setPropertyOptions([]);
+        setPropertyDirectoryFailed(true);
+      });
   }, [role]);
 
   // When the form is locked to a job property (or editing), that property can
@@ -553,6 +565,23 @@ export function InstalledSystemForm({
               <label className="text-sm font-medium text-slate-200">
                 Customer <span className="text-red-400">*</span>
               </label>
+              {customerDirectoryFailed ? (
+                <>
+                  <input
+                    value={form.customerName}
+                    onChange={(e) => updateField("customerName", e.target.value)}
+                    placeholder="Customer name"
+                    aria-label="Customer name"
+                    disabled={lockJobProperty}
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40 disabled:opacity-70"
+                    required
+                  />
+                  <p className="text-xs text-slate-500">
+                    Customer list unavailable — type the name as it should appear.
+                  </p>
+                </>
+              ) : (
+              <>
               <input
                 value={customerSearch}
                 onChange={(e) => setCustomerSearch(e.target.value)}
@@ -584,6 +613,8 @@ export function InstalledSystemForm({
                   No customers match that search.
                 </p>
               ) : null}
+              </>
+              )}
               {fieldErrors.customerName ? (
                 <p className="text-xs text-red-400">{fieldErrors.customerName}</p>
               ) : null}
@@ -594,6 +625,23 @@ export function InstalledSystemForm({
               <label className="text-sm font-medium text-slate-200">
                 Property <span className="text-red-400">*</span>
               </label>
+              {propertyDirectoryFailed ? (
+                <>
+                  <input
+                    value={form.propertyName}
+                    onChange={(e) => updateField("propertyName", e.target.value)}
+                    placeholder="Property name"
+                    aria-label="Property name"
+                    disabled={lockJobProperty}
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500/40 disabled:opacity-70"
+                    required
+                  />
+                  <p className="text-xs text-slate-500">
+                    Property list unavailable — type the name as it should appear.
+                  </p>
+                </>
+              ) : (
+              <>
               <input
                 value={propertySearch}
                 onChange={(e) => setPropertySearch(e.target.value)}
@@ -625,6 +673,8 @@ export function InstalledSystemForm({
                   No properties match that search.
                 </p>
               ) : null}
+              </>
+              )}
               {fieldErrors.propertyName ? (
                 <p className="text-xs text-red-400">{fieldErrors.propertyName}</p>
               ) : null}

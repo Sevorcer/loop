@@ -26,6 +26,12 @@ export interface JobCompletionChecklistStatus {
   closeoutMode: JobCloseoutMode;
   photosUploaded: boolean;
   installedSystemsEntered: boolean;
+  /**
+   * Crew attested that no system was installed — satisfies the systems gate.
+   * Optional like the materials fields so older fixtures keep compiling;
+   * the server always fills it.
+   */
+  noSystemInstalled?: boolean;
   jobNotesCompleted: boolean;
   requiredQaItemsComplete: boolean;
   customerSignaturePlaceholder: "optional";
