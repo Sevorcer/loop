@@ -169,7 +169,7 @@ export function ParEditor({ locationId, items, initial, sources }: ParEditorProp
         <p className="text-sm text-muted">No items match your search.</p>
       ) : (
         <div className="w-full overflow-x-auto rounded-atlas-md border border-default">
-          <table className="w-full min-w-[32rem] text-sm">
+          <table className="w-full min-w-[32rem] text-sm max-md:min-w-0">
             <caption className="sr-only">Par levels</caption>
             <thead className="bg-surface-elevated">
               <tr>

@@ -71,8 +71,8 @@ export async function CatalogScreen({ searchParams }: CatalogScreenProps) {
       description="One catalog for everything you sell and everything you stock."
       actions={access.canCreateItems ? <AddItemDialog categories={flatCategories} canSetCost={access.canEditCost} defaultCategoryId={categoryId} /> : undefined}
     >
-      <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
-        <aside>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <aside className="min-w-0">
           <SectionCard title="Categories">
             <CategorySidebar
               baseHref={ROUTES.INVENTORY_CATALOG}

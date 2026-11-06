@@ -14,7 +14,7 @@ interface InventoryFrameProps {
 /** Shared shell for every inventory screen: header, section tabs, content. */
 export function InventoryFrame({ title, description, actions, children }: InventoryFrameProps) {
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader title={title} description={description} actions={actions} />
       <InventoryTabs />
       {children}
