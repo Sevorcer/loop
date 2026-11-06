@@ -24,6 +24,7 @@ export interface InventoryAccess {
   canEditLocations: boolean;
   canViewKits: boolean;
   canEditKits: boolean;
+  canViewMaterialPlans: boolean;
   canViewSettings: boolean;
   canEditSettings: boolean;
 }
@@ -58,6 +59,7 @@ export async function getInventoryAccess(): Promise<InventoryAccess> {
     canEditLocations: can("inventory_locations", "update"),
     canViewKits: can("kit_templates", "select"),
     canEditKits: can("kit_templates", "update"),
+    canViewMaterialPlans: can("job_material_plans", "select"),
     canViewSettings: can("inventory_settings", "select"),
     canEditSettings: can("inventory_settings", "update"),
   };

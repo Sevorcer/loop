@@ -105,7 +105,12 @@ export type CoreTable =
   // Inventory Lane 4 — kit templates and the inventory rules row
   | "inventory_settings"
   | "kit_templates"
-  | "kit_template_lines";
+  | "kit_template_lines"
+  // Inventory Lane 4 — job material plans, attached kits, history, aliases
+  | "job_material_plans"
+  | "job_kits"
+  | "job_material_line_events"
+  | "catalog_item_aliases";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -514,6 +519,35 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner", "manager", "office"]),
   },
+  // Plan header: office roles generate (insert); owner/manager/dispatch/office confirm
+  // (update). Never deleted (empty set = invariant); a plan goes away with its job.
+  job_material_plans: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>([]),
+  },
+  job_kits: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+  },
+  // Append-only history. Techs may only add quantity-change events (a database policy
+  // pins the event type); everything else is written by the database trigger.
+  job_material_line_events: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // "Estimate text means this catalog item": written when a needs-SKU line is linked.
+  catalog_item_aliases: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -530,6 +564,7 @@ const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new M
   ["job_callbacks", new Set<TableAction>(["update", "delete"])],
   ["job_financials_history", new Set<TableAction>(["update", "delete"])],
   ["inventory_transactions", new Set<TableAction>(["update", "delete"])],
+  ["job_material_line_events", new Set<TableAction>(["update", "delete"])],
 ]);
 
 /**

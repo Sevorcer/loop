@@ -275,7 +275,7 @@ Append-only stock ledger. `created_by` must equal `auth.uid()`. UPDATE, DELETE a
 | UPDATE | —     | —     | —     | —     | —     | —     | —      |
 | DELETE | —     | —     | —     | —     | —     | —     | —      |
 
-## Inventory Lane 4 (migration 20261126000000)
+## Inventory Lane 4 (migrations 20261126000000, 20261126100000)
 
 Kit templates and the inventory rules row. Nothing here is seeded. `save_kit_template()` is SECURITY INVOKER, so these policies apply to it.
 
@@ -308,6 +308,50 @@ Catalog-backed lines (never free text). A kit save replaces its lines as a set, 
 | Action | owner | manager | dispatch | tech | office | sales | portal |
 |--------|-------|---------|----------|------|--------|-------|--------|
 | SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+| DELETE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
+
+### job_material_plans
+
+One plan header per job (draft or confirmed). Editing is office-side; confirming and reopening are owner, manager, dispatch and office. A trigger stamps who confirmed and when. Techs read the plan but change line state and quantity through `job_material_lines`, not the header.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+| UPDATE | ✓     | ✓     | ✓     | —     | ✓     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### job_kits
+
+Kits attached to a job (a snapshot of the kit at attach time). Anyone who can edit a plan can attach or refresh a kit.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+| UPDATE | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+| DELETE | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
+
+### job_material_line_events
+
+Append-only history of every plan-line change (who, when, why). The actor and time are stamped by trigger and UPDATE/DELETE privileges are revoked. Most events are written by the line trigger; a tech may only insert quantity-change events.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | ✓     | ✓     | ✓     | —      |
+| INSERT | ✓     | ✓     | ✓     | ✓ (qty only) | ✓ | ✓ | —      |
+| UPDATE | —     | —     | —     | —     | —     | —     | —      |
+| DELETE | —     | —     | —     | —     | —     | —     | —      |
+
+### catalog_item_aliases
+
+"This estimate wording means that catalog item", written when a needs-SKU line is linked. Resolving needs-SKU lines is owner, manager and office. Dispatch and sales can read.
+
+| Action | owner | manager | dispatch | tech | office | sales | portal |
+|--------|-------|---------|----------|------|--------|-------|--------|
+| SELECT | ✓     | ✓     | ✓     | —     | ✓     | ✓     | —      |
 | INSERT | ✓     | ✓     | —     | —     | ✓     | —     | —      |
 | UPDATE | ✓     | ✓     | —     | —     | ✓     | —     | —      |
 | DELETE | ✓     | ✓     | —     | —     | ✓     | —     | —      |

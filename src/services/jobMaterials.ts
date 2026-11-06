@@ -20,6 +20,7 @@ import {
   summarizeJobMaterialsForJobs,
   updateJobMaterialLine,
 } from "@/repositories/jobMaterials";
+import { getMaterialPlan } from "@/repositories/materialPlans";
 import {
   countSystemsForProperties,
   listKnowledgeForEquipment,
@@ -46,7 +47,8 @@ export async function addJobMaterial(
   input: JobMaterialCreateInput,
 ): Promise<JobMaterialLine> {
   const sortOrder = await nextJobMaterialSortOrder(jobId);
-  return createJobMaterialLine(jobId, input, sortOrder);
+  const plan = await getMaterialPlan(jobId);
+  return createJobMaterialLine(jobId, input, sortOrder, plan?.id ?? null);
 }
 
 export async function updateJobMaterial(
