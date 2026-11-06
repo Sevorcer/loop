@@ -5,7 +5,8 @@
  * POST /api/inventory/locations — create a warehouse or quarantine location
  *      (van locations are created with their vehicle; job locations by buy-for-job later)
  *
- * Roles: inventory_locations select (owner, manager, dispatch, office) / insert (owner, manager, office).
+ * Roles: inventory_locations select (owner, manager, dispatch, office, and tech
+ * for own active van plus active warehouses) / insert (owner, manager, office).
  */
 
 import { NextResponse } from "next/server";

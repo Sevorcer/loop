@@ -22,6 +22,12 @@ export interface InventoryAccess {
   canDeleteTiers: boolean;
   canEditVehicles: boolean;
   canEditLocations: boolean;
+  /** Owner, manager, and office. Pars are not a stock-level update. */
+  canEditPars: boolean;
+  /** Owner, manager, and office may assign who opens a van. */
+  canAssignOperators: boolean;
+  /** Owner only. Matches vehicle_operators delete. */
+  canRemoveOperators: boolean;
   canViewKits: boolean;
   canEditKits: boolean;
   canViewMaterialPlans: boolean;
@@ -59,6 +65,9 @@ export async function getInventoryAccess(): Promise<InventoryAccess> {
     canDeleteTiers: can("catalog_price_tiers", "delete"),
     canEditVehicles: can("vehicles", "update"),
     canEditLocations: can("inventory_locations", "update"),
+    canEditPars: can("inventory_locations", "update"),
+    canAssignOperators: can("vehicle_operators", "insert"),
+    canRemoveOperators: can("vehicle_operators", "delete"),
     canViewKits: can("kit_templates", "select"),
     canEditKits: can("kit_templates", "update"),
     canViewMaterialPlans: can("job_material_plans", "select"),

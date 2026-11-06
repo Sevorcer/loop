@@ -105,7 +105,16 @@ export function isRoleDeniedPath(role: string | null | undefined, pathname: stri
   // Tech role has additional job editor restrictions
   if (role === "tech" && isTechJobEditorPath(path)) return true;
 
+  // My van is the one inventory path a technician may open. The /inventory
+  // prefix stays denied, which would otherwise swallow /inventory/my-van.
+  if (role === "tech" && isTechMyVanPath(path)) return false;
+
   return deniedPrefixes.some((prefix) => matchesPrefix(path, prefix));
+}
+
+/** Exact /inventory/my-van, not a sibling such as /inventory/my-van-other. */
+function isTechMyVanPath(pathname: string): boolean {
+  return pathname === ROUTES.INVENTORY_MY_VAN || pathname.startsWith(`${ROUTES.INVENTORY_MY_VAN}/`);
 }
 
 /**

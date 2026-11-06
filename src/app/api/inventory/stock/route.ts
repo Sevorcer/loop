@@ -2,8 +2,10 @@
  * GET /api/inventory/stock — on-hand per item and location (a cache of the ledger)
  *
  * Query: locationId, itemId (both optional).
- * Roles: inventory_stock_levels select (owner, manager, dispatch, office). Read-only for everyone:
- * quantities change only by posting ledger entries.
+ * Roles: inventory_stock_levels select. Owner, manager, dispatch, and office see
+ * every location. A tech's select is limited by RLS to that tech's active van
+ * and active warehouses (Lane 2). Read-only for everyone: quantities change
+ * only by posting ledger entries. Pars are not an update of this table.
  */
 
 import { NextResponse } from "next/server";

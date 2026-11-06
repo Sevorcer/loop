@@ -21,11 +21,13 @@ export const ROUTES = {
   /** Legacy address — redirects to OPERATIONS_LIVE. */
   LIVE_OPERATIONS: "/live-operations",
   INVENTORY: "/inventory",
+  INVENTORY_MY_VAN: "/inventory/my-van",
   INVENTORY_CATALOG: "/inventory/catalog",
   INVENTORY_KITS: "/inventory/kits",
   INVENTORY_NEEDS_SKU: "/inventory/needs-sku",
   INVENTORY_ARRIVALS: "/inventory/arrivals",
   INVENTORY_LOCATIONS: "/inventory/locations",
+  INVENTORY_RESTOCK: "/inventory/restock",
   INVENTORY_ACTIVITY: "/inventory/activity",
   INVENTORY_RULES: "/inventory/rules",
   DISPATCH: "/dispatch",
@@ -46,6 +48,9 @@ export const ROUTES = {
 export const ROUTE_BUILDERS = {
   INVENTORY_ITEM: (itemId: string) => `${ROUTES.INVENTORY_CATALOG}/${itemId}`,
   INVENTORY_KIT: (kitId: string) => `${ROUTES.INVENTORY_KITS}/${kitId}`,
+  INVENTORY_VAN: (vehicleId: string) => `${ROUTES.INVENTORY}/vans/${vehicleId}`,
+  INVENTORY_VAN_PARS: (vehicleId: string) => `${ROUTES.INVENTORY}/vans/${vehicleId}/pars`,
+  INVENTORY_VAN_COUNT: (vehicleId: string) => `${ROUTES.INVENTORY}/vans/${vehicleId}/count`,
   JOB_NEW: (context?: { customerId?: string; propertyId?: string; date?: string }) => {
     const params = new URLSearchParams();
     if (context?.customerId) params.set("customerId", context.customerId);

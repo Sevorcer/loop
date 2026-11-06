@@ -25,6 +25,16 @@ describe("getPageMeta", () => {
     expect(settingsMeta.parent).toEqual({ title: "Settings", href: ROUTES.SETTINGS });
   });
 
+  it("names van stock, pars, and needs restock", () => {
+    expect(getPageMeta(ROUTES.INVENTORY_RESTOCK).title).toBe("Needs restock");
+    expect(getPageMeta(ROUTES.INVENTORY_RESTOCK).parent).toEqual({ title: "Inventory", href: ROUTES.INVENTORY });
+    expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc`).title).toBe("Van stock");
+    expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc/pars`).title).toBe("Edit pars");
+    expect(getPageMeta(`${ROUTES.INVENTORY}/vans/abc/count`).title).toBe("Count in");
+    expect(getPageMeta(ROUTES.INVENTORY_MY_VAN).title).toBe("My van");
+    expect(getPageMeta(ROUTES.INVENTORY_MY_VAN).parent).toBeUndefined();
+  });
+
   it("falls back to Dashboard for unknown routes", () => {
     expect(getPageMeta("/some/unknown/route").title).toBe("Dashboard");
   });

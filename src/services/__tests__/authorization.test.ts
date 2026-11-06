@@ -677,13 +677,23 @@ describe("inventory Lane 1 permissions", () => {
     }
   });
 
-  it("gives techs and sales no location, stock or ledger access in Lane 1", () => {
+  it("lets ops roles read locations, stock, and the ledger, and still hides them from sales and the portal", () => {
     for (const table of ["inventory_locations", "inventory_stock_levels", "inventory_transactions"] as const) {
-      expectDenied("tech", table, ["select"]);
       expectDenied("sales", table, ["select"]);
       expectDenied("portal", table, ["select"]);
       for (const role of ["owner", "manager", "dispatch", "office"] as const) expectAllowed(role, table, ["select"]);
     }
+  });
+
+  it("lets a tech read locations and stock only, never the ledger", () => {
+    // Row scope (own active van + active warehouses) is RLS. This contract
+    // records that a tech select exists at all. The ledger stays closed
+    // because unit_cost_cents lives on the row.
+    expectAllowed("tech", "inventory_locations", ["select"]);
+    expectAllowed("tech", "inventory_stock_levels", ["select"]);
+    expectDenied("tech", "inventory_locations", ["insert", "update", "delete"]);
+    expectDenied("tech", "inventory_stock_levels", ["insert", "update", "delete"]);
+    expectDenied("tech", "inventory_transactions", ["select", "insert", "update", "delete"]);
   });
 
   it("makes stock levels a ledger-only cache: nobody can write it", () => {
@@ -702,6 +712,40 @@ describe("inventory Lane 1 permissions", () => {
     }
     expect(isLockedDeny("inventory_transactions", "update")).toBe(true);
     expect(isLockedDeny("inventory_transactions", "delete")).toBe(true);
+  });
+});
+
+// ─── Inventory Lane 2 (van assignments + tech read) ───────────────────────────
+
+describe("inventory Lane 2 permissions", () => {
+  it("lets office assign van operators and only the owner remove one", () => {
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "vehicle_operators", ["select", "insert", "update"]);
+    }
+    expectAllowed("owner", "vehicle_operators", ["delete"]);
+    expectDenied("manager", "vehicle_operators", ["delete"]);
+    expectDenied("office", "vehicle_operators", ["delete"]);
+  });
+
+  it("lets dispatch and the assigned tech read van assignments, and lets nobody else write them", () => {
+    expectAllowed("dispatch", "vehicle_operators", ["select"]);
+    expectAllowed("tech", "vehicle_operators", ["select"]);
+    for (const role of ["dispatch", "tech"] as const) {
+      expectDenied(role, "vehicle_operators", ["insert", "update", "delete"]);
+    }
+    for (const role of ["sales", "portal"] as const) {
+      expectDenied(role, "vehicle_operators", ["select", "insert", "update", "delete"]);
+    }
+  });
+
+  it("keeps stock writes locked for every role, including the tech who can now read", () => {
+    for (const role of ["owner", "manager", "dispatch", "tech", "office", "sales", "portal"] as const) {
+      expectDenied(role, "inventory_stock_levels", ["insert", "update", "delete"]);
+    }
+    expect(isEmptySetInvariant("inventory_stock_levels", "insert")).toBe(true);
+    expect(isEmptySetInvariant("inventory_stock_levels", "update")).toBe(true);
+    expect(isEmptySetInvariant("inventory_stock_levels", "delete")).toBe(true);
+    expect(isLockedDeny("inventory_stock_levels", "update")).toBe(true);
   });
 });
 

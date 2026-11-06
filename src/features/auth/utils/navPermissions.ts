@@ -57,8 +57,9 @@ export const NAV_ROUTE_ROLES: Readonly<Record<string, ReadonlyArray<AppRole>>> =
   [ROUTES.INSTALLED_SYSTEMS]: ["owner", "manager", "dispatch", "tech", "office", "sales"],
   [ROUTES.VEHICLE_ALERTS]: ["owner", "manager", "dispatch"],
 
-  // Resources
+  // Resources. My van is the technician phone screen. Office inventory stays closed to techs.
   [ROUTES.INVENTORY]: ["owner", "manager", "dispatch", "office"],
+  [ROUTES.INVENTORY_MY_VAN]: ["tech"],
   [ROUTES.COMPANY_BRAIN]: ["owner", "manager"],
 
   // Insights

@@ -54,10 +54,22 @@ describe("buildStockRows", () => {
   it("searches by name or sku", () => {
     expect(buildStockRows(items, [], "f-1").map((row) => row.itemId)).toEqual(["a"]);
   });
-  it("marks below-minimum only when otherwise ok", () => {
-    const rows = buildStockRows(items, [level("a", "w", 2, 5), level("b", "w", 9, 5)]);
+  it("marks low only when on-hand is under the minimum, including zero and negative", () => {
+    const rows = buildStockRows(items, [
+      level("a", "w", 2, 5),
+      level("b", "w", 5, 5),
+    ]);
     expect(rows.find((row) => row.itemId === "a")?.belowMin).toBe(true);
     expect(rows.find((row) => row.itemId === "b")?.belowMin).toBe(false);
+    const zero = buildStockRows([item({ id: "z", name: "Zero" })], [level("z", "w", 0, 1)]);
+    expect(zero[0]?.belowMin).toBe(true);
+    expect(zero[0]?.flag).toBe("zero");
+    const negative = buildStockRows([item({ id: "n", name: "Neg" })], [level("n", "w", -1, 1)]);
+    expect(negative[0]?.belowMin).toBe(true);
+    const exact = buildStockRows([item({ id: "e", name: "Exact" })], [level("e", "w", 4, 4)]);
+    expect(exact[0]?.belowMin).toBe(false);
+    const noMin = buildStockRows([item({ id: "m", name: "None" })], [level("m", "w", 0)]);
+    expect(noMin[0]?.belowMin).toBe(false);
   });
   it("counts flags", () => {
     expect(countFlags(buildStockRows(items, [level("a", "w", -1)]))).toEqual({ negative: 1, zero: 1 });

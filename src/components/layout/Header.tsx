@@ -84,6 +84,15 @@ const pageContent: Record<string, PageMeta> = {
     title: "Inventory",
     description: "Track material availability, job allocations, and warehouse readiness.",
   },
+  [ROUTES.INVENTORY_MY_VAN]: {
+    title: "My van",
+    description: "What's on your truck, what to pull from the shop, and a recount.",
+  },
+  [ROUTES.INVENTORY_RESTOCK]: {
+    title: "Needs restock",
+    description: "Vans under par, and what to pull from the shop.",
+    parent: { title: "Inventory", href: ROUTES.INVENTORY },
+  },
   [ROUTES.COMPANY_BRAIN]: {
     title: "Company Brain",
     description: "Search shared knowledge, procedures, and operational context.",
@@ -139,6 +148,30 @@ interface DynamicRoute {
 
 // Ordered most-specific first: /new and /edit must come before /:id.
 const dynamicPageMeta: DynamicRoute[] = [
+  {
+    test: (p) => /^\/inventory\/vans\/[^/]+\/count\/?$/.test(p),
+    meta: {
+      title: "Count in",
+      description: "Count what is on this van. A blank line is skipped, and a match posts nothing.",
+      parent: { title: "Inventory", href: ROUTES.INVENTORY },
+    },
+  },
+  {
+    test: (p) => /^\/inventory\/vans\/[^/]+\/pars\/?$/.test(p),
+    meta: {
+      title: "Edit pars",
+      description: "Minimum and fill-to for this van. Copying numbers does not save them.",
+      parent: { title: "Inventory", href: ROUTES.INVENTORY },
+    },
+  },
+  {
+    test: (p) => /^\/inventory\/vans\/[^/]+\/?$/.test(p),
+    meta: {
+      title: "Van stock",
+      description: "On hand next to the par for this van.",
+      parent: { title: "Inventory", href: ROUTES.INVENTORY },
+    },
+  },
   {
     test: (p) => p === `${ROUTES.JOBS}/new`,
     meta: {

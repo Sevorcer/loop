@@ -65,6 +65,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
     label: "FIELD",
     items: [
       { name: "Jobs", href: ROUTES.JOBS, icon: Briefcase },
+      { name: "My van", href: ROUTES.INVENTORY_MY_VAN, icon: Truck },
       { name: "Permits", href: ROUTES.PERMITS_BOARD, icon: FileCheck },
       { name: "Inspections", href: ROUTES.INSPECTIONS_WEEK, icon: ClipboardCheck },
       { name: "Properties", href: ROUTES.PROPERTIES, icon: Building2 },
@@ -103,7 +104,7 @@ export const SHELL_NAV_GROUPS: NavGroup[] = [
 const ROLE_NAV_PRESET_ORDER: Partial<Record<AppRole, readonly string[]>> = {
   owner: [ROUTES.DASHBOARD, ROUTES.OPERATIONS, ROUTES.REPORTING, ROUTES.SETTINGS],
   dispatch: [ROUTES.DISPATCH, ROUTES.OPERATIONS, ROUTES.JOBS],
-  tech: [ROUTES.DASHBOARD, ROUTES.JOBS],
+  tech: [ROUTES.DASHBOARD, ROUTES.JOBS, ROUTES.INVENTORY_MY_VAN],
 };
 
 export interface ComposeSidebarNavOptions {

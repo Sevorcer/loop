@@ -99,6 +99,10 @@ export type CoreTable =
   | "catalog_price_tiers"
   | "catalog_item_costs"
   | "vehicles"
+  // Inventory Lane 2 — who opens which van on the phone. Office assigns
+  // people (the Locations & vans control is PR B). Tech reads own rows only;
+  // that row scope is RLS, not this matrix. crews.vehicle_id is unchanged.
+  | "vehicle_operators"
   | "inventory_locations"
   | "inventory_stock_levels"
   | "inventory_transactions"
@@ -479,16 +483,28 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner"]),
   },
+  // Lane 2: office assigns the person who opens My van. Tech SELECT is own
+  // rows only (RLS). Techs cannot assign themselves.
+  vehicle_operators: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Lane 2: tech SELECT is own active van plus active warehouses (RLS).
+  // Insert/update/delete stay office+/owner, same as Lane 1.
   inventory_locations: {
-    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner"]),
   },
   // Stock levels are a cache written only by the ledger trigger: no role may
   // insert/update/delete (empty sets = locked invariants, not overridable).
+  // Par changes go through fn_inventory_set_par, which is not an UPDATE grant.
+  // Lane 2 adds tech SELECT for the same locations as inventory_locations.
   inventory_stock_levels: {
-    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
     insert: new Set<AppRole>([]),
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
