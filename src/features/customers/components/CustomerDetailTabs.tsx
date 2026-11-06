@@ -442,7 +442,7 @@ export function CustomerDetailTabs({
                         <p className="mt-1 text-sm text-muted-foreground">{job.id}</p>
                       </div>
 
-                      <StatusBadge variant={job.status === "Completed" ? "success" : "warning"}>
+                      <StatusBadge variant={job.status === "Completed" ? "completed" : "warning"}>
                         {job.status}
                       </StatusBadge>
                     </div>

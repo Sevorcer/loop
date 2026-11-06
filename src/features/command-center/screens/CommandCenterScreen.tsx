@@ -5,8 +5,7 @@ import {
 } from "@/repositories/commandCenter";
 
 import { KPIStrip } from "../components/KPIStrip";
-import { TodaysJobsWidget } from "../components/TodaysJobsWidget";
-import { InProgressJobsWidget } from "../components/InProgressJobsWidget";
+import { OperationsTabs } from "../components/OperationsTabs";
 import { OnHoldJobsWidget } from "../components/OnHoldJobsWidget";
 import { WaitingOnInspectionWidget } from "../components/WaitingOnInspectionWidget";
 import { CallbacksWidget } from "../components/CallbacksWidget";
@@ -39,8 +38,6 @@ export async function CommandCenterScreen() {
   const {
     kpis,
     counts,
-    scheduledToday,
-    inProgress,
     onHold,
     inspections,
     callbacks,
@@ -55,9 +52,10 @@ export async function CommandCenterScreen() {
     <div className="space-y-4 sm:space-y-6">
       {/* Page header */}
       <PageHeader
-        title="Command Center"
+        title="Operations"
         description="Operational health at a glance — risk, workload, and intervention priorities for today."
       />
+      <OperationsTabs />
 
       {/* Error banner — non-blocking, screen still renders */}
       {fetchError && (
@@ -75,11 +73,8 @@ export async function CommandCenterScreen() {
       {/* 2 — Problem Jobs (full-width, high visibility) */}
       <ProblemJobsWidget problemJobs={problemJobs} />
 
-      {/* 3 — Today's jobs + In Progress */}
-      <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
-        <TodaysJobsWidget jobs={scheduledToday} totalCount={counts.scheduledToday} />
-        <InProgressJobsWidget jobs={inProgress} totalCount={counts.inProgress} />
-      </div>
+      {/* 3 — Today's jobs + In Progress moved to the Live tab (Collin, 2026-11-05).
+          Their counts still feed the KPI strip above. */}
 
       {/* 4 — Crew Workload (full-width for table readability) */}
       <CrewWorkloadWidget personWorkload={personWorkload} teamWorkload={teamWorkload} />

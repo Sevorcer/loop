@@ -230,7 +230,7 @@ function DayPanel({
                   <StatusBadge
                     variant={
                       job.status === "Completed"
-                        ? "success"
+                        ? "completed"
                         : job.status === "Scheduled"
                           ? "info"
                           : job.status === "In Progress"

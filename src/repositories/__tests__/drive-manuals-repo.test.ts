@@ -116,6 +116,13 @@ describe("driveManuals repository", () => {
 });
 
 describe("driveManuals repository — portal eligibility (20261121500000)", () => {
+  it("maps storage_path to hasLocalFile without exposing the path", () => {
+    expect(mapDriveManualFile({ ...baseRow, storage_path: "abc/Manual.pdf" }).hasLocalFile).toBe(true);
+    expect(mapDriveManualFile({ ...baseRow, storage_path: null }).hasLocalFile).toBe(false);
+    expect(mapDriveManualFile(baseRow).hasLocalFile).toBe(false);
+    expect(JSON.stringify(mapDriveManualFile({ ...baseRow, storage_path: "abc/Manual.pdf" }))).not.toContain("abc/Manual.pdf");
+  });
+
   it("reads portal_eligible and maps it (missing → false)", () => {
     expect(mapDriveManualFile({ ...baseRow, portal_eligible: true }).portalEligible).toBe(true);
     expect(mapDriveManualFile(baseRow).portalEligible).toBe(false);

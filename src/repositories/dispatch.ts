@@ -13,6 +13,8 @@ import type {
   ScheduleBlock,
 } from "@/features/dispatch/types/dispatch";
 
+import { CREW_VEHICLE_EMBED, resolveVehicleName, type LinkedVehicleEmbed } from "@/features/inventory/utils/vehicleName";
+
 import { wrapRepositoryError } from "./shared";
 import { getRepositoryContext, type SessionRepositoryContextInput } from "./supabaseContext";
 
@@ -28,7 +30,8 @@ interface CrewRow {
   members: unknown;
   certifications: string[];
   availability: string;
-  truck_name: string;
+  vehicle_id?: string | null;
+  vehicle?: LinkedVehicleEmbed;
 }
 
 interface DispatchPlanRow {
@@ -103,7 +106,8 @@ function mapCrew(row: CrewRow): Crew {
     members: (row.members as Crew["members"]) ?? [],
     certifications: row.certifications ?? [],
     availability: row.availability as Crew["availability"],
-    truckName: row.truck_name,
+    truckName: resolveVehicleName(row.vehicle),
+    vehicleId: row.vehicle_id ?? null,
   };
 }
 
@@ -191,13 +195,13 @@ export async function listCrews(options?: { page?: number; pageSize?: number }) 
     const { supabase, orgId } = await getRepositoryContext();
     const { data, error } = await supabase
       .from("crews")
-      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
+      .select(CREW_SELECT)
       .eq("org_id", orgId)
       .order("name")
       .range(from, to);
 
     if (error) throw new Error(error.message);
-    return ((data ?? []) as CrewRow[]).map(mapCrew);
+    return ((data ?? []) as unknown as CrewRow[]).map(mapCrew);
   });
 }
 
@@ -207,7 +211,8 @@ export interface CrewWriteInput {
   members: Crew["members"];
   certifications: string[];
   availability: Crew["availability"];
-  truckName: string;
+  /** Linked van (crews.vehicle_id); null/omitted = none. */
+  vehicleId?: string | null;
 }
 
 export async function createCrew(input: CrewWriteInput) {
@@ -222,13 +227,13 @@ export async function createCrew(input: CrewWriteInput) {
         members: input.members,
         certifications: input.certifications,
         availability: input.availability,
-        truck_name: input.truckName,
+        vehicle_id: input.vehicleId ?? null,
       })
-      .select("id,org_id,name,lead_installer,members,certifications,availability,truck_name")
+      .select(CREW_SELECT)
       .single();
 
     if (error) throw new Error(error.message);
-    return mapCrew(data as CrewRow);
+    return mapCrew(data as unknown as CrewRow);
   });
 }
 
@@ -705,7 +710,7 @@ export interface DispatchRepositorySnapshot {
 const DISPATCH_PLAN_SELECT =
   "id,org_id,job_id,job_number,customer_name,property_name,job_type,dispatch_status,dispatchability,target_date,estimated_duration_hours,priority,sequencing_notes,constraints,created_at,updated_at";
 const CREW_SELECT =
-  "id,org_id,name,lead_installer,members,certifications,availability,truck_name";
+  `id,org_id,name,lead_installer,members,certifications,availability,${CREW_VEHICLE_EMBED}`;
 const CREW_ASSIGNMENT_SELECT =
   "id,org_id,dispatch_plan_id,job_id,crew_id,crew_name,lead_installer,supporting_technicians,status,assigned_at,reassignment_history";
 const SCHEDULE_BLOCK_SELECT =
@@ -934,14 +939,17 @@ export async function loadDispatchSnapshot(
 
   const boardWindow = options?.boardWindow;
 
-  const crewsPromise = fetchAllSnapshotRows<CrewRow>((from, to) =>
-    supabase
-      .from("crews")
-      .select(CREW_SELECT)
-      .eq("org_id", orgId)
-      .order("name")
-      .order("id")
-      .range(from, to),
+  // The vehicle embed is typed as an array by supabase-js but is one object on the wire;
+  // CrewRow accepts both, so the page type is asserted here rather than inferred.
+  const crewsPromise = fetchAllSnapshotRows<CrewRow>(
+    (from, to) =>
+      supabase
+        .from("crews")
+        .select(CREW_SELECT)
+        .eq("org_id", orgId)
+        .order("name")
+        .order("id")
+        .range(from, to) as unknown as PromiseLike<SnapshotPageResult<CrewRow>>,
   );
 
   let rawPlans: DispatchPlanRow[];

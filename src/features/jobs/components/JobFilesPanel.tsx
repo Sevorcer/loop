@@ -13,7 +13,6 @@ import {
   createPendingUpload,
   formatPendingUploadError,
   revokePendingPreview,
-  uploadFailureMessage,
   type PendingJobUpload,
 } from "@/features/jobs/utils/jobFileUploadQueue";
 
@@ -34,6 +33,13 @@ let pendingIdCounter = 0;
 function nextPendingId(): string {
   pendingIdCounter += 1;
   return `pending-${Date.now()}-${pendingIdCounter}`;
+}
+
+/** Abort signal that fires after `ms` — an upload step must never hang silently. */
+function timeoutSignal(ms: number): AbortSignal {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
 }
 
 export function JobFilesPanel({
@@ -118,43 +124,58 @@ export function JobFilesPanel({
 
     patchPending(item.clientId, { status: "uploading", error: null });
 
-    const headers = new Headers();
-    if (process.env.NODE_ENV !== "production" && role) {
-      headers.set("x-loop-role", role);
-    }
-
-    const formData = new FormData();
-    formData.set("file", item.file);
+    const file = item.file;
+    const mimeType = file.type || "application/octet-stream";
 
     try {
-      const response = await fetch(`/api/jobs/${jobId}/files`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-        headers,
+      // Files go straight to Storage through a signed URL (sign → PUT →
+      // complete): proxying the bytes through the app server silently
+      // killed any photo over the platform's ~4.5 MB request limit. Every
+      // step is time-boxed so a stalled request lands in the retry queue
+      // instead of spinning on "Uploading…" forever.
+      const signed = await requestJson<{ signedUrl: string; storagePath: string }>(
+        `/api/jobs/${jobId}/files/sign`,
+        {
+          method: "POST",
+          role,
+          body: { fileName: file.name, mimeType, sizeBytes: file.size },
+          signal: timeoutSignal(30_000),
+        },
+      );
+
+      const putResponse = await fetch(signed.signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "content-type": mimeType, "x-upsert": "false" },
+        // ~2 minutes plus ~15s per MB — generous for field connections.
+        signal: timeoutSignal(120_000 + Math.ceil(file.size / (1024 * 1024)) * 15_000),
       });
-
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string; error?: string }
-        | null;
-
-      if (!response.ok) {
-        const reason = uploadFailureMessage(payload, `Upload failed (HTTP ${response.status}).`);
-        patchPending(item.clientId, {
-          status: "failed",
-          error: formatPendingUploadError(item.file.name, reason),
-        });
-        return false;
+      if (!putResponse.ok) {
+        throw new Error(`Storage rejected the upload (${putResponse.status}).`);
       }
+
+      await requestJson(`/api/jobs/${jobId}/files/complete`, {
+        method: "POST",
+        role,
+        body: {
+          storagePath: signed.storagePath,
+          fileName: file.name,
+          mimeType,
+          sizeBytes: file.size,
+        },
+        signal: timeoutSignal(45_000),
+      });
 
       revokePendingPreview(item);
       setPending((current) => current.filter((row) => row.clientId !== item.clientId));
       return true;
     } catch (fileError) {
       const reason =
-        fileError instanceof Error && fileError.message.trim()
-          ? fileError.message
-          : "Network error — check your connection and retry.";
+        fileError instanceof Error && fileError.name === "AbortError"
+          ? "Upload timed out — check your connection and retry."
+          : fileError instanceof Error && fileError.message.trim()
+            ? fileError.message
+            : "Network error — check your connection and retry.";
       patchPending(item.clientId, {
         status: "failed",
         error: formatPendingUploadError(item.file.name, reason),

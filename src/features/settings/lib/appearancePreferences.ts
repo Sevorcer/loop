@@ -1,4 +1,5 @@
 import { DEFAULT_APPEARANCE, type AccentColor, type AppearancePreferences } from "../types";
+import { ROUTES } from "@/lib/routes";
 
 export const APPEARANCE_STORAGE_KEY = "loop_appearance_prefs";
 export const APPEARANCE_PREFERENCES_CHANGE_EVENT = "loop:appearance-preferences-change";
@@ -35,13 +36,32 @@ function isStringOption<T extends string>(value: unknown, options: readonly T[])
   return typeof value === "string" && options.includes(value as T);
 }
 
+/**
+ * Saved preferences can still hold addresses that were renamed or removed.
+ * 2026-11-05: Command Center became "Operations" at /operations, the old
+ * /operations launcher hub was removed, and Live Operations now lives inside
+ * Operations. Map the old addresses so saved settings keep working.
+ */
+const LEGACY_HREF_MAP: Readonly<Record<string, string>> = {
+  [ROUTES.COMMAND_CENTER]: ROUTES.OPERATIONS,
+  [ROUTES.LIVE_OPERATIONS]: ROUTES.OPERATIONS_LIVE,
+};
+
+export function migrateLegacyHref(href: string): string {
+  return LEGACY_HREF_MAP[href] ?? href;
+}
+
 function sanitizeHrefList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [...DEFAULT_APPEARANCE.sidebarNavOverride];
   }
 
   return Array.from(
-    new Set(value.filter((item): item is string => typeof item === "string" && item.length > 0))
+    new Set(
+      value
+        .filter((item): item is string => typeof item === "string" && item.length > 0)
+        .map(migrateLegacyHref)
+    )
   );
 }
 
@@ -60,7 +80,7 @@ function sanitizeAppearancePreferences(
       : DEFAULT_APPEARANCE.spacing,
     defaultLandingPage:
       typeof parsed.defaultLandingPage === "string" && parsed.defaultLandingPage.length > 0
-        ? parsed.defaultLandingPage
+        ? migrateLegacyHref(parsed.defaultLandingPage)
         : DEFAULT_APPEARANCE.defaultLandingPage,
     sidebarPinnedDefault:
       typeof parsed.sidebarPinnedDefault === "boolean"

@@ -94,6 +94,81 @@ describe("JobCompletionChecklistCard — final-day block", () => {
   });
 });
 
+describe("JobCompletionChecklistCard — no-system attestation", () => {
+  async function renderAttestationCard(props: {
+    closeoutMode?: JobCloseoutMode;
+    installedSystemsEntered?: boolean;
+    noSystemInstalled?: boolean;
+    onToggle?: (value: boolean) => Promise<void>;
+  }) {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+    await act(async () => {
+      root.render(
+        createElement(JobCompletionChecklistCard, {
+          photosUploaded: true,
+          installedSystemsEntered: props.installedSystemsEntered ?? false,
+          jobNotesCompleted: true,
+          closeoutMode: props.closeoutMode,
+          initialChecklist: QA_DONE,
+          onSaveChecklist: vi.fn(async () => {}),
+          noSystemInstalled: props.noSystemInstalled ?? false,
+          onToggleNoSystemInstalled: props.onToggle,
+        }),
+      );
+    });
+    return container;
+  }
+
+  function attestationCheckbox(container: HTMLElement) {
+    return [...container.querySelectorAll("label")].find((label) =>
+      label.textContent?.includes("No system was installed on this job"),
+    )?.querySelector("input");
+  }
+
+  it("offers the checkbox in full mode when no system is entered, and checking it readies the card", async () => {
+    const onToggle = vi.fn(async () => {});
+    const container = await renderAttestationCard({ onToggle });
+
+    const checkbox = attestationCheckbox(container);
+    expect(checkbox).toBeTruthy();
+    expect(container.textContent).not.toContain("Completion checklist ready.");
+
+    await act(async () => {
+      checkbox!.click();
+    });
+
+    expect(onToggle).toHaveBeenCalledWith(true);
+    expect(container.textContent).toContain("Completion checklist ready.");
+  });
+
+  it("renders the attestation already checked when the job carries it", async () => {
+    const container = await renderAttestationCard({
+      noSystemInstalled: true,
+      onToggle: vi.fn(async () => {}),
+    });
+
+    expect(attestationCheckbox(container)?.checked).toBe(true);
+    expect(container.textContent).toContain("Completion checklist ready.");
+  });
+
+  it("shows no checkbox in visit mode or once a system is entered", async () => {
+    const visit = await renderAttestationCard({
+      closeoutMode: "visit",
+      onToggle: vi.fn(async () => {}),
+    });
+    expect(attestationCheckbox(visit)).toBeFalsy();
+
+    const entered = await renderAttestationCard({
+      installedSystemsEntered: true,
+      onToggle: vi.fn(async () => {}),
+    });
+    expect(attestationCheckbox(entered)).toBeFalsy();
+  });
+});
+
 describe("finalScheduledDayBlocker (client-safe util)", () => {
   const job = {
     scheduledStartAt: "2026-11-03T16:00:00.000Z",

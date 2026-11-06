@@ -18,6 +18,7 @@ import {
   updateJobStatus,
   updateRequiredQaChecklist,
   setJobNotes,
+  setJobNoSystemInstalled,
 } from "@/services/jobs";
 import {
     markJobEnRoute,
@@ -27,7 +28,7 @@ import { normalizeQaChecklist } from "@/features/jobs/utils/jobCompletionCheckli
 
 import type { JobAppointmentHour, JobCloseoutMode } from "@/features/jobs/types/job";
 
-const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "contractor", "soft-delete", "restore", "notifications", "en_route"]);
+const JOB_ACTIONS = new Set(["update", "status", "note", "notes", "qa", "systems_attestation", "contractor", "soft-delete", "restore", "notifications", "en_route"]);
 const JOB_TYPES = new Set(["Install", "Service", "Maintenance", "Inspection", "Estimate", "Callback"]);
 const JOB_PRIORITIES = new Set(["Low", "Medium", "High"]);
 const JOB_CLOSEOUT_MODES = new Set(["full", "visit"]);
@@ -214,6 +215,11 @@ export async function PATCH(
                     role: guard.ctx.role,
                   },
                 )
+          : action === "systems_attestation"
+            ? await setJobNoSystemInstalled(id, body.noneInstalled === true, {
+                actorId: guard.ctx.userId,
+                role: guard.ctx.role,
+              })
           : action === "contractor"
             ? String(body.direction ?? "assign") === "remove"
               ? await removeContractorAssignment(id, String(body.contractorId ?? ""), {
@@ -286,6 +292,18 @@ export async function PATCH(
     });
 
     if (action === "qa") {
+      return NextResponse.json({ checklist: result });
+    }
+
+    if (action === "systems_attestation") {
+      // Result is the refreshed completion checklist (or null when the job
+      // is gone, which the service reports the same way as other actions).
+      if (!result) {
+        return NextResponse.json(
+          { error: "not_found", message: "Job not found.", code: 404 },
+          { status: 404 },
+        );
+      }
       return NextResponse.json({ checklist: result });
     }
 

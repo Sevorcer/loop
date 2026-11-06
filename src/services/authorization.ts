@@ -92,7 +92,37 @@ export type CoreTable =
   | "vehicle_alerts"
   // Change Orders — per-job change order tracking
   | "job_change_orders"
-  | "customer_invoices";
+  | "customer_invoices"
+  // Inventory Lane 1 — one item master (sellable + stockable facets), locations, ledger
+  | "catalog_categories"
+  | "catalog_items"
+  | "catalog_price_tiers"
+  | "catalog_item_costs"
+  | "vehicles"
+  // Inventory Lane 2 — who opens which van on the phone. Office assigns
+  // people (the Locations & vans control is PR B). Tech reads own rows only;
+  // that row scope is RLS, not this matrix. crews.vehicle_id is unchanged.
+  | "vehicle_operators"
+  | "inventory_locations"
+  | "inventory_stock_levels"
+  | "inventory_transactions"
+  // Inventory Lane 4 — kit templates and the inventory rules row
+  | "inventory_settings"
+  | "kit_templates"
+  | "kit_template_lines"
+  // Inventory Lane 4 — job material plans, attached kits, history, aliases
+  | "job_material_plans"
+  | "job_kits"
+  | "job_material_line_events"
+  | "catalog_item_aliases"
+  // Inventory Lane 4 — reservations, expected arrivals, readiness history, field events
+  | "inventory_reservations"
+  | "inventory_expected_arrivals"
+  | "job_readiness_snapshots"
+  | "job_material_events"
+  // Inventory Lane 4 — closeout reconciliation and the EPA refrigerant log
+  | "job_material_reconciliations"
+  | "refrigerant_log_entries";
 
 export type TableAction = "select" | "insert" | "update" | "delete";
 
@@ -414,12 +444,183 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
   },
-  // Vehicle Alerts — staff list/create; office+dispatch update status; owner delete
+  // Vehicle Alerts — staff list/create; staff update status (Collin, 2026-11-06:
+  // techs get full working access); owner delete
   vehicle_alerts: {
     select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales", "tech"]),
     insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales", "tech"]),
-    update: new Set<AppRole>(["owner", "manager", "office", "dispatch"]),
+    update: new Set<AppRole>(["owner", "manager", "office", "dispatch", "tech"]),
     delete: new Set<AppRole>(["owner"]),
+  },
+  // ── Inventory Lane 1 ──────────────────────────────────────────────────────
+  // Catalog (categories, items, price tiers): every internal role can VIEW
+  // (service item list #36); office+ write; owner deletes. Portal denied.
+  catalog_categories: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  catalog_items: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  catalog_price_tiers: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Cost lives in its own table so tech/dispatch/sales/portal can never read it.
+  catalog_item_costs: {
+    select: new Set<AppRole>(["owner", "manager", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Vehicles: all internal roles read (techs/sales file vehicle alerts); office+ write.
+  vehicles: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Lane 2: office assigns the person who opens My van. Tech SELECT is own
+  // rows only (RLS). Techs cannot assign themselves.
+  vehicle_operators: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Lane 2: tech SELECT is own active van plus active warehouses (RLS).
+  // Insert/update/delete stay office+/owner, same as Lane 1.
+  inventory_locations: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Stock levels are a cache written only by the ledger trigger: no role may
+  // insert/update/delete (empty sets = locked invariants, not overridable).
+  // Par changes go through fn_inventory_set_par, which is not an UPDATE grant.
+  // Lane 2 adds tech SELECT for the same locations as inventory_locations.
+  inventory_stock_levels: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>([]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // Append-only ledger: read + insert only. Corrections are opposite entries.
+  inventory_transactions: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // ── Inventory Lane 4 ──────────────────────────────────────────────────────
+  // Rules row (readiness lead/buffer days, closeout stage): ops roles read, owner writes.
+  // No delete: the row is only ever created/changed, never removed.
+  inventory_settings: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner"]),
+    update: new Set<AppRole>(["owner"]),
+    delete: new Set<AppRole>([]),
+  },
+  // Kit templates: every internal role reads (crews see what is in a kit);
+  // owner/manager/office edit; owner deletes.
+  kit_templates: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Lines are replaced as a set when a kit is saved, so office roles may delete them.
+  kit_template_lines: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
+  // Plan header: office roles generate (insert); owner/manager/dispatch/office confirm
+  // (update). Never deleted (empty set = invariant); a plan goes away with its job.
+  job_material_plans: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>([]),
+  },
+  job_kits: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    delete: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+  },
+  // Append-only history. Techs may only add quantity-change events (a database policy
+  // pins the event type); everything else is written by the database trigger.
+  job_material_line_events: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office", "sales"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // "Estimate text means this catalog item": written when a needs-SKU line is linked.
+  catalog_item_aliases: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office", "sales"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
+  },
+  // Stock held for a job. Rows are never deleted: they are released, pulled or consumed
+  // (a database guard allows only those status moves).
+  inventory_reservations: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    delete: new Set<AppRole>([]),
+  },
+  // What is on its way: dispatch reads; owner/manager/office edit; owner may delete an
+  // arrival that has not been received.
+  inventory_expected_arrivals: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
+  },
+  // Append-only readiness history (plan confirmed / state changed / dispatched). Techs
+  // may add only the "dispatched" row on a job assigned to them (database policy).
+  job_readiness_snapshots: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // Append-only field events (missing part, wrong part, substitution...). Techs read and
+  // add events only on jobs assigned to them (database policy).
+  job_material_events: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // One row per job: submitted by the assigned tech or office, or an office override at the
+  // soft stage. Insert-only. A database policy limits direct inserts to overrides; submitted
+  // rows are written by reconcile_job_materials.
+  job_material_reconciliations: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "tech", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
+  },
+  // Append-only EPA log. Written only by reconcile_job_materials (no INSERT grant), so no role
+  // inserts directly: the empty insert set is an invariant.
+  refrigerant_log_entries: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>([]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>([]),
   },
 };
 
@@ -436,6 +637,12 @@ const APPEND_ONLY_DENY: ReadonlyMap<CoreTable, ReadonlySet<TableAction>> = new M
   ["job_notes", new Set<TableAction>(["update", "delete"])],
   ["job_callbacks", new Set<TableAction>(["update", "delete"])],
   ["job_financials_history", new Set<TableAction>(["update", "delete"])],
+  ["inventory_transactions", new Set<TableAction>(["update", "delete"])],
+  ["job_material_line_events", new Set<TableAction>(["update", "delete"])],
+  ["job_readiness_snapshots", new Set<TableAction>(["update", "delete"])],
+  ["job_material_events", new Set<TableAction>(["update", "delete"])],
+  ["job_material_reconciliations", new Set<TableAction>(["update", "delete"])],
+  ["refrigerant_log_entries", new Set<TableAction>(["update", "delete"])],
 ]);
 
 /**

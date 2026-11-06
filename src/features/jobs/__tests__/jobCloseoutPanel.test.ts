@@ -147,6 +147,14 @@ describe("buildCloseoutSteps", () => {
     expect(steps[3].sectionId).toBe(JOB_CLOSEOUT_SECTION_IDS.systems);
   });
 
+  it("completes the systems step on the no-system attestation alone", () => {
+    const steps = buildCloseoutSteps({ ...ALL_MISSING, noSystemInstalled: true });
+
+    const systems = steps.find((step) => step.key === "systems");
+    expect(systems?.complete).toBe(true);
+    expect(systems?.hint).toContain("no system installed");
+  });
+
   it("returns only the note step in visit mode", () => {
     const steps = buildCloseoutSteps({ ...ALL_MISSING, closeoutMode: "visit" });
 

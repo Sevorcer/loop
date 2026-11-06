@@ -10,12 +10,13 @@ const JOB_TYPE_CARD: Record<Job["type"], string> = {
 };
 
 /**
- * Completed jobs drop the job-type tint for a dimmed green "done" treatment so
- * finished work reads at a glance on the month grid, not just in the list view.
+ * Completed jobs drop the job-type tint for the pink "completed" treatment (the
+ * --completed token) so finished work reads at a glance on the month grid. It is
+ * not dimmed: completed cards stay fully readable.
  */
-const COMPLETED_CARD = "border-emerald-400/30 border-l-emerald-500 bg-emerald-500/10 opacity-70";
+const COMPLETED_CARD = "completed-card";
 
-/** Card color classes for a job: dimmed green when completed, else by job type. */
+/** Card color classes for a job: pink when completed, else by job type. */
 export function calendarJobCardTone(job: Pick<Job, "status" | "type">): string {
   if (job.status === "Completed") return COMPLETED_CARD;
   return JOB_TYPE_CARD[job.type] ?? "border-white/15 border-l-slate-400 bg-white/[0.04]";

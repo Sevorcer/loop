@@ -38,26 +38,31 @@ describe("TODAY group", () => {
     expect(group).toBeDefined();
   });
 
-  it("contains Dashboard, Command Center, Dispatch, Daily Plans, Calendar, Operations in that order (Live Operations hidden 2026-09-30)", () => {
+  it("contains Dashboard, Operations, Daily Plans, Dispatch, Calendar in that order (Operations hub removed, Command Center renamed 2026-11-05)", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.DASHBOARD,
-      ROUTES.COMMAND_CENTER,
-      ROUTES.DISPATCH,
-      ROUTES.DAILY_PLANS,
-      ROUTES.CALENDAR,
       ROUTES.OPERATIONS,
+      ROUTES.DAILY_PLANS,
+      ROUTES.DISPATCH,
+      ROUTES.CALENDAR,
     ]);
   });
 
   it("item names match spec", () => {
     expect(group.items.map((i) => i.name)).toEqual([
       "Dashboard",
-      "Command Center",
-      "Dispatch",
-      "Daily Plans",
-      "Calendar",
       "Operations",
+      "Daily Plans",
+      "Dispatch",
+      "Calendar",
     ]);
+  });
+
+  it("no longer links the legacy Command Center or Live Operations addresses", () => {
+    const allHrefs = SHELL_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+    expect(allHrefs).not.toContain(ROUTES.COMMAND_CENTER);
+    expect(allHrefs).not.toContain(ROUTES.LIVE_OPERATIONS);
+    expect(allHrefs.filter((href) => href === ROUTES.OPERATIONS)).toHaveLength(1);
   });
 });
 
@@ -73,6 +78,7 @@ describe("FIELD group", () => {
   it("contains the field records in sidebar order", () => {
     expect(group.items.map((i) => i.href)).toEqual([
       ROUTES.JOBS,
+      ROUTES.INVENTORY_MY_VAN,
       ROUTES.PERMITS_BOARD,
       ROUTES.INSPECTIONS_WEEK,
       ROUTES.PROPERTIES,
@@ -86,6 +92,7 @@ describe("FIELD group", () => {
   it("item names match the field records", () => {
     expect(group.items.map((i) => i.name)).toEqual([
       "Jobs",
+      "My van",
       "Permits",
       "Inspections",
       "Properties",
@@ -176,5 +183,33 @@ describe("No broken links / route regressions", () => {
     const hrefs = SHELL_NAV_GROUPS.flatMap((g) => g.items).map((i) => i.href);
     const unique = new Set(hrefs);
     expect(hrefs.length).toBe(unique.size);
+  });
+});
+
+// ─── isJobDetailPath ──────────────────────────────────────────────────────────
+// Job detail routes soft-nav wedge (2026-11-06): the Sidebar hard-navigates
+// from these paths only; everywhere else keeps soft navigation.
+
+import { isJobDetailPath } from "../sidebarNav";
+
+describe("isJobDetailPath", () => {
+  it("matches job detail and its children", () => {
+    expect(isJobDetailPath("/jobs/abc-123")).toBe(true);
+    expect(isJobDetailPath("/jobs/abc-123/edit")).toBe(true);
+    expect(isJobDetailPath("/jobs/abc-123/pull-list")).toBe(true);
+  });
+
+  it("does not match the jobs list or the new-job form", () => {
+    expect(isJobDetailPath("/jobs")).toBe(false);
+    expect(isJobDetailPath("/jobs/")).toBe(false);
+    expect(isJobDetailPath("/jobs/new")).toBe(false);
+  });
+
+  it("does not match other sections or empty input", () => {
+    expect(isJobDetailPath("/customers/abc-123")).toBe(false);
+    expect(isJobDetailPath("/")).toBe(false);
+    expect(isJobDetailPath(null)).toBe(false);
+    expect(isJobDetailPath(undefined)).toBe(false);
+    expect(isJobDetailPath("")).toBe(false);
   });
 });

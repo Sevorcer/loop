@@ -10,10 +10,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/services/inventoryReservations", () => ({ releaseAndRecheck: vi.fn(async () => undefined) }));
+vi.mock("@/services/closeoutReconciliation", () => ({
+  getMaterialsGate: vi.fn(async () => ({ required: false, reconciled: false, enforcement: "warn" })),
+}));
 
 const {
   getJobByIdMock,
   updateJobMock,
+  updateJobNoSystemInstalledMock,
   createJobActivityMock,
   listActivityByJobIdMock,
   updateDispatchPlanStatusByJobIdMock,
@@ -27,6 +32,7 @@ const {
 } = vi.hoisted(() => ({
   getJobByIdMock: vi.fn(),
   updateJobMock: vi.fn(),
+  updateJobNoSystemInstalledMock: vi.fn(),
   createJobActivityMock: vi.fn(),
   listActivityByJobIdMock: vi.fn(),
   updateDispatchPlanStatusByJobIdMock: vi.fn(),
@@ -43,6 +49,7 @@ vi.mock("@/repositories/jobs", () => ({
   getJobById: getJobByIdMock,
   getJobRowById: vi.fn(),
   updateJob: updateJobMock,
+  updateJobNoSystemInstalled: updateJobNoSystemInstalledMock,
   createJobActivity: createJobActivityMock,
   listJobs: vi.fn(),
   listJobActivity: vi.fn(),
@@ -89,7 +96,11 @@ vi.mock("@/repositories/billing", () => ({
   setBillingEligible: vi.fn(),
 }));
 
-import { getJobCompletionChecklist, updateJobStatus } from "@/services/jobs";
+import {
+  getJobCompletionChecklist,
+  setJobNoSystemInstalled,
+  updateJobStatus,
+} from "@/services/jobs";
 import { completionBlockers } from "@/features/jobs/utils/jobCompletionChecklist";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -365,5 +376,126 @@ describe("updateJobStatus — completion gating by closeout mode", () => {
 
     expect(result).toEqual(updated);
     expect(updateJobMock).toHaveBeenCalledWith("job-001", { status: "Completed" });
+  });
+});
+
+// ─── No-system attestation ───────────────────────────────────────────────────
+
+describe("no-system attestation — full closeout gate", () => {
+  function satisfyAllButSystems() {
+    satisfyPhoto();
+    satisfyQa();
+  }
+
+  it("satisfies the systems gate on the attestation alone", async () => {
+    getJobByIdMock.mockResolvedValue(
+      makeJob({ closeoutMode: "full", notes: "Service call — nothing installed.", noSystemInstalled: true }),
+    );
+    satisfyAllButSystems();
+
+    const checklist = await getJobCompletionChecklist("job-001", "tech");
+
+    expect(checklist.installedSystemsEntered).toBe(false);
+    expect(checklist.noSystemInstalled).toBe(true);
+    expect(checklist.canComplete).toBe(true);
+  });
+
+  it("still blocks without a system or an attestation", async () => {
+    getJobByIdMock.mockResolvedValue(
+      makeJob({ closeoutMode: "full", notes: "Service call.", noSystemInstalled: false }),
+    );
+    satisfyAllButSystems();
+
+    const checklist = await getJobCompletionChecklist("job-001", "tech");
+
+    expect(checklist.noSystemInstalled).toBe(false);
+    expect(checklist.canComplete).toBe(false);
+  });
+
+  it("lets a full job complete on the attestation, with no systems blocker named", async () => {
+    const original = makeJob({
+      closeoutMode: "full",
+      notes: "Service call — nothing installed.",
+      noSystemInstalled: true,
+    });
+    const updated = makeJob({
+      closeoutMode: "full",
+      status: "Completed",
+      notes: "Service call — nothing installed.",
+      noSystemInstalled: true,
+    });
+    getJobByIdMock.mockResolvedValue(original);
+    updateJobMock.mockResolvedValue(updated);
+    satisfyAllButSystems();
+
+    const result = await updateJobStatus("job-001", "Completed", { role: "tech" });
+
+    expect(result).toEqual(updated);
+  });
+});
+
+describe("setJobNoSystemInstalled", () => {
+  beforeEach(() => {
+    updateJobNoSystemInstalledMock.mockResolvedValue(makeJob({ noSystemInstalled: true }));
+  });
+
+  it("stamps the attestation, writes the activity record, and returns the refreshed checklist", async () => {
+    getJobByIdMock
+      .mockResolvedValueOnce(makeJob({ closeoutMode: "full", notes: "n", noSystemInstalled: false }))
+      .mockResolvedValue(makeJob({ closeoutMode: "full", notes: "n", noSystemInstalled: true }));
+    satisfyPhoto();
+    satisfyQa();
+
+    const checklist = await setJobNoSystemInstalled("job-001", true, {
+      actorId: "user-7",
+      role: "tech",
+    });
+
+    expect(updateJobNoSystemInstalledMock).toHaveBeenCalledWith("job-001", true, "user-7");
+    expect(createJobActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: "job-001",
+        actorId: "user-7",
+        type: "edited",
+        title: "No system installed — attested",
+      }),
+    );
+    expect(checklist?.noSystemInstalled).toBe(true);
+    expect(checklist?.canComplete).toBe(true);
+  });
+
+  it("is a no-op when the attestation already matches", async () => {
+    getJobByIdMock.mockResolvedValue(
+      makeJob({ closeoutMode: "full", notes: "n", noSystemInstalled: true }),
+    );
+
+    const checklist = await setJobNoSystemInstalled("job-001", true, {
+      actorId: "user-7",
+      role: "tech",
+    });
+
+    expect(updateJobNoSystemInstalledMock).not.toHaveBeenCalled();
+    expect(createJobActivityMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "No system installed — attested" }),
+    );
+    expect(checklist?.noSystemInstalled).toBe(true);
+  });
+
+  it("clears the stamp and records the removal", async () => {
+    getJobByIdMock
+      .mockResolvedValueOnce(makeJob({ closeoutMode: "full", notes: "n", noSystemInstalled: true }))
+      .mockResolvedValue(makeJob({ closeoutMode: "full", notes: "n", noSystemInstalled: false }));
+    updateJobNoSystemInstalledMock.mockResolvedValue(makeJob({ noSystemInstalled: false }));
+
+    const checklist = await setJobNoSystemInstalled("job-001", false, {
+      actorId: "user-9",
+      role: "office",
+    });
+
+    expect(updateJobNoSystemInstalledMock).toHaveBeenCalledWith("job-001", false, "user-9");
+    expect(createJobActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "System attestation removed" }),
+    );
+    expect(checklist?.noSystemInstalled).toBe(false);
   });
 });

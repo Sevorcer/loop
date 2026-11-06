@@ -45,6 +45,8 @@ interface JobMaterialsContextValue {
   canManage: boolean;
   canProgress: boolean;
   refresh: () => Promise<void>;
+  /** Apply a fresh server copy of the lines (plan actions return the whole view). */
+  replaceLines: (lines: JobMaterialLine[]) => void;
   addLine: (input: NewJobMaterial) => Promise<boolean>;
   setLineState: (lineId: string, state: JobMaterialState) => Promise<boolean>;
   setLineQuantity: (lineId: string, quantity: number) => Promise<boolean>;
@@ -122,6 +124,12 @@ export function JobMaterialsProvider({
       cancelled = true;
     };
   }, [applyLoad, fetchLines]);
+
+  const replaceLines = useCallback((next: JobMaterialLine[]) => {
+    setLines(next);
+    setError(null);
+    setLoading(false);
+  }, []);
 
   const summary = useMemo(() => summarizeJobMaterials(lines), [lines]);
   const summaryCallback = useRef(onSummaryChange);
@@ -235,6 +243,7 @@ export function JobMaterialsProvider({
       canManage,
       canProgress,
       refresh,
+      replaceLines,
       addLine,
       setLineState,
       setLineQuantity,
@@ -251,6 +260,7 @@ export function JobMaterialsProvider({
       canManage,
       canProgress,
       refresh,
+      replaceLines,
       addLine,
       setLineState,
       setLineQuantity,

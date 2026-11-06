@@ -35,6 +35,14 @@ function line(overrides: Partial<JobMaterialLine> = {}): JobMaterialLine {
     updatedAt: "2026-11-04T00:00:00Z",
     stateChangedBy: null,
     stateChangedAt: null,
+    planId: null,
+    catalogItemId: null,
+    catalogItem: null,
+    source: "manual",
+    kitId: null,
+    kitQuantity: null,
+    isOptional: false,
+    nonStockReason: null,
     ...overrides,
   };
 }

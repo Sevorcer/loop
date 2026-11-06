@@ -41,6 +41,24 @@ export interface FileValidationInput {
  * `image/jpg` is normalized to `image/jpeg` before the allowlist check; some
  * browsers report the non-standard alias but both represent the same format.
  */
+/**
+ * Makes a user-supplied file name safe for a storage path: keeps the
+ * extension, reduces the base name to [a-zA-Z0-9_-], and falls back to
+ * "upload" (plus ".bin") when nothing usable remains.
+ */
+export function normalizeUploadFileName(value: string): string {
+  const trimmed = value.trim();
+  const extensionMatch = /\.([a-zA-Z0-9]{1,10})$/.exec(trimmed);
+  const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : "";
+  const baseName = extensionMatch ? trimmed.slice(0, -extension.length) : trimmed;
+  const normalizedBase = baseName
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const safeBaseName = normalizedBase.length > 0 ? normalizedBase : "upload";
+  return `${safeBaseName}${extension || ".bin"}`;
+}
+
 export function validateJobFile(input: FileValidationInput): string | null {
   let normalizedType = input.mimeType.toLowerCase().trim();
 

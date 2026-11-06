@@ -33,6 +33,7 @@ import { JobInstalledSystemsPanel } from "@/features/installed-systems/component
 import { useInstalledSystems } from "@/features/installed-systems/state/InstalledSystemsProvider";
 import {
   JobMaterialsPanel,
+  ReconcileMaterialsCard,
   JobMaterialsProvider,
   JobTechnicalDataPanel,
   JobTechnicalDataProvider,
@@ -102,7 +103,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 function getStatusVariant(status: JobStatus) {
-  if (status === "Completed") return "success" as const;
+  if (status === "Completed") return "completed" as const;
   if (status === "Scheduled") return "info" as const;
   if (status === "In Progress") return "warning" as const;
   if (status === "On Hold") return "neutral" as const;
@@ -165,6 +166,7 @@ const CLOSEOUT_SECTION_TARGETS: Record<
   files: { tab: "photos", sectionId: JOB_CLOSEOUT_SECTION_IDS.photos },
   tasks: { tab: "tasks", sectionId: JOB_CLOSEOUT_SECTION_IDS.qa },
   systems: { tab: "systems", sectionId: JOB_CLOSEOUT_SECTION_IDS.systems },
+  materials: { tab: "tasks", sectionId: JOB_CLOSEOUT_SECTION_IDS.materials },
 };
 
 function JobDetailTabPanel({
@@ -199,6 +201,7 @@ interface JobDetailScreenProps {
   onPriceRecorded?: (activity: JobActivity) => void;
   onAddNote: (note: string) => Promise<void>;
   onUpdateQaChecklist: (checklist: RequiredQaChecklist) => Promise<void>;
+  onToggleNoSystemInstalled?: (value: boolean) => Promise<void>;
   onSoftDelete?: () => Promise<void>;
   onRestore?: () => Promise<void>;
     deleteRestorePending?: boolean;
@@ -215,6 +218,7 @@ export function JobDetailScreen({
   onPriceRecorded,
   onAddNote,
   onUpdateQaChecklist,
+  onToggleNoSystemInstalled,
   onSoftDelete,
   onRestore,
     deleteRestorePending = false,
@@ -892,6 +896,10 @@ export function JobDetailScreen({
             </JobMaterialsProvider>
           ) : null}
 
+          {canViewJobMaterials(role) && job.closeoutMode !== "visit" ? (
+            <ReconcileMaterialsCard jobId={job.id} />
+          ) : null}
+
           <div
             id={JOB_CLOSEOUT_SECTION_IDS.qa}
             className="scroll-mt-24 rounded-3xl transition-shadow duration-500 md:scroll-mt-48"
@@ -915,6 +923,18 @@ export function JobDetailScreen({
               signaturePreviewUrl={latestSignature?.previewUrl ?? null}
               initialChecklist={qaChecklist}
               onSaveChecklist={onUpdateQaChecklist}
+              noSystemInstalled={job.noSystemInstalled ?? false}
+              noSystemInstalledCaption={
+                job.noSystemInstalled && job.noSystemInstalledAt
+                  ? `Attested ${new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      timeZone: companyTimeZone(),
+                    }).format(new Date(job.noSystemInstalledAt))} — see activity for who.`
+                  : null
+              }
+              onToggleNoSystemInstalled={onToggleNoSystemInstalled}
             />
           </div>
         </div>

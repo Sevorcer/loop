@@ -41,8 +41,8 @@ const statusVariant: Record<
     icon: "text-amber-400",
   },
   Completed: {
-    badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-    icon: "text-emerald-400",
+    badge: "status-completed",
+    icon: "completed-text",
   },
   Cancelled: {
     badge: "border-slate-700 bg-white/5 text-slate-400",

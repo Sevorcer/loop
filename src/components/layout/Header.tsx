@@ -26,22 +26,24 @@ const pageContent: Record<string, PageMeta> = {
     description: "Welcome back. Here's what's happening today.",
   },
   // Operations
+  // Operations = the former Command Center (renamed 2026-11-05).
   [ROUTES.OPERATIONS]: {
     title: "Operations",
-    description: "Coordinate schedules, dispatch, and field execution from one hub.",
-  },
-  [ROUTES.COMMAND_CENTER]: {
-    title: "Command Center",
     description:
       "Operational health at a glance — risk, crew load, and intervention priorities for today.",
+  },
+  [ROUTES.OPERATIONS_LIVE]: {
+    title: "Operations · Live",
+    description: "Right now: who is on which job, what is slipping, and today's activity.",
+    parent: { title: "Operations", href: ROUTES.OPERATIONS },
+  },
+  [ROUTES.MY_JOBS]: {
+    title: "My Jobs",
+    description: "Your jobs for today, in order.",
   },
   [ROUTES.DAILY_PLANS]: {
     title: "Daily Plans",
     description: "Coordinate schedules, technician priorities, and day-of execution.",
-  },
-  [ROUTES.LIVE_OPERATIONS]: {
-    title: "Live Operations",
-    description: "Monitor active jobs, crew status, and real-time field activity.",
   },
   [ROUTES.DISPATCH]: {
     title: "Dispatch",
@@ -81,6 +83,15 @@ const pageContent: Record<string, PageMeta> = {
   [ROUTES.INVENTORY]: {
     title: "Inventory",
     description: "Track material availability, job allocations, and warehouse readiness.",
+  },
+  [ROUTES.INVENTORY_MY_VAN]: {
+    title: "My van",
+    description: "What's on your truck, what to pull from the shop, and a recount.",
+  },
+  [ROUTES.INVENTORY_RESTOCK]: {
+    title: "Needs restock",
+    description: "Vans under par, and what to pull from the shop.",
+    parent: { title: "Inventory", href: ROUTES.INVENTORY },
   },
   [ROUTES.COMPANY_BRAIN]: {
     title: "Company Brain",
@@ -137,6 +148,30 @@ interface DynamicRoute {
 
 // Ordered most-specific first: /new and /edit must come before /:id.
 const dynamicPageMeta: DynamicRoute[] = [
+  {
+    test: (p) => /^\/inventory\/vans\/[^/]+\/count\/?$/.test(p),
+    meta: {
+      title: "Count in",
+      description: "Count what is on this van. A blank line is skipped, and a match posts nothing.",
+      parent: { title: "Inventory", href: ROUTES.INVENTORY },
+    },
+  },
+  {
+    test: (p) => /^\/inventory\/vans\/[^/]+\/pars\/?$/.test(p),
+    meta: {
+      title: "Edit pars",
+      description: "Minimum and fill-to for this van. Copying numbers does not save them.",
+      parent: { title: "Inventory", href: ROUTES.INVENTORY },
+    },
+  },
+  {
+    test: (p) => /^\/inventory\/vans\/[^/]+\/?$/.test(p),
+    meta: {
+      title: "Van stock",
+      description: "On hand next to the par for this van.",
+      parent: { title: "Inventory", href: ROUTES.INVENTORY },
+    },
+  },
   {
     test: (p) => p === `${ROUTES.JOBS}/new`,
     meta: {
@@ -385,7 +420,7 @@ export default function Header({
             <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="hidden h-7 items-center rounded-full border border-red-500/20 bg-gradient-to-r from-red-500/10 to-blue-500/10 px-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300 sm:inline-flex">
-                  Operations Hub
+                  Loop
                 </span>
 
                 <span

@@ -66,4 +66,30 @@ describe("applyPrepReadiness", () => {
     expect(result.dispatchPlans[0].dispatchability.materialReadiness).toBe(red);
     expect(result.dispatchPlans[0].dispatchability.technicalReadiness).toBe(red);
   });
+
+  it("uses the plan rollup when a job has one, and keeps the count-based chip when it does not", () => {
+    const result = applyPrepReadiness(snapshot([plan("p1", "j1"), plan("p2", "j2"), plan("p3", "j3"), plan("p4", "j4")]), {
+      materialSummaries: {
+        j1: { total: 2, needed: 2, onTruck: 0, used: 0 },
+        j2: { total: 2, needed: 2, onTruck: 0, used: 0 },
+        j3: { total: 2, needed: 2, onTruck: 0, used: 0 },
+        j4: { total: 2, needed: 0, onTruck: 2, used: 0 },
+      },
+      jobPropertyIds: {},
+      systemCounts: {},
+      planReadiness: {
+        j1: { state: "ok", reason: null, needsSku: 0 },
+        j2: { state: "at_risk", reason: "ETA Nov 20 is after the job date", needsSku: 0 },
+        j3: { state: null, reason: null, needsSku: 2 },
+      },
+    });
+    const [p1, p2, p3, p4] = result.dispatchPlans;
+    expect(p1.dispatchability.materialReadiness).toEqual({ state: "satisfied", reason: "Materials covered" });
+    expect(p2.dispatchability.materialReadiness).toEqual({
+      state: "not_satisfied",
+      reason: "ETA Nov 20 is after the job date",
+    });
+    expect(p3.dispatchability.materialReadiness).toEqual({ state: "attention_needed", reason: "2 lines need a SKU" });
+    expect(p4.dispatchability.materialReadiness.state).toBe("satisfied");
+  });
 });

@@ -51,7 +51,7 @@ export function JobStatusFailure({ message }: { message: string }) {
 }
 
 function getStatusVariant(status: JobStatus) {
-  if (status === "Completed") return "success" as const;
+  if (status === "Completed") return "completed" as const;
   if (status === "Scheduled") return "info" as const;
   if (status === "In Progress") return "warning" as const;
   if (status === "On Hold") return "neutral" as const;

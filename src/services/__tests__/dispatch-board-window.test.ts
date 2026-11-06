@@ -15,6 +15,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/services/inventoryReservations", () => ({ releaseAndRecheck: vi.fn(async () => undefined) }));
+vi.mock("@/services/closeoutReconciliation", () => ({
+  getMaterialsGate: vi.fn(async () => ({ required: false, reconciled: false, enforcement: "warn" })),
+}));
 
 // ---------------------------------------------------------------------------
 // In-memory Supabase fake: chainable, thenable, honours eq/not/in/gte
@@ -202,7 +206,6 @@ function seedTables() {
       members: [],
       certifications: [],
       availability: "available",
-      truck_name: "Truck 1",
     },
   ];
   tables.crew_assignments = [

@@ -24,6 +24,7 @@ const badgeVariants = cva(
         danger: "status-danger",
         info: "status-info",
         neutral: "status-neutral",
+        completed: "status-completed",
       },
     },
 

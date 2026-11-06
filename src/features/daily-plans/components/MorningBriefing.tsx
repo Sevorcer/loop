@@ -5,7 +5,8 @@ import {
   UserCheck,
   UserX,
   AlertTriangle,
-  ShieldCheck,
+  Activity,
+  PauseCircle,
 } from "lucide-react";
 
 import { formatPlanDate, getDayLabel } from "../utils/planUtils";
@@ -50,9 +51,13 @@ interface MorningBriefingProps {
   assigned: number;
   unassigned: number;
   atRisk: number;
-  /** Null when permit status is not stored on jobs. */
+  /** Null when permit status is not stored on jobs. Kept for callers; omitted from strip when null. */
   waitingPermit: number | null;
-  activeCrews: number;
+  /** @deprecated Prefer peopleWorking — kept so older callers still compile. */
+  activeCrews?: number;
+  inProgress?: number;
+  onHold?: number;
+  peopleWorking?: number;
 }
 
 export function MorningBriefing({
@@ -61,14 +66,16 @@ export function MorningBriefing({
   assigned,
   unassigned,
   atRisk,
-  waitingPermit,
+  inProgress = 0,
+  onHold = 0,
+  peopleWorking,
   activeCrews,
 }: MorningBriefingProps) {
   const dayLabel = getDayLabel(date);
+  const people = peopleWorking ?? activeCrews ?? 0;
 
   return (
     <div className="space-y-4">
-      {/* Date header */}
       <div className="flex items-center gap-2">
         <CalendarDays className="h-4 w-4 text-slate-500" />
         <div>
@@ -81,11 +88,10 @@ export function MorningBriefing({
         </div>
       </div>
 
-      {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <KpiTile
           icon={<ClipboardList className="h-3.5 w-3.5 text-blue-300" />}
-          label="Total"
+          label="Jobs today"
           value={totalToday}
         />
         <KpiTile
@@ -101,23 +107,29 @@ export function MorningBriefing({
           highlight={unassigned > 0 ? "warning" : undefined}
         />
         <KpiTile
-          icon={<AlertTriangle className="h-3.5 w-3.5 text-red-300" />}
-          label="At-Risk / Late"
-          value={atRisk}
-          highlight={atRisk > 0 ? "danger" : undefined}
+          icon={<Activity className="h-3.5 w-3.5 text-sky-300" />}
+          label="In Progress"
+          value={inProgress}
         />
         <KpiTile
-          icon={<ShieldCheck className="h-3.5 w-3.5 text-violet-300" />}
-          label="Permit Waiting"
-          value={waitingPermit}
-          highlight={waitingPermit !== null && waitingPermit > 0 ? "warning" : undefined}
+          icon={<PauseCircle className="h-3.5 w-3.5 text-yellow-300" />}
+          label="On Hold"
+          value={onHold}
+          highlight={onHold > 0 ? "warning" : undefined}
         />
         <KpiTile
-          icon={<Users className="h-3.5 w-3.5 text-sky-300" />}
-          label="Active Crews"
-          value={activeCrews}
+          icon={<Users className="h-3.5 w-3.5 text-violet-300" />}
+          label="People working"
+          value={people}
         />
       </div>
+
+      {atRisk > 0 ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-xs text-red-200">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          {atRisk} job{atRisk === 1 ? "" : "s"} at risk or late on this day
+        </div>
+      ) : null}
     </div>
   );
 }
