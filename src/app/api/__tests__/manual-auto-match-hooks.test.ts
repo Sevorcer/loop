@@ -47,7 +47,7 @@ describe("#8 Copilot hooks", () => {
     m.requirePermission.mockResolvedValue(allow("office"));
     m.createInstalledSystem.mockResolvedValue({ id: SYS });
     m.tryAutoMatch.mockResolvedValue({ action: "linked", manualId: "m1", confidence: 0.97, reason: "Linked X automatically (97%): Model MSZ-GL09NA is in the file name." });
-    const res = await POST(req("POST", { systemName: "Head", manufacturer: "Mitsubishi", modelNumber: "MSZ-GL09NA", installDate: "2026-11-04" }));
+    const res = await POST(req("POST", { systemName: "Head", manufacturer: "Mitsubishi", modelNumber: "MSZ-GL09NA", serialNumbers: ["SN-1"], installDate: "2026-11-04" }));
     expect(res.status).toBe(201);
     expect(m.tryAutoMatch).toHaveBeenCalledWith(SYS);
     expect((await res.json()).manualMatch.action).toBe("linked");
