@@ -45,16 +45,27 @@ afterEach(() => {
 
 beforeEach(() => {
   authState.role = "tech";
-  requestJson.mockResolvedValue({ files: [] });
+  // Signed-upload flow: sign succeeds, the PUT to Storage succeeds, and the
+  // complete step fails with the server's real reason (requestJson surfaces
+  // the server message as the thrown error).
+  requestJson.mockImplementation(async (url: string) => {
+    if (url.endsWith("/files/sign")) {
+      return {
+        signedUrl: "https://storage.example/signed-upload",
+        storagePath: "jobs/job-1/IMG_8373.jpeg",
+      };
+    }
+    if (url.endsWith("/files/complete")) {
+      throw new Error("Storage upload failed after 3 attempts: Bucket not found");
+    }
+    return { files: [] };
+  });
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => ({
-      ok: false,
-      status: 500,
-      json: async () => ({
-        error: "INTERNAL_SERVER_ERROR",
-        message: "Storage upload failed after 3 attempts: Bucket not found",
-      }),
+      ok: true,
+      status: 200,
+      json: async () => ({}),
     })),
   );
   vi.stubGlobal("URL", {
