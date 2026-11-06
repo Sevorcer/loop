@@ -7,6 +7,7 @@
 
 import { NextResponse } from "next/server";
 
+import { passwordRecoveryRedirect } from "@/features/auth/lib/passwordLink";
 import { requirePermission } from "@/lib/api-auth";
 import { mapRouteError } from "@/lib/api/routeErrors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -52,10 +53,9 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     // Send a password reset email via Supabase
-    const { error } = await admin.auth.resetPasswordForEmail(
-      userData.user.email,
-      { redirectTo: `${new URL(request.url).origin}/auth/reset-password` },
-    );
+    const { error } = await admin.auth.resetPasswordForEmail(userData.user.email, {
+      redirectTo: passwordRecoveryRedirect(new URL(request.url).origin),
+    });
 
     if (error) throw new Error(error.message);
 

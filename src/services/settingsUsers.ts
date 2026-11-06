@@ -12,6 +12,7 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { accountSetupRedirect } from "@/features/auth/lib/passwordLink";
 import { isAppRole } from "@/features/auth/utils/appRole";
 import type { AppRole } from "@/services/authorization";
 import {
@@ -228,11 +229,13 @@ export async function listOrgUsers(callerUserId: string): Promise<OrgUser[]> {
 
 /**
  * Invite a new user to the org via email.
- * Sends a Supabase magic-link invite and pre-creates a user_profiles row.
+ * Sends a Supabase invite (type=invite) and pre-creates a user_profiles row.
+ * The invited person sets a password on the setup page. They do not choose a role.
  */
 export async function inviteOrgUser(
   callerUserId: string,
-  payload: InviteUserPayload
+  payload: InviteUserPayload,
+  options: { origin: string },
 ): Promise<OrgUser> {
   const caller = await readCallerAuthority(callerUserId);
   assertCanManageStaff(caller.role);
@@ -251,12 +254,15 @@ export async function inviteOrgUser(
 
   const admin = createSupabaseAdminClient();
 
-  // Send invite email
+  // Send invite email. redirectTo is where Supabase sends the browser after it
+  // verifies the invite. The setup page accepts type=invite; a recovery URL
+  // would show the password-reset expired state.
   const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
     payload.email,
     {
       data: { app_role: payload.appRole, full_name: payload.fullName },
-    }
+      redirectTo: accountSetupRedirect(options.origin),
+    },
   );
 
   if (inviteError || !inviteData?.user) {
@@ -279,6 +285,15 @@ export async function inviteOrgUser(
 
   if (profileError) {
     throw toSupabaseServiceError(profileError, "Failed to create the user profile.");
+  }
+
+  // Locked fallback for the role. The profile row above is what the app reads.
+  // user_metadata is editable by the signed-in person and is not a role source.
+  const { error: roleError } = await admin.auth.admin.updateUserById(userId, {
+    app_metadata: { app_role: payload.appRole },
+  });
+  if (roleError) {
+    throw toSupabaseServiceError(roleError, "Failed to save the invited role.");
   }
 
   return {
@@ -483,6 +498,80 @@ async function assertNotLastActiveOwner(orgId: string, targetId: string): Promis
 
   if (!hasOtherActiveOwner) {
     throw refused(lastOwnerRefusal);
+  }
+}
+
+function isAlreadyRegistered(error: { message?: string; code?: string } | null | undefined): boolean {
+  if (!error) return false;
+  const code = (error.code ?? "").toLowerCase();
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    code === "email_exists" ||
+    message.includes("already been registered") ||
+    message.includes("already registered")
+  );
+}
+
+/**
+ * Send another account-setup email for someone who has never signed in.
+ *
+ * A brand-new invite can be sent again while the account is still
+ * unconfirmed. Opening the first link confirms the account even when the
+ * app did not finish password setup, and Supabase will not send a second
+ * invite after that. In that case a recovery email is sent to the same
+ * setup URL so they can choose a password. The profile role is left as it is.
+ */
+export async function resendOrgInvite(
+  callerUserId: string,
+  userId: string,
+  options: { origin: string },
+): Promise<void> {
+  const caller = await readCallerAuthority(callerUserId);
+  assertCanManageStaff(caller.role);
+  const callerOrgId = caller.orgId;
+
+  const profiles = profileAdmin();
+  const { data: target, error: targetError } = await profiles
+    .from("user_profiles")
+    .select("org_id, app_role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (targetError) throw new Error(targetError.message);
+
+  const sameCompany = Boolean(callerOrgId) && target?.org_id === callerOrgId;
+  if (!sameCompany) {
+    throw refused("That person is not in your company.");
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: userData, error: userError } = await admin.auth.admin.getUserById(userId);
+  if (userError || !userData?.user?.email) {
+    throw Object.assign(new Error("User not found."), { status: 404, code: "NOT_FOUND" });
+  }
+
+  if (userData.user.last_sign_in_at) {
+    throw Object.assign(
+      new Error("This person has already signed in. Send a password reset instead."),
+      { status: 409, code: "CONFLICT" },
+    );
+  }
+
+  const redirectTo = accountSetupRedirect(options.origin);
+  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(userData.user.email, {
+    redirectTo,
+  });
+
+  if (!inviteError) return;
+
+  if (!isAlreadyRegistered(inviteError)) {
+    throw toSupabaseServiceError(inviteError, "Failed to resend the invite.");
+  }
+
+  const { error: resetError } = await admin.auth.resetPasswordForEmail(userData.user.email, {
+    redirectTo,
+  });
+  if (resetError) {
+    throw toSupabaseServiceError(resetError, "Failed to resend the invite.");
   }
 }
 

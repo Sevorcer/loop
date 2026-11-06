@@ -12,13 +12,37 @@ import {
 import { ROUTES } from "@/lib/routes";
 import {
   isAuthClientConfigured,
+  establishPasswordLinkSession,
   getRecoverySession,
   updateUserPassword,
 } from "@/services/authClient";
-import { parseRecoveryHash } from "@/features/auth/lib/recoveryLink";
+import {
+  classifyPasswordLink,
+  parsePasswordLink,
+  type PasswordLinkKind,
+} from "@/features/auth/lib/passwordLink";
 import { Button } from "@/components/ui/button";
 
-type ScreenState = "checking" | "ready" | "invalid" | "done";
+type ScreenState = "checking" | "ready" | "invalid" | "invite_expired" | "done";
+
+function rememberPasswordLink(kind: PasswordLinkKind): void {
+  const url = new URL(window.location.href);
+  url.hash = "";
+  for (const key of [
+    "access_token",
+    "refresh_token",
+    "token_hash",
+    "code",
+    "error",
+    "error_code",
+    "error_description",
+    "type",
+  ]) {
+    url.searchParams.delete(key);
+  }
+  url.searchParams.set("flow", kind);
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+}
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -26,14 +50,15 @@ export function UpdatePasswordScreen() {
   const router = useRouter();
 
   const [screenState, setScreenState] = useState<ScreenState>("checking");
+  const [intent, setIntent] = useState<PasswordLinkKind | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount, the Supabase browser client consumes the recovery session from
-  // the URL fragment (detectSessionInUrl); verify a session actually exists
-  // before showing the form.
+  // Invite links arrive as type=invite in the URL hash. Recovery links arrive
+  // as type=recovery. The PKCE browser client does not consume that hash, so
+  // the session is applied explicitly before the form is shown.
   useEffect(() => {
     // queueMicrotask defers the setState calls out of the synchronous effect
     // body, satisfying the react-hooks/set-state-in-effect lint rule.
@@ -47,9 +72,10 @@ export function UpdatePasswordScreen() {
           return;
         }
 
-        const { isRecovery } = parseRecoveryHash(window.location.hash);
+        const link = parsePasswordLink(window.location.hash, window.location.search);
+        const decision = classifyPasswordLink(link);
 
-        if (!isRecovery) {
+        const showFailure = (kind: PasswordLinkKind | null, errorCode: string) => {
           logAuthEvent({
             event: "password_update_invalid_link",
             outcome: "failure",
@@ -57,29 +83,44 @@ export function UpdatePasswordScreen() {
             statusCode: 400,
             requestId,
             correlationId: requestId,
-            errorCode: "NOT_A_RECOVERY_LINK",
+            errorCode,
           });
-          setScreenState("invalid");
+          setIntent(kind);
+          setScreenState(kind === "invite" ? "invite_expired" : "invalid");
+        };
+
+        if (decision.action === "invalid") {
+          showFailure(null, "NOT_A_PASSWORD_LINK");
           return;
         }
 
-        const session = await getRecoverySession();
-
-        if (!session) {
-          logAuthEvent({
-            event: "password_update_invalid_link",
-            outcome: "failure",
-            route: ROUTES.UPDATE_PASSWORD,
-            statusCode: 401,
-            requestId,
-            correlationId: requestId,
-            errorCode: "NO_RECOVERY_SESSION",
-          });
-          setScreenState("invalid");
+        if (decision.action === "establish") {
+          const opened = await establishPasswordLinkSession(link);
+          const session = opened ? true : Boolean(await getRecoverySession());
+          if (!session) {
+            showFailure(
+              decision.kind,
+              decision.kind === "invite" ? "INVITE_SESSION_FAILED" : "NO_RECOVERY_SESSION",
+            );
+            return;
+          }
+          if (opened) rememberPasswordLink(decision.kind);
+          setIntent(decision.kind);
+          setScreenState("ready");
           return;
         }
 
-        setScreenState("ready");
+        const existing = await getRecoverySession();
+        if (existing) {
+          setIntent(decision.kind);
+          setScreenState("ready");
+          return;
+        }
+
+        showFailure(
+          decision.kind,
+          decision.kind === "invite" ? "INVITE_EXPIRED" : "RECOVERY_EXPIRED",
+        );
       })();
     });
   }, []);
@@ -168,16 +209,17 @@ export function UpdatePasswordScreen() {
           {screenState === "checking" ? (
             <div className="flex items-center justify-center gap-2 py-8 text-sm text-[var(--foreground-muted)]">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              Verifying your reset link…
+              Verifying your link…
             </div>
-          ) : screenState === "invalid" ? (
+          ) : screenState === "invalid" || screenState === "invite_expired" ? (
             <>
               <h2 className="mb-1 text-lg font-semibold text-white">
-                Reset link invalid
+                {screenState === "invite_expired" ? "Invite expired" : "Reset link invalid"}
               </h2>
               <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-                This password reset link is invalid or has expired. Request a
-                new one from your administrator and try again.
+                {screenState === "invite_expired"
+                  ? "This invite link is invalid or has expired. Ask your office to send a new one, then open the new email."
+                  : "This password reset link is invalid or has expired. Request a new one from your administrator and try again."}
               </p>
               {error ? (
                 <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
@@ -196,10 +238,12 @@ export function UpdatePasswordScreen() {
           ) : (
             <>
               <h2 className="mb-1 text-lg font-semibold text-white">
-                Set a new password
+                {intent === "invite" ? "Create your password" : "Set a new password"}
               </h2>
               <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-                Choose a new password for your account.
+                {intent === "invite"
+                  ? "Choose a password to finish setting up your account. Your office already assigned your role."
+                  : "Choose a new password for your account."}
               </p>
 
               {screenState === "done" ? (
@@ -261,12 +305,12 @@ export function UpdatePasswordScreen() {
                       {isLoading ? (
                         <span className="flex items-center justify-center gap-2">
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          Updating…
+                          {intent === "invite" ? "Saving…" : "Updating…"}
                         </span>
                       ) : (
                         <span className="flex items-center justify-center gap-2">
                           <KeyRound size={15} />
-                          Update password
+                          {intent === "invite" ? "Save password" : "Update password"}
                         </span>
                       )}
                     </Button>
