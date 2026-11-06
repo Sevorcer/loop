@@ -152,6 +152,24 @@ function getPreferredHrefOrder(
   return ROLE_NAV_PRESET_ORDER[role as AppRole] ?? [];
 }
 
+/**
+ * True for a job detail route: /jobs/<id> and its children (edit, pull
+ * list), but not the /jobs list or /jobs/new.
+ *
+ * Soft navigation OUT of this segment silently fails to commit in the App
+ * Router (framework-level; first seen 2026-11-03 — the flight response
+ * arrives but the router never commits it, so <Link> clicks and
+ * router.push no-op). JobDetailScreen's own exits already hard-navigate
+ * for this reason (PRs #324/#326). The Sidebar uses this to render plain
+ * anchors from job detail routes so the tabs always work; everywhere
+ * else it keeps soft navigation.
+ */
+export function isJobDetailPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const segments = pathname.split("/").filter(Boolean);
+  return segments[0] === "jobs" && segments.length >= 2 && segments[1] !== "new";
+}
+
 export function composeSidebarNav({
   role,
   groups = SHELL_NAV_GROUPS,

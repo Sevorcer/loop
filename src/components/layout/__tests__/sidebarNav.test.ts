@@ -185,3 +185,31 @@ describe("No broken links / route regressions", () => {
     expect(hrefs.length).toBe(unique.size);
   });
 });
+
+// ─── isJobDetailPath ──────────────────────────────────────────────────────────
+// Job detail routes soft-nav wedge (2026-11-06): the Sidebar hard-navigates
+// from these paths only; everywhere else keeps soft navigation.
+
+import { isJobDetailPath } from "../sidebarNav";
+
+describe("isJobDetailPath", () => {
+  it("matches job detail and its children", () => {
+    expect(isJobDetailPath("/jobs/abc-123")).toBe(true);
+    expect(isJobDetailPath("/jobs/abc-123/edit")).toBe(true);
+    expect(isJobDetailPath("/jobs/abc-123/pull-list")).toBe(true);
+  });
+
+  it("does not match the jobs list or the new-job form", () => {
+    expect(isJobDetailPath("/jobs")).toBe(false);
+    expect(isJobDetailPath("/jobs/")).toBe(false);
+    expect(isJobDetailPath("/jobs/new")).toBe(false);
+  });
+
+  it("does not match other sections or empty input", () => {
+    expect(isJobDetailPath("/customers/abc-123")).toBe(false);
+    expect(isJobDetailPath("/")).toBe(false);
+    expect(isJobDetailPath(null)).toBe(false);
+    expect(isJobDetailPath(undefined)).toBe(false);
+    expect(isJobDetailPath("")).toBe(false);
+  });
+});
