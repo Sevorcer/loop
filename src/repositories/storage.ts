@@ -404,3 +404,14 @@ export async function getStorageObjectById(id: string): Promise<StorageObjectMet
 
   return mapStorageObject(data as StorageObjectRow);
 }
+
+/** Downloads one org-scoped object. Returns null when it is missing or unreadable. */
+export async function downloadStorageObjectBytes(id: string): Promise<Uint8Array | null> {
+  const meta = await getStorageObjectById(id);
+  if (!meta) return null;
+
+  const { supabase } = await getRepositoryContext();
+  const { data, error } = await supabase.storage.from(meta.bucket).download(meta.storagePath);
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
