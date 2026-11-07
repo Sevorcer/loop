@@ -1,0 +1,21 @@
+-- =============================================================================
+-- Migration — Re-pin search_path on guard_tech_job_update (repair)
+--
+-- Migration 20261108000100 pinned `search_path = public` on
+-- public.guard_tech_job_update() via ALTER FUNCTION ... SET. Migration
+-- 20261127700000 (tech no-system attestation) replaced that function with
+-- CREATE OR REPLACE, which silently drops proconfig set by an earlier
+-- ALTER ... SET — the pin was lost in production (verified 2026-11-06 via
+-- pg_get_functiondef: the definition carries no SET clause).
+--
+-- This migration restores the pin. It changes no function body and no
+-- behavior beyond restoring the hardened search_path.
+--
+-- UP:
+--   - ALTER FUNCTION public.guard_tech_job_update() SET search_path = public.
+--
+-- DOWN (manual rollback — create a new forward migration to apply):
+--   -- ALTER FUNCTION public.guard_tech_job_update() RESET search_path;
+-- =============================================================================
+
+ALTER FUNCTION public.guard_tech_job_update() SET search_path = public;
