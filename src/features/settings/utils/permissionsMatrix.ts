@@ -130,6 +130,7 @@ export const TABLE_LABELS: Record<CoreTable, string> = {
   inventory_stock_levels: "Stock Levels",
   inventory_transactions: "Inventory Ledger",
   inventory_serial_units: "Serial Units",
+  job_material_line_serials: "Picked Units",
   inventory_settings: "Inventory Rules",
   kit_templates: "Kit Templates",
   kit_template_lines: "Kit Template Lines",

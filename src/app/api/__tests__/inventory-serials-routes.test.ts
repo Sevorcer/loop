@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   getSerialUnit: vi.fn(),
   listSerialReviewQueue: vi.fn(),
   clearSerialUnitReview: vi.fn(),
+  scrapDetachedUnit: vi.fn(),
   getInstalledSystemSerials: vi.fn(),
   setInstalledSystemSerials: vi.fn(),
 }));
@@ -22,6 +23,7 @@ vi.mock("@/repositories/inventorySerialUnits", () => ({
   getSerialUnit: m.getSerialUnit,
   listSerialReviewQueue: m.listSerialReviewQueue,
   clearSerialUnitReview: m.clearSerialUnitReview,
+  scrapDetachedUnit: m.scrapDetachedUnit,
 }));
 vi.mock("@/repositories/installedSystems", () => ({
   getInstalledSystemSerials: m.getInstalledSystemSerials,
@@ -226,5 +228,29 @@ describe("PATCH /api/inventory/serials/[id]", () => {
     const response = await resolveRoute(req("PATCH", { action: "remove" }), ctx());
     expect(response.status).toBe(404);
     expect(m.setInstalledSystemSerials).not.toHaveBeenCalled();
+  });
+
+  it("scrap writes off a detached unit and needs only the serial-unit permission", async () => {
+    const detached = { ...flaggedUnit, needsReview: false, reviewReason: null, installedSystemId: null };
+    m.getSerialUnit.mockResolvedValue(detached);
+    m.scrapDetachedUnit.mockResolvedValue({ ...detached, status: "scrapped" });
+    const response = await resolveRoute(req("PATCH", { action: "scrap" }), ctx());
+    expect(response.status).toBe(200);
+    expect(m.scrapDetachedUnit).toHaveBeenCalledWith(UNIT);
+    expect(m.requirePermission).toHaveBeenCalledTimes(1);
+    expect(m.requirePermission.mock.calls[0].slice(1)).toEqual(["inventory_serial_units", "update"]);
+  });
+
+  it("scrap refuses a unit that is not detached (stale click) and changes nothing", async () => {
+    m.getSerialUnit.mockResolvedValue(flaggedUnit);
+    m.scrapDetachedUnit.mockResolvedValue(null);
+    const response = await resolveRoute(req("PATCH", { action: "scrap" }), ctx());
+    expect(response.status).toBe(400);
+  });
+
+  it("scrap returns 404 for an unknown unit", async () => {
+    m.getSerialUnit.mockResolvedValue(null);
+    expect((await resolveRoute(req("PATCH", { action: "scrap" }), ctx())).status).toBe(404);
+    expect(m.scrapDetachedUnit).not.toHaveBeenCalled();
   });
 });

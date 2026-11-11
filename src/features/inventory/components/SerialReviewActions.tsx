@@ -16,10 +16,12 @@ interface SerialReviewActionsProps {
   serialNumber: string;
   /** Correct and remove edit the system's serial list, which needs that permission as well. */
   canEditSystem: boolean;
+  /** A detached unit can only be scrapped; a flagged duplicate is kept, corrected or removed. */
+  reason?: "duplicate_serial" | "detached_unit";
 }
 
 /** Keep, correct or remove one flagged serial. The office decides; nothing is guessed. */
-export function SerialReviewActions({ unitId, serialNumber, canEditSystem }: SerialReviewActionsProps) {
+export function SerialReviewActions({ unitId, serialNumber, canEditSystem, reason = "duplicate_serial" }: SerialReviewActionsProps) {
   const { run, pending, error, clearError } = useInventoryMutation();
   const [mode, setMode] = useState<"correct" | "remove" | null>(null);
 
@@ -28,6 +30,17 @@ export function SerialReviewActions({ unitId, serialNumber, canEditSystem }: Ser
   function close() {
     setMode(null);
     clearError();
+  }
+
+  if (reason === "detached_unit") {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Button type="button" size="sm" variant="secondary" disabled={pending} onClick={() => void run(url, "PATCH", { action: "scrap" })}>
+          {pending ? "Saving…" : "Scrap"}
+        </Button>
+        <FormError message={error} />
+      </div>
+    );
   }
 
   return (
