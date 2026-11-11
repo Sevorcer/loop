@@ -19,6 +19,8 @@ export interface PullLineRow {
   unit: string;
   itemId: string;
   itemSku: string | null;
+  /** Serialized items are picked by unit before they are pulled. Omitted means counted by quantity. */
+  trackingMode?: "quantity" | "serialized";
   required: number;
   /** Active reservations, still on the shop shelf. */
   reserved: number;

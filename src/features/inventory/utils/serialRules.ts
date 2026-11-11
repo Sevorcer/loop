@@ -111,7 +111,7 @@ export function parseReviewCommand(body: unknown): ReviewCommandCheck {
   if (!body || typeof body !== "object") return { ok: false, message: "action is required." };
   const { action, serialNumber } = body as { action?: unknown; serialNumber?: unknown };
 
-  if (action === "keep" || action === "remove") {
+  if (action === "keep" || action === "remove" || action === "scrap") {
     return { ok: true, command: { action } };
   }
   if (action === "correct") {
@@ -119,7 +119,7 @@ export function parseReviewCommand(body: unknown): ReviewCommandCheck {
     if (!checked.ok) return checked;
     return { ok: true, command: { action, serialNumber: checked.serial } };
   }
-  return { ok: false, message: "action must be keep, correct or remove." };
+  return { ok: false, message: "action must be keep, correct, remove or scrap." };
 }
 
 export interface ReviewGroup {
@@ -134,13 +134,17 @@ export interface ReviewGroup {
  * Groups review rows so the office sees one duplicate group at a time.
  * Duplicates group by manufacturer and serial key; missing serials stay one row each.
  */
+const REASON_RANK: Record<SerialReviewReason, number> = { duplicate_serial: 0, detached_unit: 1, missing_serial: 2 };
+
 export function groupReviewRows(rows: readonly SerialReviewRow[]): ReviewGroup[] {
   const groups = new Map<string, ReviewGroup>();
   for (const row of rows) {
     const key =
       row.reason === "duplicate_serial"
         ? `dup:${row.manufacturer.trim().toLowerCase()}:${serialKey(row.serialNumber)}`
-        : `missing:${row.installedSystemId ?? row.serialUnitId ?? groups.size}`;
+        : row.reason === "detached_unit"
+          ? `detached:${row.serialUnitId ?? groups.size}`
+          : `missing:${row.installedSystemId ?? row.serialUnitId ?? groups.size}`;
     const existing = groups.get(key);
     if (existing) {
       existing.rows.push(row);
@@ -156,16 +160,21 @@ export function groupReviewRows(rows: readonly SerialReviewRow[]): ReviewGroup[]
   }
   return [...groups.values()].sort(
     (a, b) =>
-      (a.reason === b.reason ? 0 : a.reason === "duplicate_serial" ? -1 : 1) ||
+      REASON_RANK[a.reason] - REASON_RANK[b.reason] ||
       b.rows.length - a.rows.length ||
       a.manufacturer.localeCompare(b.manufacturer),
   );
 }
 
 export function reviewReasonCopy(reason: SerialReviewReason): string {
-  return reason === "duplicate_serial"
-    ? "This serial is on more than one system. Keep the right one and fix the others."
-    : "This system has no usable serial. Add it from the nameplate.";
+  switch (reason) {
+    case "duplicate_serial":
+      return "This serial is on more than one system. Keep the right one and fix the others.";
+    case "detached_unit":
+      return "This unit was taken off its system and is in no stock location. Scrap it, or put its serial back on the right system.";
+    default:
+      return "This system has no usable serial. Add it from the nameplate.";
+  }
 }
 
 /** Most serials accepted in one receipt; keeps a single request small and reviewable. */

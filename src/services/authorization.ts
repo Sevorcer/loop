@@ -109,6 +109,8 @@ export type CoreTable =
   // Inventory Lane 3 — serialized units, one row per physical unit. Techs read; techs never
   // write units directly (their serial saves reach the table through a database trigger).
   | "inventory_serial_units"
+  // Inventory Lane 3 — the unit a material line uses. Techs read links on assigned jobs; never write.
+  | "job_material_line_serials"
   // Inventory Lane 4 — kit templates and the inventory rules row
   | "inventory_settings"
   | "kit_templates"
@@ -531,6 +533,13 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>(["owner", "manager", "office"]),
     delete: new Set<AppRole>(["owner"]),
+  },
+  // Lane 3 picker: which unit a material line uses. No update: a pick is made or released.
+  job_material_line_serials: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>([]),
+    delete: new Set<AppRole>(["owner", "manager", "office"]),
   },
   // ── Inventory Lane 4 ──────────────────────────────────────────────────────
   // Rules row (readiness lead/buffer days, closeout stage): ops roles read, owner writes.

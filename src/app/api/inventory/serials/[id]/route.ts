@@ -1,7 +1,8 @@
 /**
- * PATCH /api/inventory/serials/[id] — settle one flagged serial unit
+ * PATCH /api/inventory/serials/[id] — settle one flagged or detached serial unit
  *
- * Body: { action: "keep" | "correct" | "remove", serialNumber?: string }
+ * Body: { action: "keep" | "correct" | "remove" | "scrap", serialNumber?: string }
+ *   scrap    write off a detached unit (on no system, in no location)
  *   keep     the unit really holds this serial (409 while another unit does)
  *   correct  replace the serial on the system with the nameplate value
  *   remove   take the serial off the system

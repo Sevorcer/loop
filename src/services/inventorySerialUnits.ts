@@ -10,6 +10,7 @@ import { getInstalledSystemSerials, setInstalledSystemSerials } from "@/reposito
 import {
   clearSerialUnitReview,
   getSerialUnit,
+  scrapDetachedUnit,
   listSerialReviewQueue,
   listSerialUnits as listSerialUnitRecords,
 } from "@/repositories/inventorySerialUnits";
@@ -33,7 +34,7 @@ export async function listSerialReview(): Promise<SerialReviewRow[]> {
 /** The systems a review command would change, so the route can check that permission too. */
 export function reviewCommandChangesSystem(body: unknown): boolean {
   const parsed = parseReviewCommand(body);
-  return parsed.ok && parsed.command.action !== "keep";
+  return parsed.ok && (parsed.command.action === "correct" || parsed.command.action === "remove");
 }
 
 /**
@@ -43,6 +44,7 @@ export function reviewCommandChangesSystem(body: unknown): boolean {
  *            unit already holds it.
  *   correct  the serial on this system was wrong; save the nameplate value.
  *   remove   the system should not carry this serial.
+ *   scrap    a detached unit (taken off its system, in no location) is written off.
  *
  * correct and remove edit the system's serial list. The database reconciles the
  * units, and a duplicate group that shrinks to one row stops needing review.
@@ -54,6 +56,13 @@ export async function resolveSerialReview(unitId: string, body: unknown): Promis
 
   const unit = await getSerialUnit(unitId);
   if (!unit) notFound("Serial unit");
+
+  if (command.action === "scrap") {
+    const scrapped = await scrapDetachedUnit(unitId);
+    if (!scrapped) badRequest("Only a unit that is on no system and in no location can be scrapped here.");
+    return [scrapped];
+  }
+
   if (!unit.needsReview) badRequest("This unit is not waiting for review.");
 
   if (command.action === "keep") {

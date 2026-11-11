@@ -483,6 +483,21 @@ Three new trigger functions (`fn_installed_system_serials_derive`, `fn_inventory
 
 API layer: `inventory_serial_units` select is owner, manager, dispatch, tech, office; insert and update are owner, manager, office; delete is owner. The review queue and `PATCH /api/inventory/serials/[id]` use the update gate, and the correct and remove actions also require `installed_systems` update because they edit a system's serial list.
 
+### Serial picker on material lines (20261128200000)
+
+`job_material_line_serials` records the unit a material line uses (the link is the record, never derived from the ledger). FORCE RLS; anon none; no UPDATE grant and no UPDATE policy.
+
+| Operation | Roles |
+|-----------|-------|
+| SELECT | owner, manager, dispatch, office (whole org); tech only on jobs they are assigned to |
+| INSERT / DELETE | owner, manager, office |
+
+Techs read the units they are using and never write the link. A BEFORE INSERT guard (SECURITY DEFINER, pinned `search_path`) refuses a unit that is not the line's catalog item, not in stock, flagged for review, or beyond the line's quantity; a unit can be picked for one line at a time.
+
+Three more SECURITY DEFINER functions with a pinned `search_path` and no EXECUTE for `authenticated` or `anon`: `fn_job_material_line_serial_guard`, `fn_inventory_txn_line_units_follow` (a `transfer_in` linked to a line moves that line's picked in-stock units to the new location, which covers a pull to the pallet and a pallet returned to the shop), and `fn_installed_system_serials_adopt` (a serial typed on an installed system that matches an in-stock unit of the same maker, or a unit with no maker, makes that unit installed on the system instead of creating a duplicate; it fires before the bridge and sets the `loop.serial_sync` flag around its update).
+
+`inventory_serial_review_queue` (still `security_invoker`) gains reason `detached_unit`: status installed, on no system, not in a duplicate group.
+
 ---
 
 ## Deny Rules — Hard Blocks

@@ -17,7 +17,7 @@ export type SerialUnitStatus = (typeof SERIAL_UNIT_STATUSES)[number];
 export const SERIAL_UNIT_SOURCES = ["receipt", "scan", "manual", "backfill", "sync"] as const;
 export type SerialUnitSource = (typeof SERIAL_UNIT_SOURCES)[number];
 
-export type SerialReviewReason = "duplicate_serial" | "missing_serial";
+export type SerialReviewReason = "duplicate_serial" | "missing_serial" | "detached_unit";
 
 export interface SerialUnit {
   id: string;
@@ -56,12 +56,24 @@ export interface SerialUnitFilters {
   limit?: number;
 }
 
-/** What the office can do with one flagged duplicate row. */
-export const SERIAL_REVIEW_ACTIONS = ["keep", "correct", "remove"] as const;
+/**
+ * What the office can do with one review row. keep, correct and remove settle a flagged
+ * duplicate; scrap settles a detached unit (one whose serial was taken off its system).
+ */
+export const SERIAL_REVIEW_ACTIONS = ["keep", "correct", "remove", "scrap"] as const;
 export type SerialReviewAction = (typeof SERIAL_REVIEW_ACTIONS)[number];
 
 export interface SerialReviewCommand {
   action: SerialReviewAction;
   /** Required for "correct": the serial that is actually on the nameplate. */
   serialNumber?: string;
+}
+
+/** A unit picked for a material line (job_material_line_serials joined to its unit). */
+export interface LineSerialPick {
+  lineId: string;
+  serialUnitId: string;
+  serialNumber: string;
+  locationId: string | null;
+  status: SerialUnitStatus;
 }

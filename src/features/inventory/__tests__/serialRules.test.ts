@@ -111,6 +111,10 @@ describe("replaceSerialInList", () => {
 });
 
 describe("parseReviewCommand", () => {
+  it("accepts scrap without a serial", () => {
+    expect(parseReviewCommand({ action: "scrap", serialNumber: "ignored" })).toEqual({ ok: true, command: { action: "scrap" } });
+  });
+
   it("accepts keep and remove without a serial", () => {
     expect(parseReviewCommand({ action: "keep" })).toEqual({ ok: true, command: { action: "keep" } });
     expect(parseReviewCommand({ action: "remove", serialNumber: "ignored" })).toEqual({
@@ -131,7 +135,7 @@ describe("parseReviewCommand", () => {
   it("rejects unknown actions and non-objects", () => {
     expect(parseReviewCommand({ action: "merge" })).toEqual({
       ok: false,
-      message: "action must be keep, correct or remove.",
+      message: "action must be keep, correct, remove or scrap.",
     });
     expect(parseReviewCommand(null).ok).toBe(false);
     expect(parseReviewCommand("keep").ok).toBe(false);
@@ -180,6 +184,24 @@ describe("groupReviewRows", () => {
       ["duplicate_serial", 3],
       ["duplicate_serial", 2],
       ["missing_serial", 1],
+      ["missing_serial", 1],
+    ]);
+  });
+
+  it("lists detached units one row each, between duplicate groups and missing serials", () => {
+    const detached = (id: string): SerialReviewRow => ({
+      reason: "detached_unit",
+      serialUnitId: id,
+      installedSystemId: null,
+      manufacturer: "Bosch",
+      modelNumber: "M",
+      serialNumber: `D-${id}`,
+    });
+    const groups = groupReviewRows([missing("s9", "Lennox"), detached("d1"), detached("d2"), dup("u1", "s1", "Bosch", "A-1"), dup("u2", "s2", "Bosch", "A-1")]);
+    expect(groups.map((g) => [g.reason, g.rows.length])).toEqual([
+      ["duplicate_serial", 2],
+      ["detached_unit", 1],
+      ["detached_unit", 1],
       ["missing_serial", 1],
     ]);
   });

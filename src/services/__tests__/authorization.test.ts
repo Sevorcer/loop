@@ -913,4 +913,22 @@ describe("inventory Lane 4 permissions", () => {
       expectDenied(role, "inventory_serial_units", ["delete"]);
     }
   });
+
+  it("lets ops roles and techs read picked units, owner/manager/office pick and release, nobody update", () => {
+    for (const role of ["owner", "manager", "dispatch", "tech", "office"] as const) {
+      expectAllowed(role, "job_material_line_serials", ["select"]);
+    }
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "job_material_line_serials", ["insert", "delete"]);
+    }
+    for (const role of ["dispatch", "tech"] as const) {
+      expectDenied(role, "job_material_line_serials", ["insert", "update", "delete"]);
+    }
+    for (const role of ["sales", "portal"] as const) {
+      expectDenied(role, "job_material_line_serials", ["select", "insert", "update", "delete"]);
+    }
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectDenied(role, "job_material_line_serials", ["update"]);
+    }
+  });
 });

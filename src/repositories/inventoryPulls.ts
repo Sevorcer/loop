@@ -88,12 +88,15 @@ interface QueueLineRow {
   quantity: number | string;
   catalog_item_id: string;
   is_optional: boolean;
-  item: { sku: string | null; is_stockable: boolean } | Array<{ sku: string | null; is_stockable: boolean }> | null;
+  item:
+    | { sku: string | null; is_stockable: boolean; tracking_mode?: string }
+    | Array<{ sku: string | null; is_stockable: boolean; tracking_mode?: string }>
+    | null;
 }
 
 const LINE_COLUMNS =
   "id,job_id,name,unit,quantity,catalog_item_id,is_optional," +
-  "item:catalog_items!job_material_lines_item_same_org_fkey(sku,is_stockable)";
+  "item:catalog_items!job_material_lines_item_same_org_fkey(sku,is_stockable,tracking_mode)";
 
 /**
  * Confirmed plans on live jobs that have stock reserved or already on the pallet, soonest job
@@ -168,6 +171,7 @@ export async function listPullQueueJobs(onlyJobId?: string): Promise<PullQueueJo
         unit: line.unit,
         itemId: line.catalog_item_id,
         itemSku: item.sku ?? null,
+        trackingMode: item.tracking_mode === "serialized" ? "serialized" : "quantity",
         required: Number(line.quantity),
         reserved: claim.reserved,
         pulled: claim.pulled,

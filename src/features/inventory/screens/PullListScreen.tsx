@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 
 import { AccessDenied } from "@/components/atlas/AccessDenied";
 import { ROUTES } from "@/lib/routes";
+import { listPickableUnits, listPicksForLines } from "@/services/inventoryLineSerials";
 import { getPullList } from "@/services/inventoryPulls";
 
+import { LineUnitPicker } from "../components/LineUnitPicker";
 import { PrintButton } from "../components/PullActions";
 import { getInventoryAccess } from "../server/inventoryAccess";
 import { formatQty, shortDate } from "../utils/readiness";
@@ -20,6 +22,24 @@ export async function PullListScreen({ jobId }: { jobId: string }) {
   if (!job) notFound();
 
   const title = [job.jobNumber, job.jobTitle].filter(Boolean).join(" · ") || "Job";
+
+  // Serialized lines are picked by unit. A read problem here must not hide the pull list itself.
+  const serializedLines = job.lines.filter((line) => line.trackingMode === "serialized");
+  const picks = new Map<string, { serialUnitId: string; serialNumber: string }[]>();
+  const available = new Map<string, { id: string; serialNumber: string }[]>();
+  let unitsError = false;
+  if (serializedLines.length > 0) {
+    try {
+      for (const pick of await listPicksForLines(serializedLines.map((line) => line.lineId))) {
+        picks.set(pick.lineId, [...(picks.get(pick.lineId) ?? []), { serialUnitId: pick.serialUnitId, serialNumber: pick.serialNumber }]);
+      }
+      for (const itemId of new Set(serializedLines.map((line) => line.itemId))) {
+        available.set(itemId, await listPickableUnits(itemId));
+      }
+    } catch {
+      unitsError = true;
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-4 print:max-w-none print:p-0">
@@ -51,6 +71,7 @@ export async function PullListScreen({ jobId }: { jobId: string }) {
             <th scope="col" className="py-2">Item</th>
             <th scope="col" className="py-2 text-right">Take</th>
             <th scope="col" className="py-2 text-right">Already on pallet</th>
+            {serializedLines.length > 0 ? <th scope="col" className="py-2 pl-4">Units</th> : null}
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
@@ -68,6 +89,24 @@ export async function PullListScreen({ jobId }: { jobId: string }) {
                 {formatQty(line.reserved)} <span className="text-muted">{line.unit}</span>
               </td>
               <td className="py-3 text-right tabular-nums text-muted">{formatQty(line.pulled)}</td>
+              {serializedLines.length > 0 ? (
+                <td className="py-3 pl-4 align-top">
+                  {line.trackingMode === "serialized" ? (
+                    unitsError ? (
+                      <span className="text-xs text-muted">Units could not be loaded.</span>
+                    ) : (
+                      <LineUnitPicker
+                        lineId={line.lineId}
+                        lineName={line.name}
+                        needed={Math.ceil(line.required)}
+                        picked={picks.get(line.lineId) ?? []}
+                        available={available.get(line.itemId) ?? []}
+                        canEdit={access.canPull}
+                      />
+                    )
+                  ) : null}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

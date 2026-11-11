@@ -192,3 +192,23 @@ export async function discardUnits(ids: readonly string[]): Promise<boolean> {
   const { error } = await supabase.from("inventory_serial_units").delete().eq("org_id", orgId).in("id", [...ids]);
   return !error;
 }
+
+/**
+ * Scraps a detached unit (installed, on no system, not part of a duplicate group).
+ * Returns null when the unit is not in that state, so a stale click changes nothing.
+ */
+export async function scrapDetachedUnit(id: string): Promise<SerialUnit | null> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("inventory_serial_units")
+    .update({ status: "scrapped" })
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .eq("status", "installed")
+    .is("installed_system_id", null)
+    .eq("needs_review", false)
+    .select(UNIT_COLUMNS)
+    .maybeSingle();
+  if (error) throwInventoryDbError(error);
+  return data ? mapUnit(data as SerialUnitRow) : null;
+}

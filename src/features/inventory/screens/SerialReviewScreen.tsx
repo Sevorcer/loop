@@ -58,12 +58,20 @@ export async function SerialReviewScreen() {
                   <h3 className="text-sm font-semibold text-primary">
                     {group.reason === "duplicate_serial"
                       ? `${[group.manufacturer, group.serialNumber].filter(Boolean).join(" · ")} (${group.rows.length} systems)`
-                      : "Missing serial"}
+                      : group.reason === "detached_unit"
+                        ? `Detached unit · ${[group.manufacturer, group.serialNumber].filter(Boolean).join(" · ")}`
+                        : "Missing serial"}
                   </h3>
                   <p className="text-xs text-muted">{reviewReasonCopy(group.reason)}</p>
                 </div>
                 <InventoryTable
-                  caption={group.reason === "duplicate_serial" ? `Systems sharing ${group.serialNumber ?? "a serial"}` : "System without a serial"}
+                  caption={
+                    group.reason === "duplicate_serial"
+                      ? `Systems sharing ${group.serialNumber ?? "a serial"}`
+                      : group.reason === "detached_unit"
+                        ? "Unit on no system"
+                        : "System without a serial"
+                  }
                   headers={[
                     { label: "System" },
                     { label: "Model" },
@@ -85,8 +93,8 @@ export async function SerialReviewScreen() {
                       <Td className="text-muted">{row.modelNumber || "—"}</Td>
                       <Td className="font-medium text-primary">{row.serialNumber ?? "—"}</Td>
                       <Td align="right">
-                        {row.reason === "duplicate_serial" && row.serialUnitId && row.serialNumber ? (
-                          <SerialReviewActions unitId={row.serialUnitId} serialNumber={row.serialNumber} canEditSystem={canEditSystem} />
+                        {(row.reason === "duplicate_serial" || row.reason === "detached_unit") && row.serialUnitId && row.serialNumber ? (
+                          <SerialReviewActions unitId={row.serialUnitId} serialNumber={row.serialNumber} canEditSystem={canEditSystem} reason={row.reason} />
                         ) : row.installedSystemId && canEditSystem ? (
                           <Link href={ROUTE_BUILDERS.INSTALLED_SYSTEM_EDIT(row.installedSystemId)} className={linkClass}>
                             Add serial
