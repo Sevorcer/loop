@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useCurrentRole } from "@/features/auth";
 import { requestJson } from "@/lib/api/client";
 import { ALLOWED_FILE_ACCEPT, MAX_JOB_FILE_SIZE_BYTES, validateJobFile, formatFileSize } from "@/lib/fileValidation";
+import { isNameplateCandidate } from "@/features/installed-systems/utils/nameplateRead";
 import { applyFileDownload } from "@/features/jobs/utils/fileDownload";
 import {
   createPendingUpload,
@@ -16,6 +17,7 @@ import {
   type PendingJobUpload,
 } from "@/features/jobs/utils/jobFileUploadQueue";
 
+import { JobNameplateRead } from "./JobNameplateRead";
 import { JobPhotoGrid } from "./JobPhotoGrid";
 
 interface JobFileMeta {
@@ -67,6 +69,7 @@ export function JobFilesPanel({
     () => files.filter((file) => file.mimeType.toLowerCase().startsWith("image/")).length,
     [files],
   );
+  const canSearchNameplate = useMemo(() => files.some((file) => isNameplateCandidate(file)), [files]);
 
   const uploading = pending.some((item) => item.status === "uploading");
 
@@ -413,6 +416,8 @@ export function JobFilesPanel({
         ) : null}
 
         <JobPhotoGrid photos={files} />
+
+        {canSearchNameplate ? <JobNameplateRead jobId={jobId} /> : null}
 
         {error ? (
           <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
