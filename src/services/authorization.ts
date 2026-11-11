@@ -106,6 +106,9 @@ export type CoreTable =
   | "inventory_locations"
   | "inventory_stock_levels"
   | "inventory_transactions"
+  // Inventory Lane 3 — serialized units, one row per physical unit. Techs read; techs never
+  // write units directly (their serial saves reach the table through a database trigger).
+  | "inventory_serial_units"
   // Inventory Lane 4 — kit templates and the inventory rules row
   | "inventory_settings"
   | "kit_templates"
@@ -520,6 +523,14 @@ const PERMISSIONS: Readonly<Record<CoreTable, TablePermissions>> = {
     insert: new Set<AppRole>(["owner", "manager", "office"]),
     update: new Set<AppRole>([]),
     delete: new Set<AppRole>([]),
+  },
+  // Lane 3 serial units: tech SELECT is installed units plus units at own van and the shop
+  // (RLS). Writes are office+ only; delete stays owner-only.
+  inventory_serial_units: {
+    select: new Set<AppRole>(["owner", "manager", "dispatch", "tech", "office"]),
+    insert: new Set<AppRole>(["owner", "manager", "office"]),
+    update: new Set<AppRole>(["owner", "manager", "office"]),
+    delete: new Set<AppRole>(["owner"]),
   },
   // ── Inventory Lane 4 ──────────────────────────────────────────────────────
   // Rules row (readiness lead/buffer days, closeout stage): ops roles read, owner writes.

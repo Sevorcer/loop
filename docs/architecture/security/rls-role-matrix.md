@@ -475,6 +475,14 @@ Technicians never write units directly. A technician saving a serial on an insta
 
 `inventory_serial_review_queue` is a `security_invoker` view, so it shows exactly the rows the caller can already read.
 
+### Serial units are authoritative both ways (20261128100000)
+
+No policy changes. `inventory_serial_units` keeps the five policies from 20261128000000, and `installed_systems.serial_numbers` is now a mirror rebuilt from the units.
+
+Three new trigger functions (`fn_installed_system_serials_derive`, `fn_inventory_serial_units_derive_trigger`, `fn_inventory_serial_unit_unflag`) are SECURITY DEFINER with a pinned `search_path` and no EXECUTE for `authenticated` or `anon`. The array-to-unit bridge from 20261128000000 stays as the safety net for writers that are not the app. When a serial leaves a system it deletes only backfill or sync units with no ledger history and detaches every other unit. A transaction-local flag (`loop.serial_sync`) stops the two directions from re-triggering each other.
+
+API layer: `inventory_serial_units` select is owner, manager, dispatch, tech, office; insert and update are owner, manager, office; delete is owner. The review queue and `PATCH /api/inventory/serials/[id]` use the update gate, and the correct and remove actions also require `installed_systems` update because they edit a system's serial list.
+
 ---
 
 ## Deny Rules — Hard Blocks
