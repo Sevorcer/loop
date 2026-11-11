@@ -7,7 +7,7 @@ import { activeInventoryTab, INVENTORY_TABS } from "../utils/inventoryTabs";
 describe("inventory tabs", () => {
   it("lists Kits after Catalog and Rules last, each pointing at its route", () => {
     const keys = INVENTORY_TABS.map((tab) => tab.key);
-    expect(keys).toEqual(["stock", "catalog", "kits", "needs-sku", "pulls", "restock", "arrivals", "locations", "activity", "rules"]);
+    expect(keys).toEqual(["stock", "catalog", "kits", "needs-sku", "serials", "pulls", "restock", "arrivals", "locations", "activity", "rules"]);
     expect(INVENTORY_TABS.find((tab) => tab.key === "restock")?.href).toBe(ROUTES.INVENTORY_RESTOCK);
     expect(INVENTORY_TABS.find((tab) => tab.key === "kits")?.href).toBe(ROUTES.INVENTORY_KITS);
     expect(INVENTORY_TABS.find((tab) => tab.key === "rules")?.href).toBe(ROUTES.INVENTORY_RULES);
@@ -17,6 +17,10 @@ describe("inventory tabs", () => {
     expect(activeInventoryTab(ROUTES.INVENTORY_KITS)).toBe("kits");
     expect(activeInventoryTab(`${ROUTES.INVENTORY_KITS}/abc`)).toBe("kits");
     expect(activeInventoryTab(ROUTES.INVENTORY_RULES)).toBe("rules");
+  });
+
+  it("lights Serials on its own route", () => {
+    expect(activeInventoryTab(ROUTES.INVENTORY_SERIALS)).toBe("serials");
   });
 
   it("lights Pulls on its own route", () => {

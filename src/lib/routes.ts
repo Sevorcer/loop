@@ -25,6 +25,7 @@ export const ROUTES = {
   INVENTORY_CATALOG: "/inventory/catalog",
   INVENTORY_KITS: "/inventory/kits",
   INVENTORY_NEEDS_SKU: "/inventory/needs-sku",
+  INVENTORY_SERIALS: "/inventory/serials",
   INVENTORY_ARRIVALS: "/inventory/arrivals",
   INVENTORY_PULLS: "/inventory/pulls",
   INVENTORY_LOCATIONS: "/inventory/locations",

@@ -146,3 +146,49 @@ export async function clearSerialUnitReview(id: string): Promise<SerialUnit | nu
   }
   return data ? mapUnit(data as SerialUnitRow) : null;
 }
+
+export interface NewReceivedUnit {
+  itemId: string;
+  locationId: string;
+  manufacturer: string;
+  modelNumber: string;
+  serialNumber: string;
+}
+
+/**
+ * Creates one in-stock unit per received serial in a single statement, so a clash
+ * (409) leaves nothing behind. The unique index refuses a serial that another
+ * unflagged unit already holds for the same manufacturer.
+ */
+export async function createReceivedUnits(units: readonly NewReceivedUnit[], userId: string): Promise<SerialUnit[]> {
+  if (units.length === 0) return [];
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("inventory_serial_units")
+    .insert(
+      units.map((unit) => ({
+        org_id: orgId,
+        item_id: unit.itemId,
+        location_id: unit.locationId,
+        manufacturer: unit.manufacturer,
+        model_number: unit.modelNumber,
+        serial_number: unit.serialNumber,
+        status: "in_stock",
+        source: "receipt",
+        created_by: userId,
+      })),
+    )
+    .select(UNIT_COLUMNS);
+  if (error) {
+    throwInventoryDbError(error, "One of these serial numbers is already on file. Check the nameplate, or resolve the existing unit in Serials.");
+  }
+  return ((data ?? []) as SerialUnitRow[]).map(mapUnit);
+}
+
+/** Best-effort undo of units created for a receipt whose ledger post then failed. Only the owner role may delete. */
+export async function discardUnits(ids: readonly string[]): Promise<boolean> {
+  if (ids.length === 0) return true;
+  const { supabase, orgId } = await getRepositoryContext();
+  const { error } = await supabase.from("inventory_serial_units").delete().eq("org_id", orgId).in("id", [...ids]);
+  return !error;
+}

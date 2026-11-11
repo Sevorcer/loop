@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useInventoryMutation } from "../hooks/useInventoryMutation";
 import { parseDollarsToCents } from "../utils/money";
 import { parseQuantity } from "../utils/quantity";
+import { checkReceiveSerials, parseSerialList } from "../utils/serialRules";
 import { DialogShell } from "./DialogShell";
 import { FormField } from "./FormField";
 import { FormError } from "./FormMessages";
@@ -56,21 +57,26 @@ function ReceiveForm({
   const [itemId, setItemId] = useState(defaultItemId ?? items[0]?.id ?? "");
   const [locationId, setLocationId] = useState(defaultLocationId ?? locations[0]?.id ?? "");
   const [qty, setQty] = useState("");
+  const [serialText, setSerialText] = useState("");
+  const serialized = items.find((item) => item.id === itemId)?.trackingMode === "serialized";
+  const serialCount = parseSerialList(serialText).length;
   const [cost, setCost] = useState("");
   const [note, setNote] = useState("");
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const quantity = parseQuantity(qty);
     if (!itemId || !locationId) return setError("Choose an item and a location.");
-    if (quantity === undefined || quantity <= 0) return setError("Enter a quantity greater than 0 (up to 3 decimals).");
+    const serials = serialized ? checkReceiveSerials(parseSerialList(serialText)) : null;
+    if (serials && !serials.ok) return setError(serials.message);
+    const quantity = serialized ? undefined : parseQuantity(qty);
+    if (!serialized && (quantity === undefined || quantity <= 0)) return setError("Enter a quantity greater than 0 (up to 3 decimals).");
     const unitCostCents = canSetCost ? parseDollarsToCents(cost) : null;
     if (unitCostCents === undefined) return setError("Enter unit cost as dollars, like 12.50.");
     const result = await run("/api/inventory/transactions", "POST", {
       kind: "receive",
       itemId,
       locationId,
-      qty: quantity,
+      ...(serials && serials.ok ? { serialNumbers: serials.serials } : { qty: quantity }),
       ...(canSetCost && unitCostCents !== null ? { unitCostCents } : {}),
       ...(note.trim() ? { reason: note.trim() } : {}),
     });
@@ -95,11 +101,29 @@ function ReceiveForm({
             ))}
           </select>
         </FormField>
-        <FormField label="Quantity" htmlFor="receive-qty">
-          <input id="receive-qty" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} className={fieldClass} placeholder="0" />
-        </FormField>
+        {serialized ? (
+          <FormField
+            label="Serial numbers"
+            htmlFor="receive-serials"
+            hint={`One per line, from the nameplate. ${serialCount} entered; each becomes one unit in stock.`}
+          >
+            <textarea
+              id="receive-serials"
+              value={serialText}
+              onChange={(e) => setSerialText(e.target.value)}
+              rows={5}
+              spellCheck={false}
+              autoCapitalize="characters"
+              className={fieldClass}
+            />
+          </FormField>
+        ) : (
+          <FormField label="Quantity" htmlFor="receive-qty">
+            <input id="receive-qty" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} className={fieldClass} placeholder="0" />
+          </FormField>
+        )}
         {canSetCost ? (
-          <FormField label="Unit cost (optional)" htmlFor="receive-cost" hint="Dollars per unit, recorded on this entry.">
+          <FormField label="Unit cost (optional)" htmlFor="receive-cost" hint="Dollars per unit, recorded on each entry.">
             <input id="receive-cost" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} className={fieldClass} placeholder="0.00" />
           </FormField>
         ) : null}

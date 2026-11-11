@@ -167,3 +167,63 @@ export function reviewReasonCopy(reason: SerialReviewReason): string {
     ? "This serial is on more than one system. Keep the right one and fix the others."
     : "This system has no usable serial. Add it from the nameplate.";
 }
+
+/** Most serials accepted in one receipt; keeps a single request small and reviewable. */
+export const MAX_RECEIVE_SERIALS = 200;
+
+/** Splits what was typed or pasted (one per line, or separated by commas or semicolons) into serials. */
+export function parseSerialList(text: string): string[] {
+  return text
+    .split(/[\n\r,;]+/)
+    .map(normalizeSerial)
+    .filter((serial) => serial.length > 0);
+}
+
+export type ReceiveSerialsCheck = { ok: true; serials: string[] } | { ok: false; message: string };
+
+/**
+ * Validates the serials for a receipt of a serialized item: at least one, each a real
+ * serial, none repeated within the batch. Nothing is guessed or dropped.
+ */
+export function checkReceiveSerials(value: unknown): ReceiveSerialsCheck {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { ok: false, message: "Enter at least one serial number." };
+  }
+  if (value.length > MAX_RECEIVE_SERIALS) {
+    return { ok: false, message: `Receive at most ${MAX_RECEIVE_SERIALS} serial numbers at a time.` };
+  }
+  const serials: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    const checked = checkSerialInput(entry);
+    if (!checked.ok) {
+      return { ok: false, message: typeof entry === "string" && entry.trim() ? `"${entry.trim()}": ${checked.message}` : checked.message };
+    }
+    const key = serialKey(checked.serial);
+    if (seen.has(key)) return { ok: false, message: `"${checked.serial}" is listed more than once.` };
+    seen.add(key);
+    serials.push(checked.serial);
+  }
+  return { ok: true, serials };
+}
+
+/**
+ * The serials to show for one installed system: its units are the source of truth,
+ * in creation order. Placeholder entries ("unknown") that only exist on the mirrored
+ * list are kept so the display and the edit form do not lose what someone typed.
+ */
+export function systemSerialsFromUnits(
+  units: readonly { serialNumber: string; createdAt: string; id: string }[],
+  mirroredList: readonly string[] = [],
+): string[] {
+  const ordered = [...units].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  const serials = ordered.map((unit) => unit.serialNumber);
+  const seen = new Set(serials.map(serialKey));
+  for (const entry of mirroredList) {
+    if (isPlaceholderSerial(entry) && !seen.has(serialKey(entry))) {
+      seen.add(serialKey(entry));
+      serials.push(entry);
+    }
+  }
+  return serials;
+}

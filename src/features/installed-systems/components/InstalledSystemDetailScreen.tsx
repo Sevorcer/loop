@@ -157,7 +157,7 @@ export function InstalledSystemDetailScreen({
               />
               <FactTile
                 label="Serial"
-                value={installedSystem.serialNumbers[0] ?? "Pending"}
+                value={installedSystem.serialNumbers.join(", ") || "Pending"}
               />
               {installedSystem.warrantyExpiry ? (
                 <FactTile label="Warranty expiry" value={installedSystem.warrantyExpiry} />

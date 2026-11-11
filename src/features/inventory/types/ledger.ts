@@ -85,6 +85,8 @@ export interface LedgerEntry {
   reversesTransactionId: string | null;
   reason: string | null;
   unitCostCents: number | null;
+  /** The serialized unit this entry moved (always one unit, quantity 1), or null for counted stock. */
+  serialUnitId?: string | null;
   createdBy: string;
   createdAt: string;
 }
@@ -100,11 +102,22 @@ export interface NewLedgerRow {
   reversesTransactionId?: string | null;
   reason?: string | null;
   unitCostCents?: number | null;
+  serialUnitId?: string | null;
 }
 
 /** Commands the UI/API can post; each expands into one or more NewLedgerRows. */
 export type LedgerCommand =
-  | { kind: "receive"; itemId: string; locationId: string; qty: number; unitCostCents?: number | null; reason?: string | null }
+  | {
+      kind: "receive";
+      itemId: string;
+      locationId: string;
+      /** Counted items: the quantity. Serialized items: derived from `serialNumbers`. */
+      qty?: number;
+      /** Serialized items: one serial per unit received. */
+      serialNumbers?: string[];
+      unitCostCents?: number | null;
+      reason?: string | null;
+    }
   | { kind: "adjust"; itemId: string; locationId: string; qtyDelta: number; reason: string }
   | { kind: "count"; itemId: string; locationId: string; countedQty: number; reason?: string | null }
   | { kind: "transfer"; itemId: string; fromLocationId: string; toLocationId: string; qty: number; reason?: string | null }

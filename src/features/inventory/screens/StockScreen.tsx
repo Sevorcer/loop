@@ -80,7 +80,7 @@ export async function StockScreen({ searchParams }: StockScreenProps) {
   const dialogData: StockDialogData = {
     items: items
       .filter((item) => item.isStockable && item.isActive)
-      .map((item) => ({ id: item.id, name: item.name, sku: item.sku, unit: item.unit })),
+      .map((item) => ({ id: item.id, name: item.name, sku: item.sku, unit: item.unit, trackingMode: item.trackingMode })),
     locations: options.map((option) => ({ id: option.id, label: option.label })),
     stock: levels.map((level) => ({ itemId: level.itemId, locationId: level.locationId, onHand: level.onHand })),
   };

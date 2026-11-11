@@ -35,8 +35,17 @@ export function parseLedgerCommand(body: Body): { command?: LedgerCommand; probl
   switch (kind) {
     case "receive": {
       const qty = num(body, "qty");
-      if (!itemId || !locationId || qty === undefined) return { problem: "receive needs itemId, locationId and qty." };
-      return { command: { kind, itemId, locationId, qty, unitCostCents: num(body, "unitCostCents") ?? null, reason: reason ?? null } };
+      const rawSerials = body.serialNumbers;
+      if (rawSerials !== undefined && (!Array.isArray(rawSerials) || rawSerials.some((entry) => typeof entry !== "string"))) {
+        return { problem: "serialNumbers must be a list of text values." };
+      }
+      const serialNumbers = rawSerials as string[] | undefined;
+      if (!itemId || !locationId || (qty === undefined && !serialNumbers)) {
+        return { problem: "receive needs itemId, locationId and qty or serialNumbers." };
+      }
+      return {
+        command: { kind, itemId, locationId, qty, serialNumbers, unitCostCents: num(body, "unitCostCents") ?? null, reason: reason ?? null },
+      };
     }
     case "adjust": {
       const qtyDelta = num(body, "qtyDelta");
