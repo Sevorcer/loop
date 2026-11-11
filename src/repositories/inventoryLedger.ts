@@ -30,13 +30,14 @@ interface TxnRow {
   reverses_transaction_id: string | null;
   reason: string | null;
   unit_cost_cents: number | null;
+  serial_unit_id: string | null;
   created_by: string;
   created_at: string;
 }
 
 const STOCK_COLUMNS = "item_id,location_id,on_hand,min_qty,max_qty,updated_at";
 const TXN_COLUMNS =
-  "id,txn_type,item_id,location_id,qty_delta,job_id,transfer_group_id,reverses_transaction_id,reason,unit_cost_cents,created_by,created_at";
+  "id,txn_type,item_id,location_id,qty_delta,job_id,transfer_group_id,reverses_transaction_id,reason,unit_cost_cents,serial_unit_id,created_by,created_at";
 
 // numeric columns can arrive as strings from PostgREST
 const num = (value: number | string) => Number(value);
@@ -65,6 +66,7 @@ function mapTxn(row: TxnRow): LedgerEntry {
     reversesTransactionId: row.reverses_transaction_id,
     reason: row.reason,
     unitCostCents: row.unit_cost_cents,
+    serialUnitId: row.serial_unit_id,
     createdBy: row.created_by,
     createdAt: row.created_at,
   };
@@ -183,6 +185,7 @@ export async function appendLedgerRows(rows: readonly NewLedgerRow[], userId: st
         reverses_transaction_id: row.reversesTransactionId ?? null,
         reason: row.reason ?? null,
         unit_cost_cents: row.unitCostCents ?? null,
+        serial_unit_id: row.serialUnitId ?? null,
         created_by: userId,
       })),
     )

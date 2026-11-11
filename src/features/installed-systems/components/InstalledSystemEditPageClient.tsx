@@ -6,7 +6,7 @@ import { PermissionGuard } from "@/components/atlas";
 import { InstalledSystemForm } from "./InstalledSystemForm";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 
-export function InstalledSystemEditPageClient({ id }: { id: string }) {
+export function InstalledSystemEditPageClient({ id, unitSerials }: { id: string; unitSerials?: string[] }) {
   const { getInstalledSystemById } = useInstalledSystems();
   const system = getInstalledSystemById(id);
 
@@ -16,7 +16,7 @@ export function InstalledSystemEditPageClient({ id }: { id: string }) {
 
   return (
     <PermissionGuard table="installed_systems" action="update">
-      <InstalledSystemForm system={system} />
+      <InstalledSystemForm system={unitSerials ? { ...system, serialNumbers: unitSerials } : system} />
     </PermissionGuard>
   );
 }

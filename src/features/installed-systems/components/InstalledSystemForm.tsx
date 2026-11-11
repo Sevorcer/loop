@@ -17,6 +17,7 @@ import { ROUTES, ROUTE_BUILDERS } from "@/lib/routes";
 import type { InstalledSystem, InstalledSystemLifecycle } from "../types/installedSystem";
 import { useInstalledSystems } from "../state/InstalledSystemsProvider";
 import { canEditWarrantyExpiry } from "../utils/installedSystemFormAccess";
+import { serialListForSave } from "../utils/serialListForSave";
 
 const LIFECYCLE_OPTIONS: InstalledSystemLifecycle[] = ["Planned", "Active", "Needs Review"];
 
@@ -371,7 +372,8 @@ export function InstalledSystemForm({
       setIsSaving(true);
       setError(null);
 
-      const serialNumbers = [form.serialNumber.trim()].filter(Boolean);
+      // The form edits the first serial; a system's other serials are carried through untouched.
+      const serialNumbers = serialListForSave(form.serialNumber, isEdit ? system?.serialNumbers : undefined);
 
       if (isEdit && system) {
         await requestJson(`/api/installed-systems/${system.id}`, {

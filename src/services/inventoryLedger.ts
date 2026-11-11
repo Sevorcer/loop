@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import type { LedgerCommand, LedgerEntry, LedgerFilters, StockLevel } from "@/features/inventory/types/ledger";
 import { expandLedgerCommand, LedgerRuleError } from "@/features/inventory/utils/ledgerRules";
+import { checkReceiveSerials } from "@/features/inventory/utils/serialRules";
 import { getItem } from "@/repositories/catalog";
 import {
   appendLedgerRows,
@@ -14,6 +15,7 @@ import {
   listTransactions as listTransactionRecords,
 } from "@/repositories/inventoryLedger";
 import { getLocation } from "@/repositories/inventoryLocations";
+import { createReceivedUnits, discardUnits } from "@/repositories/inventorySerialUnits";
 
 import { reconcileAfterStockChange } from "./inventoryReservations";
 
@@ -40,11 +42,12 @@ export async function listLedger(filters: LedgerFilters = {}): Promise<LedgerEnt
 }
 
 /** Friendly pre-checks; the database guard trigger is the real authority. */
-async function assertStockableItem(itemId: string): Promise<void> {
+async function assertStockableItem(itemId: string) {
   const item = await getItem(itemId);
   if (!item) notFound("Item");
   if (!item.isStockable) badRequest(`"${item.name}" is not a stockable item.`);
   if (!item.isActive) badRequest(`"${item.name}" is inactive.`);
+  return item;
 }
 
 async function assertActiveLocation(locationId: string): Promise<void> {
@@ -88,12 +91,68 @@ async function postCommand(command: LedgerCommand, userId: string): Promise<Post
     await assertStockableItem(command.itemId);
     await Promise.all([assertActiveLocation(command.fromLocationId), assertActiveLocation(command.toLocationId)]);
   } else {
-    await assertStockableItem(command.itemId);
+    const item = await assertStockableItem(command.itemId);
     await assertActiveLocation(command.locationId);
+    if (command.kind === "receive") {
+      if (item.trackingMode === "serialized") return receiveSerialized(command, item, userId);
+      if (command.serialNumbers && command.serialNumbers.length > 0) {
+        badRequest(`"${item.name}" is counted by quantity, so it does not take serial numbers.`);
+      }
+    }
   }
 
   const currentOnHand = command.kind === "count" ? await getOnHand(command.itemId, command.locationId) : undefined;
   const rows = expandLedgerCommand(command, { newTransferGroupId: randomUUID, currentOnHand });
   if (rows.length === 0) return { entries: [], noChange: true };
   return { entries: await appendLedgerRows(rows, userId), noChange: false };
+}
+
+/**
+ * Receives a serialized item: one unit and one ledger entry (quantity 1) per serial.
+ * Units are created first (one statement, so a duplicate serial leaves nothing behind),
+ * then the entries that point at them are appended in one statement. If the ledger post
+ * fails, the new units are discarded where the role allows it; otherwise they stay
+ * in stock with no ledger entry and show up on the next count.
+ */
+async function receiveSerialized(
+  command: Extract<LedgerCommand, { kind: "receive" }>,
+  item: { id: string; name: string; brand: string | null; model: string | null; mfrPartNumber: string | null },
+  userId: string,
+): Promise<PostLedgerResult> {
+  const checked = checkReceiveSerials(command.serialNumbers);
+  if (!checked.ok) badRequest(`"${item.name}" is tracked by serial number. ${checked.message}`);
+  if (command.qty !== undefined && command.qty !== checked.serials.length) {
+    badRequest(`Quantity (${command.qty}) does not match the ${checked.serials.length} serial numbers entered.`);
+  }
+
+  const units = await createReceivedUnits(
+    checked.serials.map((serialNumber) => ({
+      itemId: item.id,
+      locationId: command.locationId,
+      manufacturer: item.brand ?? "",
+      modelNumber: item.model ?? item.mfrPartNumber ?? "",
+      serialNumber,
+    })),
+    userId,
+  );
+
+  const reason = (command.reason ?? "").trim() || null;
+  try {
+    const entries = await appendLedgerRows(
+      units.map((unit) => ({
+        txnType: "receive" as const,
+        itemId: item.id,
+        locationId: command.locationId,
+        qtyDelta: 1,
+        unitCostCents: command.unitCostCents ?? null,
+        reason,
+        serialUnitId: unit.id,
+      })),
+      userId,
+    );
+    return { entries, noChange: false };
+  } catch (error) {
+    await discardUnits(units.map((unit) => unit.id));
+    throw error;
+  }
 }

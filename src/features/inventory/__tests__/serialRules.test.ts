@@ -2,15 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import type { SerialReviewRow } from "../types/serials";
 import {
+  checkReceiveSerials,
   checkSerialInput,
   groupReviewRows,
   isPlaceholderSerial,
+  MAX_RECEIVE_SERIALS,
   MAX_SERIAL_LENGTH,
   normalizeSerial,
   parseReviewCommand,
+  parseSerialList,
   PLACEHOLDER_SERIALS,
   replaceSerialInList,
   serialKey,
+  systemSerialsFromUnits,
 } from "../utils/serialRules";
 
 describe("normalizeSerial and serialKey", () => {
@@ -182,5 +186,52 @@ describe("groupReviewRows", () => {
 
   it("returns no groups for no rows", () => {
     expect(groupReviewRows([])).toEqual([]);
+  });
+});
+
+describe("parseSerialList", () => {
+  it("splits on lines, commas and semicolons, trims, and drops blanks", () => {
+    expect(parseSerialList(" SN-1 \nSN-2,SN-3;\r\n\n  ,SN-4")).toEqual(["SN-1", "SN-2", "SN-3", "SN-4"]);
+    expect(parseSerialList("  \n ")).toEqual([]);
+  });
+});
+
+describe("checkReceiveSerials", () => {
+  it("accepts real, distinct serials and returns them trimmed", () => {
+    expect(checkReceiveSerials([" SN-0001 ", "SN-0002"])).toEqual({ ok: true, serials: ["SN-0001", "SN-0002"] });
+  });
+
+  it("needs at least one serial and not too many", () => {
+    expect(checkReceiveSerials([]).ok).toBe(false);
+    expect(checkReceiveSerials(undefined).ok).toBe(false);
+    expect(checkReceiveSerials(Array.from({ length: MAX_RECEIVE_SERIALS + 1 }, (_, i) => `SN-${i}0000`)).ok).toBe(false);
+  });
+
+  it("names the entry that is a placeholder, too long or repeated, and never drops it silently", () => {
+    const placeholder = checkReceiveSerials(["SN-0001", "N/A"]);
+    expect(placeholder.ok).toBe(false);
+    expect(!placeholder.ok && placeholder.message).toContain("N/A");
+    expect(checkReceiveSerials(["x".repeat(MAX_SERIAL_LENGTH + 1)]).ok).toBe(false);
+    const repeat = checkReceiveSerials(["SN-0001", "sn-0001"]);
+    expect(repeat.ok).toBe(false);
+    expect(!repeat.ok && repeat.message).toContain("more than once");
+    expect(checkReceiveSerials([42]).ok).toBe(false);
+  });
+});
+
+describe("systemSerialsFromUnits", () => {
+  const unit = (serialNumber: string, createdAt: string, id = serialNumber) => ({ serialNumber, createdAt, id });
+
+  it("lists unit serials in creation order and ignores the mirrored list for real serials", () => {
+    expect(systemSerialsFromUnits([unit("B", "2026-02-01"), unit("A", "2026-01-01")], ["STALE-ONE"])).toEqual(["A", "B"]);
+  });
+
+  it("keeps placeholder entries that only the mirrored list has, once", () => {
+    expect(systemSerialsFromUnits([unit("A", "2026-01-01")], ["unknown", "UNKNOWN", "A"])).toEqual(["A", "unknown"]);
+  });
+
+  it("falls back to placeholders only when there are no units", () => {
+    expect(systemSerialsFromUnits([], ["unknown", "REAL-ONLY-IN-ARRAY"])).toEqual(["unknown"]);
+    expect(systemSerialsFromUnits([])).toEqual([]);
   });
 });

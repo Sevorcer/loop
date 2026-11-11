@@ -1,7 +1,7 @@
 import { ROUTES } from "@/lib/routes";
 
 export interface InventoryTabDef {
-  key: "stock" | "catalog" | "kits" | "needs-sku" | "pulls" | "restock" | "arrivals" | "locations" | "activity" | "rules";
+  key: "stock" | "catalog" | "kits" | "needs-sku" | "serials" | "pulls" | "restock" | "arrivals" | "locations" | "activity" | "rules";
   label: string;
   href: string;
 }
@@ -11,6 +11,7 @@ export const INVENTORY_TABS: readonly InventoryTabDef[] = [
   { key: "catalog", label: "Catalog", href: ROUTES.INVENTORY_CATALOG },
   { key: "kits", label: "Kits", href: ROUTES.INVENTORY_KITS },
   { key: "needs-sku", label: "Needs SKU", href: ROUTES.INVENTORY_NEEDS_SKU },
+  { key: "serials", label: "Serials", href: ROUTES.INVENTORY_SERIALS },
   { key: "pulls", label: "Pulls", href: ROUTES.INVENTORY_PULLS },
   { key: "restock", label: "Needs restock", href: ROUTES.INVENTORY_RESTOCK },
   { key: "arrivals", label: "Arrivals", href: ROUTES.INVENTORY_ARRIVALS },

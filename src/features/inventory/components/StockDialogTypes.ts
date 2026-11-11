@@ -5,6 +5,8 @@ export interface StockItemOption {
   name: string;
   sku: string | null;
   unit: string | null;
+  /** Serialized items are received by serial number. Omitted means counted by quantity. */
+  trackingMode?: "quantity" | "serialized";
 }
 
 export interface StockLocationOption {

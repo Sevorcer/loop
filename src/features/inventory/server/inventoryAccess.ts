@@ -36,6 +36,8 @@ export interface InventoryAccess {
   canViewPulls: boolean;
   /** Moves stock shop -> pallet and pallet -> shop; the same roles that write the ledger. */
   canPull: boolean;
+  /** Owner, manager, and office. The serial review queue is an office task (inventory_serial_units update). */
+  canReviewSerials: boolean;
   canViewSettings: boolean;
   canEditSettings: boolean;
 }
@@ -78,6 +80,7 @@ export async function getInventoryAccess(): Promise<InventoryAccess> {
     canEditArrivals: can("inventory_expected_arrivals", "update"),
     canViewPulls: can("inventory_reservations", "select"),
     canPull: can("inventory_transactions", "insert"),
+    canReviewSerials: can("inventory_serial_units", "update"),
     canViewSettings: can("inventory_settings", "select"),
     canEditSettings: can("inventory_settings", "update"),
   };
