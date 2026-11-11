@@ -10,6 +10,7 @@ import type {
 } from "@/features/installed-systems/types/installedSystem";
 import { EXPIRING_SOON_WINDOW_DAYS } from "@/features/installed-systems/types/installedSystem";
 
+import { throwInventoryDbError } from "./inventoryErrors";
 import { wrapRepositoryError } from "./shared";
 import { getRepositoryContext } from "./supabaseContext";
 
@@ -587,33 +588,29 @@ export async function listInstalledSystemsForProperties(
 // ---------------------------------------------------------------------------
 
 export async function getInstalledSystemSerials(id: string): Promise<string[] | null> {
-  return wrapRepositoryError(async () => {
-    const { supabase, orgId } = await getRepositoryContext();
-    const { data, error } = await supabase
-      .from("installed_systems")
-      .select("serial_numbers")
-      .eq("org_id", orgId)
-      .eq("id", id)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-    return ((data as { serial_numbers: string[] | null }).serial_numbers ?? []).slice();
-  });
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("installed_systems")
+    .select("serial_numbers")
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throwInventoryDbError(error);
+  if (!data) return null;
+  return ((data as { serial_numbers: string[] | null }).serial_numbers ?? []).slice();
 }
 
 /** Replaces only the serial list of one system. Returns the saved list, or null if the system is not found. */
 export async function setInstalledSystemSerials(id: string, serials: readonly string[]): Promise<string[] | null> {
-  return wrapRepositoryError(async () => {
-    const { supabase, orgId } = await getRepositoryContext();
-    const { data, error } = await supabase
-      .from("installed_systems")
-      .update({ serial_numbers: [...serials], updated_at: new Date().toISOString() })
-      .eq("org_id", orgId)
-      .eq("id", id)
-      .select("serial_numbers")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-    return ((data as { serial_numbers: string[] | null }).serial_numbers ?? []).slice();
-  });
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("installed_systems")
+    .update({ serial_numbers: [...serials], updated_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .select("serial_numbers")
+    .maybeSingle();
+  if (error) throwInventoryDbError(error);
+  if (!data) return null;
+  return ((data as { serial_numbers: string[] | null }).serial_numbers ?? []).slice();
 }
