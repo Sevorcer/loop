@@ -893,4 +893,24 @@ describe("inventory Lane 4 permissions", () => {
     }
     expect(isLockedDeny("inventory_settings", "delete")).toBe(true);
   });
+
+  it("lets ops roles and techs read serial units, office+ write them, and only the owner delete", () => {
+    for (const role of ["owner", "manager", "dispatch", "tech", "office"] as const) {
+      expectAllowed(role, "inventory_serial_units", ["select"]);
+    }
+    for (const role of ["sales", "portal"] as const) {
+      expectDenied(role, "inventory_serial_units", ["select", "insert", "update", "delete"]);
+    }
+    for (const role of ["owner", "manager", "office"] as const) {
+      expectAllowed(role, "inventory_serial_units", ["insert", "update"]);
+    }
+    // Techs reach units only through the installed-system serial trigger, never directly.
+    for (const role of ["dispatch", "tech"] as const) {
+      expectDenied(role, "inventory_serial_units", ["insert", "update", "delete"]);
+    }
+    expectAllowed("owner", "inventory_serial_units", ["delete"]);
+    for (const role of ["manager", "office"] as const) {
+      expectDenied(role, "inventory_serial_units", ["delete"]);
+    }
+  });
 });

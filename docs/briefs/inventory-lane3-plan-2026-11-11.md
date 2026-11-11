@@ -24,7 +24,7 @@ Amendments implemented here: 2 (one serial truth), 11 (nameplate scan primary, t
 | PR | Scope |
 |----|-------|
 | 1 | M10 `20261128000000_inventory_serial_units.sql`: table, ledger column and guard, transition bridge, backfill, review queue view, RLS. Verify SQL, checksum, rls-role-matrix section. |
-| 2 | Serial-unit types, repository, service and rules. Flip the app to write units and derive `installed_systems.serial_numbers` from them (retire the bridge's array-to-units direction). Resolve-review commands. Tests. |
+| 2 | M11 `20261128100000_inventory_serial_units_authority.sql` (units rebuild `installed_systems.serial_numbers`; duplicate groups unflag themselves when they shrink to one row), serial-unit types, pure rules, repository, service, API routes (list, review queue, resolve), permission resource. The array-to-units bridge **stays** as the safety net for non-app writers (Service Fusion import, raw SQL) instead of being retired. Tests. |
 | 3 | UI: receive with serial, serial picker on material lines (`job_material_line_serials`), installed-system link, review queue screen. |
 | 4 | After #469 merges: scan integration writing to units, plus the Mitsubishi/Bosch decoder. |
 | 5 | RMA / quarantine / return-to-supplier flow and cylinder tracking (`refrigerant_log_entries.serial_unit_id` foreign key). |
@@ -37,6 +37,7 @@ Amendments implemented here: 2 (one serial truth), 11 (nameplate scan primary, t
 
 ## Open items carried forward
 
-- The bridge keeps units complete while the app still writes the array. PR 2 reverses the direction. Until then a unit deleted by hand is not recreated until the system's serials are next saved.
+- The bridge runs both ways (PR 2). The array-to-units direction is kept on purpose so no writer can create a second serial source. A unit deleted by hand is not recreated until the system's serials are next saved.
+- A unit detached from a system (its serial removed from the system) keeps status `installed` with no system or location. It is visible in the unit list but has no review reason yet; PR 3 gives detached units a place in the review queue.
 - A new non-flagged unit can be inserted with the same key as rows already flagged for review. The resolve-review command in PR 2 settles a group by choosing which row is the real unit.
 - Placeholder list lives in `fn_serial_is_placeholder`. Extending it is a new migration.
