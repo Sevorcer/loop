@@ -461,6 +461,20 @@ Append-only field events (missing part, wrong part, substitution, unplanned use,
 
 `guard_tech_job_update` stays an allowlist (technicians may change only `status`), but now also exempts `jobs.no_system_installed`, `no_system_installed_by` and `no_system_installed_at`. A technician may set or clear the closeout attestation, matching what the UI and API already allow every role. Integrity rule: setting it must stamp `_by = auth.uid()` and a non-null `_at`; clearing must null both. Every other column, including any added later, stays locked for technicians. Other roles are unaffected.
 
+### Serialized units (20261128000000)
+
+`inventory_serial_units` is the single serial truth for equipment and refrigerant cylinders. RLS is enabled and forced; `anon` has no privileges and there is no portal policy.
+
+| Table | SELECT | INSERT | UPDATE | DELETE |
+|-------|--------|--------|--------|--------|
+| `inventory_serial_units` | owner, manager, dispatch, office; tech for installed units and units at their own van or the shop | owner, manager, office | owner, manager, office | owner |
+
+Technicians never write units directly. A technician saving a serial on an installed system reaches the table only through `fn_installed_system_serials_sync()`, a trigger function (SECURITY DEFINER, no EXECUTE for `authenticated` or `anon`) that is idempotent, skips placeholder serials, and flags every row in a duplicate group for review instead of merging. Sales has no access.
+
+`inventory_transactions` gains a nullable `serial_unit_id` (same-org composite foreign key, `ON DELETE RESTRICT`; the append-only triggers are unchanged). `fn_inventory_txn_serial_guard()` rejects a ledger row whose unit is unmatched, belongs to a different item, or moves other than one unit; a row with no unit is always accepted. Ledger policies are unchanged.
+
+`inventory_serial_review_queue` is a `security_invoker` view, so it shows exactly the rows the caller can already read.
+
 ---
 
 ## Deny Rules — Hard Blocks
