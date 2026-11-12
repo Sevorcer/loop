@@ -28,7 +28,7 @@ Amendments implemented here: 2 (one serial truth), 11 (nameplate scan primary, t
 | 3 | UI, no migration: office review queue screen (`/inventory/serials`), receive with serial (one unit and one ledger entry per serial), installed-system detail and edit read units, ledger TypeScript carries `serialUnitId`. **Not built: the material-line serial picker.** It needs somewhere to store the chosen unit (`job_material_line_serials` was never created) and PR 3 was scoped to no migration; the choice is open with Collin. |
 | 3b | M12 `20261128200000_inventory_serial_line_picker.sql`: `job_material_line_serials` (the link is the record), picker on the job pull list, pulls and pallet returns move picked units, detached units in the review queue (scrap), and a received unit is adopted when its serial is typed on an installed system. |
 | 4 | After #469 merges: scan integration writing to units, plus the Mitsubishi/Bosch decoder. |
-| 5 | RMA / quarantine / return-to-supplier flow and cylinder tracking (`refrigerant_log_entries.serial_unit_id` foreign key). |
+| 5 | M13 `20261128300000_inventory_rma_cylinders.sql`: `rma_serial_unit` (quarantine, return to supplier, repair, scrap, with ledger entries), a transition guard so quarantine moves only go through it, the `refrigerant_log_entries.serial_unit_id` same-org foreign key, and `reconcile_job_materials` accepting an optional cylinder per refrigerant line. Quarantine screen and cylinder select on the closeout card. |
 
 ## PR 1 data expectations (read-only dry run against production, 2026-11-11)
 
@@ -47,3 +47,11 @@ Amendments implemented here: 2 (one serial truth), 11 (nameplate scan primary, t
 - Picks follow a pull or pallet return by a database trigger on `transfer_in` rows that carry `material_line_id`. Ledger rows from a pull stay quantity rows (no `serial_unit_id`); the link table is the record of which unit a line uses.
 - Adoption matches a typed serial to an in-stock unit by serial and maker (or a unit with no maker). A maker spelled differently on the system than on the catalog item will not match and is flagged as a duplicate for the office.
 - Detached units can be scrapped. Re-attaching one to a system is done by putting its serial back on that system.
+
+## PR 5 design notes
+
+- A cylinder is a unit of a serialized catalog item whose `item_kind` is refrigerant. The refrigerant itself stays a quantity-tracked SKU (R-454B and R-410A separate), sold and logged by the pound; the log entry names the container.
+- RMA is a function, not a status edit: the transition guard refuses quarantine moves unless `rma_serial_unit` set its transaction flag. The picker PR's scrap of a detached unit (installed to scrapped) stays as is.
+- Quarantine releases the unit's material-line pick and takes it off its system. Warranty is not touched; the system's serial list follows the unit through the existing trigger.
+- The RMA note rides in the ledger entry reason, so a unit without a catalog item (no ledger entries) loses it.
+

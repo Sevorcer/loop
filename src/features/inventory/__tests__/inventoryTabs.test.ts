@@ -23,6 +23,10 @@ describe("inventory tabs", () => {
     expect(activeInventoryTab(ROUTES.INVENTORY_SERIALS)).toBe("serials");
   });
 
+  it("keeps Serials lit on the quarantine screen", () => {
+    expect(activeInventoryTab(ROUTES.INVENTORY_SERIALS_QUARANTINE)).toBe("serials");
+  });
+
   it("lights Pulls on its own route", () => {
     expect(activeInventoryTab(ROUTES.INVENTORY_PULLS)).toBe("pulls");
   });

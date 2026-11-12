@@ -77,3 +77,21 @@ export interface LineSerialPick {
   locationId: string | null;
   status: SerialUnitStatus;
 }
+
+/**
+ * RMA: a unit that fails or comes back leaves service through quarantine.
+ *   quarantine          a unit in stock or installed goes to a quarantine location
+ *   return_to_supplier  a quarantined unit leaves stock, sent back
+ *   repair              a quarantined unit is fixed and goes back into stock at `locationId`
+ *   scrap               a quarantined unit is written off
+ */
+export const RMA_ACTIONS = ["quarantine", "return_to_supplier", "repair", "scrap"] as const;
+export type RmaAction = (typeof RMA_ACTIONS)[number];
+
+export interface RmaCommand {
+  action: RmaAction;
+  /** repair: where the unit goes back to. quarantine: a specific quarantine location (optional). */
+  locationId?: string;
+  /** Carried on the ledger entry. */
+  note?: string;
+}

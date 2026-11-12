@@ -13,6 +13,7 @@ import { createJobActivity } from "@/repositories/jobs";
 import {
   getReconciliationRecord,
   hasConfirmedPlan,
+  listReconcileCylinders,
   listReconcileLines,
   rpcOverrideMaterialReconciliation,
   rpcReconcileJobMaterials,
@@ -73,12 +74,15 @@ export async function getReconciliationView(jobId: string, closeoutMode: "full" 
     getReconciliationRecord(jobId),
     listReconcileLines(jobId),
   ]);
+  // Cylinders only matter when the job has a refrigerant line.
+  const cylinders = lines.some((line) => line.itemKind === "refrigerant") ? await listReconcileCylinders() : [];
   return {
     required: gate.required,
     status: record?.status ?? "none",
     enforcement: gate.enforcement,
     overrideReason: record?.overrideReason ?? null,
     lines,
+    cylinders,
   };
 }
 
@@ -100,6 +104,7 @@ function parseInputs(body: unknown): ReconcileLineInput[] {
       returned: num(row.returned, "Returned"),
       recovered: row.recovered === undefined || row.recovered === null ? null : num(row.recovered, "Recovered"),
       reason: typeof row.reason === "string" && row.reason.trim() ? row.reason : null,
+      cylinderUnitId: typeof row.cylinderUnitId === "string" && row.cylinderUnitId ? row.cylinderUnitId : null,
     };
   });
 }

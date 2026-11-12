@@ -10,6 +10,9 @@ import {
   MAX_SERIAL_LENGTH,
   normalizeSerial,
   parseReviewCommand,
+  parseRmaCommand,
+  RMA_NOTE_MAX,
+  rmaActionsFor,
   parseSerialList,
   PLACEHOLDER_SERIALS,
   replaceSerialInList,
@@ -255,5 +258,74 @@ describe("systemSerialsFromUnits", () => {
   it("falls back to placeholders only when there are no units", () => {
     expect(systemSerialsFromUnits([], ["unknown", "REAL-ONLY-IN-ARRAY"])).toEqual(["unknown"]);
     expect(systemSerialsFromUnits([])).toEqual([]);
+  });
+});
+
+describe("parseRmaCommand", () => {
+  const location = "0f9d2c1e-1111-4222-8333-444455556666";
+
+  it("accepts each action with what it needs", () => {
+    expect(parseRmaCommand({ action: "quarantine" })).toEqual({ ok: true, command: { action: "quarantine" } });
+    expect(parseRmaCommand({ action: "quarantine", locationId: location })).toEqual({
+      ok: true,
+      command: { action: "quarantine", locationId: location },
+    });
+    expect(parseRmaCommand({ action: "repair", locationId: location, note: "  new board " })).toEqual({
+      ok: true,
+      command: { action: "repair", locationId: location, note: "new board" },
+    });
+    expect(parseRmaCommand({ action: "return_to_supplier", note: "RMA #55" })).toEqual({
+      ok: true,
+      command: { action: "return_to_supplier", note: "RMA #55" },
+    });
+    expect(parseRmaCommand({ action: "scrap" })).toEqual({ ok: true, command: { action: "scrap" } });
+  });
+
+  it("drops a blank note and an empty location", () => {
+    expect(parseRmaCommand({ action: "scrap", note: "   ", locationId: "" })).toEqual({
+      ok: true,
+      command: { action: "scrap" },
+    });
+  });
+
+  it("refuses an unknown or missing action", () => {
+    for (const body of [null, "scrap", [], {}, { action: "explode" }, { action: 3 }]) {
+      const result = parseRmaCommand(body);
+      expect(result.ok).toBe(false);
+    }
+  });
+
+  it("repair needs a location, and return and scrap take none", () => {
+    expect(parseRmaCommand({ action: "repair" })).toEqual({
+      ok: false,
+      message: "Choose the location the repaired unit goes back to.",
+    });
+    expect(parseRmaCommand({ action: "scrap", locationId: location })).toEqual({
+      ok: false,
+      message: "That action does not take a location.",
+    });
+    expect(parseRmaCommand({ action: "return_to_supplier", locationId: location }).ok).toBe(false);
+  });
+
+  it("refuses a location that is not an id and a note that is too long", () => {
+    expect(parseRmaCommand({ action: "repair", locationId: "shelf 2" })).toEqual({
+      ok: false,
+      message: "locationId must be a location id.",
+    });
+    expect(parseRmaCommand({ action: "scrap", note: "x".repeat(RMA_NOTE_MAX + 1) }).ok).toBe(false);
+    expect(parseRmaCommand({ action: "scrap", note: 5 }).ok).toBe(false);
+  });
+});
+
+describe("rmaActionsFor", () => {
+  it("offers quarantine for a unit in service and the three exits for a quarantined one", () => {
+    expect(rmaActionsFor("in_stock")).toEqual(["quarantine"]);
+    expect(rmaActionsFor("installed")).toEqual(["quarantine"]);
+    expect(rmaActionsFor("quarantine")).toEqual(["repair", "return_to_supplier", "scrap"]);
+  });
+
+  it("offers nothing once a unit is returned or scrapped", () => {
+    expect(rmaActionsFor("returned_to_supplier")).toEqual([]);
+    expect(rmaActionsFor("scrapped")).toEqual([]);
   });
 });

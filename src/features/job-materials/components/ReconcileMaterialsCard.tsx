@@ -24,11 +24,12 @@ interface Draft {
   returned: string;
   recovered: string;
   reason: string;
+  cylinderUnitId: string;
 }
 
 function toDraft(row: ReconcileLineRow): Draft {
   const start = defaultInput(row);
-  return { used: String(start.used), returned: "0", recovered: "", reason: "" };
+  return { used: String(start.used), returned: "0", recovered: "", reason: "", cylinderUnitId: "" };
 }
 
 function parseNumber(value: string): number {
@@ -42,6 +43,7 @@ function toInput(row: ReconcileLineRow, draft: Draft): ReconcileLineInput {
     returned: parseNumber(draft.returned),
     recovered: draft.recovered.trim() === "" ? null : Number(draft.recovered),
     reason: draft.reason.trim() === "" ? null : draft.reason,
+    cylinderUnitId: draft.cylinderUnitId === "" ? null : draft.cylinderUnitId,
   };
 }
 
@@ -203,6 +205,24 @@ export function ReconcileMaterialsCard({ jobId }: { jobId: string }) {
                           className={planFieldClass}
                         />
                       </label>
+                      {isRefrigerant && view.cylinders.length > 0 ? (
+                        <label className="text-xs text-muted">
+                          Cylinder
+                          <select
+                            value={draft.cylinderUnitId}
+                            onChange={(e) => setField(row.lineId, "cylinderUnitId", e.target.value)}
+                            className={planFieldClass}
+                          >
+                            <option value="">Not tracked</option>
+                            {view.cylinders.map((cylinder) => (
+                              <option key={cylinder.id} value={cylinder.id}>
+                                {cylinder.serialNumber}
+                                {cylinder.itemName ? ` · ${cylinder.itemName}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
                       {isRefrigerant ? (
                         <label className="text-xs text-muted">
                           Recovered (lb)

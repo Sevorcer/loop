@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  RmaCommand,
   SerialReviewReason,
   SerialReviewRow,
   SerialUnit,
@@ -212,3 +213,24 @@ export async function scrapDetachedUnit(id: string): Promise<SerialUnit | null> 
   if (error) throwInventoryDbError(error);
   return data ? mapUnit(data as SerialUnitRow) : null;
 }
+
+/**
+ * Runs one RMA step through rma_serial_unit (20261128300000). The database function checks the
+ * role, the legal move and the ledger entries; a quarantine move made any other way is refused
+ * by the transition guard. Returns the unit as it now stands.
+ */
+export async function rmaSerialUnit(id: string, command: RmaCommand): Promise<SerialUnit | null> {
+  const { supabase } = await getRepositoryContext();
+  const { error } = await supabase.rpc("rma_serial_unit", {
+    p_unit_id: id,
+    p_action: command.action,
+    p_location_id: command.locationId ?? null,
+    p_note: command.note ?? null,
+  });
+  if (error) {
+    if (error.code === "P0002") return null;
+    throwInventoryDbError(error);
+  }
+  return getSerialUnit(id);
+}
+

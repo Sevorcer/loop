@@ -5,7 +5,13 @@ import type {
   SerialUnit,
   SerialUnitFilters,
 } from "@/features/inventory/types/serials";
-import { parseReviewCommand, replaceSerialInList, serialKey } from "@/features/inventory/utils/serialRules";
+import {
+  parseReviewCommand,
+  parseRmaCommand,
+  replaceSerialInList,
+  rmaActionsFor,
+  serialKey,
+} from "@/features/inventory/utils/serialRules";
 import { getInstalledSystemSerials, setInstalledSystemSerials } from "@/repositories/installedSystems";
 import {
   clearSerialUnitReview,
@@ -13,6 +19,7 @@ import {
   scrapDetachedUnit,
   listSerialReviewQueue,
   listSerialUnits as listSerialUnitRecords,
+  rmaSerialUnit as rmaSerialUnitRecord,
 } from "@/repositories/inventorySerialUnits";
 
 function badRequest(message: string): never {
@@ -87,3 +94,31 @@ export async function resolveSerialReview(unitId: string, body: unknown): Promis
 
   return listSerialUnitRecords({ installedSystemId: systemId });
 }
+
+/**
+ * One RMA step on a unit: quarantine, repair, return to the supplier or scrap. The unit's
+ * current status decides which steps are open; the database enforces the same rules and posts
+ * the ledger entries, so a stale screen cannot move a unit somewhere it should not go.
+ */
+export async function rmaSerialUnit(unitId: string, body: unknown): Promise<SerialUnit> {
+  const parsed = parseRmaCommand(body);
+  if (!parsed.ok) badRequest(parsed.message);
+  const { command } = parsed;
+
+  const unit = await getSerialUnit(unitId);
+  if (!unit) notFound("Serial unit");
+  if (!rmaActionsFor(unit.status).includes(command.action)) {
+    badRequest(
+      unit.status === "quarantine"
+        ? "This unit is already in quarantine. Repair it, return it to the supplier or scrap it."
+        : unit.status === "in_stock" || unit.status === "installed"
+          ? "Only a quarantined unit can be repaired, returned to the supplier or scrapped."
+          : "This unit has already left service and cannot change.",
+    );
+  }
+
+  const updated = await rmaSerialUnitRecord(unitId, command);
+  if (!updated) notFound("Serial unit");
+  return updated;
+}
+
