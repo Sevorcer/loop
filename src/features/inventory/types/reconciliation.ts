@@ -24,6 +24,13 @@ export interface ReconcileLineRow {
   varianceReason: string | null;
 }
 
+/** A refrigerant cylinder on hand (a unit of a serialized refrigerant item) a line can name. */
+export interface ReconcileCylinder {
+  id: string;
+  serialNumber: string;
+  itemName: string;
+}
+
 export interface ReconciliationView {
   /** A full-closeout job with at least one catalog-linked, non-optional line. */
   required: boolean;
@@ -31,6 +38,8 @@ export interface ReconciliationView {
   enforcement: CloseoutEnforcement;
   overrideReason: string | null;
   lines: ReconcileLineRow[];
+  /** Cylinders the caller can see, for the refrigerant lines. Empty when none are tracked. */
+  cylinders: ReconcileCylinder[];
 }
 
 /** What the person typed for one line. Blank fields arrive as null. */
@@ -40,6 +49,8 @@ export interface ReconcileLineInput {
   returned: number;
   recovered: number | null;
   reason: string | null;
+  /** Refrigerant lines only: the cylinder the refrigerant came from (and a recovery went into). */
+  cylinderUnitId?: string | null;
 }
 
 /** The materials part of the completion checklist. */

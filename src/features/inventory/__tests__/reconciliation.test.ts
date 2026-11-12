@@ -97,6 +97,43 @@ describe("toRpcLines", () => {
   });
 });
 
+describe("cylinders", () => {
+  const refrigerant = row({ itemKind: "refrigerant", unit: "lb", planned: 5, pulled: 5 });
+
+  it("sends the cylinder only when one is named", () => {
+    expect(
+      toRpcLines([{ lineId: "l1", used: 4, returned: 1, recovered: null, reason: null, cylinderUnitId: "u1" }]),
+    ).toEqual([{ line_id: "l1", used: 4, returned: 1, cylinder_unit_id: "u1" }]);
+    expect(
+      toRpcLines([{ lineId: "l1", used: 4, returned: 1, recovered: null, reason: null, cylinderUnitId: null }]),
+    ).toEqual([{ line_id: "l1", used: 4, returned: 1 }]);
+  });
+
+  it("keeps the cylinder on a refrigerant line", () => {
+    const result = validateReconcileInput(
+      [refrigerant],
+      [{ lineId: "l1", used: 4, returned: 1, recovered: null, reason: null, cylinderUnitId: "u1" }],
+    );
+    expect(result.ok && result.value[0].cylinderUnitId).toBe("u1");
+  });
+
+  it("treats a missing cylinder as none", () => {
+    const result = validateReconcileInput(
+      [refrigerant],
+      [{ lineId: "l1", used: 4, returned: 1, recovered: null, reason: null }],
+    );
+    expect(result.ok && result.value[0].cylinderUnitId).toBeNull();
+  });
+
+  it("refuses a cylinder on a line that is not refrigerant", () => {
+    const result = validateReconcileInput(
+      [row()],
+      [{ lineId: "l1", used: 3, returned: 0, recovered: null, reason: null, cylinderUnitId: "u1" }],
+    );
+    expect(result).toEqual({ ok: false, message: "Whip is not refrigerant, so it cannot name a cylinder." });
+  });
+});
+
 describe("staged enforcement", () => {
   const state = (over: Partial<{ required: boolean; reconciled: boolean; enforcement: "warn" | "soft" | "hard" }> = {}) => ({
     required: true,

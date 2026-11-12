@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  ReconcileCylinder,
   ReconcileLineInput,
   ReconcileLineRow,
   ReconciliationStatus,
@@ -94,6 +95,31 @@ export async function listReconcileLines(jobId: string): Promise<ReconcileLineRo
       recoveredQty: toNumber(row.recovered_qty),
       varianceReason: row.variance_reason,
     };
+  });
+}
+
+/**
+ * Refrigerant cylinders on hand: in-stock units of a serialized refrigerant item. Row scope is
+ * RLS (a tech sees the units at their own van or the shop).
+ */
+export async function listReconcileCylinders(): Promise<ReconcileCylinder[]> {
+  const { supabase, orgId } = await getRepositoryContext();
+  const { data, error } = await supabase
+    .from("inventory_serial_units")
+    .select(
+      "id,serial_number,item:catalog_items!inventory_serial_units_item_same_org_fkey!inner(name,item_kind,tracking_mode)",
+    )
+    .eq("org_id", orgId)
+    .eq("status", "in_stock")
+    .eq("item.item_kind", "refrigerant")
+    .eq("item.tracking_mode", "serialized")
+    .order("serial_number", { ascending: true })
+    .limit(500);
+  if (error) throw new Error(error.message);
+  type Row = { id: string; serial_number: string; item: { name: string } | Array<{ name: string }> | null };
+  return ((data ?? []) as unknown as Row[]).map((row) => {
+    const item = Array.isArray(row.item) ? row.item[0] : row.item;
+    return { id: row.id, serialNumber: row.serial_number, itemName: item?.name ?? "" };
   });
 }
 

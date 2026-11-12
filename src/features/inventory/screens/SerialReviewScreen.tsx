@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AccessDenied } from "@/components/atlas/AccessDenied";
 import { EmptyState } from "@/components/atlas/EmptyState";
 import { SectionCard } from "@/components/atlas/SectionCard";
-import { ROUTE_BUILDERS } from "@/lib/routes";
+import { ROUTE_BUILDERS, ROUTES } from "@/lib/routes";
 import { hasPermission } from "@/services/authorization";
 import { listSerialReview } from "@/services/inventorySerialUnits";
 
@@ -35,6 +35,11 @@ export async function SerialReviewScreen() {
     <InventoryFrame
       title="Inventory"
       description="Serial numbers that need a person to look at them. Nothing here is merged or fixed automatically."
+      actions={
+        <Link href={ROUTES.INVENTORY_SERIALS_QUARANTINE} className={`${linkClass} text-sm text-muted`}>
+          Quarantine
+        </Link>
+      }
     >
       <SectionCard
         title="Serial review"

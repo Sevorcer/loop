@@ -498,6 +498,16 @@ Three more SECURITY DEFINER functions with a pinned `search_path` and no EXECUTE
 
 `inventory_serial_review_queue` (still `security_invoker`) gains reason `detached_unit`: status installed, on no system, not in a duplicate group.
 
+### RMA / quarantine and refrigerant cylinders (20261128300000)
+
+No new tables and no policy changes: `inventory_serial_units` keeps the five policies from 20261128000000 (ops read; owner, manager, office write; owner deletes).
+
+`rma_serial_unit(unit, action, location, note)` is the only way a unit enters or leaves quarantine or is returned to the supplier. SECURITY DEFINER, pinned `search_path`, no EXECUTE for `anon`; `authenticated` can call it and the function itself allows only owner, manager and office. Actions: `quarantine` (in stock or installed), `return_to_supplier`, `scrap` and `repair` (quarantined units only). It posts the ledger entries in the same transaction (quantity 1, `serial_unit_id`): a transfer pair into quarantine, a `receive` for a unit coming back from an installed system, an `adjust` of -1 for return and scrap, a transfer pair back to a stock location on repair. Quarantining releases the unit's material-line pick and takes it off its system (the system keeps its warranty).
+
+`fn_inventory_serial_unit_rma_guard` (BEFORE UPDATE OF status, SECURITY DEFINER, pinned `search_path`, no EXECUTE for `authenticated` or `anon`) fixes the legal moves and refuses any move into or out of quarantine, or to returned_to_supplier, unless the transaction-local flag `loop.rma` is on. Only `rma_serial_unit` sets it. Returned and scrapped are final. The moves the other flows make (adoption to installed, the detached-unit scrap, the bridge) stay legal.
+
+`refrigerant_log_entries.serial_unit_id` gets a same-org FK to units, ON DELETE RESTRICT (a unit named on the EPA log cannot be deleted). The log stays append-only and closed to direct writes; `reconcile_job_materials` (replaced, copied from 20261126600000, same grants) now accepts an optional `cylinder_unit_id` per line and writes it to that line's log entries. A cylinder must be an in-stock unit of a serialized refrigerant catalog item and the line must be a quantity-tracked refrigerant line.
+
 ---
 
 ## Deny Rules — Hard Blocks

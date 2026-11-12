@@ -58,6 +58,9 @@ export function validateReconcileInput(
         return { ok: false, message: `Quantities for ${row.name} must be zero or more.` };
       }
     }
+    if (input.cylinderUnitId && row.itemKind !== "refrigerant") {
+      return { ok: false, message: `${row.name} is not refrigerant, so it cannot name a cylinder.` };
+    }
     if (input.reason && input.reason.length > VARIANCE_REASON_MAX) {
       return { ok: false, message: `The reason for ${row.name} is too long.` };
     }
@@ -72,6 +75,7 @@ export function validateReconcileInput(
       returned: roundQty(input.returned),
       recovered: input.recovered === null ? null : roundQty(input.recovered),
       reason: input.reason?.trim() ? input.reason.trim() : null,
+      cylinderUnitId: input.cylinderUnitId ? input.cylinderUnitId : null,
     });
   }
   if (out.length === 0) return { ok: false, message: "There are no material lines to reconcile." };
@@ -86,6 +90,7 @@ export function toRpcLines(inputs: ReconcileLineInput[]): Array<Record<string, u
     returned: input.returned,
     ...(input.recovered === null ? {} : { recovered: input.recovered }),
     ...(input.reason ? { reason: input.reason } : {}),
+    ...(input.cylinderUnitId ? { cylinder_unit_id: input.cylinderUnitId } : {}),
   }));
 }
 

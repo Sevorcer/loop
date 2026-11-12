@@ -6,6 +6,7 @@
  * together; serialRules.test.ts pins the list.
  */
 
+import { RMA_ACTIONS, type RmaCommand } from "../types/serials";
 import type {
   SerialReviewCommand,
   SerialReviewReason,
@@ -235,4 +236,64 @@ export function systemSerialsFromUnits(
     }
   }
   return serials;
+}
+
+export const RMA_NOTE_MAX = 300;
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type RmaCommandCheck = { ok: true; command: RmaCommand } | { ok: false; message: string };
+
+/**
+ * Validates the body of an RMA command. repair needs the location the unit goes back to;
+ * quarantine may name a quarantine location (otherwise the database picks or creates one);
+ * return_to_supplier and scrap take none. The note is optional.
+ */
+export function parseRmaCommand(body: unknown): RmaCommandCheck {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, message: "action is required." };
+  const { action, locationId, note } = body as { action?: unknown; locationId?: unknown; note?: unknown };
+
+  if (typeof action !== "string" || !(RMA_ACTIONS as readonly string[]).includes(action)) {
+    return { ok: false, message: "action must be quarantine, return_to_supplier, repair or scrap." };
+  }
+
+  let location: string | undefined;
+  if (locationId !== undefined && locationId !== null && locationId !== "") {
+    if (typeof locationId !== "string" || !UUID_PATTERN.test(locationId)) {
+      return { ok: false, message: "locationId must be a location id." };
+    }
+    location = locationId;
+  }
+  if (action === "repair" && !location) {
+    return { ok: false, message: "Choose the location the repaired unit goes back to." };
+  }
+  if ((action === "return_to_supplier" || action === "scrap") && location) {
+    return { ok: false, message: "That action does not take a location." };
+  }
+
+  let text: string | undefined;
+  if (note !== undefined && note !== null) {
+    if (typeof note !== "string") return { ok: false, message: "note must be text." };
+    const trimmed = note.trim();
+    if (trimmed.length > RMA_NOTE_MAX) {
+      return { ok: false, message: `The note must be ${RMA_NOTE_MAX} characters or fewer.` };
+    }
+    if (trimmed) text = trimmed;
+  }
+
+  return {
+    ok: true,
+    command: {
+      action: action as RmaCommand["action"],
+      ...(location ? { locationId: location } : {}),
+      ...(text ? { note: text } : {}),
+    },
+  };
+}
+
+/** What a unit can do next from its status; the buttons on the quarantine screen follow this. */
+export function rmaActionsFor(status: string): RmaCommand["action"][] {
+  if (status === "in_stock" || status === "installed") return ["quarantine"];
+  if (status === "quarantine") return ["repair", "return_to_supplier", "scrap"];
+  return [];
 }
